@@ -1,0 +1,14 @@
+build
+include
+dist
+src
+wrpme
+wrpme.py
+wrpme_python_wrapper.cxx
+impl.py
+MANIFEST
+prepare.py
+setup.py
+wrpme-python-api*
+/README.txt
+/wrpme_python_wrapper.cxx
