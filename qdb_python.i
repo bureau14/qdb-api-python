@@ -110,8 +110,8 @@ class handle
 {
 
 public:
-    explicit handle(qdb_handle_t h);    
-    handle(void);        
+    explicit handle(qdb_handle_t h);
+    handle(void);
     ~handle(void);
 
     void close(void);
@@ -122,9 +122,9 @@ public:
     qdb_error_t get(const char * alias, char * content, size_t * content_length);
     api_buffer_ptr get(const char * alias, qdb_error_t & error);
     api_buffer_ptr get_update(const char * alias, const char * update_content, size_t update_content_length, qdb_error_t & error);
-    api_buffer_ptr compare_and_swap(const char * alias, 
-        const char * new_value, 
-        size_t new_value_length, 
+    api_buffer_ptr compare_and_swap(const char * alias,
+        const char * new_value,
+        size_t new_value_length,
         const char * comparand,
         size_t comparand_length,
         qdb_error_t & error);
@@ -155,9 +155,9 @@ api_buffer_ptr get_update(handle_ptr h, const char * alias, const char * update_
     return h->get_update(alias, update_content, update_content_length, error->error);
 }
 
-api_buffer_ptr compare_and_swap(handle_ptr h, const char * alias, 
-    const char * new_value, 
-    size_t new_value_length, 
+api_buffer_ptr compare_and_swap(handle_ptr h, const char * alias,
+    const char * new_value,
+    size_t new_value_length,
     const char * comparand,
     size_t comparand_length,
     error_carrier * error)

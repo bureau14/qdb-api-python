@@ -13,6 +13,7 @@ qdb_version = "@QDB_VERSION@"
 # A python binary module is like a dynamic library, use the same linking flags.
 extra_link_args = "@ADDITIONNAL_LINK_FLAGS@".strip().split(';')
 extra_compile_args ="@QDB_PYTHON_COMPILE_FLAG@".split(';')
+extra_compile_args.append('-std=c++0x')
 
 package_modules = glob.glob(os.path.join('qdb', '*.dll')) + glob.glob(os.path.join('qdb', 'lib*'))
 
