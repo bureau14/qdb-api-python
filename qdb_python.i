@@ -67,6 +67,8 @@ const char * qdb_version();
 const char * qdb_build();
 
 %inline%{
+#include <memory>
+
 namespace qdb
 {
 struct error_carrier
