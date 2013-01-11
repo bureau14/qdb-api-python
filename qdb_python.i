@@ -1,7 +1,7 @@
 %module(package="qdb") qdb
 %{
 
-#include <qdb/client.hpp>
+#include <qdb/client.h>
 
 %}
 
