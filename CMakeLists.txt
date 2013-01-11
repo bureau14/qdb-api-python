@@ -44,13 +44,24 @@ IF(CMAKE_BUILD_TYPE STREQUAL Release)
   # copy readme.txt
   configure_file(${README_TXT_FILE} ${CMAKE_CURRENT_SOURCE_DIR} COPYONLY)
 
+  IF(MSVC)
   # SWIG wrapper
-  add_custom_target(
-    qdb_python_api ALL
-    ${SWIG_EXECUTABLE} -c++ -python -o ${QDB_PY_WRAPPER} -outdir ${CMAKE_CURRENT_SOURCE_DIR} -O -module impl -interface _qdb qdb_python.i
-    DEPENDS qdb_api qdb_python.i
-    SOURCES qdb_python.i __init__.py
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    add_custom_target(
+      qdb_python_api ALL
+      ${SWIG_EXECUTABLE} -c++ -python -o ${QDB_PY_WRAPPER} -outdir ${CMAKE_CURRENT_SOURCE_DIR} -O -module impl -interface _qdb qdb_python_windows.i
+      DEPENDS qdb_api qdb_python_windows.i
+      SOURCES qdb_python_windows.i __init__.py
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+  ELSE(MSVC)
+    add_custom_target(
+      qdb_python_api ALL
+      ${SWIG_EXECUTABLE} -c++ -python -o ${QDB_PY_WRAPPER} -outdir ${CMAKE_CURRENT_SOURCE_DIR} -O -module impl -interface _qdb qdb_python_unix.i
+      DEPENDS qdb_api qdb_python_unix.i
+      SOURCES qdb_python_unix.i __init__.py
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+  ENDIF(MSVC)
+
+    
 
   set_target_properties(qdb_python_api PROPERTIES FOLDER ${CLIENT_API_IDE_FOLDER})
 
