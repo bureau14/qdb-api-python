@@ -47,7 +47,7 @@ IF(CMAKE_BUILD_TYPE STREQUAL Release)
   # SWIG wrapper
   add_custom_target(
     qdb_python_api ALL
-    ${SWIG_EXECUTABLE} -python -o ${QDB_PY_WRAPPER} -outdir ${CMAKE_CURRENT_SOURCE_DIR} -O -module impl -interface _qdb qdb_python.i
+    ${SWIG_EXECUTABLE} -c++ -python -o ${QDB_PY_WRAPPER} -outdir ${CMAKE_CURRENT_SOURCE_DIR} -O -module impl -interface _qdb qdb_python.i
     DEPENDS qdb_api qdb_python.i
     SOURCES qdb_python.i __init__.py
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})

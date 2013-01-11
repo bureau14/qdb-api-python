@@ -1,11 +1,10 @@
 %module(package="qdb") qdb
 %{
 
-#include <qdb/client.h>
+#include <qdb/client.hpp>
 
 %}
 
-#define SWIG_SHARED_PTR_SUBNAMESPACE tr1
 %include <std_shared_ptr.i>
 %shared_ptr(qdb::api_buffer)
 %shared_ptr(qdb::handle)
@@ -75,7 +74,7 @@ struct error_carrier
     qdb_error_t error;
 };
 class handle;
-typedef std::tr1::shared_ptr<handle> handle_ptr;
+typedef std::shared_ptr<handle> handle_ptr;
 }
 %}
 
@@ -103,7 +102,7 @@ private:
     const size_t _length;
 };
 
-typedef std::tr1::shared_ptr<api_buffer> api_buffer_ptr;
+typedef std::shared_ptr<api_buffer> api_buffer_ptr;
 
 class handle
 {
@@ -136,7 +135,7 @@ private:
 
 };
 
-typedef std::tr1::shared_ptr<handle> handle_ptr;
+typedef std::shared_ptr<handle> handle_ptr;
 
 }
 
