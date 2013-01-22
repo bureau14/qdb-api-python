@@ -51,14 +51,14 @@ enum qdb_error_t
     qdb_e_invalid_argument = 24,
     qdb_e_out_of_bounds = 25,
     qdb_e_conflict = 26,
-    qdb_e_not_connected = 27
+    qdb_e_not_connected = 27,
+    qdb_e_invalid_handle = 28
 };
 
 enum qdb_option_t
 {
-    qdb_o_log_function = 0,    /* qdb_log_function */
-    qdb_o_log_context,         /* void * */
-    qdb_o_operation_timeout,   /* int */
+    qdb_o_operation_timeout = 0,                /* int */
+    qdb_o_stream_buffer_size
 };
 
 %rename(version) qdb_version;
@@ -68,16 +68,12 @@ const char * qdb_version();
 const char * qdb_build();
 
 %inline%{
-#include <memory>
-
 namespace qdb
 {
 struct error_carrier
 {
     qdb_error_t error;
 };
-class handle;
-typedef std::shared_ptr<handle> handle_ptr;
 }
 %}
 
@@ -111,12 +107,19 @@ class handle
 {
 
 public:
-    explicit handle(qdb_handle_t h);
     handle(void);
     ~handle(void);
 
+private:
+    handle(const handle &);
+
+public:
     void close(void);
+    bool connected(void) const;
     void set_timeout(int timeout);
+
+    qdb_error_t connect(const char * host, unsigned short port);
+    size_t multi_connect(const char * const * hosts, const unsigned short * ports, qdb_error_t * errors, size_t count);
 
     qdb_error_t put(const char * alias, const char * content, size_t content_length);
     qdb_error_t update(const char * alias, const char * content, size_t content_length);
@@ -168,8 +171,9 @@ api_buffer_ptr compare_and_swap(handle_ptr h, const char * alias,
 
 handle_ptr connect(const char * host, unsigned short port, error_carrier * error)
 {
-    return handle_ptr(new handle(connect(host, port, error->error)));
+    handle_ptr h(new handle());
+    error->error = h->connect(host, port);
+    return h;
 }
-
 }
 %}
