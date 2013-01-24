@@ -52,7 +52,8 @@ enum qdb_error_t
     qdb_e_out_of_bounds = 25,
     qdb_e_conflict = 26,
     qdb_e_not_connected = 27,
-    qdb_e_invalid_handle = 28
+    qdb_e_invalid_handle = 28,
+    qdb_e_reserved_alias = 29
 };
 
 enum qdb_option_t
