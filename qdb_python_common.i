@@ -5,6 +5,7 @@
 
 %}
 
+%include "std_string.i"
 %include <std_shared_ptr.i>
 %shared_ptr(qdb::api_buffer)
 %shared_ptr(qdb::handle)
@@ -36,4 +37,8 @@ const char * qdb_version();
 %rename(build) qdb_build;
 const char * qdb_build();
 
+namespace qdb
+{
+std::string make_error_string(qdb_error_t error);
+}
 
