@@ -59,6 +59,7 @@ class OutOfBounds(QuasardbException)          : pass
 class Conflict(QuasardbException)             : pass
 class NotConnected(QuasardbException)         : pass
 class InvalidHandle(QuasardbException)        : pass
+class ReservedAlias(QuasardbException)        : pass
 
 """ Internal - map qdb error codes to python exceptions"""
 _errcode_to_exc = {
@@ -90,7 +91,8 @@ _errcode_to_exc = {
     impl.error_out_of_bounds         : OutOfBounds        ,
     impl.error_conflict              : Conflict           ,
     impl.error_not_connected         : NotConnected       ,
-    impl.error_invalid_handle        : InvalidHandle
+    impl.error_invalid_handle        : InvalidHandle      ,
+    impl.error_reserved_alias        : ReservedAlias
 }
 
 def _safe_alias_output(alias):
