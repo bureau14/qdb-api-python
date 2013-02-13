@@ -31,6 +31,7 @@ import cPickle as pickle
 
 """ Exceptions """
 class QuasardbException(Exception)            : pass
+class Uninitialized(QuasardbException)        : pass
 class System(QuasardbException)               : pass
 class Internal(QuasardbException)             : pass
 class NoMemory(QuasardbException)             : pass
@@ -43,7 +44,6 @@ class AliasAlreadyExists(QuasardbException)   : pass
 class Timeout(QuasardbException)              : pass
 class BufferTooSmall(QuasardbException)       : pass
 class InvalidCommand(QuasardbException)       : pass
-class InvalidInput(QuasardbException)         : pass
 class ConnectionRefused(QuasardbException)    : pass
 class ConnectionReset(QuasardbException)      : pass
 class UnexpectedReply(QuasardbException)      : pass
@@ -63,6 +63,7 @@ class ReservedAlias(QuasardbException)        : pass
 
 """ Internal - map qdb error codes to python exceptions"""
 _errcode_to_exc = {
+    impl.error_unimplemented         : Uninitialized      ,
     impl.error_ok                    : None               ,
     impl.error_system                : System             ,
     impl.error_internal              : Internal           ,
@@ -76,7 +77,6 @@ _errcode_to_exc = {
     impl.error_timeout               : Timeout            ,
     impl.error_buffer_too_small      : BufferTooSmall     ,
     impl.error_invalid_command       : InvalidCommand     ,
-    impl.error_invalid_input         : InvalidInput       ,
     impl.error_connection_refused    : ConnectionRefused  ,
     impl.error_connection_reset      : ConnectionReset    ,
     impl.error_unexpected_reply      : UnexpectedReply    ,
