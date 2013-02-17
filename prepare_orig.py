@@ -12,11 +12,13 @@ dirs_to_build = [package_include_dir, 'src', 'qdb']
 header_files = ["@QDB_API_C_HEADER@", "@QDB_API_CPP_HEADER@"]
 library_dir = "@ACTUAL_LIBRARY_PATH@"
 cpp_libs = "@QDB_CPP_LIBS@".split(';')
-package_modules = ['@QDB_API_DLL@',
-                  '@TBB_SHARED@',
-                  '@TBB_MALLOC_SHARED@'] + cpp_libs
-python_modules = ['@QDB_PY_IMPL@',
-                  '@QDB_PY_INTERFACE@']
+package_modules = ['@QDB_API_DLL@', '@TBB_SHARED@', '@TBB_MALLOC_SHARED@'] 
+
+# cpp_libs can be empty don't add an empty list
+if len(cpp_libs) > 0:
+    package_modules.extend(cpp_libs)
+
+python_modules = ['@QDB_PY_IMPL@', '@QDB_PY_INTERFACE@']
 
 malloc_proxy = '@TBB_MALLOC_PROXY_SHARED@'
 if len(malloc_proxy) > 0:
@@ -36,6 +38,9 @@ lib = os.path.join(library_dir, 'qdb_api.lib')
 if os.path.exists(lib):
     shutil.copy(lib, 'qdb')
 
+# filter out all empty fields
+all_modules = filter(lambda x: len(x) > 0, package_modules + python_modules)
+
 # copy package files
-for mod in package_modules + python_modules:
+for mod in all_modules:
     shutil.copy(mod, 'qdb')
