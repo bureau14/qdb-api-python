@@ -63,7 +63,7 @@ class ReservedAlias(QuasardbException)        : pass
 
 """ Internal - map qdb error codes to python exceptions"""
 _errcode_to_exc = {
-    impl.error_unimplemented         : Uninitialized      ,
+    impl.error_uninitialized         : Uninitialized      ,
     impl.error_ok                    : None               ,
     impl.error_system                : System             ,
     impl.error_internal              : Internal           ,
