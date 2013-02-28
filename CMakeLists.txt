@@ -7,7 +7,7 @@ IF(CMAKE_BUILD_TYPE STREQUAL Release)
   SET(QDB_API_NAME "qdb_api")
   SET(QDB_PY_IMPL ${CMAKE_CURRENT_SOURCE_DIR}/impl.py)
   SET(QDB_PY_INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py)
-  SET(QDB_PY_WRAPPER ${CMAKE_CURRENT_SOURCE_DIR}/qdb_python_wrapper.cxx)
+  SET(QDB_PY_WRAPPER qdb_python_wrapper.cxx)
 
   get_target_property(QDB_API_DLL qdb_api LOCATION_Release)
 
@@ -61,7 +61,7 @@ IF(CMAKE_BUILD_TYPE STREQUAL Release)
       COMMENT "Generating qdb interface for the Python language")
   ENDIF(MSVC)
 
-  add_custom_target(qdb_python_api
+  add_custom_target(qdb_python_api ALL
        COMMAND ${PYTHON_EXECUTABLE} prepare.py
        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
        DEPENDS ${QDB_PY_WRAPPER}
@@ -71,7 +71,7 @@ IF(CMAKE_BUILD_TYPE STREQUAL Release)
 
   IF(MSVC)
     add_custom_command(
-       TARGET qdb_python_api
+       TARGET qdb_python_api 
        COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_wininst
        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
        DEPENDS ${QDB_PY_INTERFACE} ${QDB_PY_IMPL} ${QDB_PY_WRAPPER}
