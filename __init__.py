@@ -95,9 +95,11 @@ class RawClient(object):
         """ Creates the raw client.
         Connection is delayed until the client is actually used.
         If the client is not used for some time, the connection is dropped and reestablished at need.
-        Arguments:
-            - hostname: The hostname, either a DNS name, an IPv4 or an IPv6 adress (e.g. "127.0.0.1", "::1", "myserver.mydomain")
-            - port: The port, defaults to 2836
+
+            :param remote_node: The remote node to connect to
+            :type remote_node: RemoteNode
+
+            :raises: QuasardbException
         """
         err = self.__make_error_carrier()
         self.handle = impl.connect(remote_node.c_type(), err)
@@ -112,11 +114,15 @@ class RawClient(object):
 
     def put(self, alias, data):
         """ Put a piece of data in the repository.
-        If the alias is already in the repository, this method raises a qdb.AliasAlreadyExists exception.
+        If the alias is already in the repository, this method raises a QuasardbException exception.
         Use the update() method to update an alias.
-        Arguments:
-            - alias: str, Alias of the data.
-            - data: str, The data.
+
+            :param alias: The alias to update 
+            :type alias: str
+            :param data: The content for the alias
+            :type data: str
+
+            :raises: QuasardbException
         """
         err = self.handle.put(alias, data)
         if err != impl.error_ok:
@@ -124,10 +130,14 @@ class RawClient(object):
 
     def update(self, alias, data):
         """ Update the given alias
-        If the alias is not found in the repository, this method raises a qdb.AliasNotFound exception.
-        Arguments:
-            - alias: str, Alias of the data.
-            - data: str, The data.
+        If the alias is not found in the repository, the entry is created.
+
+            :param alias: The alias to update 
+            :type alias: str
+            :param data: The content for the alias
+            :type data: str
+
+            :raises: QuasardbException
         """
         err = self.handle.update(alias, data)
         if err != impl.error_ok:
@@ -135,11 +145,13 @@ class RawClient(object):
 
     def get(self, alias):
         """ Get the data for the given alias.
-        If the alias is not found in the repository, this method raises a qdb.AliasNotFound exception.
-        Arguments:
-            - alias: str, The alias.
-        Returns:
-            The data
+        If the alias is not found in the repository, this method raises a QuasardbException exception.
+        
+            :param alias: The alias to get 
+            :type alias: str
+
+            :return: The associated content
+            :raises: QuasardbException
         """
         err = self.__make_error_carrier()
         buf = impl.get(self.handle, alias, err)
@@ -150,10 +162,15 @@ class RawClient(object):
 
     def get_update(self, alias, data):
         """ Update the given alias and return the previous value
-        If the alias is not found in the repository, this method raises a qdb.AliasNotFound exception.
-        Arguments:
-            - alias: str, Alias of the data.
-            - data: str, The data.
+        If the alias is not found in the repository, this method raises a QuasardbException exception.
+
+            :param alias: The alias to get 
+            :type alias: str
+            :param data: The new data to put in place
+            :type data: str
+
+            :return: The original content
+            :raises: QuasardbException
         """
         err = self.__make_error_carrier()
         buf = impl.get_update(self.handle, alias, data, err)
@@ -164,10 +181,16 @@ class RawClient(object):
 
     def compare_and_swap(self, alias, new_data, comparand):
         """ Compare the alias with comparand and replace it with new_data if it matches
-        Arguments:
-            - alias: str, Alias of the data.
-            - new_data: str, the new data to use in case of match
-            - comparand: str, the data to compare the existing entry with
+
+            :param alias: The alias to compare to
+            :type alias: str
+            :param new_data: The new content to put in place if the comparand matches
+            :type new_data: str
+            :param comparand: The content to compare to
+            :type comparand: str
+
+            :return: The original content
+            :raises: QuasardbException
         """
         err = self.__make_error_carrier()
         buf = impl.compare_and_swap(self.handle, alias, new_data, comparand, err)
@@ -247,6 +270,22 @@ class RawClient(object):
         """
         err = self.__make_error_carrier()
         res = impl.node_status(self.handle, remote_node.c_type(), err)
+        if err.error != impl.error_ok:
+            raise QuasardbException(err.error)
+        return json.loads(res)
+
+    def node_topology(self, remote_node):
+        """ Retrieve the topology of a given node in JSON format.
+
+            :param remote_node: The node to obtain the topology from.
+            :type remote_node: RemoteNode
+
+            :returns: A JSON object containing the topology
+
+            :raises: QuasardbException
+        """
+        err = self.__make_error_carrier()
+        res = impl.node_topology(self.handle, remote_node.c_type(), err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
         return json.loads(res)

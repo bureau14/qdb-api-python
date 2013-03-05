@@ -33,6 +33,11 @@ std::string node_config(handle_ptr h, const qdb_remote_node_t * node, error_carr
     return h->node_config(*node, error->error);
 }
 
+std::string node_topology(handle_ptr h, const qdb_remote_node_t * node, error_carrier * error)
+{
+    return h->node_topology(*node, error->error);
+}
+
 handle_ptr connect(const qdb_remote_node_t * node, error_carrier * error)
 {
     handle_ptr h(new handle());
