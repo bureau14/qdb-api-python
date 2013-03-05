@@ -52,11 +52,15 @@ class QuasardbException(Exception):
 
 def version():
     """ Returns the API's version number as a string
+
+    :return: The API version number
     """
     return impl.version()
 
 def build():
     """ Returns the build tag and build date as a string
+
+    :return: The API build tag
     """
     return impl.build()
 
@@ -86,6 +90,7 @@ class RawClient(object):
     """ The raw client takes strings as arguments for both alias and data.
     If you want to put and get other objects, use the qdb.Client instead.
     """
+
     def __make_error_carrier(self):
         err = impl.error_carrier()
         err.error = impl.error_uninitialized
@@ -216,8 +221,7 @@ class RawClient(object):
 
             :raises: QuasardbException
 
-            .. note::
-
+            .. caution::
                 This method is intended for very specific usage scenarii. Use at your own risks.
         """
         err = self.handle.remove_all()
@@ -234,8 +238,7 @@ class RawClient(object):
 
             :raises: QuasardbException
 
-            .. note::
-
+            .. caution::
                 This method is intended for very specific usage scenarii. Use at your own risks.
         """
         err = self.handle.stop_node(remote_node.c_type(), reason)
