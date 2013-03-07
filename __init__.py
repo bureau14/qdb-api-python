@@ -122,12 +122,12 @@ class RawClient(object):
         If the alias is already in the repository, this method raises a QuasardbException exception.
         Use the update() method to update an alias.
 
-            :param alias: The alias to update 
-            :type alias: str
-            :param data: The content for the alias
-            :type data: str
+        :param alias: The alias to update 
+        :type alias: str
+        :param data: The content for the alias
+        :type data: str
 
-            :raises: QuasardbException
+        :raises: QuasardbException
         """
         err = self.handle.put(alias, data)
         if err != impl.error_ok:

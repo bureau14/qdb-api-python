@@ -63,6 +63,7 @@ IF(CMAKE_BUILD_TYPE STREQUAL Release)
 
   add_custom_target(qdb_python_api ALL
        COMMAND ${PYTHON_EXECUTABLE} prepare.py
+       COMMENT "Preparing quasardb Python API"
        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
        DEPENDS ${QDB_PY_WRAPPER}
        SOURCES ${QDB_PY_WRAPPER} ${QDB_PYTHON_SWIG_FILES})
@@ -75,6 +76,7 @@ IF(CMAKE_BUILD_TYPE STREQUAL Release)
        COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_wininst
        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
        DEPENDS ${QDB_PY_INTERFACE} ${QDB_PY_IMPL} ${QDB_PY_WRAPPER}
+       COMMENT "Preparing quasardb Python API Windows redist"
        POST_BUILD)
   ENDIF(MSVC)
 
@@ -84,6 +86,7 @@ IF(CMAKE_BUILD_TYPE STREQUAL Release)
    COMMAND ${PYTHON_EXECUTABLE} setup.py sdist
    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
    DEPENDS ${QDB_PY_INTERFACE} ${QDB_PY_IMPL} ${QDB_PY_WRAPPER}
+   COMMENT "Preparing quasardb Python API source package"
    POST_BUILD)
 
 ENDIF()
