@@ -28,9 +28,19 @@ IF(CMAKE_BUILD_TYPE STREQUAL Release)
     SET(TBB_SHARED ${ACTUAL_Tbb_LIBRARY_RELEASE})
     SET(TBB_MALLOC_SHARED ${ACTUAL_Tbb_MALLOC_LIBRARY_RELEASE})
     SET(TBB_MALLOC_PROXY_SHARED ${ACTUAL_Tbb_MALLOC_PROXY_LIBRARY_RELEASE})
-    SET(QDB_CPP_LIBS ${GCC_ADDITIONAL_LIBS})
     SET(ACTUAL_LIBRARY_PATH ${LIBRARY_OUTPUT_PATH})
-    SET(QDB_PYTHON_COMPILE_FLAG -std=c++0x)
+    
+
+    IF(CLANG)
+      SET(QDB_PYTHON_COMPILE_FLAG -std=c++11 -stdlib=libc++ -fcxx-exceptions -fexceptions)
+      # on FreeBSD everything should be in the system
+      SET(QDB_CPP_LIBS "")
+    ELSE(CLANG)
+      SET(QDB_PYTHON_COMPILE_FLAG -std=c++0x)
+      # on Linux we might need some libraries, we can't guess which Linux will be used
+      SET(QDB_CPP_LIBS ${GCC_ADDITIONAL_LIBS})
+    ENDIF(CLANG)
+
     SET(QDB_PYTHON_SWIG_FILES qdb_python_unix.i qdb_python_adapters.i qdb_python_common.i)
   ENDIF(MSVC)
 
@@ -72,12 +82,35 @@ IF(CMAKE_BUILD_TYPE STREQUAL Release)
 
   IF(MSVC)
     add_custom_command(
-       TARGET qdb_python_api 
+       TARGET qdb_python_api
        COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_wininst
        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
        DEPENDS ${QDB_PY_INTERFACE} ${QDB_PY_IMPL} ${QDB_PY_WRAPPER}
        COMMENT "Preparing quasardb Python API Windows redist"
        POST_BUILD)
+  ELSE(MSVC)
+    # on Unixes we build only to make sure the library compiles and to allow for the documentation generation to work properly
+    # as it will parse the libraries
+    # we don't redistribute the generated files
+    # this weird wrapping through CMake is hack to enable us to set the "CC" environment variable which enables us to
+    # to tell to Python distutils: please use this compiler to build the extension
+    IF(CLANG)
+      add_custom_command(
+         TARGET qdb_python_api
+         COMMAND ${CMAKE_COMMAND} -P clang_build_wrap.cmake
+         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+         DEPENDS ${QDB_PY_INTERFACE} ${QDB_PY_IMPL} ${QDB_PY_WRAPPER}
+         COMMENT "Compiling quasardb Python API using clang"
+         POST_BUILD)
+    ELSE(CLANG)
+      add_custom_command(
+         TARGET qdb_python_api
+         COMMAND ${CMAKE_COMMAND} -P gcc46_build_wrap.cmake
+         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+         DEPENDS ${QDB_PY_INTERFACE} ${QDB_PY_IMPL} ${QDB_PY_WRAPPER}
+         COMMENT "Compiling quasardb Python API using gcc46"
+         POST_BUILD)
+    ENDIF(CLANG)
   ENDIF(MSVC)
 
   # dist file
@@ -88,5 +121,14 @@ IF(CMAKE_BUILD_TYPE STREQUAL Release)
    DEPENDS ${QDB_PY_INTERFACE} ${QDB_PY_IMPL} ${QDB_PY_WRAPPER}
    COMMENT "Preparing quasardb Python API source package"
    POST_BUILD)
+
+  # this is needed for the configuration generation we copy the compiler Python extension in an appropriate directory to allow full documentation parsing
+  add_custom_target(qdb_python_api_post ALL
+    COMMAND ${PYTHON_EXECUTABLE} post_build_copy.py
+    COMMENT "Copying binary file for documentation"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    DEPENDS qdb_python_api)
+
+  set_target_properties(qdb_python_api_post PROPERTIES FOLDER ${CLIENT_API_IDE_FOLDER})
 
 ENDIF()

@@ -68,7 +68,7 @@ def api_buffer_to_string(buf):
     return str(buf.data())[:buf.size()]
 
 class RemoteNode:
-    """ Convenience wrapper for low level qdb_remote_node_t structure"""
+    """ Convenience wrapper for the low level qdb.impl.qdb_remote_node_t structure"""
     def __init__(self, address, port = 2836):
         self.address = address
         self.port = port
@@ -88,7 +88,7 @@ class RemoteNode:
 
 class RawClient(object):
     """ The raw client takes strings as arguments for both alias and data.
-    If you want to put and get other objects, use the qdb.Client instead.
+    If you want to put and get other objects, use :py:class:`Client` instead.
     """
 
     def __make_error_carrier(self):
@@ -119,15 +119,15 @@ class RawClient(object):
 
     def put(self, alias, data):
         """ Put a piece of data in the repository.
-        If the alias is already in the repository, this method raises a QuasardbException exception.
-        Use the update() method to update an alias.
+        If the alias is already in the repository, this method raises a :py:exc:`QuasardbException` exception.
+        Use the :py:meth:`update` method to update an alias.
 
-        :param alias: The alias to update 
-        :type alias: str
-        :param data: The content for the alias
-        :type data: str
+            :param alias: The alias to update 
+            :type alias: str
+            :param data: The content for the alias
+            :type data: str
 
-        :raises: QuasardbException
+            :raises: QuasardbException
         """
         err = self.handle.put(alias, data)
         if err != impl.error_ok:
@@ -150,7 +150,7 @@ class RawClient(object):
 
     def get(self, alias):
         """ Get the data for the given alias.
-        If the alias is not found in the repository, this method raises a QuasardbException exception.
+        If the alias is not found in the repository, this method raises a :py:exc:`QuasardbException` exception.
         
             :param alias: The alias to get 
             :type alias: str
@@ -167,7 +167,7 @@ class RawClient(object):
 
     def get_update(self, alias, data):
         """ Update the given alias and return the previous value
-        If the alias is not found in the repository, this method raises a QuasardbException exception.
+        If the alias is not found in the repository, this method raises a :py:exc:`QuasardbException` exception.
 
             :param alias: The alias to get 
             :type alias: str
