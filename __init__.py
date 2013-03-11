@@ -26,20 +26,28 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+"""
+.. module: qdb
+    :platform: Unix, Windows
+    :synopsis: quasardb official Python API
+
+.. moduleauthor: Bureau 14 SARL, All rights reserved
+"""
+
 import qdb.impl as impl
 import cPickle as pickle
 import json
 
 def make_error_string(error_code):
-    """ Return a meaningful error message corresponding to the quasardb error code.
+    """ Returns a meaningful error message corresponding to the quasardb error code.
 
     :param error_code: The error code to translate
-    :returns: An error string
+    :returns: str -- An error string
     """
     return impl.make_error_string(error_code)
 
 class QuasardbException(Exception):
-    """Quasardb exception"""
+    """The quasardb exception, based on the API error codes."""
     def __init__(self, error_code):
         Exception.__init__(self)
         self.error_code = error_code
@@ -53,14 +61,14 @@ class QuasardbException(Exception):
 def version():
     """ Returns the API's version number as a string
 
-    :return: The API version number
+    :returns: str -- The API version number
     """
     return impl.version()
 
 def build():
     """ Returns the build tag and build date as a string
 
-    :return: The API build tag
+    :returns: str -- The API build tag
     """
     return impl.build()
 
@@ -70,6 +78,12 @@ def api_buffer_to_string(buf):
 class RemoteNode:
     """ Convenience wrapper for the low level qdb.impl.qdb_remote_node_t structure"""
     def __init__(self, address, port = 2836):
+        """Create a RemoteNode object. 
+        :param address: The address of the remote node (IP address or qualified name)
+        :type address: str
+        :param port: The port number of the remote node to connect to
+        :type port: int
+        """
         self.address = address
         self.port = port
         self.error = impl.error_uninitialized
@@ -78,6 +92,10 @@ class RemoteNode:
         return "quasardb remote node: " + self.address + ":" + str(self.port) + " - error status:" + make_error_string(self.error)
 
     def c_type(self):
+        """
+        Converts the RemoteNode into a qdb.impl.qdb_remote_node_t, a low-level structure used for calls to the underlying C API.
+        :returns: qdb.impl.qdb_remote_node_t -- A converted copy of self
+        """
         res = impl.qdb_remote_node_t()
 
         res.address = self.address
@@ -102,7 +120,7 @@ class RawClient(object):
         If the client is not used for some time, the connection is dropped and reestablished at need.
 
             :param remote_node: The remote node to connect to
-            :type remote_node: RemoteNode
+            :type remote_node: qdb.RemoteNode
 
             :raises: QuasardbException
         """
@@ -118,9 +136,8 @@ class RawClient(object):
         self.handle = None
 
     def put(self, alias, data):
-        """ Put a piece of data in the repository.
-        If the alias is already in the repository, this method raises a :py:exc:`QuasardbException` exception.
-        Use the :py:meth:`update` method to update an alias.
+        """ Puts a piece of data in the repository.
+        It is an error to call this method on an entry that already exists. Use the :py:meth:`update` method to update an alias.
 
             :param alias: The alias to update 
             :type alias: str
@@ -134,7 +151,7 @@ class RawClient(object):
             raise QuasardbException(err.error)
 
     def update(self, alias, data):
-        """ Update the given alias
+        """ Updates the given alias.
         If the alias is not found in the repository, the entry is created.
 
             :param alias: The alias to update 
@@ -149,13 +166,13 @@ class RawClient(object):
             raise QuasardbException(err)
 
     def get(self, alias):
-        """ Get the data for the given alias.
-        If the alias is not found in the repository, this method raises a :py:exc:`QuasardbException` exception.
+        """ Gets the data for the given alias. 
+        It is an error to request a non-existing entry.
         
             :param alias: The alias to get 
             :type alias: str
 
-            :return: The associated content
+            :returns: str -- The associated content
             :raises: QuasardbException
         """
         err = self.__make_error_carrier()
@@ -166,15 +183,15 @@ class RawClient(object):
         return api_buffer_to_string(buf)
 
     def get_update(self, alias, data):
-        """ Update the given alias and return the previous value
-        If the alias is not found in the repository, this method raises a :py:exc:`QuasardbException` exception.
+        """ Updates the given alias and returns the previous value. 
+        It is an error to call this method on a non-existing alias.
 
             :param alias: The alias to get 
             :type alias: str
             :param data: The new data to put in place
             :type data: str
 
-            :return: The original content
+            :returns: str -- The original content
             :raises: QuasardbException
         """
         err = self.__make_error_carrier()
@@ -185,7 +202,7 @@ class RawClient(object):
         return api_buffer_to_string(buf)
 
     def compare_and_swap(self, alias, new_data, comparand):
-        """ Compare the alias with comparand and replace it with new_data if it matches
+        """ Compares the alias with comparand and replaces it with new_data if it matches.
 
             :param alias: The alias to compare to
             :type alias: str
@@ -194,7 +211,7 @@ class RawClient(object):
             :param comparand: The content to compare to
             :type comparand: str
 
-            :return: The original content
+            :returns: str -- The original content
             :raises: QuasardbException
         """
         err = self.__make_error_carrier()
@@ -205,7 +222,7 @@ class RawClient(object):
         return api_buffer_to_string(buf)
 
     def remove(self, alias):
-        """ Remove the given alias from the repository. It is an error to remove a non-existing alias.
+        """ Removes the given alias from the repository. It is an error to remove a non-existing alias.
 
             :param alias: The alias to remove
             :type alias: str
@@ -217,7 +234,7 @@ class RawClient(object):
             raise QuasardbException(err)
 
     def remove_all(self):
-        """ Remove all the entries from all nodes of the cluster.
+        """ Removes all the entries from all nodes of the cluster.
 
             :raises: QuasardbException
 
@@ -229,10 +246,10 @@ class RawClient(object):
             raise QuasardbException(err)
 
     def stop_node(self, remote_node, reason):
-        """ Stop a node.
+        """ Stops a node.
 
             :param remote_node: The node to stop
-            :type remote_node: RemoteNode
+            :type remote_node: qdb.RemoteNode
             :param reason: A string describing the reason for the stop
             :type reason: str
 
@@ -246,12 +263,12 @@ class RawClient(object):
             raise QuasardbException(err)
 
     def node_config(self, remote_node):
-        """ Retrieve the configuration of a given node in JSON format.
+        """ Retrieves the configuration of a given node in JSON format.
 
             :param remote_node: The node to obtain the configuration from.
-            :type remote_node: RemoteNode
+            :type remote_node: qdb.RemoteNode
 
-            :returns: A JSON object containing the configuration
+            :returns: dict -- The requested configuration
 
             :raises: QuasardbException
         """
@@ -262,12 +279,12 @@ class RawClient(object):
         return json.loads(res)
 
     def node_status(self, remote_node):
-        """ Retrieve the status of a given node in JSON format.
+        """ Retrieves the status of a given node in JSON format.
 
             :param remote_node: The node to obtain the status from.
-            :type remote_node: RemoteNode
+            :type remote_node: qdb.RemoteNode
 
-            :returns: A JSON object containing the status
+            :returns: dict -- The requested status
 
             :raises: QuasardbException
         """
@@ -278,12 +295,12 @@ class RawClient(object):
         return json.loads(res)
 
     def node_topology(self, remote_node):
-        """ Retrieve the topology of a given node in JSON format.
+        """ Retrieves the topology of a given node in JSON format.
 
             :param remote_node: The node to obtain the topology from.
-            :type remote_node: RemoteNode
+            :type remote_node: qdb.RemoteNode
 
-            :returns: A JSON object containing the topology
+            :returns: dict -- The requested topology
 
             :raises: QuasardbException
         """
@@ -295,8 +312,8 @@ class RawClient(object):
 
 class Client(RawClient):
     """ The client offers the same interface as the RawClient
-    but accepts any kind of object as alias an data,
-    provided the object can be marshalled using the cPickle package.
+    but accepts any kind of object as alias and data,
+    provided that the object can be marshalled with the cPickle package.
     """
     def put(self, alias, data):
         return super(Client, self).put(pickle.dumps(alias), pickle.dumps(data))
