@@ -233,6 +233,20 @@ class RawClient(object):
         if err != impl.error_ok:
             raise QuasardbException(err)
 
+    def remove_if(self, alias, comparand):
+        """ Removes the given alias from the repository if it matches comparand. The operation is atomic. It is an error to attempt to remove a non-existing alias.
+
+            :param alias: The alias to remove
+            :type alias: str
+            :param comparand: The content to compare to
+            :type comparand: str
+
+            :raises: QuasardbException
+        """
+        err = self.handle.remove_if(alias, comparand)
+        if err != impl.error_ok:
+            raise QuasardbException(err)
+
     def remove_all(self):
         """ Removes all the entries from all nodes of the cluster.
 
