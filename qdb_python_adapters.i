@@ -8,6 +8,11 @@ api_buffer_ptr get(handle_ptr h, const char * alias, error_carrier * error)
     return h->get(alias, error->error);
 }
 
+api_buffer_ptr get_remove(handle_ptr h, const char * alias, error_carrier * error)
+{
+    return h->get_remove(alias, error->error);
+}
+
 api_buffer_ptr get_update(handle_ptr h, const char * alias, const char * update_content, size_t update_content_length, error_carrier * error)
 {
     return h->get_update(alias, update_content, update_content_length, error->error);

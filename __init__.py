@@ -201,8 +201,25 @@ class RawClient(object):
 
         return api_buffer_to_string(buf)
 
+    def get_remove(self, alias):
+        """ Atomically gets the data from the given alias and removes it.
+        It is an error to call this method on a non-existing alias.
+
+            :param alias: The alias to get 
+            :type alias: str
+
+            :returns: str -- The associated content
+            :raises: QuasardbException
+        """
+        err = self.__make_error_carrier()
+        buf = impl.get_remove(self.handle, alias, err)
+        if err.error != impl.error_ok:
+            raise QuasardbException(err.error)
+
+        return api_buffer_to_string(buf)
+
     def compare_and_swap(self, alias, new_data, comparand):
-        """ Compares the alias with comparand and replaces it with new_data if it matches.
+        """ Atomically compares the alias with comparand and replaces it with new_data if it matches.
 
             :param alias: The alias to compare to
             :type alias: str
