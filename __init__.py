@@ -1,10 +1,10 @@
 #
 # Copyright (c) 2009-2013, Bureau 14 SARL
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
-# 
+#
 #    * Redistributions of source code must retain the above copyright
 #      notice, this list of conditions and the following disclaimer.
 #    * Redistributions in binary form must reproduce the above copyright
@@ -13,7 +13,7 @@
 #    * Neither the name of Bureau 14 nor the names of its contributors may
 #      be used to endorse or promote products derived from this software
 #      without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY BUREAU 14 AND CONTRIBUTORS ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -78,7 +78,7 @@ def api_buffer_to_string(buf):
 class RemoteNode:
     """ Convenience wrapper for the low level qdb.impl.qdb_remote_node_t structure"""
     def __init__(self, address, port = 2836):
-        """Create a RemoteNode object. 
+        """Create a RemoteNode object.
         :param address: The address of the remote node (IP address or qualified name)
         :type address: str
         :param port: The port number of the remote node to connect to
@@ -103,6 +103,31 @@ class RemoteNode:
         res.error = self.error
 
         return res
+
+class ForwardIterator(object):
+    """
+    A forward iterator that can be used to iterate on a whole cluster
+    """
+    def __init__(self, qdb_iter):
+        self.__qdb_iter = qdb_iter
+
+    def __iter__(self):
+        return self
+
+    def __del__(self):
+        self.__qdb_iter.close()
+        self.__qdb_iter = None
+
+    def next(self):
+        # next is safe to call even when we are at the end or beyond
+        self.__qdb_iter.next()
+
+        if self.__qdb_iter.last_error() != impl.error_ok:
+            raise StopIteration()
+
+        v = self.__qdb_iter.value()
+
+        return (v.first, api_buffer_to_string(v.second))
 
 class RawClient(object):
     """ The raw client takes strings as arguments for both alias and data.
@@ -135,11 +160,16 @@ class RawClient(object):
         self.handle.close()
         self.handle = None
 
+    def __iter__(self):
+        """ Returns a forward iterator to iterate on all the cluster's entries
+        """
+        return ForwardIterator(self.handle.begin())
+
     def put(self, alias, data):
         """ Puts a piece of data in the repository.
         It is an error to call this method on an entry that already exists. Use the :py:meth:`update` method to update an alias.
 
-            :param alias: The alias to update 
+            :param alias: The alias to update
             :type alias: str
             :param data: The content for the alias
             :type data: str
@@ -154,7 +184,7 @@ class RawClient(object):
         """ Updates the given alias.
         If the alias is not found in the repository, the entry is created.
 
-            :param alias: The alias to update 
+            :param alias: The alias to update
             :type alias: str
             :param data: The content for the alias
             :type data: str
@@ -166,10 +196,10 @@ class RawClient(object):
             raise QuasardbException(err)
 
     def get(self, alias):
-        """ Gets the data for the given alias. 
+        """ Gets the data for the given alias.
         It is an error to request a non-existing entry.
-        
-            :param alias: The alias to get 
+
+            :param alias: The alias to get
             :type alias: str
 
             :returns: str -- The associated content
@@ -183,10 +213,10 @@ class RawClient(object):
         return api_buffer_to_string(buf)
 
     def get_update(self, alias, data):
-        """ Updates the given alias and returns the previous value. 
+        """ Updates the given alias and returns the previous value.
         It is an error to call this method on a non-existing alias.
 
-            :param alias: The alias to get 
+            :param alias: The alias to get
             :type alias: str
             :param data: The new data to put in place
             :type data: str
@@ -205,7 +235,7 @@ class RawClient(object):
         """ Atomically gets the data from the given alias and removes it.
         It is an error to call this method on a non-existing alias.
 
-            :param alias: The alias to get 
+            :param alias: The alias to get
             :type alias: str
 
             :returns: str -- The associated content

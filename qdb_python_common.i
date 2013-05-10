@@ -16,6 +16,7 @@
 
 %include "../qdb_enum.i"
 %include "../qdb_struct.i"
+%include "../qdb_iterator.i"
 
 %include typemaps.i
 %include cpointer.i

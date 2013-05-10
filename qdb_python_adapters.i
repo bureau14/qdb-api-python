@@ -50,5 +50,16 @@ handle_ptr connect(const qdb_remote_node_t * node, error_carrier * error)
     return h;
 }
 
+// operators are not supported in Python, we need this helper
+void iterator_next(const_iterator * iterator)
+{
+    ++(*iterator);
+}
+
+void iterator_previous(const_iterator * iterator)
+{
+    --(*iterator);
+}
+
 }
 %}
