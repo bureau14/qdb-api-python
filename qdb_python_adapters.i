@@ -61,5 +61,15 @@ void iterator_previous(const_iterator * iterator)
     --(*iterator);
 }
 
+std::string get_iterator_key(const const_iterator * iterator)
+{
+    return (*iterator)->first;
+}
+
+api_buffer_ptr get_iterator_value(const const_iterator * iterator)
+{
+    return (*iterator)->second;
+}
+
 }
 %}

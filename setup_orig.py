@@ -7,13 +7,6 @@ import os.path
 import glob
 import sys
 
-# get rid of useless -Wstrict-prototypes through this hack
-# this is a bug in distutils
-from distutils.sysconfig import get_config_vars
-
-(opt,) = get_config_vars('OPT')
-os.environ['OPT'] = " ".join(flag for flag in opt.split() if flag != '-Wstrict-prototypes')
-
 ''' parameters given by CMake '''
 qdb_version = "@QDB_VERSION@"
 

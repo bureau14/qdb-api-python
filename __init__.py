@@ -104,7 +104,7 @@ class RemoteNode:
 
         return res
 
-class ForwardIterator(object):
+class RawForwardIterator(object):
     """
     A forward iterator that can be used to iterate on a whole cluster
     """
@@ -120,14 +120,12 @@ class ForwardIterator(object):
 
     def next(self):
         # next is safe to call even when we are at the end or beyond
-        self.__qdb_iter.next()
+        impl.iterator_next(self.__qdb_iter)
 
         if self.__qdb_iter.last_error() != impl.error_ok:
             raise StopIteration()
 
-        v = self.__qdb_iter.value()
-
-        return (v.first, api_buffer_to_string(v.second))
+        return (impl.get_iterator_key(self.__qdb_iter), api_buffer_to_string(impl.get_iterator_value(self.__qdb_iter)))
 
 class RawClient(object):
     """ The raw client takes strings as arguments for both alias and data.
@@ -150,6 +148,7 @@ class RawClient(object):
             :raises: QuasardbException
         """
         err = self.__make_error_carrier()
+        self.handle = None
         self.handle = impl.connect(remote_node.c_type(), err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
@@ -157,13 +156,14 @@ class RawClient(object):
     def __del__(self):
         """ On delete, the connection is closed.
         """
-        self.handle.close()
-        self.handle = None
+        if self.handle != None:
+            self.handle.close()
+            self.handle = None
 
     def __iter__(self):
         """ Returns a forward iterator to iterate on all the cluster's entries
         """
-        return ForwardIterator(self.handle.begin())
+        return RawForwardIterator(self.handle.begin())
 
     def put(self, alias, data):
         """ Puts a piece of data in the repository.
@@ -178,7 +178,7 @@ class RawClient(object):
         """
         err = self.handle.put(alias, data)
         if err != impl.error_ok:
-            raise QuasardbException(err.error)
+            raise QuasardbException(err)
 
     def update(self, alias, data):
         """ Updates the given alias.
@@ -371,19 +371,36 @@ class RawClient(object):
             raise QuasardbException(err.error)
         return json.loads(res)
 
+class ForwardIterator(RawForwardIterator):
+    """
+    A forward iterator that can be used to iterate on a whole cluster with a pickle interface
+    """
+    def next(self):
+        (k, v) = super(ForwardIterator, self).next()
+        return (pickle.loads(k), pickle.loads(v))
+
+
 class Client(RawClient):
     """ The client offers the same interface as the RawClient
     but accepts any kind of object as alias and data,
     provided that the object can be marshalled with the cPickle package.
     """
+    def __iter__(self):
+        """ Returns a forward iterator to iterate on all the cluster's entries
+        """
+        return ForwardIterator(self.handle.begin())
+
     def put(self, alias, data):
         return super(Client, self).put(pickle.dumps(alias), pickle.dumps(data))
 
     def get(self, alias):
         return pickle.loads(super(Client, self).get(pickle.dumps(alias)))
 
+    def get_remove(self, alias):
+        return pickle.loads(super(Client, self).get_remove(pickle.dumps(alias)))
+
     def get_update(self, alias, data):
-        return pickle.loads(super(Client, self).update(pickle.dumps(alias), pickle.dumps(data)))
+        return pickle.loads(super(Client, self).get_update(pickle.dumps(alias), pickle.dumps(data)))
 
     def compare_and_swap(self, alias, new_value, comparand):
         return pickle.loads(super(Client, self).compare_and_swap(pickle.dumps(alias), pickle.dumps(new_value), pickle.dumps(comparand)))
@@ -393,3 +410,6 @@ class Client(RawClient):
 
     def remove(self, alias):
         return super(Client, self).remove(pickle.dumps(alias))
+
+    def remove_if(self, alias, comparand):
+        return super(Client, self).remove_if(pickle.dumps(alias), pickle.dumps(comparand))
