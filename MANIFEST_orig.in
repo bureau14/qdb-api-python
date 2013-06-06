@@ -1,0 +1,3 @@
+recursive-include src *.cxx 
+recursive-include include *.h *.hpp
+recursive-include qdb @QDB_PYTHON_LIBRARY_GLOB@

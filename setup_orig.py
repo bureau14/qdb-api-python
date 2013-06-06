@@ -7,6 +7,13 @@ import os.path
 import glob
 import sys
 
+# get rid of useless -Wstrict-prototypes through this hack
+# this is a bug in distutils
+from distutils.sysconfig import get_config_vars
+
+(opt,) = get_config_vars('OPT')
+os.environ['OPT'] = " ".join(flag for flag in opt.split() if flag != '-Wstrict-prototypes')
+
 ''' parameters given by CMake '''
 qdb_version = "@QDB_VERSION@"
 
@@ -14,7 +21,7 @@ qdb_version = "@QDB_VERSION@"
 extra_link_args = "@ADDITIONNAL_LINK_FLAGS@".strip().split(';')
 extra_compile_args ="@QDB_PYTHON_COMPILE_FLAG@".split(';')
 
-package_modules = glob.glob(os.path.join('qdb', '*.dll')) + glob.glob(os.path.join('qdb', 'lib*'))
+package_modules = glob.glob(os.path.join('qdb', '@QDB_PYTHON_LIBRARY_GLOB@'))
 
 package_name = 'qdb-python-api-bin'
 

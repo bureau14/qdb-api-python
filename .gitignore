@@ -7,6 +7,7 @@ qdb.py
 qdb_python_wrapper.cxx
 impl.py
 MANIFEST
+MANIFEST.in
 prepare.py
 setup.py
 qdb-python-api*

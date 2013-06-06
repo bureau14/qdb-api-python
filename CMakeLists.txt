@@ -24,6 +24,7 @@ IF(CMAKE_BUILD_TYPE STREQUAL Release)
     # except when STATIC_LINKED is set
     SET(QDB_PYTHON_COMPILE_FLAG /DSTATIC_LINKED /EHsc)
     SET(QDB_PYTHON_SWIG_FILES qdb_python_windows.i qdb_python_adapters.i qdb_python_common.i)
+    SET(QDB_PYTHON_LIBRARY_GLOB "*.dll")
   ELSE(MSVC)
     SET(TBB_SHARED ${ACTUAL_Tbb_LIBRARY_RELEASE})
     SET(TBB_MALLOC_SHARED ${ACTUAL_Tbb_MALLOC_LIBRARY_RELEASE})
@@ -36,12 +37,13 @@ IF(CMAKE_BUILD_TYPE STREQUAL Release)
       # on FreeBSD everything should be in the system
       SET(QDB_CPP_LIBS "")
     ELSE(CLANG)
-      SET(QDB_PYTHON_COMPILE_FLAG -std=c++0x)
+      SET(QDB_PYTHON_COMPILE_FLAG -std=c++0x -Wno-unused-function)
       # on Linux we might need some libraries, we can't guess which Linux will be used
       SET(QDB_CPP_LIBS ${GCC_ADDITIONAL_LIBS})
     ENDIF(CLANG)
 
     SET(QDB_PYTHON_SWIG_FILES qdb_python_unix.i qdb_python_adapters.i qdb_python_common.i)
+    SET(QDB_PYTHON_LIBRARY_GLOB "lib*")
   ENDIF(MSVC)
 
   # generate setup script by replacing CMake variables
@@ -51,6 +53,10 @@ IF(CMAKE_BUILD_TYPE STREQUAL Release)
 
   configure_file(setup_orig.py
                  ${CMAKE_CURRENT_SOURCE_DIR}/setup.py
+                 @ONLY)
+
+  configure_file(MANIFEST_orig.in
+                 ${CMAKE_CURRENT_SOURCE_DIR}/MANIFEST.in
                  @ONLY)
 
   # copy readme.txt
