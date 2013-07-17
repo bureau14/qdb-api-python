@@ -37,6 +37,8 @@
 import qdb.impl as impl
 import cPickle as pickle
 import json
+import datetime
+import time
 
 def make_error_string(error_code):
     """ Returns a meaningful error message corresponding to the quasardb error code.
@@ -74,6 +76,20 @@ def build():
 
 def api_buffer_to_string(buf):
     return str(buf.data())[:buf.size()]
+
+class TimeZone(datetime.tzinfo):
+    """The quasardb time zone is UTC. Please refer to the documentation for further information."""
+
+    def utcoffset(self, dt):
+        return datetime.timedelta(0)
+
+    def tzname(self, dt):
+        return "UTC"
+
+    def dst(self, dt):
+        return datetime.timedelta(0)
+
+tz = TimeZone()
 
 class RemoteNode:
     """ Convenience wrapper for the low level qdb.impl.qdb_remote_node_t structure"""
@@ -294,6 +310,55 @@ class RawClient(object):
         if err != impl.error_ok:
             raise QuasardbException(err)
 
+    def expires_at(self, alias, expiry_time):
+        """
+            Sets the expiry time of an existing entry. If the value is 0 (that is datetime.datetime.utcfromtimestamp(0)), the entry never expires.
+
+            :param alias: The alias for which the expiry time will be set
+            :type alias: str
+            :param expiry_time: The expiry time, must be offset aware
+            :type expiry_time: datetime.datetime
+
+            :raises: QuasardbException
+        """
+        t = long(time.mktime(expiry_time.timetuple()))
+        err = self.handle.expires_at(alias, t)
+        if err != impl.error_ok:
+            raise QuasardbException(err)
+
+    def expires_from_now(self, alias, expiry_delta):
+        """
+            Sets the expiry time of an existing entry relative to the current time, in seconds.
+
+            :param alias: The alias for which the expiry time will be set
+            :type alias: str
+            :param expiry_delta: The expiry delta in seconds
+            :type expiry_delta: long
+
+            :raises: QuasardbException
+        """
+        err = self.handle.expires_from_now(alias, expiry_delta)
+        if err != impl.error_ok:
+            raise QuasardbException(err)
+
+    def get_expiry_time(self, alias):
+        """
+            Returns the expiry time of an existing entry.
+
+            :param alias: The alias to get the expiry time from
+            :type alias: str
+
+            :returns: datetime.datetime -- The expiry time, offset aware
+            :raises: QuasardbException
+        """
+        err = self.__make_error_carrier()
+        t = impl.get_expiry_time_wrapper(self.handle, alias, err)
+
+        if err.error != impl.error_ok:
+            raise QuasardbException(err.error)
+
+        return datetime.datetime.fromtimestamp(t, tz)
+
     def remove_all(self):
         """ Removes all the entries from all nodes of the cluster.
 
@@ -413,3 +478,12 @@ class Client(RawClient):
 
     def remove_if(self, alias, comparand):
         return super(Client, self).remove_if(pickle.dumps(alias), pickle.dumps(comparand))
+
+    def expires_at(self, alias, expiry_time):
+        return super(Client, self).expires_at(pickle.dumps(alias), expiry_time)
+
+    def expires_from_now(self, alias, expiry_delta):
+        return super(Client, self).expires_from_now(pickle.dumps(alias), expiry_delta)
+
+    def get_expiry_time(self, alias):
+        return super(Client, self).get_expiry_time(pickle.dumps(alias))

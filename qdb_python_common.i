@@ -26,6 +26,10 @@
 %apply (const char *STRING, size_t LENGTH) { (const char * new_value, size_t new_value_length) };
 %apply (const char *STRING, size_t LENGTH) { (const char * comparand, size_t comparand_length) };
 
+%typemap(in) qdb_time_t { $1 = PyLong_AsSsize_t($input); }
+
+%typemap(out) qdb_time_t { $result = PyLong_FromSsize_t($1); }
+
 %rename(version) qdb_version;
 const char * qdb_version();
 

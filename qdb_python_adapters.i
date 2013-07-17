@@ -71,5 +71,12 @@ api_buffer_ptr get_iterator_value(const const_iterator * iterator)
     return (*iterator)->second;
 }
 
+qdb_time_t get_expiry_time_wrapper(handle_ptr h, const char * alias, error_carrier * error)
+{
+    qdb_time_t val = 0;
+    error->error = h->get_expiry_time(alias, val);
+    return val;
+}
+
 }
 %}
