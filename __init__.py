@@ -153,6 +153,9 @@ class RawClient(object):
         err.error = impl.error_uninitialized
         return err
 
+    def __convert_expiry_time(self, expiry_time):
+        return long(time.mktime(expiry_time.timetuple())) if expiry_time != None else long(0)
+
     def __init__(self, remote_node, *args, **kwargs):
         """ Creates the raw client.
         Connection is delayed until the client is actually used.
@@ -181,33 +184,38 @@ class RawClient(object):
         """
         return RawForwardIterator(self.handle.begin())
 
-    def put(self, alias, data):
+    def put(self, alias, data, expiry_time):
         """ Puts a piece of data in the repository.
-        It is an error to call this method on an entry that already exists. Use the :py:meth:`update` method to update an alias.
+        It is an error to call this method on an entry that already exists. Use the :py:meth:`update` method to update an alias. If expiry_time is None, the entry never expires.
 
             :param alias: The alias to update
             :type alias: str
             :param data: The content for the alias
             :type data: str
+            :param expiry_time: The expiry time for the alias
+            :type expiry_time: datetime.datetime
 
             :raises: QuasardbException
         """
-        err = self.handle.put(alias, data)
+        err = self.handle.put(alias, data, self.__convert_expiry_time(expiry_time))
         if err != impl.error_ok:
             raise QuasardbException(err)
 
-    def update(self, alias, data):
+    def update(self, alias, data, expiry_time):
         """ Updates the given alias.
-        If the alias is not found in the repository, the entry is created.
+        If the alias is not found in the repository, the entry is created. 
+        If expiry_time is None, the entry never expires.
 
             :param alias: The alias to update
             :type alias: str
             :param data: The content for the alias
             :type data: str
+            :param expiry_time: The expiry time for the alias
+            :type expiry_time: datetime.datetime
 
             :raises: QuasardbException
         """
-        err = self.handle.update(alias, data)
+        err = self.handle.update(alias, data, self.__convert_expiry_time(expiry_time))
         if err != impl.error_ok:
             raise QuasardbException(err)
 
@@ -228,20 +236,23 @@ class RawClient(object):
 
         return api_buffer_to_string(buf)
 
-    def get_update(self, alias, data):
+    def get_update(self, alias, data, expiry_time):
         """ Updates the given alias and returns the previous value.
-        It is an error to call this method on a non-existing alias.
+        It is an error to call this method on a non-existing alias. 
+        If expiry_time is None, the entry never expires.
 
             :param alias: The alias to get
             :type alias: str
             :param data: The new data to put in place
             :type data: str
+            :param expiry_time: The expiry time for the alias
+            :type expiry_time: datetime.datetime
 
             :returns: str -- The original content
             :raises: QuasardbException
         """
         err = self.__make_error_carrier()
-        buf = impl.get_update(self.handle, alias, data, err)
+        buf = impl.get_update(self.handle, alias, data, data, self.__convert_expiry_time(expiry_time), err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
 
@@ -250,6 +261,7 @@ class RawClient(object):
     def get_remove(self, alias):
         """ Atomically gets the data from the given alias and removes it.
         It is an error to call this method on a non-existing alias.
+        If expiry_time is None, the entry never expires.
 
             :param alias: The alias to get
             :type alias: str
@@ -258,14 +270,15 @@ class RawClient(object):
             :raises: QuasardbException
         """
         err = self.__make_error_carrier()
-        buf = impl.get_remove(self.handle, alias, err)
+        buf = impl.get_remove(self.handle, alias, self.__convert_expiry_time(expiry_time), err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
 
         return api_buffer_to_string(buf)
 
-    def compare_and_swap(self, alias, new_data, comparand):
+    def compare_and_swap(self, alias, new_data, comparand, expiry_time):
         """ Atomically compares the alias with comparand and replaces it with new_data if it matches.
+            If expiry_time is None, the entry never expires.
 
             :param alias: The alias to compare to
             :type alias: str
@@ -273,12 +286,14 @@ class RawClient(object):
             :type new_data: str
             :param comparand: The content to compare to
             :type comparand: str
+            :param expiry_time: The expiry time for the alias
+            :type expiry_time: datetime.datetime
 
             :returns: str -- The original content
             :raises: QuasardbException
         """
         err = self.__make_error_carrier()
-        buf = impl.compare_and_swap(self.handle, alias, new_data, comparand, err)
+        buf = impl.compare_and_swap(self.handle, alias, new_data, comparand, self.__convert_expiry_time(expiry_time), err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
 
@@ -312,7 +327,7 @@ class RawClient(object):
 
     def expires_at(self, alias, expiry_time):
         """
-            Sets the expiry time of an existing entry. If the value is 0 (that is datetime.datetime.utcfromtimestamp(0)), the entry never expires.
+            Sets the expiry time of an existing entry. If the value is None, the entry never expires.
 
             :param alias: The alias for which the expiry time will be set
             :type alias: str
@@ -321,8 +336,7 @@ class RawClient(object):
 
             :raises: QuasardbException
         """
-        t = long(time.mktime(expiry_time.timetuple()))
-        err = self.handle.expires_at(alias, t)
+        err = self.handle.expires_at(alias, self.__convert_expiry_time(expiry_time))
         if err != impl.error_ok:
             raise QuasardbException(err)
 
