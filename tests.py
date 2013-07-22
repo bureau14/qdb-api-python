@@ -26,17 +26,19 @@ class QuasardbTest(unittest.TestCase):
         self.assertTrue(os.path.exists(qdbdd_path))
 
         # don't save anything to disk
-      #  self.qdbd = subprocess.Popen([qdbdd_path, '--transient'])
-     #   self.assertNotEqual(self.qdbd.pid, 0)
-      #  self.assertEqual(self.qdbd.returncode, None)
+        self.qdbd = subprocess.Popen([qdbdd_path, '--transient'])
+        self.assertNotEqual(self.qdbd.pid, 0)
+        self.assertEqual(self.qdbd.returncode, None)
 
         self.remote_node = qdb.RemoteNode("127.0.0.1")
         self.qdb = qdb.Client(self.remote_node)
 
+        # remove_all is asynchronous, don't call it after init, it might be finished in the middle of our test...
+
     def tearDown(self):
-        pass
-    #    self.qdbd.terminate()
-   #     self.qdbd.wait()
+        self.qdb.remove_all()
+        self.qdbd.terminate()
+        self.qdbd.wait()
 
 class QuasardbBasic(QuasardbTest):
     """
@@ -49,8 +51,6 @@ class QuasardbBasic(QuasardbTest):
         self.assertGreater(len(str), 0)
 
     def test_put_get_remove(self):
-        self.qdb.remove_all()
-
         entry_name = "entry"
         entry_content = "content"
         self.qdb.put(entry_name, entry_content)
@@ -62,8 +62,6 @@ class QuasardbBasic(QuasardbTest):
         self.assertRaises(qdb.QuasardbException, self.qdb.remove, entry_name)
 
     def test_update(self):
-        self.qdb.remove_all()
-
         entry_name = "entry"
         entry_content = "content"
         self.qdb.update(entry_name, entry_content)
@@ -77,8 +75,6 @@ class QuasardbBasic(QuasardbTest):
         self.qdb.remove(entry_name)
 
     def test_get_update(self):
-        self.qdb.remove_all()
-
         entry_name = "entry"
         entry_content = "content"
         self.qdb.put(entry_name, entry_content)
@@ -93,8 +89,6 @@ class QuasardbBasic(QuasardbTest):
         self.qdb.remove(entry_name)
 
     def test_get_remove(self):
-        self.qdb.remove_all()
-
         entry_name = "entry"
         entry_content = "content"
         self.qdb.put(entry_name, entry_content)
@@ -103,8 +97,6 @@ class QuasardbBasic(QuasardbTest):
         self.assertRaises(qdb.QuasardbException, self.qdb.get, entry_name)
 
     def test_remove_if(self):
-        self.qdb.remove_all()
-
         entry_name = "entry"
         entry_content = "content"
         self.qdb.put(entry_name, entry_content)
@@ -117,8 +109,6 @@ class QuasardbBasic(QuasardbTest):
         self.assertRaises(qdb.QuasardbException, self.qdb.get, entry_name)
 
     def test_compare_and_swap(self):
-        self.qdb.remove_all()
-
         entry_name = "entry"
         entry_content = "content"
         self.qdb.put(entry_name, entry_content)
@@ -156,7 +146,6 @@ class QuasardbIteration(QuasardbTest):
     but to make sure that the Python wrapping is working as expected
     """
     def test_forward(self):
-        self.qdb.remove_all()
 
         # add 10 entries 
         entries = dict()
@@ -174,12 +163,17 @@ class QuasardbIteration(QuasardbTest):
         self.qdb.remove_all()
 
 class QuasardbExpiry(QuasardbTest):
+
+    def __make_expiry_time(self, td):
+         # expires in one minute
+        now = datetime.datetime.now(qdb.tz)
+        # get rid of the microsecond for the tests
+        return now + td - datetime.timedelta(microseconds=now.microsecond)        
+
     """
     Test for expiry. We want to make sure, in particular, that the conversion from Python datetime is right.
     """
     def test_expires_at(self):
-        self.qdb.remove_all()
-
         # add one entry
         entry_name = "entry_expires_at"
         entry_content = "content"
@@ -195,8 +189,7 @@ class QuasardbExpiry(QuasardbTest):
         self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
         self.assertEqual(exp, datetime.datetime.fromtimestamp(0, qdb.tz))
 
-        # expires in one minute
-        future_exp = datetime.datetime.now(qdb.tz) + datetime.timedelta(minutes=1)
+        future_exp = self.__make_expiry_time(datetime.timedelta(minutes=1))
         self.qdb.expires_at(entry_name, future_exp)
 
         exp = self.qdb.get_expiry_time(entry_name)
@@ -208,8 +201,6 @@ class QuasardbExpiry(QuasardbTest):
         self.qdb.remove_all()
 
     def test_expires_from_now(self):
-        self.qdb.remove_all()
-
         # add one entry
         entry_name = "entry_expires_from_now"
         entry_content = "content"
@@ -221,6 +212,8 @@ class QuasardbExpiry(QuasardbTest):
         self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
         self.assertEqual(exp, datetime.datetime.fromtimestamp(0, qdb.tz))
 
+        self.qdb.expires_at(entry_name, None)
+
         # expires in one minute from now
         future_exp = 60
         
@@ -229,8 +222,8 @@ class QuasardbExpiry(QuasardbTest):
         # We use a wide 10 se interval for the check because we have no idea at which speed these tests
         # may run in debug, this will be enough however to check that the interval has properly been converted
         # and the time zone is correct
-        future_exp_lower_bound = datetime.datetime.now(qdb.tz) + datetime.timedelta(seconds=50)
-        future_exp_higher_bound = future_exp_lower_bound + datetime.timedelta(seconds=70)
+        future_exp_lower_bound = datetime.datetime.now(qdb.tz) + datetime.timedelta(seconds=future_exp-10)
+        future_exp_higher_bound = future_exp_lower_bound + datetime.timedelta(seconds=future_exp+10)
 
         exp = self.qdb.get_expiry_time(entry_name)
         self.assertNotEqual(exp.tzinfo, None)
@@ -240,6 +233,59 @@ class QuasardbExpiry(QuasardbTest):
         self.assertLess(exp, future_exp_higher_bound)
 
         self.qdb.remove_all()
+
+    """
+    Test that methods that accept an expiry date properly forward the value
+    """
+    def test_methods(self):
+        entry_name = "entry"
+        entry_content = "content"
+
+        future_exp = self.__make_expiry_time(datetime.timedelta(minutes=1))
+
+        self.qdb.put(entry_name, entry_content, future_exp)
+
+        exp = self.qdb.get_expiry_time(entry_name)
+
+        self.assertIsInstance(exp, datetime.datetime)
+        self.assertNotEqual(exp.tzinfo, None)
+        self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
+        self.assertEqual(exp, future_exp)
+
+        future_exp = self.__make_expiry_time(datetime.timedelta(minutes=2))
+
+        self.qdb.update(entry_name, entry_content, future_exp)
+
+        exp = self.qdb.get_expiry_time(entry_name)
+
+        self.assertIsInstance(exp, datetime.datetime)
+        self.assertNotEqual(exp.tzinfo, None)
+        self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
+        self.assertEqual(exp, future_exp)
+
+        future_exp = self.__make_expiry_time(datetime.timedelta(minutes=3))
+
+        self.qdb.get_update(entry_name, entry_content, future_exp)
+
+        exp = self.qdb.get_expiry_time(entry_name)
+
+        self.assertIsInstance(exp, datetime.datetime)
+        self.assertNotEqual(exp.tzinfo, None)
+        self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
+        self.assertEqual(exp, future_exp)
+
+        future_exp = self.__make_expiry_time(datetime.timedelta(minutes=4))
+
+        self.qdb.compare_and_swap(entry_name, entry_content, entry_content, future_exp)
+
+        exp = self.qdb.get_expiry_time(entry_name)
+
+        self.assertIsInstance(exp, datetime.datetime)
+        self.assertNotEqual(exp.tzinfo, None)
+        self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
+        self.assertEqual(exp, future_exp)
+
+        self.qdb.remove(entry_name)
 
 if __name__ == '__main__':
     unittest.main()

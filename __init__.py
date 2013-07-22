@@ -38,7 +38,7 @@ import qdb.impl as impl
 import cPickle as pickle
 import json
 import datetime
-import time
+import calendar
 
 def make_error_string(error_code):
     """ Returns a meaningful error message corresponding to the quasardb error code.
@@ -154,7 +154,7 @@ class RawClient(object):
         return err
 
     def __convert_expiry_time(self, expiry_time):
-        return long(time.mktime(expiry_time.timetuple())) if expiry_time != None else long(0)
+        return long(calendar.timegm(expiry_time.timetuple())) if expiry_time != None else long(0)
 
     def __init__(self, remote_node, *args, **kwargs):
         """ Creates the raw client.
@@ -184,7 +184,7 @@ class RawClient(object):
         """
         return RawForwardIterator(self.handle.begin())
 
-    def put(self, alias, data, expiry_time):
+    def put(self, alias, data, expiry_time=None):
         """ Puts a piece of data in the repository.
         It is an error to call this method on an entry that already exists. Use the :py:meth:`update` method to update an alias. If expiry_time is None, the entry never expires.
 
@@ -201,7 +201,7 @@ class RawClient(object):
         if err != impl.error_ok:
             raise QuasardbException(err)
 
-    def update(self, alias, data, expiry_time):
+    def update(self, alias, data, expiry_time=None):
         """ Updates the given alias.
         If the alias is not found in the repository, the entry is created. 
         If expiry_time is None, the entry never expires.
@@ -236,7 +236,7 @@ class RawClient(object):
 
         return api_buffer_to_string(buf)
 
-    def get_update(self, alias, data, expiry_time):
+    def get_update(self, alias, data, expiry_time=None):
         """ Updates the given alias and returns the previous value.
         It is an error to call this method on a non-existing alias. 
         If expiry_time is None, the entry never expires.
@@ -252,7 +252,7 @@ class RawClient(object):
             :raises: QuasardbException
         """
         err = self.__make_error_carrier()
-        buf = impl.get_update(self.handle, alias, data, data, self.__convert_expiry_time(expiry_time), err)
+        buf = impl.get_update(self.handle, alias, data, self.__convert_expiry_time(expiry_time), err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
 
@@ -270,13 +270,13 @@ class RawClient(object):
             :raises: QuasardbException
         """
         err = self.__make_error_carrier()
-        buf = impl.get_remove(self.handle, alias, self.__convert_expiry_time(expiry_time), err)
+        buf = impl.get_remove(self.handle, alias, err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
 
         return api_buffer_to_string(buf)
 
-    def compare_and_swap(self, alias, new_data, comparand, expiry_time):
+    def compare_and_swap(self, alias, new_data, comparand, expiry_time=None):
         """ Atomically compares the alias with comparand and replaces it with new_data if it matches.
             If expiry_time is None, the entry never expires.
 
@@ -351,7 +351,7 @@ class RawClient(object):
 
             :raises: QuasardbException
         """
-        err = self.handle.expires_from_now(alias, expiry_delta)
+        err = self.handle.expires_from_now(alias, long(expiry_delta))
         if err != impl.error_ok:
             raise QuasardbException(err)
 
@@ -469,8 +469,8 @@ class Client(RawClient):
         """
         return ForwardIterator(self.handle.begin())
 
-    def put(self, alias, data):
-        return super(Client, self).put(pickle.dumps(alias), pickle.dumps(data))
+    def put(self, alias, data, expiry_time=None):
+        return super(Client, self).put(pickle.dumps(alias), pickle.dumps(data), expiry_time)
 
     def get(self, alias):
         return pickle.loads(super(Client, self).get(pickle.dumps(alias)))
@@ -478,14 +478,14 @@ class Client(RawClient):
     def get_remove(self, alias):
         return pickle.loads(super(Client, self).get_remove(pickle.dumps(alias)))
 
-    def get_update(self, alias, data):
-        return pickle.loads(super(Client, self).get_update(pickle.dumps(alias), pickle.dumps(data)))
+    def get_update(self, alias, data, expiry_time=None):
+        return pickle.loads(super(Client, self).get_update(pickle.dumps(alias), pickle.dumps(data), expiry_time))
 
-    def compare_and_swap(self, alias, new_value, comparand):
-        return pickle.loads(super(Client, self).compare_and_swap(pickle.dumps(alias), pickle.dumps(new_value), pickle.dumps(comparand)))
+    def compare_and_swap(self, alias, new_value, comparand, expiry_time=None):
+        return pickle.loads(super(Client, self).compare_and_swap(pickle.dumps(alias), pickle.dumps(new_value), pickle.dumps(comparand), expiry_time))
 
-    def update(self, alias, data):
-        return super(Client, self).update(pickle.dumps(alias), pickle.dumps(data))
+    def update(self, alias, data, expiry_time=None):
+        return super(Client, self).update(pickle.dumps(alias), pickle.dumps(data), expiry_time)
 
     def remove(self, alias):
         return super(Client, self).remove(pickle.dumps(alias))
