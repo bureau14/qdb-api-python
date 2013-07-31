@@ -219,6 +219,23 @@ class RawClient(object):
         if err != impl.error_ok:
             raise QuasardbException(err)
 
+    def prefix_get(self, prefix):
+        """ Returns the list of entries whose alias start with the given prefix. If no alias matches the given prefix,
+            the function returns an empty list and raises no error.
+
+            :param prefix: The prefix to use
+            :type prefix: str
+
+            :returns: a list of str -- The list of matching aliases
+            :raises: QuasardbException
+        """
+        err = self.__make_error_carrier()
+        result = impl.prefix_get(self.handle, prefix, err)
+        if err.error != impl.error_ok and err.error != impl.error_alias_not_found:
+            raise QuasardbException(err.error)
+
+        return result
+
     def get(self, alias):
         """ Gets the data for the given alias.
         It is an error to request a non-existing entry.
@@ -470,34 +487,34 @@ class Client(RawClient):
         return ForwardIterator(self.handle.begin())
 
     def put(self, alias, data, expiry_time=None):
-        return super(Client, self).put(pickle.dumps(alias), pickle.dumps(data), expiry_time)
+        return super(Client, self).put(alias, pickle.dumps(data), expiry_time)
 
     def get(self, alias):
-        return pickle.loads(super(Client, self).get(pickle.dumps(alias)))
+        return pickle.loads(super(Client, self).get(alias))
 
     def get_remove(self, alias):
-        return pickle.loads(super(Client, self).get_remove(pickle.dumps(alias)))
+        return pickle.loads(super(Client, self).get_remove(alias))
 
     def get_update(self, alias, data, expiry_time=None):
-        return pickle.loads(super(Client, self).get_update(pickle.dumps(alias), pickle.dumps(data), expiry_time))
+        return pickle.loads(super(Client, self).get_update(alias, pickle.dumps(data), expiry_time))
 
     def compare_and_swap(self, alias, new_value, comparand, expiry_time=None):
-        return pickle.loads(super(Client, self).compare_and_swap(pickle.dumps(alias), pickle.dumps(new_value), pickle.dumps(comparand), expiry_time))
+        return pickle.loads(super(Client, self).compare_and_swap(alias, pickle.dumps(new_value), pickle.dumps(comparand), expiry_time))
 
     def update(self, alias, data, expiry_time=None):
-        return super(Client, self).update(pickle.dumps(alias), pickle.dumps(data), expiry_time)
+        return super(Client, self).update(alias, pickle.dumps(data), expiry_time)
 
     def remove(self, alias):
-        return super(Client, self).remove(pickle.dumps(alias))
+        return super(Client, self).remove(alias)
 
     def remove_if(self, alias, comparand):
-        return super(Client, self).remove_if(pickle.dumps(alias), pickle.dumps(comparand))
+        return super(Client, self).remove_if(alias, pickle.dumps(comparand))
 
     def expires_at(self, alias, expiry_time):
-        return super(Client, self).expires_at(pickle.dumps(alias), expiry_time)
+        return super(Client, self).expires_at(alias, expiry_time)
 
     def expires_from_now(self, alias, expiry_delta):
-        return super(Client, self).expires_from_now(pickle.dumps(alias), expiry_delta)
+        return super(Client, self).expires_from_now(alias, expiry_delta)
 
     def get_expiry_time(self, alias):
-        return super(Client, self).get_expiry_time(pickle.dumps(alias))
+        return super(Client, self).get_expiry_time(alias)

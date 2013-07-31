@@ -162,6 +162,34 @@ class QuasardbIteration(QuasardbTest):
 
         self.qdb.remove_all()
 
+class QuasardbPrefix(QuasardbTest):
+
+    def test_prefix_get(self):
+        # prefix too short, must raise an exception
+        self.assertRaises(qdb.QuasardbException, self.qdb.prefix_get, "a")
+
+        res = self.qdb.prefix_get("blah")
+        self.assertEqual(len(res), 0)
+
+        entries = [ "blah", "maybe", "Romulan", "Rome", "Rosa", "Romanus" ]
+        entry_content = "content"
+
+        for e in entries:
+            self.qdb.put(e, entry_content)
+
+        res = self.qdb.prefix_get("blah")
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0], "blah")
+
+        res = self.qdb.prefix_get("rom")
+        self.assertEqual(len(res), 0)
+
+        res = self.qdb.prefix_get("Rom")
+        self.assertEqual(len(res), 3)
+        self.assertEqual(res[0], "Romanus")
+        self.assertEqual(res[1], "Rome")
+        self.assertEqual(res[2], "Romulan")
+
 class QuasardbExpiry(QuasardbTest):
 
     def __make_expiry_time(self, td):
