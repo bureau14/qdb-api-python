@@ -6,9 +6,12 @@
 %}
 
 %include "std_string.i"
+%include "std_vector.i"
 %include <std_shared_ptr.i>
 %shared_ptr(qdb::api_buffer)
 %shared_ptr(qdb::handle)
+
+%template(StringVec) std::vector<std::string>;
 
 %rename("%(regex:/qdb_e(.*)/error\\1/)s", %$isenumitem) "";
 %rename("%(regex:/qdb_o(.*)/option\\1/)s", %$isenumitem) "";

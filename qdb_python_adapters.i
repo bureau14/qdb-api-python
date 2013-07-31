@@ -3,6 +3,11 @@
 namespace qdb
 {
 
+std::vector<std::string> prefix_get(handle_ptr h, const char * prefix, error_carrier * error)
+{
+    return h->prefix_get(prefix, error->error);
+}
+
 api_buffer_ptr get(handle_ptr h, const char * alias, error_carrier * error)
 {
     return h->get(alias, error->error);
