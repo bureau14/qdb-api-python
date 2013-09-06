@@ -13,10 +13,10 @@ class QuasardbTest(unittest.TestCase):
     def setUp(self):
         # we use the debug version for our unit tests because in the debug version the licensing verification is disabled
 
-        possible_paths = [ os.path.join(os.getcwd(), '..', '..', '..', 'bin64', 'Debug', 'qdbdd'),
-            os.path.join(os.getcwd(), '..', '..', '..', 'bin64', 'Debug', 'qdbdd.exe'),
-            os.path.join(os.getcwd(), '..', '..', '..', 'bin', 'Debug', 'qdbdd'),
-            os.path.join(os.getcwd(), '..', '..', '..', 'bin', 'Debug', 'qdbdd.exe') ]
+        possible_paths = [ os.path.join(os.getcwd(), '..', '..', '..', 'bin64', 'Release', 'qdbd'),
+            os.path.join(os.getcwd(), '..', '..', '..', 'bin64', 'Release', 'qdbd.exe'),
+            os.path.join(os.getcwd(), '..', '..', '..', 'bin', 'Release', 'qdbd'),
+            os.path.join(os.getcwd(), '..', '..', '..', 'bin', 'Release', 'qdbd.exe') ]
 
         for p in possible_paths:
             if os.path.exists(p):
