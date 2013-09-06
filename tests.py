@@ -25,8 +25,12 @@ class QuasardbTest(unittest.TestCase):
 
         self.assertTrue(os.path.exists(qdbdd_path))
 
+        # check license presence
+        license_file = os.path.join('..', '..', '..', 'scripts', 'tests', 'qdb_test_license.txt')
+        self.assertTrue(os.path.exists(license_file))
+
         # don't save anything to disk
-        self.qdbd = subprocess.Popen([qdbdd_path, '--transient'])
+        self.qdbd = subprocess.Popen([qdbdd_path, '--transient', '--license-file=' + license_file])
         self.assertNotEqual(self.qdbd.pid, 0)
         self.assertEqual(self.qdbd.returncode, None)
 
