@@ -35,12 +35,19 @@ class QuasardbTest(unittest.TestCase):
         self.assertEqual(self.qdbd.returncode, None)
 
         self.remote_node = qdb.RemoteNode("127.0.0.1")
-        self.qdb = qdb.Client(self.remote_node)
-
+        try:
+            self.qdb = qdb.Client(self.remote_node)
+        except qdb.QuasardbException, q:
+            self.qdbd.terminate()
+            self.qdbd.wait()
+            self.assertEqual(False)
         # remove_all is asynchronous, don't call it after init, it might be finished in the middle of our test...
 
     def tearDown(self):
-        self.qdb.remove_all()
+        try:
+            self.qdb.remove_all()
+        except qdb.QuasardbException, q:
+            pass
         self.qdbd.terminate()
         self.qdbd.wait()
 
