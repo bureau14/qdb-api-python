@@ -130,6 +130,20 @@ def _convert_expiry_time(expiry_time):
 class BatchRequest:
     """A request within a batch run."""
     def __init__(self, op_type, alias = None, content = None, comparand = None, expiry = None):
+        """
+        Initializes a BatchRequest
+
+        :param op_type: The type of operation, from qdb.Operation
+        :type op_type: int
+        :param alias: The alias on which to operate, if it applies
+        :type alias: str
+        :param content: The content for the request, if it applies
+        :type content: str
+        :param comparand: The comparand for the request, if it applies
+        :type comparand: str
+        :param expiry: The expiry for the request, if it applies
+        :type expiry: datetime.datetime
+        """
         self.type = op_type
         self.alias = alias
         self.content = content
