@@ -39,18 +39,43 @@ import cPickle as pickle
 import json
 import datetime
 import calendar
+import copy
 
-def make_error_string(error_code):
+def __make_enum(type_name, prefix):
+    """
+    Builds an enum from ints present whose prefix matches
+    """
+    members = dict()
+
+    prefix_len = len(prefix)
+
+    for x in dir(impl):
+        if not x.startswith(prefix):
+            continue
+
+        v = getattr(impl, x)
+        if isinstance(v, int):
+            members[x[prefix_len:]] = v
+
+    return type(type_name, (), members)
+
+Error = __make_enum('Error', 'error_')
+Options = __make_enum('Option', 'option_')
+Operation = __make_enum('Operation', 'operation_')
+Protocol = __make_enum('Protocol', 'protocol_')
+
+def _make_error_string(error_code):
     """ Returns a meaningful error message corresponding to the quasardb error code.
 
     :param error_code: The error code to translate
     :returns: str -- An error string
     """
-    return impl.make_error_string(error_code)
+    return impl._make_error_string(error_code)
 
 class QuasardbException(Exception):
     """The quasardb exception, based on the API error codes."""
     def __init__(self, error_code):
+        assert(isinstance(error_code, int))
         Exception.__init__(self)
         self.error_code = error_code
 
@@ -58,7 +83,7 @@ class QuasardbException(Exception):
         return "quasardb exception - code " + str(self.error_code)
 
     def __str__(self):
-        return make_error_string(self.error_code)
+        return _make_error_string(self.error_code)
 
 def version():
     """ Returns the API's version number as a string
@@ -74,8 +99,16 @@ def build():
     """
     return impl.build()
 
-def api_buffer_to_string(buf):
-    return str(buf.data())[:buf.size()]
+import inspect
+
+def _api_buffer_to_string(buf):
+    return None if buf is None else str(buf.data())[:buf.size()]
+
+def _string_to_api_buffer(h, str):
+    """
+    Converts a string to an internal qdb::api_buffer_ptr 
+    """
+    return None if str is None else impl.make_api_buffer_ptr_from_string(h, str)
 
 class TimeZone(datetime.tzinfo):
     """The quasardb time zone is UTC. Please refer to the documentation for further information."""
@@ -91,6 +124,65 @@ class TimeZone(datetime.tzinfo):
 
 tz = TimeZone()
 
+def _convert_expiry_time(expiry_time):
+    return long(calendar.timegm(expiry_time.timetuple())) if expiry_time != None else long(0)
+
+class BatchRequest:
+    """A request within a batch run."""
+    def __init__(self, op_type, alias = None, content = None, comparand = None, expiry = None):
+        self.type = op_type
+        self.alias = alias
+        self.content = content
+        self.comparand = comparand
+        self.expiry = expiry
+
+    def pickle(self):
+        """
+        "Pickles" the content and comparand members and returns a copy of the resulting object
+
+        :returns: a copy of self with content and comparand "pickled"
+        """
+        br = BatchRequest(self.type, self.alias)
+        br.content = None if self.content == None else pickle.dumps(self.content)
+        br.comparand = None if self.comparand == None else pickle.dumps(self.comparand)
+        br.expiry = self.expiry
+        return br
+
+    def cpp_type(self, handle):
+        """
+        Converts the BatchRequest into a qdb.impl.batch_request, a low level structure used for calls to the underlying C++ API.
+        :param handle: The qdb handle used for internal allocation
+
+        :returns: qdb.impl.batch_request - A converted copy of self
+        """
+
+        # _string_to_api_buffer is safe when the parameter is None
+        content_buf = _string_to_api_buffer(handle, self.content)
+        comparand_buf = _string_to_api_buffer(handle, self.comparand)
+        expiry = _convert_expiry_time(self.expiry)
+
+        return impl.batch_request(self.type, self.alias, content_buf, comparand_buf, expiry)
+
+class BatchResult:
+    """The result from a batch run."""
+    def __init__(self, br):
+        assert(isinstance(br, impl.batch_result))
+
+        self.type = br.type
+        self.error = br.error
+        self.alias = br.alias
+        self.result = _api_buffer_to_string(br.result)
+
+    def unpickle(self):
+        """
+        "Unpickles" the result member and returns a copy of the resulting object.
+
+        :returns: a copy of self with result "unpickled"
+        """
+        br = copy.copy(self)
+        br.result = None if self.result == None else pickle.loads(self.result)
+        return br
+
 class RemoteNode:
     """ Convenience wrapper for the low level qdb.impl.qdb_remote_node_t structure"""
     def __init__(self, address, port = 2836):
@@ -105,7 +197,7 @@ class RemoteNode:
         self.error = impl.error_uninitialized
 
     def __str__(self):
-        return "quasardb remote node: " + self.address + ":" + str(self.port) + " - error status:" + make_error_string(self.error)
+        return "quasardb remote node: " + self.address + ":" + str(self.port) + " - error status:" + _make_error_string(self.error)
 
     def c_type(self):
         """
@@ -141,7 +233,7 @@ class RawForwardIterator(object):
         if self.__qdb_iter.last_error() != impl.error_ok:
             raise StopIteration()
 
-        return (impl.get_iterator_key(self.__qdb_iter), api_buffer_to_string(impl.get_iterator_value(self.__qdb_iter)))
+        return (impl.get_iterator_key(self.__qdb_iter), _api_buffer_to_string(impl.get_iterator_value(self.__qdb_iter)))
 
 class RawClient(object):
     """ The raw client takes strings as arguments for both alias and data.
@@ -152,9 +244,6 @@ class RawClient(object):
         err = impl.error_carrier()
         err.error = impl.error_uninitialized
         return err
-
-    def __convert_expiry_time(self, expiry_time):
-        return long(calendar.timegm(expiry_time.timetuple())) if expiry_time != None else long(0)
 
     def __init__(self, remote_node, *args, **kwargs):
         """ Creates the raw client.
@@ -197,7 +286,7 @@ class RawClient(object):
 
             :raises: QuasardbException
         """
-        err = self.handle.put(alias, data, self.__convert_expiry_time(expiry_time))
+        err = self.handle.put(alias, data, _convert_expiry_time(expiry_time))
         if err != impl.error_ok:
             raise QuasardbException(err)
 
@@ -215,7 +304,7 @@ class RawClient(object):
 
             :raises: QuasardbException
         """
-        err = self.handle.update(alias, data, self.__convert_expiry_time(expiry_time))
+        err = self.handle.update(alias, data, _convert_expiry_time(expiry_time))
         if err != impl.error_ok:
             raise QuasardbException(err)
 
@@ -236,6 +325,21 @@ class RawClient(object):
 
         return result
 
+    def run_batch(self, requests):
+        """
+        Runs the provided requests (a collection of BatchRequest) and returns a collection of BatchResult.
+
+        :param requests: The requests to run
+        :type requests: a list of BatchRequest
+
+        :returns: a list of BatchRequest -- The list of results
+        :raises: QuasardbException
+        """
+        # transform the list of BatchRequest to a list impl.batch_request
+        # we need to convert the list of impl.batch_result to a list of BatchResult
+        br = impl.run_batch(self.handle, map(lambda x: x.cpp_type(self.handle), requests))
+        return (br.successes, map(lambda x: BatchResult(x), br.results))
+
     def get(self, alias):
         """ Gets the data for the given alias.
         It is an error to request a non-existing entry.
@@ -251,7 +355,7 @@ class RawClient(object):
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
 
-        return api_buffer_to_string(buf)
+        return _api_buffer_to_string(buf)
 
     def get_update(self, alias, data, expiry_time=None):
         """ Updates the given alias and returns the previous value.
@@ -269,11 +373,11 @@ class RawClient(object):
             :raises: QuasardbException
         """
         err = self.__make_error_carrier()
-        buf = impl.get_update(self.handle, alias, data, self.__convert_expiry_time(expiry_time), err)
+        buf = impl.get_update(self.handle, alias, data, _convert_expiry_time(expiry_time), err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
 
-        return api_buffer_to_string(buf)
+        return _api_buffer_to_string(buf)
 
     def get_remove(self, alias):
         """ Atomically gets the data from the given alias and removes it.
@@ -291,7 +395,7 @@ class RawClient(object):
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
 
-        return api_buffer_to_string(buf)
+        return _api_buffer_to_string(buf)
 
     def compare_and_swap(self, alias, new_data, comparand, expiry_time=None):
         """ Atomically compares the alias with comparand and replaces it with new_data if it matches.
@@ -310,11 +414,11 @@ class RawClient(object):
             :raises: QuasardbException
         """
         err = self.__make_error_carrier()
-        buf = impl.compare_and_swap(self.handle, alias, new_data, comparand, self.__convert_expiry_time(expiry_time), err)
+        buf = impl.compare_and_swap(self.handle, alias, new_data, comparand, _convert_expiry_time(expiry_time), err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
 
-        return api_buffer_to_string(buf)
+        return _api_buffer_to_string(buf)
 
     def remove(self, alias):
         """ Removes the given alias from the repository. It is an error to remove a non-existing alias.
@@ -353,7 +457,7 @@ class RawClient(object):
 
             :raises: QuasardbException
         """
-        err = self.handle.expires_at(alias, self.__convert_expiry_time(expiry_time))
+        err = self.handle.expires_at(alias, _convert_expiry_time(expiry_time))
         if err != impl.error_ok:
             raise QuasardbException(err)
 
@@ -485,6 +589,11 @@ class Client(RawClient):
         """ Returns a forward iterator to iterate on all the cluster's entries
         """
         return ForwardIterator(self.handle.begin())
+
+    def run_batch(self, requests):
+        # we need to translate the requests buffers
+        successes, res = super(Client, self).run_batch(map(lambda x: x.pickle(), requests))
+        return (successes, map(lambda x: x.unpickle(), res))
 
     def put(self, alias, data, expiry_time=None):
         return super(Client, self).put(alias, pickle.dumps(data), expiry_time)

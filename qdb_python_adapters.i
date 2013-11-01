@@ -3,9 +3,27 @@
 namespace qdb
 {
 
+// thanks to the definitions, content/content_length will be matched for a Python string
+qdb::api_buffer_ptr make_api_buffer_ptr_from_string(handle_ptr h, const char * content, size_t content_length)
+{
+    if (!h || !content || !content_length)
+    {
+        return qdb::api_buffer_ptr();
+    }
+
+    return qdb::make_api_buffer_ptr(*h, content, content_length);
+}
+
 std::vector<std::string> prefix_get(handle_ptr h, const char * prefix, error_carrier * error)
 {
     return h->prefix_get(prefix, error->error);
+}
+
+run_batch_result run_batch(handle_ptr h, const std::vector<batch_request> & requests)
+{
+    run_batch_result br;
+    br.results = h->run_batch(requests, br.successes);
+    return br;
 }
 
 api_buffer_ptr get(handle_ptr h, const char * alias, error_carrier * error)

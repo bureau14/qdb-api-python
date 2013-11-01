@@ -326,5 +326,177 @@ class QuasardbExpiry(QuasardbTest):
 
         self.qdb.remove(entry_name)
 
+class QuasardbBatch(QuasardbTest):
+
+
+    def test_sequence(self):
+        """
+        The purpose of this sequence is to test that all operations are correctly mapped and errors correctly transmitted.
+        In particular we care a lot about about comparand and content being correctly transmitted.
+        """
+
+        entry_name = "entry"
+        entry_content = "content"
+
+        # getting non existing entry
+        brlist = [ qdb.BatchRequest(qdb.Operation.get_alloc, entry_name) ]
+        
+        successes, results = self.qdb.run_batch(brlist)
+
+        self.assertEqual(successes, 0)
+        self.assertEqual(len(results), 1)
+        self.assertIsInstance(results[0], qdb.BatchResult)
+
+        self.assertEqual(results[0].type, qdb.Operation.get_alloc)
+        self.assertEqual(results[0].error, qdb.Error.alias_not_found)
+        self.assertEqual(results[0].alias, entry_name)
+        self.assertEqual(results[0].result, None)
+
+        # add the entry, must work
+        brlist = [qdb.BatchRequest(qdb.Operation.put, entry_name, entry_content)]
+
+        successes, results = self.qdb.run_batch(brlist)
+
+        self.assertEqual(successes, 1)
+        self.assertEqual(len(results), 1)
+        self.assertIsInstance(results[0], qdb.BatchResult)
+
+        self.assertEqual(results[0].type, qdb.Operation.put)
+        self.assertEqual(results[0].error, qdb.Error.ok)
+        self.assertEqual(results[0].alias, entry_name)
+        self.assertEqual(results[0].result, None)
+
+        # cannot add twice
+        successes, results = self.qdb.run_batch(brlist)
+
+        self.assertEqual(successes, 0)
+        self.assertEqual(len(results), 1)
+        self.assertIsInstance(results[0], qdb.BatchResult)
+
+        self.assertEqual(results[0].type, qdb.Operation.put)
+        self.assertEqual(results[0].error, qdb.Error.alias_already_exists)
+        self.assertEqual(results[0].alias, entry_name)
+        self.assertEqual(results[0].result, None)
+
+        # now we can get it, we test that having multiple operations work as expected
+        brlist = [ qdb.BatchRequest(qdb.Operation.get_alloc, entry_name), qdb.BatchRequest(qdb.Operation.get_alloc, entry_name) ]
+
+        successes, results = self.qdb.run_batch(brlist)
+
+        self.assertEqual(successes, 2)
+        self.assertEqual(len(results), 2)
+        self.assertIsInstance(results[0], qdb.BatchResult)
+        self.assertIsInstance(results[1], qdb.BatchResult)
+
+        self.assertEqual(results[0].type, qdb.Operation.get_alloc)
+        self.assertEqual(results[0].error, qdb.Error.ok)
+        self.assertEqual(results[0].alias, entry_name)
+        self.assertEqual(results[0].result, entry_content)
+
+        self.assertEqual(results[1].type, qdb.Operation.get_alloc)
+        self.assertEqual(results[1].error, qdb.Error.ok)
+        self.assertEqual(results[1].alias, entry_name)
+        self.assertEqual(results[1].result, entry_content)
+
+        entry_new_content = "new content"
+
+        # this remove_if will not work because the comparand will not match
+        brlist = [ qdb.BatchRequest(qdb.Operation.remove_if, entry_name, None, entry_new_content) ]
+
+        successes, results = self.qdb.run_batch(brlist)
+
+        self.assertEqual(successes, 0)
+        self.assertEqual(len(results), 1)
+        self.assertIsInstance(results[0], qdb.BatchResult)
+
+        self.assertEqual(results[0].type, qdb.Operation.remove_if)
+        self.assertEqual(results[0].error, qdb.Error.unmatched_content)
+        self.assertEqual(results[0].alias, entry_name)
+        self.assertEqual(results[0].result, None)
+
+        # this compare and swap will work and return the original value
+        brlist = [ qdb.BatchRequest(qdb.Operation.cas, entry_name, entry_new_content, entry_content) ]
+
+        successes, results = self.qdb.run_batch(brlist)
+
+        self.assertEqual(successes, 1)
+        self.assertEqual(len(results), 1)
+        self.assertIsInstance(results[0], qdb.BatchResult)
+
+        self.assertEqual(results[0].type, qdb.Operation.cas)
+        self.assertEqual(results[0].error, qdb.Error.ok)
+        self.assertEqual(results[0].alias, entry_name)
+        self.assertEqual(results[0].result, entry_content)
+
+        # now remove_if works because compare and swap update the value
+        brlist = [ qdb.BatchRequest(qdb.Operation.remove_if, entry_name, None, entry_new_content) ]
+
+        successes, results = self.qdb.run_batch(brlist)
+
+        self.assertEqual(successes, 1)
+        self.assertEqual(len(results), 1)
+        self.assertIsInstance(results[0], qdb.BatchResult)
+
+        self.assertEqual(results[0].type, qdb.Operation.remove_if)
+        self.assertEqual(results[0].error, qdb.Error.ok)
+        self.assertEqual(results[0].alias, entry_name)
+        self.assertEqual(results[0].result, None)
+
+        # update always work, even if the entry does not exist
+        brlist = [ qdb.BatchRequest(qdb.Operation.update, entry_name, entry_content )]
+
+        successes, results = self.qdb.run_batch(brlist)
+
+        self.assertEqual(successes, 1)
+        self.assertEqual(len(results), 1)
+        self.assertIsInstance(results[0], qdb.BatchResult)
+
+        self.assertEqual(results[0].type, qdb.Operation.update)
+        self.assertEqual(results[0].error, qdb.Error.ok)
+        self.assertEqual(results[0].alias, entry_name)
+        self.assertEqual(results[0].result, None)
+
+        # testing get_update
+        brlist = [ qdb.BatchRequest(qdb.Operation.get_update, entry_name, entry_new_content )]
+
+        successes, results = self.qdb.run_batch(brlist)
+
+        self.assertEqual(successes, 1)
+        self.assertEqual(len(results), 1)
+        self.assertIsInstance(results[0], qdb.BatchResult)
+
+        self.assertEqual(results[0].type, qdb.Operation.get_update)
+        self.assertEqual(results[0].error, qdb.Error.ok)
+        self.assertEqual(results[0].alias, entry_name)
+        self.assertEqual(results[0].result, entry_content)
+
+        # and now we test remove, the last operation we didn't test
+        brlist = [ qdb.BatchRequest(qdb.Operation.remove, entry_name )]
+
+        successes, results = self.qdb.run_batch(brlist)
+
+        self.assertEqual(successes, 1)
+        self.assertEqual(len(results), 1)
+        self.assertIsInstance(results[0], qdb.BatchResult)
+
+        self.assertEqual(results[0].type, qdb.Operation.remove)
+        self.assertEqual(results[0].error, qdb.Error.ok)
+        self.assertEqual(results[0].alias, entry_name)
+        self.assertEqual(results[0].result, None)
+
+        # getting non existing entry: no longer there!
+        brlist = [ qdb.BatchRequest(qdb.Operation.get_alloc, entry_name) ]
+        
+        successes, results = self.qdb.run_batch(brlist)
+
+        self.assertEqual(successes, 0)
+        self.assertEqual(len(results), 1)
+        self.assertIsInstance(results[0], qdb.BatchResult)
+
+        self.assertEqual(results[0].type, qdb.Operation.get_alloc)
+        self.assertEqual(results[0].error, qdb.Error.alias_not_found)
+        self.assertEqual(results[0].alias, entry_name)
+        self.assertEqual(results[0].result, None)
+
 if __name__ == '__main__':
     unittest.main()
