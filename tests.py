@@ -171,8 +171,6 @@ class QuasardbIteration(QuasardbTest):
         for k, v in self.qdb:
             self.assertEqual(entries[k], v)
 
-        self.qdb.remove_all()
-
 class QuasardbPrefix(QuasardbTest):
 
     def test_prefix_get(self):
@@ -237,8 +235,6 @@ class QuasardbExpiry(QuasardbTest):
         self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
         self.assertEqual(exp, future_exp)
 
-        self.qdb.remove_all()
-
     def test_expires_from_now(self):
         # add one entry
         entry_name = "entry_expires_from_now"
@@ -270,8 +266,6 @@ class QuasardbExpiry(QuasardbTest):
         self.assertIsInstance(exp, datetime.datetime)
         self.assertLess(future_exp_lower_bound, exp)
         self.assertLess(exp, future_exp_higher_bound)
-
-        self.qdb.remove_all()
 
     """
     Test that methods that accept an expiry date properly forward the value
@@ -327,6 +321,43 @@ class QuasardbExpiry(QuasardbTest):
         self.qdb.remove(entry_name)
 
 class QuasardbBatch(QuasardbTest):
+
+    def __make_expiry_time(self, td):
+         # expires in one minute
+        now = datetime.datetime.now(qdb.tz)
+        # get rid of the microsecond for the tests
+        return now + td - datetime.timedelta(microseconds=now.microsecond)      
+
+    def test_expiry(self):
+        """
+        Test that the expiry paramater is properly transmitted
+        """
+
+        future_exp = self.__make_expiry_time(datetime.timedelta(minutes=1))
+
+        entry_name = "entry"
+        entry_content = "content"
+
+        brlist = [qdb.BatchRequest(qdb.Operation.put, entry_name, entry_content, None, future_exp)]
+
+        successes, results = self.qdb.run_batch(brlist)
+
+        self.assertEqual(successes, 1)
+        self.assertEqual(len(results), 1)
+        self.assertIsInstance(results[0], qdb.BatchResult)
+
+        self.assertEqual(results[0].type, qdb.Operation.put)
+        self.assertEqual(results[0].error, qdb.Error.ok)
+        self.assertEqual(results[0].alias, entry_name)
+        self.assertEqual(results[0].result, None)
+
+        # get the expiry, should be the one wwe set
+        exp = self.qdb.get_expiry_time(entry_name)
+
+        self.assertIsInstance(exp, datetime.datetime)
+        self.assertNotEqual(exp.tzinfo, None)
+        self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
+        self.assertEqual(exp, future_exp)
 
 
     def test_sequence(self):
