@@ -24,7 +24,6 @@
 %rename("%(strip:[qdb_])s", %$isfunction) "";
 
 %typemap(in) qdb_time_t { $1 = PyLong_AsSsize_t($input); }
-
 %typemap(out) qdb_time_t { $result = PyLong_FromSsize_t($1); }
 
 %include typemaps.i
