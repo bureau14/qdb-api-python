@@ -19,9 +19,17 @@ std::vector<std::string> prefix_get(handle_ptr h, const char * prefix, error_car
     return h->prefix_get(prefix, error->error);
 }
 
-run_batch_result run_batch(handle_ptr h, const std::vector<batch_request> & requests)
+struct run_batch_py_result
 {
-    run_batch_result br;
+    run_batch_py_result(void) : successes(0) {}
+
+    size_t successes;
+    std::vector<qdb::batch_result> results;
+};
+
+run_batch_py_result run_batch(handle_ptr h, const std::vector<batch_request> & requests)
+{
+    run_batch_py_result br;
     br.results = h->run_batch(requests, br.successes);
     return br;
 }
