@@ -5,7 +5,11 @@ import subprocess
 import os
 import datetime
 
+# we change the port at each run to prevent the "port in use issue" between tests
 class QuasardbTest(unittest.TestCase):
+
+    current_port = 3000
+
     """
     Base class for all test, attempts to connect on a quasardb cluster listening on the default port on the IPV4 localhost
     all tests depend on it!
@@ -30,11 +34,11 @@ class QuasardbTest(unittest.TestCase):
         self.assertTrue(os.path.exists(license_file))
 
         # don't save anything to disk
-        self.qdbd = subprocess.Popen([qdbdd_path, '--transient', '--license-file=' + license_file])
+        self.qdbd = subprocess.Popen([qdbdd_path, '--address=127.0.0.1:' + str(self.current_port), '--transient', '--license-file=' + license_file])
         self.assertNotEqual(self.qdbd.pid, 0)
         self.assertEqual(self.qdbd.returncode, None)
 
-        self.remote_node = qdb.RemoteNode("127.0.0.1")
+        self.remote_node = qdb.RemoteNode("127.0.0.1", self.current_port)
         try:
             self.qdb = qdb.Client(self.remote_node)
         except qdb.QuasardbException, q:
@@ -44,12 +48,11 @@ class QuasardbTest(unittest.TestCase):
         # remove_all is asynchronous, don't call it after init, it might be finished in the middle of our test...
 
     def tearDown(self):
-        try:
-            self.qdb.remove_all()
-        except qdb.QuasardbException, q:
-            pass
         self.qdbd.terminate()
         self.qdbd.wait()
+
+        self.current_port += 1
+
 
 class QuasardbBasic(QuasardbTest):
     """

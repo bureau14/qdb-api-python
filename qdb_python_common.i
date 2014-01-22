@@ -1,4 +1,12 @@
 %module(package="qdb") qdb
+#define SwigPyIterator qdbSwigPyIterator
+#define SwigPyIterator_T qdbSwigPyIterator_T
+#define SwigPyIteratorOpen_T qdbSwigPyIteratorOpen_T
+#define SwigPyIteratorClosed_T qdbSwigPyIteratorClosed_T
+#define SwigPySequence_Ref qdbSwigPySequence_Ref
+#define SwigPySequence_ArrowProxy qdbSwigPySequence_ArrowProxy
+#define SwigPySequence_InputIterator qdbSwigPySequence_InputIterator
+#define SwigPySequence_Cont qdbSwigPySequence_Cont
 %{
 
 #include <qdb/client.hpp>

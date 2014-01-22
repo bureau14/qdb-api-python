@@ -34,6 +34,6 @@ setup(name=package_name,
         'qdb._qdb', [os.path.join('src', '@QDB_PY_WRAPPER@')],
         include_dirs=['include'],
         library_dirs=['qdb'],
-        libraries=['qdb_api'],
+        libraries=[@QDB_LIBRARIES@],
         extra_compile_args=extra_compile_args,
         extra_link_args=extra_link_args)])

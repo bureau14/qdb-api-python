@@ -64,17 +64,17 @@ Options = __make_enum('Option', 'option_')
 Operation = __make_enum('Operation', 'operation_')
 Protocol = __make_enum('Protocol', 'protocol_')
 
-def _make_error_string(error_code):
+def make_error_string(error_code):
     """ Returns a meaningful error message corresponding to the quasardb error code.
 
     :param error_code: The error code to translate
     :returns: str -- An error string
     """
-    return impl._make_error_string(error_code)
+    return impl.make_error_string(error_code)
 
 class QuasardbException(Exception):
     """The quasardb exception, based on the API error codes."""
-    def __init__(self, error_code):
+    def __init__(self, error_code = 0):
         assert(isinstance(error_code, int))
         Exception.__init__(self)
         self.error_code = error_code
@@ -83,7 +83,7 @@ class QuasardbException(Exception):
         return "quasardb exception - code " + str(self.error_code)
 
     def __str__(self):
-        return _make_error_string(self.error_code)
+        return make_error_string(self.error_code)
 
 def version():
     """ Returns the API's version number as a string
@@ -211,7 +211,7 @@ class RemoteNode:
         self.error = impl.error_uninitialized
 
     def __str__(self):
-        return "quasardb remote node: " + self.address + ":" + str(self.port) + " - error status:" + _make_error_string(self.error)
+        return "quasardb remote node: " + self.address + ":" + str(self.port) + " - error status:" + make_error_string(self.error)
 
     def c_type(self):
         """
