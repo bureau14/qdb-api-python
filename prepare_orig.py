@@ -12,13 +12,25 @@ dirs_to_build = [package_include_dir, 'src', 'qdb']
 header_files = ["@QDB_API_C_HEADER@", "@QDB_API_CPP_HEADER@"]
 library_dir = "@ACTUAL_LIBRARY_PATH@"
 cpp_libs = "@QDB_CPP_LIBS@".split(';')
-package_modules = ['@QDB_API_DLL@', '@TBB_SHARED@', '@TBB_MALLOC_SHARED@'] 
+package_modules = ['@QDB_API_DLL@'] 
 
 # cpp_libs can be empty don't add an empty list
 if len(cpp_libs) > 0:
     package_modules.extend(cpp_libs)
 
 python_modules = ['@QDB_PY_IMPL@', '@QDB_PY_INTERFACE@']
+
+tbb = '@TBB_SHARED@'
+if len(tbb) > 0:
+    package_modules.append(tbb)
+
+tbb_malloc = '@TBB_MALLOC_SHARED@'
+if len(tbb_malloc) > 0:
+    package_modules.append(tbb_malloc)
+
+malloc_proxy = '@TBB_MALLOC_PROXY_SHARED@'
+if len(malloc_proxy) > 0:
+    package_modules.append(malloc_proxy)
 
 malloc_proxy = '@TBB_MALLOC_PROXY_SHARED@'
 if len(malloc_proxy) > 0:

@@ -31,21 +31,19 @@ IF(CMAKE_BUILD_TYPE STREQUAL Release)
         ${QDB_COMMON_SWIG_FILES})
     SET(QDB_PYTHON_LIBRARY_GLOB "*.dll")
   ELSE(MSVC)
-    SET(TBB_SHARED ${ACTUAL_Tbb_LIBRARY_RELEASE})
-    SET(TBB_MALLOC_SHARED ${ACTUAL_Tbb_MALLOC_LIBRARY_RELEASE})
-    SET(TBB_MALLOC_PROXY_SHARED ${ACTUAL_Tbb_MALLOC_PROXY_LIBRARY_RELEASE})
+    SET(TBB_SHARED "")
+    SET(TBB_MALLOC_SHARED "")
+    SET(TBB_MALLOC_PROXY_SHARED "")
     SET(ACTUAL_LIBRARY_PATH ${LIBRARY_OUTPUT_PATH})
-    
+
+    SET(QDB_CPP_LIBS)
 
     IF(CLANG)
       SET(QDB_PYTHON_COMPILE_FLAG -std=c++11 -stdlib=libc++ -fcxx-exceptions -fexceptions)
-      # on FreeBSD everything should be in the system
-      SET(QDB_CPP_LIBS)
+      # on FreeBSD everything should be in the system      
       SET(QDB_LIBRARIES "'qdb_api', 'c++'")
     ELSE(CLANG)
-      SET(QDB_PYTHON_COMPILE_FLAG -std=c++0x -Wno-unused-function)
-      # on Linux we might need some libraries, we can't guess which Linux will be used
-      SET(QDB_CPP_LIBS ${GCC_ADDITIONAL_LIBS})
+      SET(QDB_PYTHON_COMPILE_FLAG -std=c++11 -Wno-unused-function)
       SET(QDB_LIBRARIES "'qdb_api'")
     ENDIF(CLANG)
 
@@ -122,7 +120,7 @@ IF(CMAKE_BUILD_TYPE STREQUAL Release)
     ELSE(CLANG)
       add_custom_command(
          TARGET qdb_python_api
-         COMMAND ${CMAKE_COMMAND} -P gcc46_build_wrap.cmake
+         COMMAND ${CMAKE_COMMAND} -P gcc48_build_wrap.cmake
          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
          DEPENDS ${QDB_PY_INTERFACE} ${QDB_PY_IMPL} ${QDB_PY_WRAPPER}
          COMMENT "Compiling quasardb Python API using gcc46"
