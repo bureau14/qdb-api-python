@@ -45,7 +45,6 @@ class QuasardbTest(unittest.TestCase):
             self.qdbd.terminate()
             self.qdbd.wait()
             self.assertEqual(False)
-        # remove_all is asynchronous, don't call it after init, it might be finished in the middle of our test...
 
     def tearDown(self):
         self.qdbd.terminate()
@@ -161,7 +160,7 @@ class QuasardbIteration(QuasardbTest):
     """
     def test_forward(self):
 
-        # add 10 entries 
+        # add 10 entries
         entries = dict()
 
         for e in range(0, 10):
@@ -208,7 +207,7 @@ class QuasardbExpiry(QuasardbTest):
          # expires in one minute
         now = datetime.datetime.now(qdb.tz)
         # get rid of the microsecond for the tests
-        return now + td - datetime.timedelta(microseconds=now.microsecond)        
+        return now + td - datetime.timedelta(microseconds=now.microsecond)
 
     """
     Test for expiry. We want to make sure, in particular, that the conversion from Python datetime is right.
@@ -254,7 +253,7 @@ class QuasardbExpiry(QuasardbTest):
 
         # expires in one minute from now
         future_exp = 60
-        
+
         self.qdb.expires_from_now(entry_name, future_exp)
 
         # We use a wide 10 se interval for the check because we have no idea at which speed these tests
@@ -329,7 +328,7 @@ class QuasardbBatch(QuasardbTest):
          # expires in one minute
         now = datetime.datetime.now(qdb.tz)
         # get rid of the microsecond for the tests
-        return now + td - datetime.timedelta(microseconds=now.microsecond)      
+        return now + td - datetime.timedelta(microseconds=now.microsecond)
 
     def test_expiry(self):
         """
@@ -374,7 +373,7 @@ class QuasardbBatch(QuasardbTest):
 
         # getting non existing entry
         brlist = [ qdb.BatchRequest(qdb.Operation.get_alloc, entry_name) ]
-        
+
         successes, results = self.qdb.run_batch(brlist)
 
         self.assertEqual(successes, 0)
@@ -520,7 +519,7 @@ class QuasardbBatch(QuasardbTest):
 
         # getting non existing entry: no longer there!
         brlist = [ qdb.BatchRequest(qdb.Operation.get_alloc, entry_name) ]
-        
+
         successes, results = self.qdb.run_batch(brlist)
 
         self.assertEqual(successes, 0)

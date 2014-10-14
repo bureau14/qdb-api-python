@@ -508,7 +508,7 @@ class RawClient(object):
 
         return datetime.datetime.fromtimestamp(t, tz)
 
-    def remove_all(self):
+    def purge_all(self):
         """ Removes all the entries from all nodes of the cluster.
 
             :raises: QuasardbException
@@ -516,7 +516,7 @@ class RawClient(object):
             .. caution::
                 This method is intended for very specific usage scenarii. Use at your own risks.
         """
-        err = self.handle.remove_all()
+        err = self.handle.purge_all()
         if err != impl.error_ok:
             raise QuasardbException(err)
 
