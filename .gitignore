@@ -13,3 +13,4 @@ setup.py
 qdb-python-api*
 /README.txt
 /qdb_python_wrapper.cxx
+/x64
