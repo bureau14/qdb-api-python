@@ -15,7 +15,7 @@ IF(CMAKE_BUILD_TYPE STREQUAL Release)
   SET(QDB_API_NAME "qdb_api")
   SET(QDB_PY_IMPL ${CMAKE_CURRENT_SOURCE_DIR}/impl.py)
   SET(QDB_PY_INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py)
-  SET(QDB_PY_WRAPPER ${CMAKE_CURRENT_SOURCE_DIR}/qdb_python_wrapper.cxx)
+  SET(QDB_PY_WRAPPER qdb_python_wrapper.cxx)
 
   # get the full path of qdb_api.dll 
   get_target_property(QDB_API_DLL qdb_api LOCATION_Release)

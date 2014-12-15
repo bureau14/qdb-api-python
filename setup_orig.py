@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-# (c)Bureau 14 SARL. All rights reserved.
-# qdb is a trademark of Bureau 14 SARL
+# (c)quasardb SAS. All rights reserved.
+# qdb is a trademark of quasardb SAS
 
 from distutils.core import setup, Extension
 import os.path
@@ -25,9 +25,9 @@ if len(sys.argv) > 1:
 setup(name=package_name,
       version=qdb_version,
       description='Python API for the quasardb data engine software',
-      author='Bureau 14 SARL',
-      author_email='contact@bureau14.fr',
-      url='http://www.quasardb.net/',
+      author='quasardb SAS',
+      author_email='contact@quasardb.net',
+      url='https://www.quasardb.net/',
       packages=['qdb'],
       package_data={'qdb': [os.path.basename(mod) for mod in package_modules]},
       ext_modules=[Extension(
