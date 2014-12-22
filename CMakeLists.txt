@@ -93,8 +93,6 @@ IF(CMAKE_BUILD_TYPE STREQUAL Release)
        DEPENDS ${QDB_PY_WRAPPER}
        SOURCES ${QDB_PY_WRAPPER} ${QDB_PYTHON_SWIG_FILES})
 
-  set_target_properties(qdb_python_api PROPERTIES FOLDER ${CLIENT_API_IDE_FOLDER})
-
   IF(MSVC)
     add_custom_command(
        TARGET qdb_python_api
@@ -143,7 +141,5 @@ IF(CMAKE_BUILD_TYPE STREQUAL Release)
     COMMENT "Copying binary file for documentation"
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     DEPENDS qdb_python_api)
-
-  set_target_properties(qdb_python_api_post PROPERTIES FOLDER ${CLIENT_API_IDE_FOLDER})
 
 ENDIF()
