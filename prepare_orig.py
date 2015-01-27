@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-# (c)Bureau 14 SARL. All rights reserved.
-# qdb is a trademark of Bureau 14 SARL
+# Copyright (c) 2009-2015, quasardb SAS. All rights reserved.
+# qdb is a trademark of quasardb SAS
 
 import os
 import shutil
