@@ -4,6 +4,7 @@ import cPickle as pickle
 import subprocess
 import os
 import datetime
+import time
 
 # we change the port at each run to prevent the "port in use issue" between tests
 class QuasardbTest(unittest.TestCase):
@@ -29,13 +30,15 @@ class QuasardbTest(unittest.TestCase):
 
         self.assertTrue(os.path.exists(qdbdd_path))
 
-        # check license presence
-        license_file = os.path.join('..', '..', '..', 'scripts', 'tests', 'qdb_test_license.txt')
-        self.assertTrue(os.path.exists(license_file))
-
         # don't save anything to disk
-        self.qdbd = subprocess.Popen([qdbdd_path, '--address=127.0.0.1:' + str(self.current_port), '--transient', '--license-file=' + license_file])
+        self.qdbd = subprocess.Popen([qdbdd_path, '--address=127.0.0.1:' + str(self.current_port), '--transient'])
         self.assertNotEqual(self.qdbd.pid, 0)
+
+        # startup may take a couple of seconds, temporize to make sure the connection will be accepted
+        time.sleep(2)
+
+        self.qdbd.poll()
+
         self.assertEqual(self.qdbd.returncode, None)
 
         self.remote_node = qdb.RemoteNode("127.0.0.1", self.current_port)
@@ -44,7 +47,7 @@ class QuasardbTest(unittest.TestCase):
         except qdb.QuasardbException, q:
             self.qdbd.terminate()
             self.qdbd.wait()
-            self.assertEqual(False)
+            self.fail(msg=str(q))
 
     def tearDown(self):
         self.qdbd.terminate()
@@ -160,7 +163,7 @@ class QuasardbIteration(QuasardbTest):
     """
     def test_forward(self):
 
-        # add 10 entries
+        # add 10 entries 
         entries = dict()
 
         for e in range(0, 10):
@@ -207,7 +210,7 @@ class QuasardbExpiry(QuasardbTest):
          # expires in one minute
         now = datetime.datetime.now(qdb.tz)
         # get rid of the microsecond for the tests
-        return now + td - datetime.timedelta(microseconds=now.microsecond)
+        return now + td - datetime.timedelta(microseconds=now.microsecond)        
 
     """
     Test for expiry. We want to make sure, in particular, that the conversion from Python datetime is right.
@@ -253,7 +256,7 @@ class QuasardbExpiry(QuasardbTest):
 
         # expires in one minute from now
         future_exp = 60
-
+        
         self.qdb.expires_from_now(entry_name, future_exp)
 
         # We use a wide 10 se interval for the check because we have no idea at which speed these tests
@@ -328,7 +331,7 @@ class QuasardbBatch(QuasardbTest):
          # expires in one minute
         now = datetime.datetime.now(qdb.tz)
         # get rid of the microsecond for the tests
-        return now + td - datetime.timedelta(microseconds=now.microsecond)
+        return now + td - datetime.timedelta(microseconds=now.microsecond)      
 
     def test_expiry(self):
         """
@@ -373,7 +376,7 @@ class QuasardbBatch(QuasardbTest):
 
         # getting non existing entry
         brlist = [ qdb.BatchRequest(qdb.Operation.get_alloc, entry_name) ]
-
+        
         successes, results = self.qdb.run_batch(brlist)
 
         self.assertEqual(successes, 0)
@@ -519,7 +522,7 @@ class QuasardbBatch(QuasardbTest):
 
         # getting non existing entry: no longer there!
         brlist = [ qdb.BatchRequest(qdb.Operation.get_alloc, entry_name) ]
-
+        
         successes, results = self.qdb.run_batch(brlist)
 
         self.assertEqual(successes, 0)
