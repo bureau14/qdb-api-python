@@ -42,9 +42,9 @@
 %apply (const char *STRING, size_t LENGTH) { (const char * new_value, size_t new_value_length) };
 %apply (const char *STRING, size_t LENGTH) { (const char * comparand, size_t comparand_length) };
 
-%include "../qdb_enum.i"
-%include "../qdb_struct.i"
-%include "../qdb_iterator.i"
+%include "qdb_enum.i"
+%include "qdb_struct.i"
+%include "qdb_iterator.i"
 
 %rename(version) qdb_version;
 const char * qdb_version();
