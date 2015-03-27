@@ -6,6 +6,11 @@ IF(POLICY CMP0026)
  CMAKE_POLICY(SET CMP0026 OLD)
 ENDIF()
 
+set(QDB_COMMON_SWIG_FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/qdb_enum.i
+  ${CMAKE_CURRENT_SOURCE_DIR}/qdb_struct.i
+  ${CMAKE_CURRENT_SOURCE_DIR}/qdb_iterator.i)
+
 # Note this only happens when you manually set
 # CMAKE_BUILD_TYPE at cmake invocation time.
 # This is the case when building release packages on buildbot
