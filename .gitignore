@@ -1,16 +1,5 @@
-build
-include
-dist
-src
-qdb
-qdb.py
-qdb_python_wrapper.cxx
-impl.py
-MANIFEST
-MANIFEST.in
-prepare.py
-setup.py
-qdb-python-api*
-/README.txt
-/qdb_python_wrapper.cxx
-/x64
+# Where you normaly run CMake
+/build/
+
+# Where you must unzip qdb_api
+/qdb/
