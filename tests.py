@@ -1,10 +1,16 @@
-import unittest
-import qdb
 import cPickle as pickle
-import subprocess
-import os
 import datetime
+import os
+import subprocess
+import sys
 import time
+import unittest
+
+sys.path.append('@CMAKE_BINARY_DIR@/build/lib.win32-2.7')
+sys.path.append('@CMAKE_BINARY_DIR@/build/lib.win-amd64-2.7')
+sys.path.append('@CMAKE_BINARY_DIR@/build/lib.linux-x86_64-2.7')
+sys.path.append('@CMAKE_BINARY_DIR@/build/lib.freebsd-10.1-RELEASE-amd64-2.7')
+import qdb
 
 # we change the port at each run to prevent the "port in use issue" between tests
 class QuasardbTest(unittest.TestCase):
@@ -16,22 +22,9 @@ class QuasardbTest(unittest.TestCase):
     all tests depend on it!
     """
     def setUp(self):
-        # we use the debug version for our unit tests because in the debug version the licensing verification is disabled
-
-        possible_paths = [ os.path.join(os.getcwd(), '..', '..', '..', 'bin64', 'Release', 'qdbd'),
-            os.path.join(os.getcwd(), '..', '..', '..', 'bin64', 'Release', 'qdbd.exe'),
-            os.path.join(os.getcwd(), '..', '..', '..', 'bin', 'Release', 'qdbd'),
-            os.path.join(os.getcwd(), '..', '..', '..', 'bin', 'Release', 'qdbd.exe') ]
-
-        for p in possible_paths:
-            if os.path.exists(p):
-                qdbdd_path = p
-                break
-
-        self.assertTrue(os.path.exists(qdbdd_path))
 
         # don't save anything to disk
-        self.qdbd = subprocess.Popen([qdbdd_path, '--address=127.0.0.1:' + str(self.current_port), '--transient'])
+        self.qdbd = subprocess.Popen(['@QDB_DAEMON@', '--address=127.0.0.1:' + str(self.current_port), '--transient'])
         self.assertNotEqual(self.qdbd.pid, 0)
 
         # startup may take a couple of seconds, temporize to make sure the connection will be accepted
@@ -535,4 +528,5 @@ class QuasardbBatch(QuasardbTest):
         self.assertEqual(results[0].result, None)
 
 if __name__ == '__main__':
-    unittest.main()
+    import xmlrunner
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'))()

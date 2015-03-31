@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 2.8.12)
 project(qdb-api-python)
+enable_testing()
 
 if(DEFINED ENV{PYTHON_EXECUTABLE})
     set(PYTHON_EXECUTABLE "$ENV{PYTHON_EXECUTABLE}")
@@ -31,8 +32,10 @@ set(QDB_PY_INIT "${CMAKE_CURRENT_SOURCE_DIR}/__init__.py")
 
 set(QDB_API_DIR "${CMAKE_SOURCE_DIR}/qdb")
 if(NOT IS_DIRECTORY "${QDB_API_DIR}/include")
-    message(WARNING "Please unzip qdb_api into ${QDB_API_DIR}")
+    message(WARNING "Please unzip qdb c-api into ${QDB_API_DIR}")
 endif()
+
+set(QDB_DAEMON "${QDB_API_DIR}/bin/qdbd")
 
  # get the full path of qdb_api.dll 
 if(WIN32)
@@ -46,8 +49,9 @@ endif()
 string(TOLOWER ${CMAKE_SYSTEM_NAME} PY_PACKAGE_SOURCE_SUFFIX)
 
 # generate setup script by replacing CMake variables
-configure_file(setup_orig.py setup.py @ONLY)
-configure_file(MANIFEST_orig.in MANIFEST.in @ONLY)
+configure_file(setup.py setup.py @ONLY)
+configure_file(tests.py tests.py @ONLY)
+configure_file(MANIFEST.in MANIFEST.in @ONLY)
 configure_file(README.txt README.txt)
 
 # Step 1: SWIG
@@ -69,3 +73,6 @@ else()
         DEPENDS ${QDB_PY_WRAPPER} ${QDB_PY_IMPL}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 endif()
+
+# Step 3: Test
+add_test(qdb_python_test ${PYTHON_EXECUTABLE} tests.py)

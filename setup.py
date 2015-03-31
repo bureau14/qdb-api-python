@@ -60,11 +60,7 @@ else:
 
 package_modules = glob.glob(os.path.join('qdb', '@QDB_PYTHON_LIBRARY_GLOB@'))
 
-package_name = 'qdb-python-api-bin'
-
-if len(sys.argv) > 1:
-    if sys.argv[1] == 'sdist':
-        package_name = 'qdb-python-api-src-@PY_PACKAGE_SOURCE_SUFFIX@-' + arch
+package_name = 'qdb-python-api'
 
 setup(name=package_name,
       version=qdb_version,
@@ -81,3 +77,7 @@ setup(name=package_name,
         libraries=qdb_libraries,
         extra_compile_args=extra_compile_args,
         extra_link_args=extra_link_args)])
+
+shutil.rmtree('qdb')
+shutil.rmtree('include')
+shutil.rmtree('src')
