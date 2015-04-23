@@ -13,7 +13,7 @@ def copy(srcFile, dstFolder):
         os.makedirs(dstFolder)
     shutil.copy(srcFile, dstFolder)
 
-qdb_version = "@QDB_PY_VERSION@"
+qdb_version = "@QDB_PY_VERSION@-@CMAKE_SYSTEM_NAME@".lower();
 
 is_clang = 'Clang' in '@CMAKE_CXX_COMPILER_ID@' 
 is_windows = os.name == 'nt'
