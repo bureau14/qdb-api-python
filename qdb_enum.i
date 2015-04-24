@@ -61,7 +61,7 @@ enum qdb_operation_type_t
     qdb_op_update = 2,
     qdb_op_remove = 3,
     qdb_op_cas = 4,
-    qdb_op_get_update = 5,
-    qdb_op_get_remove = 6,
+    qdb_op_get_and_update = 5,
+    qdb_op_get_and_remove = 6,
     qdb_op_remove_if = 7
 };

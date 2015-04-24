@@ -59,7 +59,7 @@ class QuasardbBasic(QuasardbTest):
         str = qdb.version()
         self.assertGreater(len(str), 0)
 
-    def test_put_get_remove(self):
+    def test_put_get_and_remove(self):
         entry_name = "entry"
         entry_content = "content"
         self.qdb.put(entry_name, entry_content)
@@ -83,25 +83,25 @@ class QuasardbBasic(QuasardbTest):
         self.assertEqual(got, entry_content)
         self.qdb.remove(entry_name)
 
-    def test_get_update(self):
+    def test_get_and_update(self):
         entry_name = "entry"
         entry_content = "content"
         self.qdb.put(entry_name, entry_content)
         got = self.qdb.get(entry_name)
         self.assertEqual(got, entry_content)
         entry_new_content = "new stuff"
-        got = self.qdb.get_update(entry_name, entry_new_content)
+        got = self.qdb.get_and_update(entry_name, entry_new_content)
         self.assertEqual(got, entry_content)
         got = self.qdb.get(entry_name)
         self.assertEqual(got, entry_new_content)
 
         self.qdb.remove(entry_name)
 
-    def test_get_remove(self):
+    def test_get_and_remove(self):
         entry_name = "entry"
         entry_content = "content"
         self.qdb.put(entry_name, entry_content)
-        got = self.qdb.get_remove(entry_name)
+        got = self.qdb.get_and_remove(entry_name)
         self.assertEqual(got, entry_content)
         self.assertRaises(qdb.QuasardbException, self.qdb.get, entry_name)
 
@@ -296,7 +296,7 @@ class QuasardbExpiry(QuasardbTest):
 
         future_exp = self.__make_expiry_time(datetime.timedelta(minutes=3))
 
-        self.qdb.get_update(entry_name, entry_content, future_exp)
+        self.qdb.get_and_update(entry_name, entry_content, future_exp)
 
         exp = self.qdb.get_expiry_time(entry_name)
 
@@ -485,8 +485,8 @@ class QuasardbBatch(QuasardbTest):
         self.assertEqual(results[0].alias, entry_name)
         self.assertEqual(results[0].result, None)
 
-        # testing get_update
-        brlist = [ qdb.BatchRequest(qdb.Operation.get_update, entry_name, entry_new_content )]
+        # testing get_and_update
+        brlist = [ qdb.BatchRequest(qdb.Operation.get_and_update, entry_name, entry_new_content )]
 
         successes, results = self.qdb.run_batch(brlist)
 
@@ -494,7 +494,7 @@ class QuasardbBatch(QuasardbTest):
         self.assertEqual(len(results), 1)
         self.assertIsInstance(results[0], qdb.BatchResult)
 
-        self.assertEqual(results[0].type, qdb.Operation.get_update)
+        self.assertEqual(results[0].type, qdb.Operation.get_and_update)
         self.assertEqual(results[0].error, qdb.Error.ok)
         self.assertEqual(results[0].alias, entry_name)
         self.assertEqual(results[0].result, entry_content)

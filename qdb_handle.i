@@ -34,10 +34,9 @@ public:
 
     std::vector<std::string> prefix_get(const char * prefix, qdb_error_t & error);
 
-    qdb_error_t get(const char * alias, char * content, size_t * content_length);
     api_buffer_ptr get(const char * alias, qdb_error_t & error);
-    api_buffer_ptr get_remove(const char * alias, qdb_error_t & error);
-    api_buffer_ptr get_update(const char * alias, const char * update_content, size_t update_content_length, qdb_time_t expiry_time, qdb_error_t & error);
+    api_buffer_ptr get_and_remove(const char * alias, qdb_error_t & error);
+    api_buffer_ptr get_and_update(const char * alias, const char * update_content, size_t update_content_length, qdb_time_t expiry_time, qdb_error_t & error);
     api_buffer_ptr compare_and_swap(const char * alias,
         const char * new_value,
         size_t new_value_length,
