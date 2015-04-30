@@ -25,9 +25,7 @@ public:
     bool connected(void) const;
     void set_timeout(int timeout);
 
-    qdb_error_t connect(const char * host, unsigned short port);
-    qdb_error_t connect(const qdb_remote_node_t & server);
-    size_t multi_connect(qdb_remote_node_t * servers, size_t count);
+    qdb_error_t connect(const char * uri);
 
     qdb_error_t put(const char * alias, const char * content, size_t content_length, qdb_time_t expiry_time);
     qdb_error_t update(const char * alias, const char * content, size_t content_length, qdb_time_t expiry_time);
@@ -47,15 +45,16 @@ public:
 
     std::vector<batch_result> run_batch(const std::vector<batch_request> & requests, size_t & successes_count);
 
-    std::string node_status(const qdb_remote_node_t & node, qdb_error_t & error);
-    std::string node_config(const qdb_remote_node_t & node, qdb_error_t & error);
-    std::string node_topology(const qdb_remote_node_t & node, qdb_error_t & error);
+    std::string node_status(const char * uri, qdb_error_t & error);
+    std::string node_config(const char * uri, qdb_error_t & error);
+    std::string node_topology(const char * uri, qdb_error_t & error);
 
-    qdb_error_t stop_node(const qdb_remote_node_t & node, const char * reason);
+    qdb_error_t stop_node(const char * uri, const char * reason);
 
     qdb_error_t remove(const char * alias);
     qdb_error_t remove_if(const char * alias, const char * comparand, size_t comparand_length);
     qdb_error_t purge_all(void);
+    qdb_error_t trim_all(void);
 
     qdb_error_t expires_at(const char * alias, qdb_time_t expiry_time);
     qdb_error_t expires_from_now(const char * alias, qdb_time_t expiry_delta);

@@ -14,14 +14,6 @@ struct qdb_const_iterator_t
     %mutable;
 } ;
 
-struct qdb_remote_node_t
-{
-    // we get rid of the const otherwise SWIG might leak memory
-    char * address;                 /* [in] */
-    unsigned short port;            /* [in] */
-    qdb_error_t error;              /* [out] */
-};
-
 struct qdb_operation_t
 {
     

@@ -6,10 +6,11 @@ import sys
 import time
 import unittest
 
-sys.path.append('@CMAKE_BINARY_DIR@/build/lib.win32-2.7')
-sys.path.append('@CMAKE_BINARY_DIR@/build/lib.win-amd64-2.7')
-sys.path.append('@CMAKE_BINARY_DIR@/build/lib.linux-x86_64-2.7')
-sys.path.append('@CMAKE_BINARY_DIR@/build/lib.freebsd-10.1-RELEASE-amd64-2.7')
+for root, dirnames, filenames in os.walk('@CMAKE_BINARY_DIR@/build/'):
+    for p in dirnames:
+        if p.startswith('lib'):
+            sys.path.append(os.path.join(root, p))
+
 import qdb
 
 # we change the port at each run to prevent the "port in use issue" between tests
@@ -34,9 +35,10 @@ class QuasardbTest(unittest.TestCase):
 
         self.assertEqual(self.qdbd.returncode, None)
 
-        self.remote_node = qdb.RemoteNode("127.0.0.1", self.current_port)
+        self.uri = "qdb://127.0.0.1:" + str(self.current_port)
+
         try:
-            self.qdb = qdb.Client(self.remote_node)
+            self.qdb = qdb.Client(self.uri)
         except qdb.QuasardbException, q:
             self.qdbd.terminate()
             self.qdbd.wait()
@@ -142,11 +144,11 @@ class QuasardbInfo(QuasardbTest):
     Tests the json information string query
     """
     def test_node_status(self):
-        status = self.qdb.node_status(self.remote_node)
+        status = self.qdb.node_status(self.uri)
         self.assertGreater(len(status), 0)
 
     def test_node_config(self):
-        config = self.qdb.node_config(self.remote_node)
+        config = self.qdb.node_config(self.uri)
         self.assertGreater(len(config), 0)
 
 class QuasardbIteration(QuasardbTest):

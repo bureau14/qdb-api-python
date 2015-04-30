@@ -197,35 +197,6 @@ class BatchResult:
         br.result = None if self.result == None else pickle.loads(self.result)
         return br
 
-class RemoteNode:
-    """ Convenience wrapper for the low level qdb.impl.qdb_remote_node_t structure"""
-    def __init__(self, address, port = 2836):
-        """Create a RemoteNode object.
-        :param address: The address of the remote node (IP address or qualified name)
-        :type address: str
-        :param port: The port number of the remote node to connect to
-        :type port: int
-        """
-        self.address = address
-        self.port = port
-        self.error = impl.error_uninitialized
-
-    def __str__(self):
-        return "quasardb remote node: " + self.address + ":" + str(self.port) + " - error status:" + make_error_string(self.error)
-
-    def c_type(self):
-        """
-        Converts the RemoteNode into a qdb.impl.qdb_remote_node_t, a low-level structure used for calls to the underlying C API.
-        :returns: qdb.impl.qdb_remote_node_t -- A converted copy of self
-        """
-        res = impl.qdb_remote_node_t()
-
-        res.address = self.address
-        res.port = self.port
-        res.error = self.error
-
-        return res
-
 class RawForwardIterator(object):
     """
     A forward iterator that can be used to iterate on a whole cluster
@@ -259,19 +230,19 @@ class RawClient(object):
         err.error = impl.error_uninitialized
         return err
 
-    def __init__(self, remote_node, *args, **kwargs):
+    def __init__(self, uri, *args, **kwargs):
         """ Creates the raw client.
         Connection is delayed until the client is actually used.
         If the client is not used for some time, the connection is dropped and reestablished at need.
 
-            :param remote_node: The remote node to connect to
-            :type remote_node: qdb.RemoteNode
+            :param uri: The connection string
+            :type uri: str
 
             :raises: QuasardbException
         """
         err = self.__make_error_carrier()
         self.handle = None
-        self.handle = impl.connect(remote_node.c_type(), err)
+        self.handle = impl.connect(uri, err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
 
@@ -520,11 +491,20 @@ class RawClient(object):
         if err != impl.error_ok:
             raise QuasardbException(err)
 
-    def stop_node(self, remote_node, reason):
+    def trim_all(self):
+        """ Trims all entries of all nodes of the cluster.
+
+            :raises: QuasardbException
+        """
+        err = self.handle.trim_all()
+        if err != impl.error_ok:
+            raise QuasardbException(err)
+
+    def stop_node(self, uri, reason):
         """ Stops a node.
 
-            :param remote_node: The node to stop
-            :type remote_node: qdb.RemoteNode
+            :param uri: The connection string
+            :type uri: str
             :param reason: A string describing the reason for the stop
             :type reason: str
 
@@ -533,54 +513,54 @@ class RawClient(object):
             .. caution::
                 This method is intended for very specific usage scenarii. Use at your own risks.
         """
-        err = self.handle.stop_node(remote_node.c_type(), reason)
+        err = self.handle.stop_node(uri, reason)
         if err != impl.error_ok:
             raise QuasardbException(err)
 
-    def node_config(self, remote_node):
+    def node_config(self, uri):
         """ Retrieves the configuration of a given node in JSON format.
 
-            :param remote_node: The node to obtain the configuration from.
-            :type remote_node: qdb.RemoteNode
+            :param uri: The connection string
+            :type uri: str
 
             :returns: dict -- The requested configuration
 
             :raises: QuasardbException
         """
         err = self.__make_error_carrier()
-        res = impl.node_config(self.handle, remote_node.c_type(), err)
+        res = impl.node_config(self.handle, uri, err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
         return json.loads(res)
 
-    def node_status(self, remote_node):
+    def node_status(self, uri):
         """ Retrieves the status of a given node in JSON format.
 
-            :param remote_node: The node to obtain the status from.
-            :type remote_node: qdb.RemoteNode
+            :param uri: The connection string
+            :type uri: str
 
             :returns: dict -- The requested status
 
             :raises: QuasardbException
         """
         err = self.__make_error_carrier()
-        res = impl.node_status(self.handle, remote_node.c_type(), err)
+        res = impl.node_status(self.handle, uri, err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
         return json.loads(res)
 
-    def node_topology(self, remote_node):
+    def node_topology(self, uri):
         """ Retrieves the topology of a given node in JSON format.
 
-            :param remote_node: The node to obtain the topology from.
-            :type remote_node: qdb.RemoteNode
+            :param uri: The connection string
+            :type uri: str
 
             :returns: dict -- The requested topology
 
             :raises: QuasardbException
         """
         err = self.__make_error_carrier()
-        res = impl.node_topology(self.handle, remote_node.c_type(), err)
+        res = impl.node_topology(self.handle, uri, err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
         return json.loads(res)

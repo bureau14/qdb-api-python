@@ -60,25 +60,25 @@ api_buffer_ptr compare_and_swap(handle_ptr h, const char * alias,
     return h->compare_and_swap(alias, new_value, new_value_length, comparand, comparand_length, expiry_time, error->error);
 }
 
-std::string node_status(handle_ptr h, const qdb_remote_node_t * node, error_carrier * error)
+std::string node_status(handle_ptr h, const char * uri, error_carrier * error)
 {
-    return h->node_status(*node, error->error);
+    return h->node_status(uri, error->error);
 }
 
-std::string node_config(handle_ptr h, const qdb_remote_node_t * node, error_carrier * error)
+std::string node_config(handle_ptr h, const char * uri, error_carrier * error)
 {
-    return h->node_config(*node, error->error);
+    return h->node_config(uri, error->error);
 }
 
-std::string node_topology(handle_ptr h, const qdb_remote_node_t * node, error_carrier * error)
+std::string node_topology(handle_ptr h, const char * uri, error_carrier * error)
 {
-    return h->node_topology(*node, error->error);
+    return h->node_topology(uri, error->error);
 }
 
-handle_ptr connect(const qdb_remote_node_t * node, error_carrier * error)
+handle_ptr connect(const char * uri, error_carrier * error)
 {
     handle_ptr h(new handle());
-    error->error = h->connect(*node);
+    error->error = h->connect(uri);
     return h;
 }
 

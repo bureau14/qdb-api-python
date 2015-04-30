@@ -25,7 +25,7 @@ set(SWIG_COMMON_FILES
     qdb_python_adapters.i
     qdb_python_common.i)
 
-set(QDB_PY_VERSION "1.2.0")
+set(QDB_PY_VERSION "2.0.0")
 set(QDB_PY_WRAPPER "${CMAKE_CURRENT_BINARY_DIR}/qdb_python_wrapper.cxx")
 set(QDB_PY_IMPL "${CMAKE_CURRENT_BINARY_DIR}/impl.py")
 set(QDB_PY_INIT "${CMAKE_CURRENT_SOURCE_DIR}/__init__.py")
