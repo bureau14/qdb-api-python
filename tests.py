@@ -370,7 +370,7 @@ class QuasardbBatch(QuasardbTest):
         entry_content = "content"
 
         # getting non existing entry
-        brlist = [ qdb.BatchRequest(qdb.Operation.get_alloc, entry_name) ]
+        brlist = [ qdb.BatchRequest(qdb.Operation.get, entry_name) ]
         
         successes, results = self.qdb.run_batch(brlist)
 
@@ -378,7 +378,7 @@ class QuasardbBatch(QuasardbTest):
         self.assertEqual(len(results), 1)
         self.assertIsInstance(results[0], qdb.BatchResult)
 
-        self.assertEqual(results[0].type, qdb.Operation.get_alloc)
+        self.assertEqual(results[0].type, qdb.Operation.get)
         self.assertEqual(results[0].error, qdb.Error.alias_not_found)
         self.assertEqual(results[0].alias, entry_name)
         self.assertEqual(results[0].result, None)
@@ -410,7 +410,7 @@ class QuasardbBatch(QuasardbTest):
         self.assertEqual(results[0].result, None)
 
         # now we can get it, we test that having multiple operations work as expected
-        brlist = [ qdb.BatchRequest(qdb.Operation.get_alloc, entry_name), qdb.BatchRequest(qdb.Operation.get_alloc, entry_name) ]
+        brlist = [ qdb.BatchRequest(qdb.Operation.get, entry_name), qdb.BatchRequest(qdb.Operation.get, entry_name) ]
 
         successes, results = self.qdb.run_batch(brlist)
 
@@ -419,12 +419,12 @@ class QuasardbBatch(QuasardbTest):
         self.assertIsInstance(results[0], qdb.BatchResult)
         self.assertIsInstance(results[1], qdb.BatchResult)
 
-        self.assertEqual(results[0].type, qdb.Operation.get_alloc)
+        self.assertEqual(results[0].type, qdb.Operation.get)
         self.assertEqual(results[0].error, qdb.Error.ok)
         self.assertEqual(results[0].alias, entry_name)
         self.assertEqual(results[0].result, entry_content)
 
-        self.assertEqual(results[1].type, qdb.Operation.get_alloc)
+        self.assertEqual(results[1].type, qdb.Operation.get)
         self.assertEqual(results[1].error, qdb.Error.ok)
         self.assertEqual(results[1].alias, entry_name)
         self.assertEqual(results[1].result, entry_content)
@@ -516,7 +516,7 @@ class QuasardbBatch(QuasardbTest):
         self.assertEqual(results[0].result, None)
 
         # getting non existing entry: no longer there!
-        brlist = [ qdb.BatchRequest(qdb.Operation.get_alloc, entry_name) ]
+        brlist = [ qdb.BatchRequest(qdb.Operation.get, entry_name) ]
         
         successes, results = self.qdb.run_batch(brlist)
 
@@ -524,7 +524,7 @@ class QuasardbBatch(QuasardbTest):
         self.assertEqual(len(results), 1)
         self.assertIsInstance(results[0], qdb.BatchResult)
 
-        self.assertEqual(results[0].type, qdb.Operation.get_alloc)
+        self.assertEqual(results[0].type, qdb.Operation.get)
         self.assertEqual(results[0].error, qdb.Error.alias_not_found)
         self.assertEqual(results[0].alias, entry_name)
         self.assertEqual(results[0].result, None)

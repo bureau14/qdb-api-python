@@ -15,14 +15,13 @@ def copy(srcFile, dstFolder):
 
 qdb_version = "@QDB_PY_VERSION@-@CMAKE_SYSTEM_NAME@".lower();
 
-is_clang = 'Clang' in '@CMAKE_CXX_COMPILER_ID@' 
+is_clang = 'Clang' in '@CMAKE_CXX_COMPILER_ID@'
 is_windows = os.name == 'nt'
 is_freebsd = sys.platform.startswith('freebsd')
 is_64_bits = sys.maxsize > 2**32
 arch = "x64" if is_64_bits else "x86"
 
-copy('@QDB_API_DIR@/include/qdb/client.h', 'include/qdb')
-copy('@QDB_API_DIR@/include/qdb/client.hpp', 'include/qdb')
+shutil.copytree('@QDB_API_DIR@/include/qdb', 'include/qdb')
 copy('@QDB_PY_WRAPPER@', 'src')
 copy('@QDB_PY_IMPL@', 'qdb')
 copy('@QDB_PY_INIT@', 'qdb')

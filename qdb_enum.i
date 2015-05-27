@@ -39,7 +39,16 @@ enum qdb_error_t
     qdb_e_unmatched_content = 30,
     qdb_e_invalid_iterator = 31,
     qdb_e_prefix_too_short = 32,
-    qdb_e_skipped = 33
+    qdb_e_skipped = 33,
+    qdb_e_incompatible_type = 34,
+    qdb_e_empty_container = 35,
+    qdb_e_container_full = 36,
+    qdb_e_element_not_found = 37,
+    qdb_e_element_already_exists = 38,
+    qdb_e_overflow = 39,
+    qdb_e_underflow = 40,
+    qdb_e_tag_already_set = 41,
+    qdb_e_tag_not_set = 42
 };
 
 enum qdb_option_t
@@ -56,7 +65,7 @@ enum qdb_protocol_t
 enum qdb_operation_type_t
 {
     qdb_op_uninitialized = -1,
-    qdb_op_get_alloc = 0,
+    qdb_op_get = 0,
     qdb_op_put = 1,
     qdb_op_update = 2,
     qdb_op_remove = 3,
