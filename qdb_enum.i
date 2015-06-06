@@ -8,7 +8,7 @@ enum qdb_error_t
 {
     qdb_e_uninitialized = -1,
     qdb_e_ok = 0,
-    qdb_e_system = 1,                         /* check errno or GetLastError() for actual error */
+    qdb_e_system = 1, /* check errno or GetLastError() for actual error */
     qdb_e_internal = 2,
     qdb_e_no_memory = 3,
     qdb_e_invalid_protocol = 4,
@@ -20,6 +20,7 @@ enum qdb_error_t
     qdb_e_timeout = 10,
     qdb_e_buffer_too_small = 11,
     qdb_e_invalid_command = 12,
+    qdb_e_invalid_input = 13, /* deprecated, qdb_e_invalid_argument is used instead */
     qdb_e_connection_refused = 14,
     qdb_e_connection_reset = 15,
     qdb_e_unexpected_reply = 16,
@@ -48,18 +49,31 @@ enum qdb_error_t
     qdb_e_overflow = 39,
     qdb_e_underflow = 40,
     qdb_e_tag_already_set = 41,
-    qdb_e_tag_not_set = 42
+    qdb_e_tag_not_set = 42,
+    qdb_e_entry_too_large = 43,
+    qdb_e_transaction_partial_failure = 44
 };
 
-enum qdb_option_t
+enum qdb_compression_t
 {
-    qdb_o_operation_timeout = 0,                /* int */
-    qdb_o_log_callback = 1
+    qdb_comp_none = 0,
+    qdb_comp_fast = 1, /* default */
+    qdb_comp_best = 2  /* not implemented yet */
 };
 
 enum qdb_protocol_t
 {
     qdb_p_tcp = 0
+};
+
+enum qdb_entry_type_t
+{
+    qdb_entry_uninitialized = -1,
+    qdb_entry_blob = 0,
+    qdb_entry_integer = 1,
+    qdb_entry_hset = 2,
+    qdb_entry_tag = 3,
+    qdb_entry_queue = 4
 };
 
 enum qdb_operation_type_t
@@ -73,4 +87,14 @@ enum qdb_operation_type_t
     qdb_op_get_and_update = 5,
     qdb_op_get_and_remove = 6,
     qdb_op_remove_if = 7
+};
+
+enum qdb_log_level_t
+{
+    qdb_log_detailed = 100,
+    qdb_log_debug = 200,
+    qdb_log_info = 300,
+    qdb_log_warning = 400,
+    qdb_log_error = 500,
+    qdb_log_panic = 600
 };

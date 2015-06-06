@@ -22,8 +22,6 @@
 %shared_ptr(qdb::handle)
 
 %template(StringVec) std::vector<std::string>;
-%template(BatchReqVec) std::vector<qdb::batch_request>;
-%template(BatchResVec) std::vector<qdb::batch_result>;
 
 %rename("%(regex:/qdb_e_(.*)/error_\\1/)s", %$isenumitem) "";
 %rename("%(regex:/qdb_o_(.*)/option_\\1/)s", %$isenumitem) "";
@@ -33,6 +31,9 @@
 
 %typemap(in) qdb_time_t { $1 = PyLong_AsSsize_t($input); }
 %typemap(out) qdb_time_t { $result = PyLong_FromSsize_t($1); }
+
+%typemap(in) qdb_int { $1 = PyLong_AsLongLong($input); }
+%typemap(out) qdb_int { $result = PyLong_FromLongLong($1); }
 
 %include typemaps.i
 %include cpointer.i

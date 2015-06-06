@@ -43,8 +43,6 @@ public:
         qdb_time_t expiry_time,
         qdb_error_t & error);
 
-    std::vector<batch_result> run_batch(const std::vector<batch_request> & requests, size_t & successes_count);
-
     std::string node_status(const char * uri, qdb_error_t & error);
     std::string node_config(const char * uri, qdb_error_t & error);
     std::string node_topology(const char * uri, qdb_error_t & error);
@@ -59,6 +57,26 @@ public:
     qdb_error_t expires_at(const char * alias, qdb_time_t expiry_time);
     qdb_error_t expires_from_now(const char * alias, qdb_time_t expiry_delta);
     qdb_error_t get_expiry_time(const char * alias, qdb_time_t & expiry_time);
+
+    // integer
+
+    qdb_error_t int_get(const char * alias, qdb_int * number);
+    qdb_error_t int_put(const char * alias, qdb_int number, qdb_time_t expiry_time);
+    qdb_error_t int_update(const char * alias, qdb_int number, qdb_time_t expiry_time);
+    qdb_error_t int_add(const char * alias, qdb_int addend, qdb_int * result = NULL);
+
+    // queue
+    qdb_error_t queue_push_front(const char * alias, const char * content, size_t content_length);
+    qdb_error_t queue_push_back(const char * alias, const char * content, size_t content_length);
+    api_buffer_ptr queue_pop_front(const char * alias, qdb_error_t & error);
+    api_buffer_ptr queue_pop_back(const char * alias, qdb_error_t & error);
+    api_buffer_ptr queue_front(const char * alias, qdb_error_t & error);
+    api_buffer_ptr queue_back(const char * alias, qdb_error_t & error);
+
+    // hset
+    qdb_error_t hset_insert(const char * alias, const char * content, size_t content_length);
+    qdb_error_t hset_erase(const char * alias, const char * content, size_t content_length);
+    qdb_error_t hset_contains(const char * alias, const char * content, size_t content_length);
 
 private:
     qdb_handle_t _handle;

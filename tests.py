@@ -13,42 +13,73 @@ for root, dirnames, filenames in os.walk('@CMAKE_BINARY_DIR@/build/'):
 
 import qdb
 
-# we change the port at each run to prevent the "port in use issue" between tests
+# generate an unique entry name for the tests
+
+class UniqueEntryNameGenerator(object):
+
+    def __init__(self):
+        self.__prefix  = "entry_"
+        self.__counter = 0
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        self.__counter += 1
+        return self.__prefix + str(self.__counter)
+
+def setUpModule():
+
+    global uri
+    global cluster
+    global __clusterd
+    global entry_gen
+
+    entry_gen = UniqueEntryNameGenerator()
+
+    __current_port = 3000
+    uri = ""
+
+    # don't save anything to disk
+    __clusterd = subprocess.Popen(['@QDB_DAEMON@', '--address=127.0.0.1:' + str(__current_port), '--transient'])
+    if __clusterd.pid == 0:
+        raise Exception("daemon", "cannot run daemon")
+
+    # startup may take a couple of seconds, temporize to make sure the connection will be accepted
+    time.sleep(2)
+
+    __clusterd.poll()
+
+    if __clusterd.returncode != None:
+        raise Exception("daemon", "error while running daemon")
+
+    uri = "qdb://127.0.0.1:" + str(__current_port)
+
+    __current_port += 1
+
+    try:
+        cluster = qdb.Cluster(uri)
+
+    except qdb.QuasardbException, q:
+        __clusterd.terminate()
+        __clusterd.wait()
+        raise
+
+    except BaseException, e:
+        __clusterd.terminate()
+        __clusterd.wait()
+        raise
+
+def tearDownModule():
+    __clusterd.terminate()
+    __clusterd.wait()
+
+
+
+
 class QuasardbTest(unittest.TestCase):
 
-    current_port = 3000
-
-    """
-    Base class for all test, attempts to connect on a quasardb cluster listening on the default port on the IPV4 localhost
-    all tests depend on it!
-    """
-    def setUp(self):
-
-        # don't save anything to disk
-        self.qdbd = subprocess.Popen(['@QDB_DAEMON@', '--address=127.0.0.1:' + str(self.current_port), '--transient'])
-        self.assertNotEqual(self.qdbd.pid, 0)
-
-        # startup may take a couple of seconds, temporize to make sure the connection will be accepted
-        time.sleep(2)
-
-        self.qdbd.poll()
-
-        self.assertEqual(self.qdbd.returncode, None)
-
-        self.uri = "qdb://127.0.0.1:" + str(self.current_port)
-
-        try:
-            self.qdb = qdb.Client(self.uri)
-        except qdb.QuasardbException, q:
-            self.qdbd.terminate()
-            self.qdbd.wait()
-            self.fail(msg=str(q))
-
-    def tearDown(self):
-        self.qdbd.terminate()
-        self.qdbd.wait()
-
-        self.current_port += 1
+    pass
 
 
 class QuasardbBasic(QuasardbTest):
@@ -62,138 +93,307 @@ class QuasardbBasic(QuasardbTest):
         self.assertGreater(len(str), 0)
 
     def test_put_get_and_remove(self):
-        entry_name = "entry"
+        entry_name = entry_gen.next()
         entry_content = "content"
-        self.qdb.put(entry_name, entry_content)
-        self.assertRaises(qdb.QuasardbException, self.qdb.put, entry_name, entry_content)
-        got = self.qdb.get(entry_name)
+
+        b = cluster.blob(entry_name)
+
+        b.put(entry_content)
+
+        self.assertRaises(qdb.QuasardbException, b.put, entry_content)
+
+        got = b.get()
         self.assertEqual(got, entry_content)
-        self.qdb.remove(entry_name)
-        self.assertRaises(qdb.QuasardbException, self.qdb.get, entry_name)
-        self.assertRaises(qdb.QuasardbException, self.qdb.remove, entry_name)
+        b.remove()
+        self.assertRaises(qdb.QuasardbException, b.get)
+        self.assertRaises(qdb.QuasardbException, b.remove)
 
     def test_update(self):
-        entry_name = "entry"
+        entry_name = entry_gen.next()
         entry_content = "content"
-        self.qdb.update(entry_name, entry_content)
-        self.qdb.update(entry_name, entry_content)
-        got = self.qdb.get(entry_name)
+
+        b = cluster.blob(entry_name)
+
+        b.update(entry_content)
+        got = b.get()
         self.assertEqual(got, entry_content)
         entry_content = "it's a new style"
-        self.qdb.update(entry_name, entry_content)
-        got = self.qdb.get(entry_name)
+        b.update(entry_content)
+        got = b.get()
         self.assertEqual(got, entry_content)
-        self.qdb.remove(entry_name)
+        b.remove()
 
     def test_get_and_update(self):
-        entry_name = "entry"
+        entry_name = entry_gen.next()
         entry_content = "content"
-        self.qdb.put(entry_name, entry_content)
-        got = self.qdb.get(entry_name)
+
+        b = cluster.blob(entry_name)
+
+        b.put(entry_content)
+        got = b.get()
         self.assertEqual(got, entry_content)
+
         entry_new_content = "new stuff"
-        got = self.qdb.get_and_update(entry_name, entry_new_content)
+        got = b.get_and_update(entry_new_content)
         self.assertEqual(got, entry_content)
-        got = self.qdb.get(entry_name)
+        got = b.get()
         self.assertEqual(got, entry_new_content)
 
-        self.qdb.remove(entry_name)
+        b.remove()
 
     def test_get_and_remove(self):
-        entry_name = "entry"
+        entry_name = entry_gen.next()
         entry_content = "content"
-        self.qdb.put(entry_name, entry_content)
-        got = self.qdb.get_and_remove(entry_name)
+
+        b = cluster.blob(entry_name)
+        b.put(entry_content)
+
+        got = b.get_and_remove()
         self.assertEqual(got, entry_content)
-        self.assertRaises(qdb.QuasardbException, self.qdb.get, entry_name)
+        self.assertRaises(qdb.QuasardbException, b.get)
 
     def test_remove_if(self):
-        entry_name = "entry"
+        entry_name = entry_gen.next()
         entry_content = "content"
-        self.qdb.put(entry_name, entry_content)
-        got = self.qdb.get(entry_name)
+
+        b = cluster.blob(entry_name)
+
+        b.put(entry_content)
+        got = b.get()
         self.assertEqual(got, entry_content)
-        self.assertRaises(qdb.QuasardbException, self.qdb.remove_if, entry_name, entry_content + 'a')
-        got = self.qdb.get(entry_name)
+        self.assertRaises(qdb.QuasardbException, b.remove_if, entry_content + 'a')
+        got = b.get()
         self.assertEqual(got, entry_content)
-        self.qdb.remove_if(entry_name, entry_content)
-        self.assertRaises(qdb.QuasardbException, self.qdb.get, entry_name)
+        b.remove_if(entry_content)
+        self.assertRaises(qdb.QuasardbException, b.get)
 
     def test_compare_and_swap(self):
-        entry_name = "entry"
+        entry_name = entry_gen.next()
         entry_content = "content"
-        self.qdb.put(entry_name, entry_content)
-        got = self.qdb.get(entry_name)
+
+        b = cluster.blob(entry_name)
+
+        b.put(entry_content)
+        got = b.get()
         self.assertEqual(got, entry_content)
         entry_new_content = "new stuff"
-        got = self.qdb.compare_and_swap(entry_name, entry_new_content, entry_new_content)
+        got = b.compare_and_swap(entry_new_content, entry_new_content)
         self.assertEqual(got, entry_content)
         # unchanged because unmatched
-        got = self.qdb.get(entry_name)
+        got = b.get()
         self.assertEqual(got, entry_content)
-        got = self.qdb.compare_and_swap(entry_name, entry_new_content, entry_content)
+        got = b.compare_and_swap(entry_new_content, entry_content)
         self.assertEqual(got, entry_content)
         # changed because matched
-        got = self.qdb.get(entry_name)
+        got = b.get()
         self.assertEqual(got, entry_new_content)
 
-        self.qdb.remove(entry_name)
+        b.remove()
+
+class QuasardbInteger(QuasardbTest):
+
+    def test_put_get_and_remove(self):
+        entry_name = entry_gen.next()
+        entry_value = 0
+
+        i = cluster.integer(entry_name)
+
+        i.put(entry_value)
+
+        self.assertRaises(qdb.QuasardbException, i.put, entry_value)
+
+        got = i.get()
+        self.assertEqual(got, entry_value)
+        i.remove()
+        self.assertRaises(qdb.QuasardbException, i.get)
+        self.assertRaises(qdb.QuasardbException, i.remove)
+
+    def test_update(self):
+        entry_name = entry_gen.next()
+        entry_value = 1
+
+        i = cluster.integer(entry_name)
+
+        i.update(entry_value)
+        got = i.get()
+        self.assertEqual(got, entry_value)
+        entry_value = 2
+        i.update(entry_value)
+        got = i.get()
+        self.assertEqual(got, entry_value)
+        i.remove()
+
+    def test_add(self):
+        entry_name = entry_gen.next()
+        entry_value = 0
+
+        i = cluster.integer(entry_name)
+
+        i.put(entry_value)
+
+        got = i.get()
+        self.assertEqual(got, entry_value)
+
+        entry_increment = 10
+
+        i.add(entry_increment)
+
+        got = i.get()
+        self.assertEqual(got, entry_value + entry_increment)
+
+        entry_decrement = -100
+
+        i.add(entry_decrement)
+
+        got = i.get()
+        self.assertEqual(got, entry_value + entry_increment + entry_decrement)
+
+        i.remove()
+
+class QuasardbQueue(QuasardbTest):
+    
+    def test_sequence(self):
+        """
+        A series of test to make sure back and front operations are properly wired
+        """
+        entry_name = entry_gen.next()
+        entry_content_back = "back"
+
+        q = cluster.queue(entry_name)
+
+        self.assertRaises(qdb.QuasardbException, q.pop_back)
+        self.assertRaises(qdb.QuasardbException, q.pop_front)
+        self.assertRaises(qdb.QuasardbException, q.front)
+        self.assertRaises(qdb.QuasardbException, q.back)
+
+        q.push_back(entry_content_back)
+
+        got = q.back()
+        self.assertEqual(got, entry_content_back)
+        got = q.front()
+        self.assertEqual(got, entry_content_back)
+
+        entry_content_front = "front"
+
+        q.push_front(entry_content_front)
+
+        got = q.back()
+        self.assertEqual(got, entry_content_back)
+        got = q.front()
+        self.assertEqual(got, entry_content_front)
+
+        entry_content_canary = "canary"
+
+        q.push_back(entry_content_canary)
+
+        got = q.back()
+        self.assertEqual(got, entry_content_canary)
+        got = q.front()
+        self.assertEqual(got, entry_content_front)
+
+        got = q.pop_back()
+        self.assertEqual(got, entry_content_canary)
+        got = q.back()
+        self.assertEqual(got, entry_content_back)
+        got = q.front()
+        self.assertEqual(got, entry_content_front)
+
+        q.push_front(entry_content_canary)
+
+        got = q.back()
+        self.assertEqual(got, entry_content_back)
+        got = q.front()
+        self.assertEqual(got, entry_content_canary)
+
+        got = q.pop_front()
+        self.assertEqual(got, entry_content_canary)
+        got = q.back()
+        self.assertEqual(got, entry_content_back)
+        got = q.front()
+        self.assertEqual(got, entry_content_front)
+
+        got = q.pop_back()
+        self.assertEqual(got, entry_content_back)
+
+        got = q.back()
+        self.assertEqual(got, entry_content_front)
+        got = q.front()
+        self.assertEqual(got, entry_content_front)
+
+        got = q.pop_back()
+        self.assertEqual(got, entry_content_front)
+
+        self.assertRaises(qdb.QuasardbException, q.pop_back)
+        self.assertRaises(qdb.QuasardbException, q.pop_front)
+        self.assertRaises(qdb.QuasardbException, q.front)
+        self.assertRaises(qdb.QuasardbException, q.back)
+
+class QuasardbHSet(QuasardbTest):
+
+    def test_insert_erase_contains(self):
+
+        entry_name = entry_gen.next()
+        entry_content = "content"
+
+        hset = cluster.hset(entry_name)
+
+        # does not exist yet
+        self.assertRaises(qdb.QuasardbException, hset.contains, entry_content)
+
+        hset.insert(entry_content)
+
+        self.assertRaises(qdb.QuasardbException, hset.insert, entry_content)
+
+        self.assertTrue(hset.contains(entry_content))
+
+        hset.erase(entry_content)
+
+        self.assertFalse(hset.contains(entry_content))
+
+        hset.insert(entry_content)
+
+        self.assertTrue(hset.contains(entry_content))
+
+        hset.erase(entry_content)
+
+        self.assertRaises(qdb.QuasardbException, hset.erase, entry_content)
+
 
 class QuasardbInfo(QuasardbTest):
     """
     Tests the json information string query
     """
     def test_node_status(self):
-        status = self.qdb.node_status(self.uri)
+        status = cluster.node_status(uri)
         self.assertGreater(len(status), 0)
 
     def test_node_config(self):
-        config = self.qdb.node_config(self.uri)
+        config = cluster.node_config(uri)
         self.assertGreater(len(config), 0)
-
-class QuasardbIteration(QuasardbTest):
-    """
-    Test forward iteration. The purpose isn't to tests the bulk of the function that is thoroughly tested in C++ unit and integration tests
-    but to make sure that the Python wrapping is working as expected
-    """
-    def test_forward(self):
-
-        # add 10 entries 
-        entries = dict()
-
-        for e in range(0, 10):
-            k = 'entry' + str(e)
-            v = 'content' + str(e)
-            entries[k] = v
-            self.qdb.put(k, v)
-
-        # now iterate and check values
-        for k, v in self.qdb:
-            self.assertEqual(entries[k], v)
 
 class QuasardbPrefix(QuasardbTest):
 
     def test_prefix_get(self):
         # prefix too short, must raise an exception
-        self.assertRaises(qdb.QuasardbException, self.qdb.prefix_get, "a")
+        self.assertRaises(qdb.QuasardbException, cluster.prefix_get, "a")
 
-        res = self.qdb.prefix_get("blah")
+        res = cluster.prefix_get("blah")
         self.assertEqual(len(res), 0)
 
         entries = [ "blah", "maybe", "Romulan", "Rome", "Rosa", "Romanus" ]
         entry_content = "content"
 
         for e in entries:
-            self.qdb.put(e, entry_content)
+            cluster.blob(e).put(entry_content)
 
-        res = self.qdb.prefix_get("blah")
+        res = cluster.prefix_get("blah")
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0], "blah")
 
-        res = self.qdb.prefix_get("rom")
+        res = cluster.prefix_get("rom")
         self.assertEqual(len(res), 0)
 
-        res = self.qdb.prefix_get("Rom")
+        res = cluster.prefix_get("Rom")
         self.assertEqual(len(res), 3)
         self.assertEqual(res[0], "Romanus")
         self.assertEqual(res[1], "Rome")
@@ -205,31 +405,33 @@ class QuasardbExpiry(QuasardbTest):
          # expires in one minute
         now = datetime.datetime.now(qdb.tz)
         # get rid of the microsecond for the tests
-        return now + td - datetime.timedelta(microseconds=now.microsecond)        
+        return now + td - datetime.timedelta(microseconds=now.microsecond)
 
-    """
-    Test for expiry. We want to make sure, in particular, that the conversion from Python datetime is right.
-    """
     def test_expires_at(self):
+        """
+        Test for expiry. We want to make sure, in particular, that the conversion from Python datetime is right.
+        """
         # add one entry
-        entry_name = "entry_expires_at"
+        entry_name = entry_gen.next()
         entry_content = "content"
 
+        b = cluster.blob(entry_name)
+
         # entry does not exist yet
-        self.assertRaises(qdb.QuasardbException, self.qdb.get_expiry_time, entry_name)
+        self.assertRaises(qdb.QuasardbException, b.get_expiry_time)
 
-        self.qdb.put(entry_name, entry_content)
+        b.put(entry_content)
 
-        exp = self.qdb.get_expiry_time(entry_name)
+        exp = b.get_expiry_time()
         self.assertIsInstance(exp, datetime.datetime)
         self.assertNotEqual(exp.tzinfo, None)
         self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
         self.assertEqual(exp, datetime.datetime.fromtimestamp(0, qdb.tz))
 
         future_exp = self.__make_expiry_time(datetime.timedelta(minutes=1))
-        self.qdb.expires_at(entry_name, future_exp)
+        b.expires_at(future_exp)
 
-        exp = self.qdb.get_expiry_time(entry_name)
+        exp = b.get_expiry_time()
         self.assertIsInstance(exp, datetime.datetime)
         self.assertNotEqual(exp.tzinfo, None)
         self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
@@ -237,22 +439,24 @@ class QuasardbExpiry(QuasardbTest):
 
     def test_expires_from_now(self):
         # add one entry
-        entry_name = "entry_expires_from_now"
+        entry_name = entry_gen.next()
         entry_content = "content"
-        self.qdb.put(entry_name, entry_content)
 
-        exp = self.qdb.get_expiry_time(entry_name)
+        b = cluster.blob(entry_name)
+        b.put(entry_content)
+
+        exp = b.get_expiry_time()
         self.assertIsInstance(exp, datetime.datetime)
         self.assertNotEqual(exp.tzinfo, None)
         self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
         self.assertEqual(exp, datetime.datetime.fromtimestamp(0, qdb.tz))
 
-        self.qdb.expires_at(entry_name, None)
+        b.expires_at(None)
 
         # expires in one minute from now
         future_exp = 60
-        
-        self.qdb.expires_from_now(entry_name, future_exp)
+
+        b.expires_from_now(future_exp)
 
         # We use a wide 10 se interval for the check because we have no idea at which speed these tests
         # may run in debug, this will be enough however to check that the interval has properly been converted
@@ -260,25 +464,26 @@ class QuasardbExpiry(QuasardbTest):
         future_exp_lower_bound = datetime.datetime.now(qdb.tz) + datetime.timedelta(seconds=future_exp-10)
         future_exp_higher_bound = future_exp_lower_bound + datetime.timedelta(seconds=future_exp+10)
 
-        exp = self.qdb.get_expiry_time(entry_name)
+        exp = b.get_expiry_time()
         self.assertNotEqual(exp.tzinfo, None)
         self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
         self.assertIsInstance(exp, datetime.datetime)
         self.assertLess(future_exp_lower_bound, exp)
         self.assertLess(exp, future_exp_higher_bound)
 
-    """
-    Test that methods that accept an expiry date properly forward the value
-    """
     def test_methods(self):
-        entry_name = "entry"
+        """
+        Test that methods that accept an expiry date properly forward the value
+        """
+        entry_name = entry_gen.next()
         entry_content = "content"
 
         future_exp = self.__make_expiry_time(datetime.timedelta(minutes=1))
 
-        self.qdb.put(entry_name, entry_content, future_exp)
+        b = cluster.blob(entry_name)
+        b.put(entry_content, future_exp)
 
-        exp = self.qdb.get_expiry_time(entry_name)
+        exp = b.get_expiry_time()
 
         self.assertIsInstance(exp, datetime.datetime)
         self.assertNotEqual(exp.tzinfo, None)
@@ -287,9 +492,9 @@ class QuasardbExpiry(QuasardbTest):
 
         future_exp = self.__make_expiry_time(datetime.timedelta(minutes=2))
 
-        self.qdb.update(entry_name, entry_content, future_exp)
+        b.update(entry_content, future_exp)
 
-        exp = self.qdb.get_expiry_time(entry_name)
+        exp = b.get_expiry_time()
 
         self.assertIsInstance(exp, datetime.datetime)
         self.assertNotEqual(exp.tzinfo, None)
@@ -298,9 +503,9 @@ class QuasardbExpiry(QuasardbTest):
 
         future_exp = self.__make_expiry_time(datetime.timedelta(minutes=3))
 
-        self.qdb.get_and_update(entry_name, entry_content, future_exp)
+        b.get_and_update(entry_content, future_exp)
 
-        exp = self.qdb.get_expiry_time(entry_name)
+        exp = b.get_expiry_time()
 
         self.assertIsInstance(exp, datetime.datetime)
         self.assertNotEqual(exp.tzinfo, None)
@@ -309,225 +514,16 @@ class QuasardbExpiry(QuasardbTest):
 
         future_exp = self.__make_expiry_time(datetime.timedelta(minutes=4))
 
-        self.qdb.compare_and_swap(entry_name, entry_content, entry_content, future_exp)
+        b.compare_and_swap(entry_content, entry_content, future_exp)
 
-        exp = self.qdb.get_expiry_time(entry_name)
-
-        self.assertIsInstance(exp, datetime.datetime)
-        self.assertNotEqual(exp.tzinfo, None)
-        self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
-        self.assertEqual(exp, future_exp)
-
-        self.qdb.remove(entry_name)
-
-class QuasardbBatch(QuasardbTest):
-
-    def __make_expiry_time(self, td):
-         # expires in one minute
-        now = datetime.datetime.now(qdb.tz)
-        # get rid of the microsecond for the tests
-        return now + td - datetime.timedelta(microseconds=now.microsecond)      
-
-    def test_expiry(self):
-        """
-        Test that the expiry paramater is properly transmitted
-        """
-
-        future_exp = self.__make_expiry_time(datetime.timedelta(minutes=1))
-
-        entry_name = "entry"
-        entry_content = "content"
-
-        brlist = [qdb.BatchRequest(qdb.Operation.put, entry_name, entry_content, None, future_exp)]
-
-        successes, results = self.qdb.run_batch(brlist)
-
-        self.assertEqual(successes, 1)
-        self.assertEqual(len(results), 1)
-        self.assertIsInstance(results[0], qdb.BatchResult)
-
-        self.assertEqual(results[0].type, qdb.Operation.put)
-        self.assertEqual(results[0].error, qdb.Error.ok)
-        self.assertEqual(results[0].alias, entry_name)
-        self.assertEqual(results[0].result, None)
-
-        # get the expiry, should be the one wwe set
-        exp = self.qdb.get_expiry_time(entry_name)
+        exp = b.get_expiry_time()
 
         self.assertIsInstance(exp, datetime.datetime)
         self.assertNotEqual(exp.tzinfo, None)
         self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
         self.assertEqual(exp, future_exp)
 
-
-    def test_sequence(self):
-        """
-        The purpose of this sequence is to test that all operations are correctly mapped and errors correctly transmitted.
-        In particular we care a lot about about comparand and content being correctly transmitted.
-        """
-
-        entry_name = "entry"
-        entry_content = "content"
-
-        # getting non existing entry
-        brlist = [ qdb.BatchRequest(qdb.Operation.get, entry_name) ]
-        
-        successes, results = self.qdb.run_batch(brlist)
-
-        self.assertEqual(successes, 0)
-        self.assertEqual(len(results), 1)
-        self.assertIsInstance(results[0], qdb.BatchResult)
-
-        self.assertEqual(results[0].type, qdb.Operation.get)
-        self.assertEqual(results[0].error, qdb.Error.alias_not_found)
-        self.assertEqual(results[0].alias, entry_name)
-        self.assertEqual(results[0].result, None)
-
-        # add the entry, must work
-        brlist = [qdb.BatchRequest(qdb.Operation.put, entry_name, entry_content)]
-
-        successes, results = self.qdb.run_batch(brlist)
-
-        self.assertEqual(successes, 1)
-        self.assertEqual(len(results), 1)
-        self.assertIsInstance(results[0], qdb.BatchResult)
-
-        self.assertEqual(results[0].type, qdb.Operation.put)
-        self.assertEqual(results[0].error, qdb.Error.ok)
-        self.assertEqual(results[0].alias, entry_name)
-        self.assertEqual(results[0].result, None)
-
-        # cannot add twice
-        successes, results = self.qdb.run_batch(brlist)
-
-        self.assertEqual(successes, 0)
-        self.assertEqual(len(results), 1)
-        self.assertIsInstance(results[0], qdb.BatchResult)
-
-        self.assertEqual(results[0].type, qdb.Operation.put)
-        self.assertEqual(results[0].error, qdb.Error.alias_already_exists)
-        self.assertEqual(results[0].alias, entry_name)
-        self.assertEqual(results[0].result, None)
-
-        # now we can get it, we test that having multiple operations work as expected
-        brlist = [ qdb.BatchRequest(qdb.Operation.get, entry_name), qdb.BatchRequest(qdb.Operation.get, entry_name) ]
-
-        successes, results = self.qdb.run_batch(brlist)
-
-        self.assertEqual(successes, 2)
-        self.assertEqual(len(results), 2)
-        self.assertIsInstance(results[0], qdb.BatchResult)
-        self.assertIsInstance(results[1], qdb.BatchResult)
-
-        self.assertEqual(results[0].type, qdb.Operation.get)
-        self.assertEqual(results[0].error, qdb.Error.ok)
-        self.assertEqual(results[0].alias, entry_name)
-        self.assertEqual(results[0].result, entry_content)
-
-        self.assertEqual(results[1].type, qdb.Operation.get)
-        self.assertEqual(results[1].error, qdb.Error.ok)
-        self.assertEqual(results[1].alias, entry_name)
-        self.assertEqual(results[1].result, entry_content)
-
-        entry_new_content = "new content"
-
-        # this remove_if will not work because the comparand will not match
-        brlist = [ qdb.BatchRequest(qdb.Operation.remove_if, entry_name, None, entry_new_content) ]
-
-        successes, results = self.qdb.run_batch(brlist)
-
-        self.assertEqual(successes, 0)
-        self.assertEqual(len(results), 1)
-        self.assertIsInstance(results[0], qdb.BatchResult)
-
-        self.assertEqual(results[0].type, qdb.Operation.remove_if)
-        self.assertEqual(results[0].error, qdb.Error.unmatched_content)
-        self.assertEqual(results[0].alias, entry_name)
-        self.assertEqual(results[0].result, None)
-
-        # this compare and swap will work and return the original value
-        brlist = [ qdb.BatchRequest(qdb.Operation.cas, entry_name, entry_new_content, entry_content) ]
-
-        successes, results = self.qdb.run_batch(brlist)
-
-        self.assertEqual(successes, 1)
-        self.assertEqual(len(results), 1)
-        self.assertIsInstance(results[0], qdb.BatchResult)
-
-        self.assertEqual(results[0].type, qdb.Operation.cas)
-        self.assertEqual(results[0].error, qdb.Error.ok)
-        self.assertEqual(results[0].alias, entry_name)
-        self.assertEqual(results[0].result, entry_content)
-
-        # now remove_if works because compare and swap update the value
-        brlist = [ qdb.BatchRequest(qdb.Operation.remove_if, entry_name, None, entry_new_content) ]
-
-        successes, results = self.qdb.run_batch(brlist)
-
-        self.assertEqual(successes, 1)
-        self.assertEqual(len(results), 1)
-        self.assertIsInstance(results[0], qdb.BatchResult)
-
-        self.assertEqual(results[0].type, qdb.Operation.remove_if)
-        self.assertEqual(results[0].error, qdb.Error.ok)
-        self.assertEqual(results[0].alias, entry_name)
-        self.assertEqual(results[0].result, None)
-
-        # update always work, even if the entry does not exist
-        brlist = [ qdb.BatchRequest(qdb.Operation.update, entry_name, entry_content )]
-
-        successes, results = self.qdb.run_batch(brlist)
-
-        self.assertEqual(successes, 1)
-        self.assertEqual(len(results), 1)
-        self.assertIsInstance(results[0], qdb.BatchResult)
-
-        self.assertEqual(results[0].type, qdb.Operation.update)
-        self.assertEqual(results[0].error, qdb.Error.ok)
-        self.assertEqual(results[0].alias, entry_name)
-        self.assertEqual(results[0].result, None)
-
-        # testing get_and_update
-        brlist = [ qdb.BatchRequest(qdb.Operation.get_and_update, entry_name, entry_new_content )]
-
-        successes, results = self.qdb.run_batch(brlist)
-
-        self.assertEqual(successes, 1)
-        self.assertEqual(len(results), 1)
-        self.assertIsInstance(results[0], qdb.BatchResult)
-
-        self.assertEqual(results[0].type, qdb.Operation.get_and_update)
-        self.assertEqual(results[0].error, qdb.Error.ok)
-        self.assertEqual(results[0].alias, entry_name)
-        self.assertEqual(results[0].result, entry_content)
-
-        # and now we test remove, the last operation we didn't test
-        brlist = [ qdb.BatchRequest(qdb.Operation.remove, entry_name )]
-
-        successes, results = self.qdb.run_batch(brlist)
-
-        self.assertEqual(successes, 1)
-        self.assertEqual(len(results), 1)
-        self.assertIsInstance(results[0], qdb.BatchResult)
-
-        self.assertEqual(results[0].type, qdb.Operation.remove)
-        self.assertEqual(results[0].error, qdb.Error.ok)
-        self.assertEqual(results[0].alias, entry_name)
-        self.assertEqual(results[0].result, None)
-
-        # getting non existing entry: no longer there!
-        brlist = [ qdb.BatchRequest(qdb.Operation.get, entry_name) ]
-        
-        successes, results = self.qdb.run_batch(brlist)
-
-        self.assertEqual(successes, 0)
-        self.assertEqual(len(results), 1)
-        self.assertIsInstance(results[0], qdb.BatchResult)
-
-        self.assertEqual(results[0].type, qdb.Operation.get)
-        self.assertEqual(results[0].error, qdb.Error.alias_not_found)
-        self.assertEqual(results[0].alias, entry_name)
-        self.assertEqual(results[0].result, None)
+        b.remove()
 
 if __name__ == '__main__':
     import xmlrunner

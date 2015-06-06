@@ -19,21 +19,6 @@ std::vector<std::string> prefix_get(handle_ptr h, const char * prefix, error_car
     return h->prefix_get(prefix, error->error);
 }
 
-struct run_batch_py_result
-{
-    run_batch_py_result(void) : successes(0) {}
-
-    size_t successes;
-    std::vector<qdb::batch_result> results;
-};
-
-run_batch_py_result run_batch(handle_ptr h, const std::vector<batch_request> & requests)
-{
-    run_batch_py_result br;
-    br.results = h->run_batch(requests, br.successes);
-    return br;
-}
-
 api_buffer_ptr get(handle_ptr h, const char * alias, error_carrier * error)
 {
     return h->get(alias, error->error);
@@ -108,6 +93,44 @@ qdb_time_t get_expiry_time_wrapper(handle_ptr h, const char * alias, error_carri
     qdb_time_t val = 0;
     error->error = h->get_expiry_time(alias, val);
     return val;
+}
+
+qdb_int int_get(handle_ptr h, const char * alias, error_carrier * error)
+{
+    qdb_int res = 0;
+    error->error = h->int_get(alias, &res);
+    return res;
+}
+
+qdb_int int_add(handle_ptr h, const char * alias, qdb_int addend, error_carrier * error)
+{
+    qdb_int res = 0;
+    error->error = h->int_add(alias, addend, &res);
+    return res;
+}
+
+api_buffer_ptr queue_pop_front(handle_ptr h, const char * alias, error_carrier * error)
+{
+    error->error = qdb_e_uninitialized;
+    return h->queue_pop_front(alias, error->error);
+}
+
+api_buffer_ptr queue_pop_back(handle_ptr h, const char * alias, error_carrier * error)
+{
+    error->error = qdb_e_uninitialized;
+    return h->queue_pop_back(alias, error->error);
+}
+
+api_buffer_ptr queue_front(handle_ptr h, const char * alias, error_carrier * error)
+{
+    error->error = qdb_e_uninitialized;
+    return h->queue_front(alias, error->error);
+}
+
+api_buffer_ptr queue_back(handle_ptr h, const char * alias, error_carrier * error)
+{
+    error->error = qdb_e_uninitialized;
+    return h->queue_back(alias, error->error);
 }
 
 }

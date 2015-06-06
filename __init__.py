@@ -106,7 +106,7 @@ def _api_buffer_to_string(buf):
 
 def _string_to_api_buffer(h, str):
     """
-    Converts a string to an internal qdb::api_buffer_ptr 
+    Converts a string to an internal qdb::api_buffer_ptr
     """
     return None if str is None else impl.make_api_buffer_ptr_from_string(h, str)
 
@@ -127,108 +127,409 @@ tz = TimeZone()
 def _convert_expiry_time(expiry_time):
     return long(calendar.timegm(expiry_time.timetuple())) if expiry_time != None else long(0)
 
-class BatchRequest:
-    """A request within a batch run."""
-    def __init__(self, op_type, alias = None, content = None, comparand = None, expiry = None):
+def make_error_carrier():
+    err = impl.error_carrier()
+    err.error = impl.error_uninitialized
+    return err
+
+class Element(object):
+
+    def __init__(self, handle, alias):
+        self.handle = handle
+        self.__alias = alias
+
+    def alias(self):
         """
-        Initializes a BatchRequest
-
-        :param op_type: The type of operation, from qdb.Operation
-        :type op_type: int
-        :param alias: The alias on which to operate, if it applies
-        :type alias: str
-        :param content: The content for the request, if it applies
-        :type content: str
-        :param comparand: The comparand for the request, if it applies
-        :type comparand: str
-        :param expiry: The expiry for the request, if it applies
-        :type expiry: datetime.datetime
         """
-        self.type = op_type
-        self.alias = alias
-        self.content = content
-        self.comparand = comparand
-        self.expiry = expiry
+        return self.__alias
 
-    def pickle(self):
+    def remove(self):
+        """ Removes the given element from the repository. It is an error to remove a non-existing element.
+
+            :raises: QuasardbException
         """
-        "Pickles" the content and comparand members and returns a copy of the resulting object
+        err = self.handle.remove(self.alias())
+        if err != impl.error_ok:
+            raise QuasardbException(err)
 
-        :returns: a copy of self with content and comparand "pickled"
+class ExpirableElement(Element):
+
+    def __init__(self, handle, alias, *args, **kwargs):
+        super(ExpirableElement, self).__init__(handle, alias)
+
+    def expires_at(self, expiry_time):
         """
-        br = BatchRequest(self.type, self.alias)
-        br.content = None if self.content == None else pickle.dumps(self.content)
-        br.comparand = None if self.comparand == None else pickle.dumps(self.comparand)
-        br.expiry = self.expiry
-        return br
+            Sets the expiry time of an existing element. If the value is None, the element never expires.
 
-    def cpp_type(self, handle):
+            :param expiry_time: The expiry time, must be offset aware
+            :type expiry_time: datetime.datetime
+
+            :raises: QuasardbException
         """
-        Converts the BatchRequest into a qdb.impl.batch_request, a low level structure used for calls to the underlying C++ API.
-        :param handle: The qdb handle used for internal allocation
+        err = self.handle.expires_at(super(Blob, self).alias(), _convert_expiry_time(expiry_time))
+        if err != impl.error_ok:
+            raise QuasardbException(err)
 
-        :returns: qdb.impl.batch_request - A converted copy of self
+    def expires_from_now(self, expiry_delta):
         """
+            Sets the expiry time of an existing element relative to the current time, in seconds.
 
-        # _string_to_api_buffer is safe when the parameter is None
-        content_buf = _string_to_api_buffer(handle, self.content)
-        comparand_buf = _string_to_api_buffer(handle, self.comparand)
-        expiry = _convert_expiry_time(self.expiry)
+            :param expiry_delta: The expiry delta in seconds
+            :type expiry_delta: long
 
-        return impl.batch_request(self.type, self.alias, content_buf, comparand_buf, expiry)
-
-class BatchResult:
-    """The result from a batch run."""
-    def __init__(self, br):
-        assert(isinstance(br, impl.batch_result))
-
-        self.type = br.type
-        self.error = br.error
-        self.alias = br.alias
-        self.result = _api_buffer_to_string(br.result)
-
-    def unpickle(self):
+            :raises: QuasardbException
         """
-        "Unpickles" the result member and returns a copy of the resulting object.
+        err = self.handle.expires_from_now(super(Blob, self).alias(), long(expiry_delta))
+        if err != impl.error_ok:
+            raise QuasardbException(err)
 
-        :returns: a copy of self with result "unpickled"
+    def get_expiry_time(self):
         """
-        br = copy.copy(self)
-        br.result = None if self.result == None else pickle.loads(self.result)
-        return br
+            Returns the expiry time of the element.
 
-class RawForwardIterator(object):
+            :returns: datetime.datetime -- The expiry time, offset aware
+            :raises: QuasardbException
+        """
+        err = make_error_carrier()
+        t = impl.get_expiry_time_wrapper(self.handle, super(Blob, self).alias(), err)
+
+        if err.error != impl.error_ok:
+            raise QuasardbException(err.error)
+
+        return datetime.datetime.fromtimestamp(t, tz)
+
+class Integer(ExpirableElement):
     """
-    A forward iterator that can be used to iterate on a whole cluster
+    A 64-bit signed integer. Depending on your Python implementation and platform, the number represented in Python may or may
+    not be a 64-bit signed integer
     """
-    def __init__(self, qdb_iter):
-        self.__qdb_iter = qdb_iter
+    def __init__(self, handle, alias, *args, **kwargs):
+        super(Integer, self).__init__(handle, alias)
 
-    def __iter__(self):
-        return self
+    def get(self):
+        """
+            Returns the current value of the entry, as an integer.
 
-    def __del__(self):
-        self.__qdb_iter.close()
-        self.__qdb_iter = None
+            :returns: The value of the entry as an integer
+            :raises: QuasardbException
+        """
+        err = make_error_carrier()
+        res = impl.int_get(self.handle, super(Integer, self).alias(), err)
+        if err.error != impl.error_ok:
+            raise QuasardbException(err.error)
+        return res
 
-    def next(self):
-        # next is safe to call even when we are at the end or beyond
-        impl.iterator_next(self.__qdb_iter)
+    def put(self, number, expiry_time = None):
+        """
+            Creates an integer of the specified value. The entry must not exist.
 
-        if self.__qdb_iter.last_error() != impl.error_ok:
-            raise StopIteration()
+            :param number: The value of the entry to created
+            :type number: long
+            :param expiry_time: The expiry time for the alias
+            :type expiry_time: datetime.datetime
 
-        return (impl.get_iterator_key(self.__qdb_iter), _api_buffer_to_string(impl.get_iterator_value(self.__qdb_iter)))
+            :raises: QuasardbException
+        """
+        assert(isinstance(number, long) or isinstance(number, int))
+        err = self.handle.int_put(super(Integer, self).alias(), number, _convert_expiry_time(expiry_time))
+        if err != impl.error_ok:
+            raise QuasardbException(err)
 
-class RawClient(object):
-    """ The raw client takes strings as arguments for both alias and data.
-    If you want to put and get other objects, use :py:class:`Client` instead.
+    def update(self, number, expiry_time = None):
+        """
+            Updates an integer to the specified value. The entry may or may not exist.
+
+            :param number: The value of the entry to created
+            :type number: long
+            :param expiry_time: The expiry time for the alias
+            :type expiry_time: datetime.datetime
+
+            :raises: QuasardbException
+        """
+        assert(isinstance(number, long) or isinstance(number, int))
+        err = self.handle.int_update(super(Integer, self).alias(), number, _convert_expiry_time(expiry_time))
+        if err != impl.error_ok:
+            raise QuasardbException(err)
+
+    def add(self, addend):
+        """
+            Adds the supplied addend to an existing integer. The operation is atomic and thread safe. The entry must exist.
+            If addend is negative, the value will be substracted to the existing entry.
+
+            :param number: The value to add to the existing entry.
+            :type number: long
+
+            :returns: The value of the entry post add
+            :raises: QuasardbException
+        """
+        assert(isinstance(addend, long) or isinstance(addend, int))
+        err = make_error_carrier()
+        res = impl.int_add(self.handle, super(Integer, self).alias(), addend, err)
+        if err.error != impl.error_ok:
+            raise QuasardbException(err.error)
+        return res
+
+class Queue(Element):
     """
+    An unlimited, distributed, concurrent queue.
+    """
+    def __init__(self, handle, alias, *args, **kwargs):
+        super(Queue, self).__init__(handle, alias)
 
-    def __make_error_carrier(self):
-        err = impl.error_carrier()
-        err.error = impl.error_uninitialized
-        return err
+    def push_front(self, data):
+        """
+            Appends a new element at the beginning of the queue. The queue will be created if it does not exist.
+
+            :param data: The content for the element
+            :type data: str
+
+            :raises: QuasardbException
+        """
+        err = self.handle.queue_push_front(super(Queue, self).alias(), data)
+        if err != impl.error_ok:
+            raise QuasardbException(err)
+
+    def push_back(self, data):
+        """
+            Appends a new element at the end of the queue. The queue will be created if it does not exist.
+
+            :param data: The content for the element
+            :type data: str
+
+            :raises: QuasardbException
+        """
+        err = self.handle.queue_push_back(super(Queue, self).alias(), data)
+        if err != impl.error_ok:
+            raise QuasardbException(err)
+
+    def __queue_getter(self, f):
+        err = make_error_carrier()
+        buf = f(self.handle, super(Queue, self).alias(), err)
+        if err.error != impl.error_ok:
+            raise QuasardbException(err.error)
+        return _api_buffer_to_string(buf)
+
+    def pop_front(self):
+        """
+            Atomically returns and remove the first element of the queue. The queue must exist and must not be empty.
+
+            :raises: QuasardbException
+            :returns: The first element of the queue
+        """
+        return self.__queue_getter(impl.queue_pop_front)
+
+    def pop_back(self):
+        """
+            Atomically returns and remove the last element of the queue. The queue must exist and must not be empty.
+
+            :raises: QuasardbException
+            :returns: The last element of the queue
+        """
+        return self.__queue_getter(impl.queue_pop_back)
+
+    def front(self):
+        """
+            Returns the first element of the queue. The queue must exist and must not be empty.
+
+            :raises: QuasardbException
+            :returns: The first element of the queue
+        """
+        return self.__queue_getter(impl.queue_front)
+
+    def back(self):
+        """
+            Returns the last element of the queue. The queue must exist and must not be empty.
+
+            :raises: QuasardbException
+            :returns: The last element of the queue
+        """
+        return self.__queue_getter(impl.queue_back)
+
+    def size(self):
+        """
+            Returns the current size of the queue.
+
+            :raises: QuasardbException
+            :returns: The current size of the queue.
+        """
+        raise QuasardbException(impl.error_not_implemented)
+
+class HSet(Element):
+    """
+    An unlimited, distributed, concurrent hash set.
+    """
+    def __init__(self, handle, alias, *args, **kwargs):
+        super(HSet, self).__init__(handle, alias)
+
+    def insert(self, data):
+        """
+            Inserts a new element into the hash set. If the hash set does not exist, it will be created.
+
+            :raises: QuasardbException
+        """
+        err = self.handle.hset_insert(super(HSet, self).alias(), data)
+        if err != impl.error_ok:
+            raise QuasardbException(err)
+
+    def erase(self, data):
+        """
+            Erases an existing an element from an existing hash set.
+
+            :raises: QuasardbException
+        """
+        err = self.handle.hset_erase(super(HSet, self).alias(), data)
+        if err != impl.error_ok:
+            raise QuasardbException(err)
+
+    def contains(self, data):
+        """
+            Tests if the element exists in the hash set. The hash set must exist.
+
+            :raises: QuasardbException
+            :returns: True if the element exists, false otherwise
+        """
+        err = self.handle.hset_contains(super(HSet, self).alias(), data)
+
+        if err == impl.error_element_not_found:
+            return False
+
+        if err != impl.error_ok:
+            raise QuasardbException(err)
+
+        return True
+
+    def size(self):
+        """
+            Returns the current size of the hash set.
+
+            :raises: QuasardbException
+            :returns: The current size of the hash set.
+        """
+        raise QuasardbException(impl.error_not_implemented)
+
+class Blob(ExpirableElement):
+
+    def __init__(self, handle, alias, *args, **kwargs):
+        super(Blob, self).__init__(handle, alias)
+
+    def put(self, data, expiry_time=None):
+        """ Creates a blob into the repository.
+        It is an error to call this method on a blob that already exists. Use the :py:meth:`update` method to update a blob.
+        If expiry_time is None, the blob never expires.
+
+            :param data: The content for the alias
+            :type data: str
+            :param expiry_time: The expiry time for the alias
+            :type expiry_time: datetime.datetime
+
+            :raises: QuasardbException
+        """
+        err = self.handle.put(super(Blob, self).alias(), data, _convert_expiry_time(expiry_time))
+        if err != impl.error_ok:
+            raise QuasardbException(err)
+
+    def update(self, data, expiry_time=None):
+        """ Updates the given alias.
+        If the alias is not found in the repository, the blob is created.
+        If expiry_time is None, the blob never expires.
+
+            :param data: The content for the alias
+            :type data: str
+            :param expiry_time: The expiry time for the alias
+            :type expiry_time: datetime.datetime
+
+            :raises: QuasardbException
+        """
+        err = self.handle.update(super(Blob, self).alias(), data, _convert_expiry_time(expiry_time))
+        if err != impl.error_ok:
+            raise QuasardbException(err)
+
+    def get(self):
+        """ Gets the data for the given alias.
+        It is an error to request a non-existing blob.
+
+            :returns: str -- The associated content
+            :raises: QuasardbException
+        """
+        err = make_error_carrier()
+        buf = impl.get(self.handle, super(Blob, self).alias(), err)
+        if err.error != impl.error_ok:
+            raise QuasardbException(err.error)
+
+        return _api_buffer_to_string(buf)
+
+    def get_and_update(self, data, expiry_time=None):
+        """ Updates the blob and returns the previous value.
+        It is an error to call this method on a non-existing blob.
+        If expiry_time is None, the blob never expires.
+
+            :param data: The new data to put in place
+            :type data: str
+            :param expiry_time: The expiry time for the alias
+            :type expiry_time: datetime.datetime
+
+            :returns: str -- The original content
+            :raises: QuasardbException
+        """
+        err = make_error_carrier()
+        buf = impl.get_and_update(self.handle, super(Blob, self).alias(), data, _convert_expiry_time(expiry_time), err)
+        if err.error != impl.error_ok:
+            raise QuasardbException(err.error)
+
+        return _api_buffer_to_string(buf)
+
+    def get_and_remove(self):
+        """ Atomically gets the data from the blob and removes it.
+        It is an error to call this method on a non-existing blob.
+        If expiry_time is None, the entry never expires.
+
+            :returns: str -- The associated content
+            :raises: QuasardbException
+        """
+        err = make_error_carrier()
+        buf = impl.get_and_remove(self.handle, super(Blob, self).alias(), err)
+        if err.error != impl.error_ok:
+            raise QuasardbException(err.error)
+
+        return _api_buffer_to_string(buf)
+
+    def compare_and_swap(self, new_data, comparand, expiry_time=None):
+        """ Atomically compares the blob with comparand and replaces it with new_data if it matches.
+            If expiry_time is None, the entry never expires.
+
+            :param new_data: The new content to put in place if the comparand matches
+            :type new_data: str
+            :param comparand: The content to compare to
+            :type comparand: str
+            :param expiry_time: The expiry time for the blob
+            :type expiry_time: datetime.datetime
+
+            :returns: str -- The original content
+            :raises: QuasardbException
+        """
+        err = make_error_carrier()
+        buf = impl.compare_and_swap(self.handle, super(Blob, self).alias(), new_data, comparand, _convert_expiry_time(expiry_time), err)
+        if err.error != impl.error_ok:
+            raise QuasardbException(err.error)
+
+        return _api_buffer_to_string(buf)
+
+    def remove_if(self, comparand):
+        """ Removes the blob from the repository if it matches comparand. The operation is atomic.
+            It is an error to attempt to remove a non-existing blob.
+
+            :param comparand: The content to compare to
+            :type comparand: str
+
+            :raises: QuasardbException
+        """
+        err = self.handle.remove_if(super(Blob, self).alias(), comparand)
+        if err != impl.error_ok:
+            raise QuasardbException(err)
+
+class Cluster(object):
+    """
+    """
 
     def __init__(self, uri, *args, **kwargs):
         """ Creates the raw client.
@@ -240,7 +541,7 @@ class RawClient(object):
 
             :raises: QuasardbException
         """
-        err = self.__make_error_carrier()
+        err = make_error_carrier()
         self.handle = None
         self.handle = impl.connect(uri, err)
         if err.error != impl.error_ok:
@@ -253,45 +554,49 @@ class RawClient(object):
             self.handle.close()
             self.handle = None
 
-    def __iter__(self):
-        """ Returns a forward iterator to iterate on all the cluster's entries
+    def blob(self, alias):
         """
-        return RawForwardIterator(self.handle.begin())
+        Returns an object representing a blob with the provided alias. The blob may or may not exist yet.
 
-    def put(self, alias, data, expiry_time=None):
-        """ Puts a piece of data in the repository.
-        It is an error to call this method on an entry that already exists. Use the :py:meth:`update` method to update an alias. If expiry_time is None, the entry never expires.
+        :param alias: The alias of the blob to work on
+        :type alias: str
 
-            :param alias: The alias to update
-            :type alias: str
-            :param data: The content for the alias
-            :type data: str
-            :param expiry_time: The expiry time for the alias
-            :type expiry_time: datetime.datetime
-
-            :raises: QuasardbException
+        :returns: The blob named alias
         """
-        err = self.handle.put(alias, data, _convert_expiry_time(expiry_time))
-        if err != impl.error_ok:
-            raise QuasardbException(err)
+        return Blob(self.handle, alias)
 
-    def update(self, alias, data, expiry_time=None):
-        """ Updates the given alias.
-        If the alias is not found in the repository, the entry is created. 
-        If expiry_time is None, the entry never expires.
-
-            :param alias: The alias to update
-            :type alias: str
-            :param data: The content for the alias
-            :type data: str
-            :param expiry_time: The expiry time for the alias
-            :type expiry_time: datetime.datetime
-
-            :raises: QuasardbException
+    def integer(self, alias):
         """
-        err = self.handle.update(alias, data, _convert_expiry_time(expiry_time))
-        if err != impl.error_ok:
-            raise QuasardbException(err)
+        Returns an object representing an integer with the provided alias. The blob may or may not exist yet.
+
+        :param alias: The alias of the integer to work on
+        :type alias: str
+
+        :returns: The integer named alias
+        """
+        return Integer(self.handle, alias)
+
+    def queue(self, alias):
+        """
+        Returns an object representing a queue with the provided alias. The queue may or may not exist yet.
+
+        :param alias: The alias of the queue to work on
+        :type alias: str
+
+        :returns: The queue named alias
+        """
+        return Queue(self.handle, alias)
+
+    def hset(self, alias):
+        """
+        Returns an object representing a hash set with the provided alias. The hash set may or may not exist yet.
+
+        :param alias: The alias of the hash set to work on
+        :type alias: str
+
+        :returns: The hash set named alias
+        """
+        return HSet(self.handle, alias)
 
     def prefix_get(self, prefix):
         """ Returns the list of entries whose alias start with the given prefix. If no alias matches the given prefix,
@@ -303,181 +608,12 @@ class RawClient(object):
             :returns: a list of str -- The list of matching aliases
             :raises: QuasardbException
         """
-        err = self.__make_error_carrier()
+        err = make_error_carrier()
         result = impl.prefix_get(self.handle, prefix, err)
         if err.error != impl.error_ok and err.error != impl.error_alias_not_found:
             raise QuasardbException(err.error)
 
         return result
-
-    def run_batch(self, requests):
-        """
-        Runs the provided requests (a collection of BatchRequest) and returns a collection of BatchResult.
-
-        :param requests: The requests to run
-        :type requests: a list of BatchRequest
-
-        :returns: a list of BatchRequest -- The list of results
-        :raises: QuasardbException
-        """
-        # transform the list of BatchRequest to a list impl.batch_request
-        # we need to convert the list of impl.batch_result to a list of BatchResult
-        br = impl.run_batch(self.handle, map(lambda x: x.cpp_type(self.handle), requests))
-        return (br.successes, map(lambda x: BatchResult(x), br.results))
-
-    def get(self, alias):
-        """ Gets the data for the given alias.
-        It is an error to request a non-existing entry.
-
-            :param alias: The alias to get
-            :type alias: str
-
-            :returns: str -- The associated content
-            :raises: QuasardbException
-        """
-        err = self.__make_error_carrier()
-        buf = impl.get(self.handle, alias, err)
-        if err.error != impl.error_ok:
-            raise QuasardbException(err.error)
-
-        return _api_buffer_to_string(buf)
-
-    def get_and_update(self, alias, data, expiry_time=None):
-        """ Updates the given alias and returns the previous value.
-        It is an error to call this method on a non-existing alias. 
-        If expiry_time is None, the entry never expires.
-
-            :param alias: The alias to get
-            :type alias: str
-            :param data: The new data to put in place
-            :type data: str
-            :param expiry_time: The expiry time for the alias
-            :type expiry_time: datetime.datetime
-
-            :returns: str -- The original content
-            :raises: QuasardbException
-        """
-        err = self.__make_error_carrier()
-        buf = impl.get_and_update(self.handle, alias, data, _convert_expiry_time(expiry_time), err)
-        if err.error != impl.error_ok:
-            raise QuasardbException(err.error)
-
-        return _api_buffer_to_string(buf)
-
-    def get_and_remove(self, alias):
-        """ Atomically gets the data from the given alias and removes it.
-        It is an error to call this method on a non-existing alias.
-        If expiry_time is None, the entry never expires.
-
-            :param alias: The alias to get
-            :type alias: str
-
-            :returns: str -- The associated content
-            :raises: QuasardbException
-        """
-        err = self.__make_error_carrier()
-        buf = impl.get_and_remove(self.handle, alias, err)
-        if err.error != impl.error_ok:
-            raise QuasardbException(err.error)
-
-        return _api_buffer_to_string(buf)
-
-    def compare_and_swap(self, alias, new_data, comparand, expiry_time=None):
-        """ Atomically compares the alias with comparand and replaces it with new_data if it matches.
-            If expiry_time is None, the entry never expires.
-
-            :param alias: The alias to compare to
-            :type alias: str
-            :param new_data: The new content to put in place if the comparand matches
-            :type new_data: str
-            :param comparand: The content to compare to
-            :type comparand: str
-            :param expiry_time: The expiry time for the alias
-            :type expiry_time: datetime.datetime
-
-            :returns: str -- The original content
-            :raises: QuasardbException
-        """
-        err = self.__make_error_carrier()
-        buf = impl.compare_and_swap(self.handle, alias, new_data, comparand, _convert_expiry_time(expiry_time), err)
-        if err.error != impl.error_ok:
-            raise QuasardbException(err.error)
-
-        return _api_buffer_to_string(buf)
-
-    def remove(self, alias):
-        """ Removes the given alias from the repository. It is an error to remove a non-existing alias.
-
-            :param alias: The alias to remove
-            :type alias: str
-
-            :raises: QuasardbException
-        """
-        err = self.handle.remove(alias)
-        if err != impl.error_ok:
-            raise QuasardbException(err)
-
-    def remove_if(self, alias, comparand):
-        """ Removes the given alias from the repository if it matches comparand. The operation is atomic. It is an error to attempt to remove a non-existing alias.
-
-            :param alias: The alias to remove
-            :type alias: str
-            :param comparand: The content to compare to
-            :type comparand: str
-
-            :raises: QuasardbException
-        """
-        err = self.handle.remove_if(alias, comparand)
-        if err != impl.error_ok:
-            raise QuasardbException(err)
-
-    def expires_at(self, alias, expiry_time):
-        """
-            Sets the expiry time of an existing entry. If the value is None, the entry never expires.
-
-            :param alias: The alias for which the expiry time will be set
-            :type alias: str
-            :param expiry_time: The expiry time, must be offset aware
-            :type expiry_time: datetime.datetime
-
-            :raises: QuasardbException
-        """
-        err = self.handle.expires_at(alias, _convert_expiry_time(expiry_time))
-        if err != impl.error_ok:
-            raise QuasardbException(err)
-
-    def expires_from_now(self, alias, expiry_delta):
-        """
-            Sets the expiry time of an existing entry relative to the current time, in seconds.
-
-            :param alias: The alias for which the expiry time will be set
-            :type alias: str
-            :param expiry_delta: The expiry delta in seconds
-            :type expiry_delta: long
-
-            :raises: QuasardbException
-        """
-        err = self.handle.expires_from_now(alias, long(expiry_delta))
-        if err != impl.error_ok:
-            raise QuasardbException(err)
-
-    def get_expiry_time(self, alias):
-        """
-            Returns the expiry time of an existing entry.
-
-            :param alias: The alias to get the expiry time from
-            :type alias: str
-
-            :returns: datetime.datetime -- The expiry time, offset aware
-            :raises: QuasardbException
-        """
-        err = self.__make_error_carrier()
-        t = impl.get_expiry_time_wrapper(self.handle, alias, err)
-
-        if err.error != impl.error_ok:
-            raise QuasardbException(err.error)
-
-        return datetime.datetime.fromtimestamp(t, tz)
 
     def purge_all(self):
         """ Removes all the entries from all nodes of the cluster.
@@ -527,7 +663,7 @@ class RawClient(object):
 
             :raises: QuasardbException
         """
-        err = self.__make_error_carrier()
+        err = make_error_carrier()
         res = impl.node_config(self.handle, uri, err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
@@ -543,7 +679,7 @@ class RawClient(object):
 
             :raises: QuasardbException
         """
-        err = self.__make_error_carrier()
+        err = make_error_carrier()
         res = impl.node_status(self.handle, uri, err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
@@ -559,65 +695,8 @@ class RawClient(object):
 
             :raises: QuasardbException
         """
-        err = self.__make_error_carrier()
+        err = make_error_carrier()
         res = impl.node_topology(self.handle, uri, err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
         return json.loads(res)
-
-class ForwardIterator(RawForwardIterator):
-    """
-    A forward iterator that can be used to iterate on a whole cluster with a pickle interface
-    """
-    def next(self):
-        (k, v) = super(ForwardIterator, self).next()
-        return (pickle.loads(k), pickle.loads(v))
-
-
-class Client(RawClient):
-    """ The client offers the same interface as the RawClient
-    but accepts any kind of object as alias and data,
-    provided that the object can be marshalled with the cPickle package.
-    """
-    def __iter__(self):
-        """ Returns a forward iterator to iterate on all the cluster's entries
-        """
-        return ForwardIterator(self.handle.begin())
-
-    def run_batch(self, requests):
-        # we need to translate the requests buffers
-        successes, res = super(Client, self).run_batch(map(lambda x: x.pickle(), requests))
-        return (successes, map(lambda x: x.unpickle(), res))
-
-    def put(self, alias, data, expiry_time=None):
-        return super(Client, self).put(alias, pickle.dumps(data), expiry_time)
-
-    def get(self, alias):
-        return pickle.loads(super(Client, self).get(alias))
-
-    def get_and_remove(self, alias):
-        return pickle.loads(super(Client, self).get_and_remove(alias))
-
-    def get_and_update(self, alias, data, expiry_time=None):
-        return pickle.loads(super(Client, self).get_and_update(alias, pickle.dumps(data), expiry_time))
-
-    def compare_and_swap(self, alias, new_value, comparand, expiry_time=None):
-        return pickle.loads(super(Client, self).compare_and_swap(alias, pickle.dumps(new_value), pickle.dumps(comparand), expiry_time))
-
-    def update(self, alias, data, expiry_time=None):
-        return super(Client, self).update(alias, pickle.dumps(data), expiry_time)
-
-    def remove(self, alias):
-        return super(Client, self).remove(alias)
-
-    def remove_if(self, alias, comparand):
-        return super(Client, self).remove_if(alias, pickle.dumps(comparand))
-
-    def expires_at(self, alias, expiry_time):
-        return super(Client, self).expires_at(alias, expiry_time)
-
-    def expires_from_now(self, alias, expiry_delta):
-        return super(Client, self).expires_from_now(alias, expiry_delta)
-
-    def get_expiry_time(self, alias):
-        return super(Client, self).get_expiry_time(alias)
