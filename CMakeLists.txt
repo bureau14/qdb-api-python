@@ -49,9 +49,9 @@ endif()
 string(TOLOWER ${CMAKE_SYSTEM_NAME} PY_PACKAGE_SOURCE_SUFFIX)
 
 # generate setup script by replacing CMake variables
-configure_file(setup.py setup.py @ONLY)
-configure_file(tests.py tests.py @ONLY)
-configure_file(MANIFEST.in MANIFEST.in @ONLY)
+configure_file(setup.in.py setup.py @ONLY)
+configure_file(tests.in.py tests.py @ONLY)
+configure_file(MANIFEST.orig MANIFEST.in @ONLY)
 configure_file(README.md README.txt)
 
 # Step 1: SWIG

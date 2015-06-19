@@ -132,7 +132,7 @@ def make_error_carrier():
     err.error = impl.error_uninitialized
     return err
 
-class Element(object):
+class Entry(object):
 
     def __init__(self, handle, alias):
         self.handle = handle
@@ -140,11 +140,90 @@ class Element(object):
 
     def alias(self):
         """
+        :returns: The alias of the entry
         """
         return self.__alias
 
+    def add_tag(self, tag):
+        """
+            Tag the entry with "new_tag"
+
+            :param tag: The tag to add
+            :type tag: str
+
+            :returns: True if the tag was successfully add, False if it was already set
+            :raises: QuasardbException
+        """
+        err = self.handle.add_tag(self.alias(), tag)
+        if err == impl.error_tag_already_set:
+            return False
+
+        if err != impl.error_ok:
+            raise QuasardbException(err)
+
+        return True
+
+    def remove_tag(self, tag):
+        """
+            Remove the tag (untag) from the entry
+
+            :param tag: The tag to remove
+            :type tag: str
+
+            :returns: True if the tag was successfully removed, False if it was not set
+            :raises: QuasardbException
+        """
+        err = self.handle.remove_tag(self.alias(), tag)
+
+        if err == impl.error_tag_not_set:
+            return False
+
+        if err != impl.error_ok:
+            raise QuasardbException(err)
+
+        return True
+
+    def get_tags(self):
+        """
+            Returns the list of tags of the entry
+
+            :returns: A list of strings representing the entries with the specified tag
+            :raises: QuasardbException
+        """
+        err = make_error_carrier()
+        result = impl.get_tags(self.handle, self.alias(), err)
+        if err.error != impl.error_ok:
+            raise QuasardbException(err.error)
+        return result
+
+    def has_tag(self, tag):
+        """
+            Returns true if and only if the entry is tagged with tag
+
+            :param tag: The tag to test
+            :type tag: str
+
+            :returns: True if the entry has the speciefied tag, False otherwise
+            :raises: QuasardbException
+        """
+        err = self.handle.has_tag(self.alias(), tag)
+        if err == impl.error_tag_not_set:
+            return False
+
+        if err != impl.error_ok:
+            raise QuasardbException(err)
+
+        return True
+
+
+class RemoveableEntry(Entry):
+
+    def __init__(self, handle, alias, *args, **kwargs):
+        super(RemoveableEntry, self).__init__(handle, alias)
+
     def remove(self):
-        """ Removes the given element from the repository. It is an error to remove a non-existing element.
+        """ 
+            Removes the given Entry from the repository. It is an error to remove a non-existing Entry.
 
             :raises: QuasardbException
         """
@@ -152,14 +231,14 @@ class Element(object):
         if err != impl.error_ok:
             raise QuasardbException(err)
 
-class ExpirableElement(Element):
+class ExpirableEntry(RemoveableEntry):
 
     def __init__(self, handle, alias, *args, **kwargs):
-        super(ExpirableElement, self).__init__(handle, alias)
+        super(ExpirableEntry, self).__init__(handle, alias)
 
     def expires_at(self, expiry_time):
         """
-            Sets the expiry time of an existing element. If the value is None, the element never expires.
+            Sets the expiry time of an existing Entry. If the value is None, the Entry never expires.
 
             :param expiry_time: The expiry time, must be offset aware
             :type expiry_time: datetime.datetime
@@ -172,7 +251,7 @@ class ExpirableElement(Element):
 
     def expires_from_now(self, expiry_delta):
         """
-            Sets the expiry time of an existing element relative to the current time, in seconds.
+            Sets the expiry time of an existing Entry relative to the current time, in seconds.
 
             :param expiry_delta: The expiry delta in seconds
             :type expiry_delta: long
@@ -185,7 +264,7 @@ class ExpirableElement(Element):
 
     def get_expiry_time(self):
         """
-            Returns the expiry time of the element.
+            Returns the expiry time of the Entry.
 
             :returns: datetime.datetime -- The expiry time, offset aware
             :raises: QuasardbException
@@ -198,7 +277,25 @@ class ExpirableElement(Element):
 
         return datetime.datetime.fromtimestamp(t, tz)
 
-class Integer(ExpirableElement):
+class Tag(Entry):
+    """
+    A tag to perform tag-based queries, such as listing all entries having the tag.
+    """
+    def __init__(self, handle, alias, *args, **kwargs):
+        super(Tag, self).__init__(handle, alias)
+
+    def get_entries(self):
+        """
+            Returns all entries with the tag
+            :raises: QuasardbException
+        """
+        err = make_error_carrier()
+        result = impl.get_tagged(self.handle, self.alias(),  err)
+        if err.error != impl.error_ok:
+            raise QuasardbException(err.error)
+        return result
+
+class Integer(ExpirableEntry):
     """
     A 64-bit signed integer. Depending on your Python implementation and platform, the number represented in Python may or may
     not be a 64-bit signed integer
@@ -269,7 +366,7 @@ class Integer(ExpirableElement):
             raise QuasardbException(err.error)
         return res
 
-class Queue(Element):
+class Queue(RemoveableEntry):
     """
     An unlimited, distributed, concurrent queue.
     """
@@ -278,9 +375,9 @@ class Queue(Element):
 
     def push_front(self, data):
         """
-            Appends a new element at the beginning of the queue. The queue will be created if it does not exist.
+            Appends a new Entry at the beginning of the queue. The queue will be created if it does not exist.
 
-            :param data: The content for the element
+            :param data: The content for the Entry
             :type data: str
 
             :raises: QuasardbException
@@ -291,9 +388,9 @@ class Queue(Element):
 
     def push_back(self, data):
         """
-            Appends a new element at the end of the queue. The queue will be created if it does not exist.
+            Appends a new Entry at the end of the queue. The queue will be created if it does not exist.
 
-            :param data: The content for the element
+            :param data: The content for the Entry
             :type data: str
 
             :raises: QuasardbException
@@ -311,37 +408,37 @@ class Queue(Element):
 
     def pop_front(self):
         """
-            Atomically returns and remove the first element of the queue. The queue must exist and must not be empty.
+            Atomically returns and remove the first Entry of the queue. The queue must exist and must not be empty.
 
             :raises: QuasardbException
-            :returns: The first element of the queue
+            :returns: The first Entry of the queue
         """
         return self.__queue_getter(impl.queue_pop_front)
 
     def pop_back(self):
         """
-            Atomically returns and remove the last element of the queue. The queue must exist and must not be empty.
+            Atomically returns and remove the last Entry of the queue. The queue must exist and must not be empty.
 
             :raises: QuasardbException
-            :returns: The last element of the queue
+            :returns: The last Entry of the queue
         """
         return self.__queue_getter(impl.queue_pop_back)
 
     def front(self):
         """
-            Returns the first element of the queue. The queue must exist and must not be empty.
+            Returns the first Entry of the queue. The queue must exist and must not be empty.
 
             :raises: QuasardbException
-            :returns: The first element of the queue
+            :returns: The first Entry of the queue
         """
         return self.__queue_getter(impl.queue_front)
 
     def back(self):
         """
-            Returns the last element of the queue. The queue must exist and must not be empty.
+            Returns the last Entry of the queue. The queue must exist and must not be empty.
 
             :raises: QuasardbException
-            :returns: The last element of the queue
+            :returns: The last Entry of the queue
         """
         return self.__queue_getter(impl.queue_back)
 
@@ -354,7 +451,7 @@ class Queue(Element):
         """
         raise QuasardbException(impl.error_not_implemented)
 
-class HSet(Element):
+class HSet(RemoveableEntry):
     """
     An unlimited, distributed, concurrent hash set.
     """
@@ -363,7 +460,7 @@ class HSet(Element):
 
     def insert(self, data):
         """
-            Inserts a new element into the hash set. If the hash set does not exist, it will be created.
+            Inserts a new Entry into the hash set. If the hash set does not exist, it will be created.
 
             :raises: QuasardbException
         """
@@ -373,7 +470,7 @@ class HSet(Element):
 
     def erase(self, data):
         """
-            Erases an existing an element from an existing hash set.
+            Erases an existing an Entry from an existing hash set.
 
             :raises: QuasardbException
         """
@@ -383,10 +480,10 @@ class HSet(Element):
 
     def contains(self, data):
         """
-            Tests if the element exists in the hash set. The hash set must exist.
+            Tests if the Entry exists in the hash set. The hash set must exist.
 
             :raises: QuasardbException
-            :returns: True if the element exists, false otherwise
+            :returns: True if the Entry exists, false otherwise
         """
         err = self.handle.hset_contains(super(HSet, self).alias(), data)
 
@@ -407,7 +504,7 @@ class HSet(Element):
         """
         raise QuasardbException(impl.error_not_implemented)
 
-class Blob(ExpirableElement):
+class Blob(ExpirableEntry):
 
     def __init__(self, handle, alias, *args, **kwargs):
         super(Blob, self).__init__(handle, alias)
@@ -598,22 +695,16 @@ class Cluster(object):
         """
         return HSet(self.handle, alias)
 
-    def prefix_get(self, prefix):
-        """ Returns the list of entries whose alias start with the given prefix. If no alias matches the given prefix,
-            the function returns an empty list and raises no error.
-
-            :param prefix: The prefix to use
-            :type prefix: str
-
-            :returns: a list of str -- The list of matching aliases
-            :raises: QuasardbException
+    def tag(self, alias):
         """
-        err = make_error_carrier()
-        result = impl.prefix_get(self.handle, prefix, err)
-        if err.error != impl.error_ok and err.error != impl.error_alias_not_found:
-            raise QuasardbException(err.error)
+        Returns an object representing a tag with the provided alias. The tag may or may not exist yet.
 
-        return result
+        :param alias: The alias of the tag to work on
+        :type alias: str
+
+        :returns: The tag named alias
+        """
+        return Tag(self.handle, alias)
 
     def purge_all(self):
         """ Removes all the entries from all nodes of the cluster.

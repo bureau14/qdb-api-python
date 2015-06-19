@@ -16,4 +16,12 @@ struct error_carrier
     qdb_error_t error;
 };
 
+struct results_list
+{
+    results_list(void) : error(qdb_e_uninitialized) {}
+
+    qdb_error_t error;
+    std::vector<std::string> results;
+};
+
 %}

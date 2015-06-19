@@ -14,11 +14,6 @@ qdb::api_buffer_ptr make_api_buffer_ptr_from_string(handle_ptr h, const char * c
     return qdb::make_api_buffer_ptr(*h, content, content_length);
 }
 
-std::vector<std::string> prefix_get(handle_ptr h, const char * prefix, error_carrier * error)
-{
-    return h->prefix_get(prefix, error->error);
-}
-
 api_buffer_ptr get(handle_ptr h, const char * alias, error_carrier * error)
 {
     return h->get(alias, error->error);
@@ -131,6 +126,18 @@ api_buffer_ptr queue_back(handle_ptr h, const char * alias, error_carrier * erro
 {
     error->error = qdb_e_uninitialized;
     return h->queue_back(alias, error->error);
+}
+
+std::vector<std::string> get_tags(handle_ptr h, const char * alias, error_carrier * error)
+{
+    error->error = qdb_e_uninitialized;
+    return h->get_tags(alias, error->error);
+}
+
+std::vector<std::string> get_tagged(handle_ptr h, const char * tag, error_carrier * error)
+{
+    error->error = qdb_e_uninitialized;
+    return h->get_tagged(tag, error->error);
 }
 
 }

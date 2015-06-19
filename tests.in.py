@@ -74,13 +74,9 @@ def tearDownModule():
     __clusterd.terminate()
     __clusterd.wait()
 
-
-
-
 class QuasardbTest(unittest.TestCase):
 
     pass
-
 
 class QuasardbBasic(QuasardbTest):
     """
@@ -371,33 +367,64 @@ class QuasardbInfo(QuasardbTest):
         config = cluster.node_config(uri)
         self.assertGreater(len(config), 0)
 
-class QuasardbPrefix(QuasardbTest):
+class QuasardbTag(QuasardbTest):
+    """
+    """
 
-    def test_prefix_get(self):
-        # prefix too short, must raise an exception
-        self.assertRaises(qdb.QuasardbException, cluster.prefix_get, "a")
-
-        res = cluster.prefix_get("blah")
-        self.assertEqual(len(res), 0)
-
-        entries = [ "blah", "maybe", "Romulan", "Rome", "Rosa", "Romanus" ]
+    def test_get_entries(self):
+        entry_name = entry_gen.next()
         entry_content = "content"
 
-        for e in entries:
-            cluster.blob(e).put(entry_content)
+        tag_name = entry_gen.next()
 
-        res = cluster.prefix_get("blah")
-        self.assertEqual(len(res), 1)
-        self.assertEqual(res[0], "blah")
+        b = cluster.blob(entry_name)
 
-        res = cluster.prefix_get("rom")
-        self.assertEqual(len(res), 0)
+        b.put(entry_content)
 
-        res = cluster.prefix_get("Rom")
-        self.assertEqual(len(res), 3)
-        self.assertEqual(res[0], "Romanus")
-        self.assertEqual(res[1], "Rome")
-        self.assertEqual(res[2], "Romulan")
+        tags = b.get_tags()
+        self.assertEqual(0, len(tags))
+
+        self.assertFalse(b.has_tag(tag_name))
+
+        self.assertTrue(b.add_tag(tag_name))
+        self.assertFalse(b.add_tag(tag_name))
+
+        tags = b.get_tags()
+        self.assertEqual(1, len(tags))
+        self.assertEqual(tags[0], tag_name)
+
+        self.assertTrue(b.has_tag(tag_name))
+
+        self.assertTrue(b.remove_tag(tag_name))
+        self.assertFalse(b.remove_tag(tag_name))       
+
+        tags = b.get_tags()
+        self.assertEqual(0, len(tags))
+
+    def test_tag_sequence(self):
+        entry_name = entry_gen.next()
+        entry_content = "content"
+
+        tag_name = entry_gen.next()
+
+        b = cluster.blob(entry_name)
+        b.put(entry_content)
+
+        t = cluster.tag(tag_name)
+
+        entries = t.get_entries()
+        self.assertEqual(0, len(entries))
+
+        self.assertTrue(b.add_tag(tag_name))      
+
+        tags = t.get_entries()
+        self.assertEqual(1, len(tags))
+        self.assertEqual(tags[0], entry_name)
+
+        self.assertTrue(b.remove_tag(tag_name))
+        entries = t.get_entries()
+        self.assertEqual(0, len(entries))
+
 
 class QuasardbExpiry(QuasardbTest):
 

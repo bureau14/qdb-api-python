@@ -30,8 +30,6 @@ public:
     qdb_error_t put(const char * alias, const char * content, size_t content_length, qdb_time_t expiry_time);
     qdb_error_t update(const char * alias, const char * content, size_t content_length, qdb_time_t expiry_time);
 
-    std::vector<std::string> prefix_get(const char * prefix, qdb_error_t & error);
-
     api_buffer_ptr get(const char * alias, qdb_error_t & error);
     api_buffer_ptr get_and_remove(const char * alias, qdb_error_t & error);
     api_buffer_ptr get_and_update(const char * alias, const char * update_content, size_t update_content_length, qdb_time_t expiry_time, qdb_error_t & error);
@@ -57,6 +55,15 @@ public:
     qdb_error_t expires_at(const char * alias, qdb_time_t expiry_time);
     qdb_error_t expires_from_now(const char * alias, qdb_time_t expiry_delta);
     qdb_error_t get_expiry_time(const char * alias, qdb_time_t & expiry_time);
+
+    // tags
+
+    qdb_error_t add_tag(const char * alias, const char * tag);
+    qdb_error_t has_tag(const char * alias, const char * tag);
+    qdb_error_t remove_tag(const char * alias, const char * tag);
+
+    std::vector<std::string> get_tagged(const char * tag, qdb_error_t & error);
+    std::vector<std::string> get_tags(const char * alias, qdb_error_t & error);
 
     // integer
 

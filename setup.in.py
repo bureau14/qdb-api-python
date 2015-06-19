@@ -21,6 +21,8 @@ is_freebsd = sys.platform.startswith('freebsd')
 is_64_bits = sys.maxsize > 2**32
 arch = "x64" if is_64_bits else "x86"
 
+if os.path.exists('include/qdb'):
+  shutil.rmtree('include/qdb')
 shutil.copytree('@QDB_API_DIR@/include/qdb', 'include/qdb')
 copy('@QDB_PY_WRAPPER@', 'src')
 copy('@QDB_PY_IMPL@', 'qdb')
