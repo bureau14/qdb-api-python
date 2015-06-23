@@ -18,6 +18,7 @@ qdb_version = "@QDB_PY_VERSION@-@CMAKE_SYSTEM_NAME@".lower();
 is_clang = 'Clang' in '@CMAKE_CXX_COMPILER_ID@'
 is_windows = os.name == 'nt'
 is_freebsd = sys.platform.startswith('freebsd')
+is_osx = sys.platform == 'darwin'
 is_64_bits = sys.maxsize > 2**32
 arch = "x64" if is_64_bits else "x86"
 
@@ -30,6 +31,8 @@ copy('@QDB_PY_INIT@', 'qdb')
 if is_windows:
     copy('@QDB_API_DIR@/lib/qdb_api.lib', 'qdb')
     copy('@QDB_API_DIR@/bin/qdb_api.dll', 'qdb')
+elif is_osx:
+  copy('@QDB_API_DIR@/lib/libqdb_api.dylib', 'qdb')
 else:
     copy('@QDB_API_DIR@/lib/libqdb_api.so', 'qdb')
 
@@ -41,16 +44,18 @@ if is_windows:
         '/MT'] # overrides the /MD that is send by distutils, this with generate command line warning D9025
     extra_link_args = ['/INCREMENTAL:NO','/OPT:REF','/RELEASE','/DYNAMICBASE','/NXCOMPAT','/FUNCTIONPADMIN','/MANIFEST']
     if is_64_bits:
-        extra_link_args = extra_link_args + ['/machine:x64']
+        extra_link_args += ['/machine:x64']
     else:
-        extra_link_args = extra_link_args + ['/machine:x86', '/LARGEADDRESSAWARE']
+        extra_link_args += ['/machine:x86', '/LARGEADDRESSAWARE']
 else:
     if is_clang:
         extra_compile_args = ['-std=c++11','-stdlib=libc++','-fcxx-exceptions','-fexceptions']
-        extra_link_args = ['-Wl,-z,origin','-Wl,--gc-sections','-Wl,-R$ORIGIN']
+        extra_link_args = []
     else:
         extra_compile_args = ['-std=c++11','-Wno-unused-function']
-        extra_link_args = ['-Wl,-z,origin','-Wl,--gc-sections','-Wl,-R$ORIGIN','-static-libgcc','-static-libstdc++']
+        extra_link_args = ['-static-libgcc','-static-libstdc++']
+    if not is_osx:
+        extra_link_args += ['-Wl,-z,origin','-Wl,--gc-sections','-Wl,-R$ORIGIN']
 
 
 if is_freebsd:
