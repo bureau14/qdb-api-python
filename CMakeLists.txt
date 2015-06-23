@@ -21,9 +21,9 @@ endif()
 set(SWIG_COMMON_FILES
     qdb_enum.i
     qdb_struct.i
-    qdb_iterator.i
     qdb_python_adapters.i
-    qdb_python_common.i)
+    qdb_python_common.i
+)
 
 set(QDB_PY_VERSION "2.0.0")
 set(QDB_PY_WRAPPER "${CMAKE_CURRENT_BINARY_DIR}/qdb_python_wrapper.cxx")
