@@ -12,15 +12,6 @@ private:
     handle(const handle &);
 
 public:
-    const_iterator begin(void);
-
-    const_iterator end(void);
-
-    const_reverse_iterator rbegin(void);
-
-    const_reverse_iterator rend(void);
-
-public:
     void close(void);
     bool connected(void) const;
     void set_timeout(int timeout);

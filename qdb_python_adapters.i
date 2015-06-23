@@ -62,27 +62,6 @@ handle_ptr connect(const char * uri, error_carrier * error)
     return h;
 }
 
-// operators are not supported in Python, we need this helper
-void iterator_next(const_iterator * iterator)
-{
-    ++(*iterator);
-}
-
-void iterator_previous(const_iterator * iterator)
-{
-    --(*iterator);
-}
-
-std::string get_iterator_key(const const_iterator * iterator)
-{
-    return (*iterator)->first;
-}
-
-api_buffer_ptr get_iterator_value(const const_iterator * iterator)
-{
-    return (*iterator)->second;
-}
-
 qdb_time_t get_expiry_time_wrapper(handle_ptr h, const char * alias, error_carrier * error)
 {
     qdb_time_t val = 0;
