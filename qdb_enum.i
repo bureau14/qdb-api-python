@@ -38,7 +38,7 @@ enum qdb_error_t
     qdb_e_prefix_too_short = 32,
     qdb_e_skipped = 33,
     qdb_e_incompatible_type = 34,
-    qdb_e_empty_container = 35,
+    qdb_e_container_empty = 35,
     qdb_e_container_full = 36,
     qdb_e_element_not_found = 37,
     qdb_e_element_already_exists = 38,
