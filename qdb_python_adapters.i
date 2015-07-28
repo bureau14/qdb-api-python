@@ -69,16 +69,16 @@ qdb_time_t get_expiry_time_wrapper(handle_ptr h, const char * alias, error_carri
     return val;
 }
 
-qdb_int int_get(handle_ptr h, const char * alias, error_carrier * error)
+qdb_int_t int_get(handle_ptr h, const char * alias, error_carrier * error)
 {
-    qdb_int res = 0;
+    qdb_int_t res = 0;
     error->error = h->int_get(alias, &res);
     return res;
 }
 
-qdb_int int_add(handle_ptr h, const char * alias, qdb_int addend, error_carrier * error)
+qdb_int_t int_add(handle_ptr h, const char * alias, qdb_int_t addend, error_carrier * error)
 {
-    qdb_int res = 0;
+    qdb_int_t res = 0;
     error->error = h->int_add(alias, addend, &res);
     return res;
 }

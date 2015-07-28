@@ -58,10 +58,10 @@ public:
 
     // integer
 
-    qdb_error_t int_get(const char * alias, qdb_int * number);
-    qdb_error_t int_put(const char * alias, qdb_int number, qdb_time_t expiry_time);
-    qdb_error_t int_update(const char * alias, qdb_int number, qdb_time_t expiry_time);
-    qdb_error_t int_add(const char * alias, qdb_int addend, qdb_int * result = NULL);
+    qdb_error_t int_get(const char * alias, qdb_int_t * number);
+    qdb_error_t int_put(const char * alias, qdb_int_t number, qdb_time_t expiry_time);
+    qdb_error_t int_update(const char * alias, qdb_int_t number, qdb_time_t expiry_time);
+    qdb_error_t int_add(const char * alias, qdb_int_t addend, qdb_int_t * result = NULL);
 
     // queue
     qdb_error_t queue_push_front(const char * alias, const char * content, size_t content_length);
