@@ -246,7 +246,7 @@ class QuasardbInteger(QuasardbTest):
 
         i.remove()
 
-class QuasardbQueue(QuasardbTest):
+class QuasardbDeque(QuasardbTest):
     
     def test_sequence(self):
         """
@@ -255,7 +255,7 @@ class QuasardbQueue(QuasardbTest):
         entry_name = entry_gen.next()
         entry_content_back = "back"
 
-        q = cluster.queue(entry_name)
+        q = cluster.deque(entry_name)
 
         self.assertRaises(qdb.QuasardbException, q.pop_back)
         self.assertRaises(qdb.QuasardbException, q.pop_front)

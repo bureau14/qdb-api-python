@@ -75,14 +75,14 @@ enum qdb_entry_type_t
 enum qdb_operation_type_t
 {
     qdb_op_uninitialized = -1,
-    qdb_op_get = 0,
-    qdb_op_put = 1,
-    qdb_op_update = 2,
-    qdb_op_remove = 3,
-    qdb_op_cas = 4,
-    qdb_op_get_and_update = 5,
-    qdb_op_get_and_remove = 6,
-    qdb_op_remove_if = 7
+    qdb_op_blob_get = 0,
+    qdb_op_blob_put = 1,
+    qdb_op_blob_update = 2,
+    qdb_op_blob_remove = 3,
+    qdb_op_blob_cas = 4,
+    qdb_op_blob_get_and_update = 5,
+    qdb_op_blob_get_and_remove = 6,
+    qdb_op_blob_remove_if = 7
 };
 
 enum qdb_log_level_t

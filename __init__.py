@@ -366,88 +366,88 @@ class Integer(ExpirableEntry):
             raise QuasardbException(err.error)
         return res
 
-class Queue(RemoveableEntry):
+class Deque(RemoveableEntry):
     """
-    An unlimited, distributed, concurrent queue.
+    An unlimited, distributed, concurrent deque.
     """
     def __init__(self, handle, alias, *args, **kwargs):
-        super(Queue, self).__init__(handle, alias)
+        super(Deque, self).__init__(handle, alias)
 
     def push_front(self, data):
         """
-            Appends a new Entry at the beginning of the queue. The queue will be created if it does not exist.
+            Appends a new Entry at the beginning of the deque. The deque will be created if it does not exist.
 
             :param data: The content for the Entry
             :type data: str
 
             :raises: QuasardbException
         """
-        err = self.handle.queue_push_front(super(Queue, self).alias(), data)
+        err = self.handle.deque_push_front(super(Deque, self).alias(), data)
         if err != impl.error_ok:
             raise QuasardbException(err)
 
     def push_back(self, data):
         """
-            Appends a new Entry at the end of the queue. The queue will be created if it does not exist.
+            Appends a new Entry at the end of the deque. The deque will be created if it does not exist.
 
             :param data: The content for the Entry
             :type data: str
 
             :raises: QuasardbException
         """
-        err = self.handle.queue_push_back(super(Queue, self).alias(), data)
+        err = self.handle.deque_push_back(super(Deque, self).alias(), data)
         if err != impl.error_ok:
             raise QuasardbException(err)
 
-    def __queue_getter(self, f):
+    def __deque_getter(self, f):
         err = make_error_carrier()
-        buf = f(self.handle, super(Queue, self).alias(), err)
+        buf = f(self.handle, super(Deque, self).alias(), err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
         return _api_buffer_to_string(buf)
 
     def pop_front(self):
         """
-            Atomically returns and remove the first Entry of the queue. The queue must exist and must not be empty.
+            Atomically returns and remove the first Entry of the deque. The deque must exist and must not be empty.
 
             :raises: QuasardbException
-            :returns: The first Entry of the queue
+            :returns: The first Entry of the deque
         """
-        return self.__queue_getter(impl.queue_pop_front)
+        return self.__deque_getter(impl.deque_pop_front)
 
     def pop_back(self):
         """
-            Atomically returns and remove the last Entry of the queue. The queue must exist and must not be empty.
+            Atomically returns and remove the last Entry of the deque. The deque must exist and must not be empty.
 
             :raises: QuasardbException
-            :returns: The last Entry of the queue
+            :returns: The last Entry of the deque
         """
-        return self.__queue_getter(impl.queue_pop_back)
+        return self.__deque_getter(impl.deque_pop_back)
 
     def front(self):
         """
-            Returns the first Entry of the queue. The queue must exist and must not be empty.
+            Returns the first Entry of the deque. The deque must exist and must not be empty.
 
             :raises: QuasardbException
-            :returns: The first Entry of the queue
+            :returns: The first Entry of the deque
         """
-        return self.__queue_getter(impl.queue_front)
+        return self.__deque_getter(impl.deque_front)
 
     def back(self):
         """
-            Returns the last Entry of the queue. The queue must exist and must not be empty.
+            Returns the last Entry of the deque. The deque must exist and must not be empty.
 
             :raises: QuasardbException
-            :returns: The last Entry of the queue
+            :returns: The last Entry of the deque
         """
-        return self.__queue_getter(impl.queue_back)
+        return self.__deque_getter(impl.deque_back)
 
     def size(self):
         """
-            Returns the current size of the queue.
+            Returns the current size of the deque.
 
             :raises: QuasardbException
-            :returns: The current size of the queue.
+            :returns: The current size of the deque.
         """
         raise QuasardbException(impl.error_not_implemented)
 
@@ -673,16 +673,16 @@ class Cluster(object):
         """
         return Integer(self.handle, alias)
 
-    def queue(self, alias):
+    def deque(self, alias):
         """
-        Returns an object representing a queue with the provided alias. The queue may or may not exist yet.
+        Returns an object representing a deque with the provided alias. The deque may or may not exist yet.
 
-        :param alias: The alias of the queue to work on
+        :param alias: The alias of the deque to work on
         :type alias: str
 
-        :returns: The queue named alias
+        :returns: The deque named alias
         """
-        return Queue(self.handle, alias)
+        return Deque(self.handle, alias)
 
     def hset(self, alias):
         """
