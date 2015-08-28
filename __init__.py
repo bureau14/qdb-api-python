@@ -601,15 +601,18 @@ class Blob(ExpirableEntry):
             :param expiry_time: The expiry time for the blob
             :type expiry_time: datetime.datetime
 
-            :returns: str -- The original content
+            :returns: str -- The original content or None if it mached
             :raises: QuasardbException
         """
         err = make_error_carrier()
         buf = impl.blob_compare_and_swap(self.handle, super(Blob, self).alias(), new_data, comparand, _convert_expiry_time(expiry_time), err)
+        if err.error == impl.error_unmatched_content:
+        	return _api_buffer_to_string(buf)
+
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
 
-        return _api_buffer_to_string(buf)
+        return None
 
     def remove_if(self, comparand):
         """ Removes the blob from the repository if it matches comparand. The operation is atomic.

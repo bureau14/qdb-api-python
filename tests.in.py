@@ -179,7 +179,7 @@ class QuasardbBasic(QuasardbTest):
         got = b.get()
         self.assertEqual(got, entry_content)
         got = b.compare_and_swap(entry_new_content, entry_content)
-        self.assertEqual(got, entry_content)
+        self.assertEqual(got, None)
         # changed because matched
         got = b.get()
         self.assertEqual(got, entry_new_content)
