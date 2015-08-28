@@ -521,7 +521,7 @@ class Blob(ExpirableEntry):
 
             :raises: QuasardbException
         """
-        err = self.handle.put(super(Blob, self).alias(), data, _convert_expiry_time(expiry_time))
+        err = self.handle.blob_put(super(Blob, self).alias(), data, _convert_expiry_time(expiry_time))
         if err != impl.error_ok:
             raise QuasardbException(err)
 
@@ -537,7 +537,7 @@ class Blob(ExpirableEntry):
 
             :raises: QuasardbException
         """
-        err = self.handle.update(super(Blob, self).alias(), data, _convert_expiry_time(expiry_time))
+        err = self.handle.blob_update(super(Blob, self).alias(), data, _convert_expiry_time(expiry_time))
         if err != impl.error_ok:
             raise QuasardbException(err)
 
@@ -549,7 +549,7 @@ class Blob(ExpirableEntry):
             :raises: QuasardbException
         """
         err = make_error_carrier()
-        buf = impl.get(self.handle, super(Blob, self).alias(), err)
+        buf = impl.blob_get(self.handle, super(Blob, self).alias(), err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
 
@@ -569,7 +569,7 @@ class Blob(ExpirableEntry):
             :raises: QuasardbException
         """
         err = make_error_carrier()
-        buf = impl.get_and_update(self.handle, super(Blob, self).alias(), data, _convert_expiry_time(expiry_time), err)
+        buf = impl.blob_get_and_update(self.handle, super(Blob, self).alias(), data, _convert_expiry_time(expiry_time), err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
 
@@ -584,7 +584,7 @@ class Blob(ExpirableEntry):
             :raises: QuasardbException
         """
         err = make_error_carrier()
-        buf = impl.get_and_remove(self.handle, super(Blob, self).alias(), err)
+        buf = impl.blob_get_and_remove(self.handle, super(Blob, self).alias(), err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
 
@@ -605,7 +605,7 @@ class Blob(ExpirableEntry):
             :raises: QuasardbException
         """
         err = make_error_carrier()
-        buf = impl.compare_and_swap(self.handle, super(Blob, self).alias(), new_data, comparand, _convert_expiry_time(expiry_time), err)
+        buf = impl.blob_compare_and_swap(self.handle, super(Blob, self).alias(), new_data, comparand, _convert_expiry_time(expiry_time), err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
 
@@ -620,7 +620,7 @@ class Blob(ExpirableEntry):
 
             :raises: QuasardbException
         """
-        err = self.handle.remove_if(super(Blob, self).alias(), comparand)
+        err = self.handle.blob_remove_if(super(Blob, self).alias(), comparand)
         if err != impl.error_ok:
             raise QuasardbException(err)
 
