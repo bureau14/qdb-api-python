@@ -25,10 +25,8 @@ set(SWIG_COMMON_FILES
     qdb_python_common.i
 )
 
-set(QDB_PY_VERSION "2.0.0")
+set(QDB_PY_VERSION "2.0.0b5")
 set(QDB_PY_WRAPPER "${CMAKE_CURRENT_BINARY_DIR}/qdb_python_wrapper.cxx")
-set(QDB_PY_IMPL "${CMAKE_CURRENT_BINARY_DIR}/impl.py")
-set(QDB_PY_INIT "${CMAKE_CURRENT_SOURCE_DIR}/__init__.py")
 
 set(QDB_API_DIR "${CMAKE_SOURCE_DIR}/qdb")
 if(NOT IS_DIRECTORY "${QDB_API_DIR}/include")
@@ -40,24 +38,58 @@ set(QDB_DAEMON "${QDB_API_DIR}/bin/qdbd")
  # get the full path of qdb_api.dll 
 if(WIN32)
     set(SWIG_PLATFORM_FILE qdb_python_windows.i)
-    set(QDB_PYTHON_LIBRARY_GLOB "*.dll")
+    set(QDB_PYTHON_LIBRARY_GLOB "qdb_api.*")
 else()
     set(SWIG_PLATFORM_FILE qdb_python_unix.i)
     set(QDB_PYTHON_LIBRARY_GLOB "lib*")
 endif()
 
+
 string(TOLOWER ${CMAKE_SYSTEM_NAME} PY_PACKAGE_SOURCE_SUFFIX)
 
 # generate setup script by replacing CMake variables
 configure_file(setup.in.py setup.py @ONLY)
-configure_file(tests.in.py tests.py @ONLY)
-configure_file(MANIFEST.orig MANIFEST.in @ONLY)
-configure_file(README.md README.txt)
+configure_file(setup.in.cfg setup.cfg @ONLY)
+
+configure_file(README.md README.txt COPY_ONLY)
+configure_file(MANIFEST.in MANIFEST.in COPY_ONLY)
+configure_file(__init__.py qdb/__init__.py COPY_ONLY)
+configure_file(tests.py test/tests.py COPYONLY)
+configure_file(ez_setup.py ez_setup.py COPYONLY)
+
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/src)
+
+# copy include dir
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/include/qdb" DESTINATION "include")
+
+# copy the libraries
+if (WIN32)
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/qdb_api.lib" DESTINATION "qdb")
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/bin/qdb_api.dll" DESTINATION "qdb")
+else()
+    if (APPLE)
+        file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/libqdb_api.dylib" DESTINATION "qdb")
+    else()
+        file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/libqdb_api.so" DESTINATION "qdb")
+    endif()
+endif()
+
+# copy the daemon (for the tests)
+if (WIN32)
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/bin/qdbd.exe" DESTINATION "test")
+else()
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/bin/qdbd" DESTINATION "test")
+endif()
+
+# for Apple we need to change the id otherwise we won't be able to load the extension
+if (APPLE)
+    execute_process(COMMAND install_name_tool -id "@loader_path/libqdb_api.dylib" ${CMAKE_CURRENT_BINARY_DIR}/qdb/libqdb_api.dylib)
+endif()
 
 # Step 1: SWIG
 add_custom_command(
-    OUTPUT ${QDB_PY_WRAPPER} ${QDB_PY_IMPL}
-    COMMAND ${SWIG_EXECUTABLE} -c++ -python -o ${QDB_PY_WRAPPER} -outdir ${CMAKE_CURRENT_BINARY_DIR} -O -module impl -interface _qdb ${SWIG_PLATFORM_FILE}
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx ${CMAKE_CURRENT_BINARY_DIR}/qdb/impl.py
+    COMMAND ${SWIG_EXECUTABLE} -c++ -python -o ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx -outdir ${CMAKE_CURRENT_BINARY_DIR}/qdb -O -module impl -interface _qdb ${SWIG_PLATFORM_FILE}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     DEPENDS ${SWIG_COMMON_FILES} ${SWIG_PLATFORM_FILE})
 
@@ -65,14 +97,17 @@ add_custom_command(
 if(WIN32)
     add_custom_target(qdb_python_api ALL
         COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_wininst sdist
-        DEPENDS ${QDB_PY_WRAPPER} ${QDB_PY_IMPL}
+        DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx ${CMAKE_CURRENT_BINARY_DIR}/qdb/impl.py
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 else()
     add_custom_target(qdb_python_api_build ALL
-        COMMAND ${PYTHON_EXECUTABLE} setup.py build sdist
-        DEPENDS ${QDB_PY_WRAPPER} ${QDB_PY_IMPL}
+        COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_egg sdist 
+        DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx ${CMAKE_CURRENT_BINARY_DIR}/qdb/impl.py
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
 endif()
 
 # Step 3: Test
-add_test(qdb_python_test ${PYTHON_EXECUTABLE} tests.py)
+add_test(NAME qdb_python_test 
+    COMMAND ${PYTHON_EXECUTABLE} tests.py 
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/test)

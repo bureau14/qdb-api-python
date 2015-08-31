@@ -1,0 +1,4 @@
+include ez_setup.py
+recursive-include src *.cxx 
+recursive-include include *.h *.hpp
+recursive-include qdb *.lib *.dll *.so *.dylib

@@ -2,18 +2,16 @@
 # (c)quasardb SAS. All rights reserved.
 # qdb is a trademark of quasardb SAS
 
-from distutils.core import setup, Extension
+import ez_setup
+ez_setup.use_setuptools()
+
+from setuptools import setup, find_packages, Extension
+
 import glob
 import os
-import shutil
 import sys
 
-def copy(srcFile, dstFolder):
-    if not os.path.exists(dstFolder):
-        os.makedirs(dstFolder)
-    shutil.copy(srcFile, dstFolder)
-
-qdb_version = "@QDB_PY_VERSION@-@CMAKE_SYSTEM_NAME@".lower();
+qdb_version = "@QDB_PY_VERSION@".lower();
 
 is_clang = 'Clang' in '@CMAKE_CXX_COMPILER_ID@'
 is_windows = os.name == 'nt'
@@ -21,21 +19,6 @@ is_freebsd = sys.platform.startswith('freebsd')
 is_osx = sys.platform == 'darwin'
 is_64_bits = sys.maxsize > 2**32
 arch = "x64" if is_64_bits else "x86"
-
-if os.path.exists('include/qdb'):
-  shutil.rmtree('include/qdb')
-shutil.copytree('@QDB_API_DIR@/include/qdb', 'include/qdb')
-copy('@QDB_PY_WRAPPER@', 'src')
-copy('@QDB_PY_IMPL@', 'qdb')
-copy('@QDB_PY_INIT@', 'qdb')
-if is_windows:
-    copy('@QDB_API_DIR@/lib/qdb_api.lib', 'qdb')
-    copy('@QDB_API_DIR@/bin/qdb_api.dll', 'qdb')
-elif is_osx:
-  copy('@QDB_API_DIR@/lib/libqdb_api.dylib', 'qdb')
-else:
-    copy('@QDB_API_DIR@/lib/libqdb_api.so', 'qdb')
-
 
 if is_windows:
     extra_compile_args = [
@@ -74,8 +57,11 @@ setup(name=package_name,
       author='quasardb SAS',
       author_email='contact@quasardb.net',
       url='https://www.quasardb.net/',
+      setup_requires = [ "setuptools_git >= 0.3", "xmlrunner" ],
+      install_requires = [ "xmlrunner" ],
       packages=['qdb'],
       package_data={'qdb': [os.path.basename(mod) for mod in package_modules]},
+      include_package_data=True,
       ext_modules=[Extension(
         'qdb._qdb', [os.path.join('src', 'qdb_python_wrapper.cxx')],
         include_dirs=['include'],
@@ -84,6 +70,3 @@ setup(name=package_name,
         extra_compile_args=extra_compile_args,
         extra_link_args=extra_link_args)])
 
-shutil.rmtree('qdb')
-shutil.rmtree('include')
-shutil.rmtree('src')

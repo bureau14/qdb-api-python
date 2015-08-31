@@ -6,7 +6,7 @@ import sys
 import time
 import unittest
 
-for root, dirnames, filenames in os.walk('@CMAKE_BINARY_DIR@/build/'):
+for root, dirnames, filenames in os.walk(os.path.join('..', 'build')):
     for p in dirnames:
         if p.startswith('lib'):
             sys.path.append(os.path.join(root, p))
@@ -41,7 +41,7 @@ def setUpModule():
     uri = ""
 
     # don't save anything to disk
-    __clusterd = subprocess.Popen(['@QDB_DAEMON@', '--address=127.0.0.1:' + str(__current_port), '--transient'])
+    __clusterd = subprocess.Popen([os.path.join('.', 'qdbd'), '--address=127.0.0.1:' + str(__current_port), '--transient'])
     if __clusterd.pid == 0:
         raise Exception("daemon", "cannot run daemon")
 
