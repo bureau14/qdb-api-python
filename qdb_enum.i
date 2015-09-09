@@ -69,7 +69,7 @@ enum qdb_entry_type_t
     qdb_entry_integer = 1,
     qdb_entry_hset = 2,
     qdb_entry_tag = 3,
-    qdb_entry_queue = 4
+    qdb_entry_deque = 4
 };
 
 enum qdb_operation_type_t
