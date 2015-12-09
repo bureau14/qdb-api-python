@@ -4,63 +4,85 @@ enum qdb_limits_t
     qdb_l_min_prefix_length = 3
 };
 
-#define QDB_STATUS_SUCCESS   0x00000000
-#define QDB_STATUS_INFO      0x20000000
-#define QDB_STATUS_TRANSIENT 0xc0000000
-#define QDB_STATUS_ERROR     0xe0000000
-
-#define QDB_SEVERITY(x)     ((x) & 0xe0000000)
-
-#define QDB_SUCCESS(x)      ((QDB_SEVERITY(x) == QDB_STATUS_SUCCESS) || (QDB_SEVERITY(x) == QDB_STATUS_INFO))
-#define QDB_TRANSIENT(x)    (QDB_SEVERITY(x) == QDB_STATUS_TRANSIENT)
-
-#define MAKE_QDB_STATUS_CODE(Severity, Code) ((Severity) | (Code))
-
-enum qdb_error_t
+typedef enum
 {
-    qdb_e_uninitialized                 = MAKE_QDB_STATUS_CODE(QDB_STATUS_ERROR,        0xFFFF),
-    qdb_e_ok                            = MAKE_QDB_STATUS_CODE(QDB_STATUS_SUCCESS,      0),
-    qdb_e_alias_not_found               = MAKE_QDB_STATUS_CODE(QDB_STATUS_INFO,         8),
-    qdb_e_alias_already_exists          = MAKE_QDB_STATUS_CODE(QDB_STATUS_INFO,         9),
-    qdb_e_out_of_bounds                 = MAKE_QDB_STATUS_CODE(QDB_STATUS_INFO,         25),
-    qdb_e_skipped                       = MAKE_QDB_STATUS_CODE(QDB_STATUS_INFO,         33),
-    qdb_e_incompatible_type             = MAKE_QDB_STATUS_CODE(QDB_STATUS_INFO,         34),
-    qdb_e_container_empty               = MAKE_QDB_STATUS_CODE(QDB_STATUS_INFO,         35),
-    qdb_e_container_full                = MAKE_QDB_STATUS_CODE(QDB_STATUS_INFO,         36),
-    qdb_e_element_not_found             = MAKE_QDB_STATUS_CODE(QDB_STATUS_INFO,         37),
-    qdb_e_element_already_exists        = MAKE_QDB_STATUS_CODE(QDB_STATUS_INFO,         38),
-    qdb_e_overflow                      = MAKE_QDB_STATUS_CODE(QDB_STATUS_INFO,         39),
-    qdb_e_underflow                     = MAKE_QDB_STATUS_CODE(QDB_STATUS_INFO,         40),
-    qdb_e_tag_already_set               = MAKE_QDB_STATUS_CODE(QDB_STATUS_INFO,         41),
-    qdb_e_tag_not_set                   = MAKE_QDB_STATUS_CODE(QDB_STATUS_INFO,         42),
-    qdb_e_timeout                       = MAKE_QDB_STATUS_CODE(QDB_STATUS_TRANSIENT,    10),
-    qdb_e_connection_refused            = MAKE_QDB_STATUS_CODE(QDB_STATUS_TRANSIENT,    14),
-    qdb_e_connection_reset              = MAKE_QDB_STATUS_CODE(QDB_STATUS_TRANSIENT,    15),
-    qdb_e_unstable_cluster              = MAKE_QDB_STATUS_CODE(QDB_STATUS_TRANSIENT,    18),
-    qdb_e_outdated_topology             = MAKE_QDB_STATUS_CODE(QDB_STATUS_TRANSIENT,    20),
-    qdb_e_wrong_peer                    = MAKE_QDB_STATUS_CODE(QDB_STATUS_TRANSIENT,    21),
-    qdb_e_try_again                     = MAKE_QDB_STATUS_CODE(QDB_STATUS_TRANSIENT,    23),
-    qdb_e_conflict                      = MAKE_QDB_STATUS_CODE(QDB_STATUS_TRANSIENT,    26),
-    qdb_e_not_connected                 = MAKE_QDB_STATUS_CODE(QDB_STATUS_TRANSIENT,    27),
-    qdb_e_resource_locked               = MAKE_QDB_STATUS_CODE(QDB_STATUS_TRANSIENT,    45),
-    qdb_e_system                        = MAKE_QDB_STATUS_CODE(QDB_STATUS_ERROR,        1), /* check errno or GetLastError() for actual error */
-    qdb_e_internal                      = MAKE_QDB_STATUS_CODE(QDB_STATUS_ERROR,        2),
-    qdb_e_no_memory                     = MAKE_QDB_STATUS_CODE(QDB_STATUS_ERROR,        3),
-    qdb_e_invalid_protocol              = MAKE_QDB_STATUS_CODE(QDB_STATUS_ERROR,        4),
-    qdb_e_host_not_found                = MAKE_QDB_STATUS_CODE(QDB_STATUS_ERROR,        5),
-    qdb_e_buffer_too_small              = MAKE_QDB_STATUS_CODE(QDB_STATUS_ERROR,        11),
-    qdb_e_unexpected_reply              = MAKE_QDB_STATUS_CODE(QDB_STATUS_ERROR,        16),
-    qdb_e_not_implemented               = MAKE_QDB_STATUS_CODE(QDB_STATUS_ERROR,        17),
-    qdb_e_protocol_error                = MAKE_QDB_STATUS_CODE(QDB_STATUS_ERROR,        19),
-    qdb_e_invalid_version               = MAKE_QDB_STATUS_CODE(QDB_STATUS_ERROR,        22),
-    qdb_e_invalid_argument              = MAKE_QDB_STATUS_CODE(QDB_STATUS_ERROR,        24),
-    qdb_e_invalid_handle                = MAKE_QDB_STATUS_CODE(QDB_STATUS_ERROR,        28),
-    qdb_e_reserved_alias                = MAKE_QDB_STATUS_CODE(QDB_STATUS_ERROR,        29),
-    qdb_e_unmatched_content             = MAKE_QDB_STATUS_CODE(QDB_STATUS_ERROR,        30),
-    qdb_e_invalid_iterator              = MAKE_QDB_STATUS_CODE(QDB_STATUS_ERROR,        31),
-    qdb_e_entry_too_large               = MAKE_QDB_STATUS_CODE(QDB_STATUS_ERROR,        43),
-    qdb_e_transaction_partial_failure   = MAKE_QDB_STATUS_CODE(QDB_STATUS_ERROR,        44),
-};
+    qdb_e_origin_system_remote      = 0xf0000000,
+    qdb_e_origin_system_local       = 0xe0000000,
+    qdb_e_origin_connection         = 0xd0000000,
+    qdb_e_origin_input              = 0xc0000000,
+    qdb_e_origin_operation          = 0xb0000000
+} qdb_error_origin_t;
+
+#define QDB_ERROR_ORIGIN(x)         ((x) & 0xf0000000)
+
+typedef enum
+{
+    qdb_e_severity_unrecoverable    = 0x03000000,
+    qdb_e_severity_error            = 0x02000000,
+    qdb_e_severity_warning          = 0x01000000,
+    qdb_e_severity_info             = 0x00000000,
+} qdb_error_severity_t;
+
+#define QDB_ERROR_SEVERITY(x)       ((x) & 0x0f000000)
+
+#define QDB_SUCCESS(x)              (!(x) || (QDB_ERROR_SEVERITY(x) == qdb_e_severity_info))
+
+typedef enum
+{
+    qdb_e_ok = 0,
+
+    /* ------------------------------------------------------------------------------------------------------ */
+    /*  error name                      = origin                     | severity                     | code    */
+    /* ------------------------------------------------------------------------------------------------------ */
+    qdb_e_uninitialized                 = qdb_e_origin_input         | qdb_e_severity_unrecoverable | 0xFFFF,
+    qdb_e_alias_not_found               = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0008,
+    qdb_e_alias_already_exists          = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0009,
+    qdb_e_out_of_bounds                 = qdb_e_origin_input         | qdb_e_severity_warning       | 0x0019,
+    qdb_e_skipped                       = qdb_e_origin_operation     | qdb_e_severity_info          | 0x0021,
+    qdb_e_incompatible_type             = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0022,
+    qdb_e_container_empty               = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0023,
+    qdb_e_container_full                = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0024,
+    qdb_e_element_not_found             = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0025,
+    qdb_e_element_already_exists        = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0026,
+    qdb_e_overflow                      = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0027,
+    qdb_e_underflow                     = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0028,
+    qdb_e_tag_already_set               = qdb_e_origin_operation     | qdb_e_severity_info          | 0x0029,
+    qdb_e_tag_not_set                   = qdb_e_origin_operation     | qdb_e_severity_info          | 0x002a,
+    qdb_e_timeout                       = qdb_e_origin_connection    | qdb_e_severity_error         | 0x000a,
+    qdb_e_connection_refused            = qdb_e_origin_connection    | qdb_e_severity_unrecoverable | 0x000e,
+    qdb_e_connection_reset              = qdb_e_origin_connection    | qdb_e_severity_error         | 0x000f,
+    qdb_e_unstable_cluster              = qdb_e_origin_connection    | qdb_e_severity_error         | 0x0012,
+    qdb_e_outdated_topology             = qdb_e_origin_connection    | qdb_e_severity_error         | 0x0014,
+    qdb_e_wrong_peer                    = qdb_e_origin_connection    | qdb_e_severity_error         | 0x0015,
+    qdb_e_try_again                     = qdb_e_origin_connection    | qdb_e_severity_error         | 0x0017,
+    qdb_e_conflict                      = qdb_e_origin_operation     | qdb_e_severity_error         | 0x001a,
+    qdb_e_not_connected                 = qdb_e_origin_connection    | qdb_e_severity_error         | 0x001b,
+    qdb_e_resource_locked               = qdb_e_origin_operation     | qdb_e_severity_error         | 0x002d,
+    /* check errno or GetLastError() for actual error */
+    qdb_e_system_remote                 = qdb_e_origin_system_remote | qdb_e_severity_unrecoverable | 0x0001,
+    qdb_e_system_local                  = qdb_e_origin_system_local  | qdb_e_severity_unrecoverable | 0x0001,
+
+    qdb_e_internal_remote               = qdb_e_origin_system_remote | qdb_e_severity_unrecoverable | 0x0002,
+    qdb_e_internal_local                = qdb_e_origin_system_local  | qdb_e_severity_unrecoverable | 0x0002,
+    qdb_e_no_memory_remote              = qdb_e_origin_system_remote | qdb_e_severity_unrecoverable | 0x0003,
+    qdb_e_no_memory_local               = qdb_e_origin_system_local  | qdb_e_severity_unrecoverable | 0x0003,
+    qdb_e_invalid_protocol              = qdb_e_origin_system_local  | qdb_e_severity_unrecoverable | 0x0004,
+    qdb_e_host_not_found                = qdb_e_origin_connection    | qdb_e_severity_error         | 0x0005,
+    qdb_e_buffer_too_small              = qdb_e_origin_input         | qdb_e_severity_warning       | 0x000b,
+    qdb_e_unexpected_reply              = qdb_e_origin_system_remote | qdb_e_severity_unrecoverable | 0x0010,
+    qdb_e_not_implemented               = qdb_e_origin_system_remote | qdb_e_severity_unrecoverable | 0x0011,
+    qdb_e_protocol_error                = qdb_e_origin_system_local  | qdb_e_severity_unrecoverable | 0x0013,
+    qdb_e_invalid_version               = qdb_e_origin_system_local  | qdb_e_severity_unrecoverable | 0x0016,
+    qdb_e_invalid_argument              = qdb_e_origin_input         | qdb_e_severity_error         | 0x0018,
+    qdb_e_invalid_handle                = qdb_e_origin_input         | qdb_e_severity_error         | 0x001c,
+    qdb_e_reserved_alias                = qdb_e_origin_input         | qdb_e_severity_error         | 0x001d,
+    qdb_e_unmatched_content             = qdb_e_origin_operation     | qdb_e_severity_info          | 0x001e,
+    qdb_e_invalid_iterator              = qdb_e_origin_input         | qdb_e_severity_error         | 0x001f,
+    qdb_e_entry_too_large               = qdb_e_origin_input         | qdb_e_severity_error         | 0x002b,
+    qdb_e_transaction_partial_failure   = qdb_e_origin_operation     | qdb_e_severity_error         | 0x002c
+} qdb_error_t;
+
+typedef qdb_error_t qdb_status_t;
 
 enum qdb_compression_t
 {
