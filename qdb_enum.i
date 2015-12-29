@@ -79,7 +79,8 @@ typedef enum
     qdb_e_unmatched_content             = qdb_e_origin_operation     | qdb_e_severity_info          | 0x001e,
     qdb_e_invalid_iterator              = qdb_e_origin_input         | qdb_e_severity_error         | 0x001f,
     qdb_e_entry_too_large               = qdb_e_origin_input         | qdb_e_severity_error         | 0x002b,
-    qdb_e_transaction_partial_failure   = qdb_e_origin_operation     | qdb_e_severity_error         | 0x002c
+    qdb_e_transaction_partial_failure   = qdb_e_origin_operation     | qdb_e_severity_error         | 0x002c,
+    qdb_e_operation_disabled            = qdb_e_origin_operation     | qdb_e_severity_error         | 0x002e
 } qdb_error_t;
 
 typedef qdb_error_t qdb_status_t;
