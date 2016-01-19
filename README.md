@@ -51,7 +51,7 @@ Now that we have a connection to the cluster, let's store some binary data:
 Want a queue? We have distributed queues.
 
 ```python
-    q = c.queue('q2')
+    q = c.deque('q2')
 
     q.push_back('boom')
     v = q.pop_front() # returns 'boom'
