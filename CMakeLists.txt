@@ -4,7 +4,7 @@ enable_testing()
 
 if(DEFINED ENV{PYTHON_EXECUTABLE})
     set(PYTHON_EXECUTABLE "$ENV{PYTHON_EXECUTABLE}")
-else()    
+else()
     find_package(PythonInterp 2.7 REQUIRED)
 endif()
 
@@ -35,7 +35,7 @@ endif()
 
 set(QDB_DAEMON "${QDB_API_DIR}/bin/qdbd")
 
- # get the full path of qdb_api.dll 
+# get the full path of qdb_api.dll
 if(WIN32)
     set(SWIG_PLATFORM_FILE qdb_python_windows.i)
     set(QDB_PYTHON_LIBRARY_GLOB "qdb_api.*")
@@ -51,9 +51,9 @@ string(TOLOWER ${CMAKE_SYSTEM_NAME} PY_PACKAGE_SOURCE_SUFFIX)
 configure_file(setup.in.py setup.py @ONLY)
 configure_file(setup.in.cfg setup.cfg @ONLY)
 
-configure_file(README.md README.txt COPY_ONLY)
-configure_file(MANIFEST.in MANIFEST.in COPY_ONLY)
-configure_file(__init__.py qdb/__init__.py COPY_ONLY)
+configure_file(README.md README.txt COPYONLY)
+configure_file(MANIFEST.in MANIFEST.in COPYONLY)
+configure_file(__init__.py qdb/__init__.py COPYONLY)
 configure_file(tests.py test/tests.py COPYONLY)
 configure_file(ez_setup.py ez_setup.py COPYONLY)
 
@@ -101,13 +101,13 @@ if(WIN32)
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 else()
     add_custom_target(qdb_python_api_build ALL
-        COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_egg sdist 
+        COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_egg sdist
         DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx ${CMAKE_CURRENT_BINARY_DIR}/qdb/impl.py
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 endif()
 
 # Step 3: Test
-add_test(NAME qdb_python_test 
-    COMMAND ${PYTHON_EXECUTABLE} tests.py 
+add_test(NAME qdb_python_test
+    COMMAND ${PYTHON_EXECUTABLE} tests.py
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/test)
