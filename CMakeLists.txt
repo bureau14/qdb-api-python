@@ -11,11 +11,11 @@ endif()
 find_package(SWIG 3.0 REQUIRED)
 
 if(POLICY CMP0026)
-    # unable to find a workaround: doc says we should use $<TAGET_FILE> generator expression but
-  # - set() doesn't support generator expression
-  # - configure_file() doesn't support generator expression
-  # - file(GENERATE ) support generator expression bu not variables
- cmake_policy(SET CMP0026 OLD)
+    # unable to find a workaround: doc says we should use $<TARGET_FILE> generator expression but
+    # - set() doesn't support generator expression
+    # - configure_file() doesn't support generator expression
+    # - file(GENERATE ) support generator expression bu not variables
+    cmake_policy(SET CMP0026 OLD)
 endif()
 
 set(SWIG_COMMON_FILES
@@ -25,7 +25,7 @@ set(SWIG_COMMON_FILES
     qdb_python_common.i
 )
 
-set(QDB_PY_VERSION "2.0.0b6")
+set(QDB_PY_VERSION "2.0.0rc2")
 set(QDB_PY_WRAPPER "${CMAKE_CURRENT_BINARY_DIR}/qdb_python_wrapper.cxx")
 
 set(QDB_API_DIR "${CMAKE_SOURCE_DIR}/qdb")
