@@ -36,7 +36,7 @@ public:
     std::string node_config(const char * uri, qdb_error_t & error);
     std::string node_topology(const char * uri, qdb_error_t & error);
 
-    qdb_error_t stop_node(const char * uri, const char * reason);
+    qdb_error_t node_stop(const char * uri, const char * reason);
 
     qdb_error_t remove(const char * alias);
     qdb_error_t blob_remove_if(const char * alias, const char * comparand, size_t comparand_length);
