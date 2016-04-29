@@ -102,13 +102,13 @@ def build():
 import inspect
 
 def _api_buffer_to_string(buf):
-    return None if buf is None else str(buf.data())[:buf.size()]
+    return None if buf is None else impl.api_buffer_ptr_as_string(buf)
 
-def _string_to_api_buffer(h, str):
+def _string_to_api_buffer(h, s):
     """
     Converts a string to an internal qdb::api_buffer_ptr
     """
-    return None if str is None else impl.make_api_buffer_ptr_from_string(h, str)
+    return None if s is None else impl.make_api_buffer_ptr_from_string(h, s)
 
 class TimeZone(datetime.tzinfo):
     """The quasardb time zone is UTC. Please refer to the documentation for further information."""

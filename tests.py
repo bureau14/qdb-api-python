@@ -119,6 +119,13 @@ class QuasardbBasic(QuasardbTest):
         self.assertEqual(got, entry_content)
         b.remove()
 
+        entry_content = ''.join('%c' % x for x in range(0,256))
+        self.assertEqual(len(entry_content), 256)
+
+        b.update(entry_content)
+        got = b.get()
+        self.assertEqual(got, entry_content)
+
     def test_get_and_update(self):
         entry_name = entry_gen.next()
         entry_content = "content"

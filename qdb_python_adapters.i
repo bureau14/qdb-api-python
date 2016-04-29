@@ -14,6 +14,11 @@ qdb::api_buffer_ptr make_api_buffer_ptr_from_string(handle_ptr h, const char * c
     return qdb::make_api_buffer_ptr(*h, content, content_length);
 }
 
+PyObject * api_buffer_ptr_as_string(const qdb::api_buffer_ptr & buf)
+{
+    return SWIG_FromCharPtrAndSize(buf->data(), buf->size());
+}
+
 api_buffer_ptr blob_get(handle_ptr h, const char * alias, error_carrier * error)
 {
     return h->blob_get(alias, error->error);
