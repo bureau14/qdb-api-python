@@ -709,24 +709,30 @@ class Cluster(object):
         """
         return Tag(self.handle, alias)
 
-    def purge_all(self):
+    def purge_all(self, timeout):
         """ Removes all the entries from all nodes of the cluster.
+
+            :param timeout: Operation timeout, in seconds
+            :type timeout: long
 
             :raises: QuasardbException
 
             .. caution::
                 This method is intended for very specific usage scenarii. Use at your own risks.
         """
-        err = self.handle.purge_all()
+        err = self.handle.purge_all(timeout)
         if err != impl.error_ok:
             raise QuasardbException(err)
 
-    def trim_all(self):
+    def trim_all(self, timeout):
         """ Trims all entries of all nodes of the cluster.
+
+            :param timeout: Operation timeout, in seconds
+            :type timeout: long
 
             :raises: QuasardbException
         """
-        err = self.handle.trim_all()
+        err = self.handle.trim_all(timeout)
         if err != impl.error_ok:
             raise QuasardbException(err)
 

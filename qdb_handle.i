@@ -40,8 +40,8 @@ public:
 
     qdb_error_t remove(const char * alias);
     qdb_error_t blob_remove_if(const char * alias, const char * comparand, size_t comparand_length);
-    qdb_error_t purge_all(void);
-    qdb_error_t trim_all(void);
+    qdb_error_t purge_all(int timeout);
+    qdb_error_t trim_all(int timeout);
 
     qdb_error_t expires_at(const char * alias, qdb_time_t expiry_time);
     qdb_error_t expires_from_now(const char * alias, qdb_time_t expiry_delta);

@@ -88,6 +88,9 @@ class QuasardbBasic(QuasardbTest):
         str = qdb.version()
         self.assertGreater(len(str), 0)
 
+    def test_trim_all(self):
+        cluster.trim_all(60)
+
     def test_put_get_and_remove(self):
         entry_name = entry_gen.next()
         entry_content = "content"
