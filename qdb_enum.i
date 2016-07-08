@@ -1,7 +1,6 @@
 enum qdb_limits_t
 {
-    qdb_l_alias_max_length = 1024,
-    qdb_l_min_prefix_length = 3
+    qdb_l_alias_max_length = 1024
 };
 
 typedef enum
