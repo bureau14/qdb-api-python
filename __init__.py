@@ -345,7 +345,7 @@ class Integer(ExpirableEntry):
         """
         assert(isinstance(number, long) or isinstance(number, int))
         err = self.handle.int_update(super(Integer, self).alias(), number, _convert_expiry_time(expiry_time))
-        if err != impl.error_ok:
+        if not ((err == impl.error_ok) or (err == impl.error_ok_created)):
             raise QuasardbException(err)
 
     def add(self, addend):
@@ -538,7 +538,7 @@ class Blob(ExpirableEntry):
             :raises: QuasardbException
         """
         err = self.handle.blob_update(super(Blob, self).alias(), data, _convert_expiry_time(expiry_time))
-        if err != impl.error_ok:
+        if not ((err == impl.error_ok) or (err == impl.error_ok_created)):
             raise QuasardbException(err)
 
     def get(self):
