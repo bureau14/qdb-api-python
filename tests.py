@@ -257,7 +257,7 @@ class QuasardbInteger(QuasardbTest):
         i.remove()
 
 class QuasardbDeque(QuasardbTest):
-    
+
     def test_sequence(self):
         """
         A series of test to make sure back and front operations are properly wired
@@ -396,8 +396,8 @@ class QuasardbTag(QuasardbTest):
 
         self.assertFalse(b.has_tag(tag_name))
 
-        self.assertTrue(b.add_tag(tag_name))
-        self.assertFalse(b.add_tag(tag_name))
+        self.assertTrue(b.attach_tag(tag_name))
+        self.assertFalse(b.attach_tag(tag_name))
 
         tags = b.get_tags()
         self.assertEqual(1, len(tags))
@@ -405,8 +405,8 @@ class QuasardbTag(QuasardbTest):
 
         self.assertTrue(b.has_tag(tag_name))
 
-        self.assertTrue(b.remove_tag(tag_name))
-        self.assertFalse(b.remove_tag(tag_name))       
+        self.assertTrue(b.detach_tag(tag_name))
+        self.assertFalse(b.detach_tag(tag_name))
 
         tags = b.get_tags()
         self.assertEqual(0, len(tags))
@@ -425,13 +425,13 @@ class QuasardbTag(QuasardbTest):
         entries = t.get_entries()
         self.assertEqual(0, len(entries))
 
-        self.assertTrue(b.add_tag(tag_name))      
+        self.assertTrue(b.attach_tag(tag_name))
 
         tags = t.get_entries()
         self.assertEqual(1, len(tags))
         self.assertEqual(tags[0], entry_name)
 
-        self.assertTrue(b.remove_tag(tag_name))
+        self.assertTrue(b.detach_tag(tag_name))
         entries = t.get_entries()
         self.assertEqual(0, len(entries))
 

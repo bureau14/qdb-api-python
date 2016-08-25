@@ -144,17 +144,17 @@ class Entry(object):
         """
         return self.__alias
 
-    def add_tag(self, tag):
+    def attach_tag(self, tag):
         """
-            Tag the entry with "new_tag"
+            Attach a tag to the entry
 
-            :param tag: The tag to add
+            :param tag: The tag to attach
             :type tag: str
 
-            :returns: True if the tag was successfully add, False if it was already set
+            :returns: True if the tag was successfully attached, False if it was already attached
             :raises: QuasardbException
         """
-        err = self.handle.add_tag(self.alias(), tag)
+        err = self.handle.attach_tag(self.alias(), tag)
         if err == impl.error_tag_already_set:
             return False
 
@@ -163,17 +163,17 @@ class Entry(object):
 
         return True
 
-    def remove_tag(self, tag):
+    def detach_tag(self, tag):
         """
-            Remove the tag (untag) from the entry
+            Detach a tag from the entry
 
-            :param tag: The tag to remove
+            :param tag: The tag to detach
             :type tag: str
 
-            :returns: True if the tag was successfully removed, False if it was not set
+            :returns: True if the tag was successfully detached, False if it was not attached
             :raises: QuasardbException
         """
-        err = self.handle.remove_tag(self.alias(), tag)
+        err = self.handle.detach_tag(self.alias(), tag)
 
         if err == impl.error_tag_not_set:
             return False
@@ -185,9 +185,9 @@ class Entry(object):
 
     def get_tags(self):
         """
-            Returns the list of tags of the entry
+            Returns the list of tags attached to the entry
 
-            :returns: A list of strings representing the entries with the specified tag
+            :returns: A list of alias (stings) of tags
             :raises: QuasardbException
         """
         err = make_error_carrier()
@@ -198,7 +198,7 @@ class Entry(object):
 
     def has_tag(self, tag):
         """
-            Returns true if and only if the entry is tagged with tag
+            Test if a tag is attached to the entry
 
             :param tag: The tag to test
             :type tag: str
@@ -222,7 +222,7 @@ class RemoveableEntry(Entry):
         super(RemoveableEntry, self).__init__(handle, alias)
 
     def remove(self):
-        """ 
+        """
             Removes the given Entry from the repository. It is an error to remove a non-existing Entry.
 
             :raises: QuasardbException

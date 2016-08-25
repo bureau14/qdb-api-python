@@ -49,9 +49,9 @@ public:
 
     // tags
 
-    qdb_error_t add_tag(const char * alias, const char * tag);
+    qdb_error_t attach_tag(const char * alias, const char * tag);
     qdb_error_t has_tag(const char * alias, const char * tag);
-    qdb_error_t remove_tag(const char * alias, const char * tag);
+    qdb_error_t detach_tag(const char * alias, const char * tag);
 
     std::vector<std::string> get_tagged(const char * tag, qdb_error_t & error);
     std::vector<std::string> get_tags(const char * alias, qdb_error_t & error);
