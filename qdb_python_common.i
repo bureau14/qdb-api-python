@@ -10,6 +10,7 @@
 %{
 
 #include <qdb/client.hpp>
+#include <qdb/log.h>
 
 %}
 
