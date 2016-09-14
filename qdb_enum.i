@@ -5,14 +5,15 @@ enum qdb_limits_t
 
 typedef enum
 {
-    qdb_e_origin_system_remote      = 0xf0000000,
-    qdb_e_origin_system_local       = 0xe0000000,
-    qdb_e_origin_connection         = 0xd0000000,
-    qdb_e_origin_input              = 0xc0000000,
-    qdb_e_origin_operation          = 0xb0000000
+    qdb_e_origin_system_remote      = (int) 0xf0000000,
+    qdb_e_origin_system_local       = (int) 0xe0000000,
+    qdb_e_origin_connection         = (int) 0xd0000000,
+    qdb_e_origin_input              = (int) 0xc0000000,
+    qdb_e_origin_operation          = (int) 0xb0000000,
+    qdb_e_origin_protocol           = (int) 0xa0000000
 } qdb_error_origin_t;
 
-#define QDB_ERROR_ORIGIN(x)         ((x) & 0xf0000000)
+#define QDB_ERROR_ORIGIN(x)         ((int)((x) & 0xf0000000))
 
 typedef enum
 {
@@ -26,6 +27,8 @@ typedef enum
 
 #define QDB_SUCCESS(x)              (!(x) || (QDB_ERROR_SEVERITY(x) == qdb_e_severity_info))
 
+#define QDB_FAILURE(x)              (!QDB_SUCCESS(x))
+
 typedef enum
 {
     qdb_e_ok = 0,
@@ -37,12 +40,12 @@ typedef enum
     qdb_e_alias_not_found               = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0008,
     qdb_e_alias_already_exists          = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0009,
     qdb_e_out_of_bounds                 = qdb_e_origin_input         | qdb_e_severity_warning       | 0x0019,
-    qdb_e_skipped                       = qdb_e_origin_operation     | qdb_e_severity_info          | 0x0021,
+    qdb_e_skipped                       = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0021,
     qdb_e_incompatible_type             = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0022,
     qdb_e_container_empty               = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0023,
     qdb_e_container_full                = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0024,
-    qdb_e_element_not_found             = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0025,
-    qdb_e_element_already_exists        = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0026,
+    qdb_e_element_not_found             = qdb_e_origin_operation     | qdb_e_severity_info          | 0x0025,
+    qdb_e_element_already_exists        = qdb_e_origin_operation     | qdb_e_severity_info          | 0x0026,
     qdb_e_overflow                      = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0027,
     qdb_e_underflow                     = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0028,
     qdb_e_tag_already_set               = qdb_e_origin_operation     | qdb_e_severity_info          | 0x0029,
@@ -65,11 +68,11 @@ typedef enum
     qdb_e_internal_local                = qdb_e_origin_system_local  | qdb_e_severity_unrecoverable | 0x0002,
     qdb_e_no_memory_remote              = qdb_e_origin_system_remote | qdb_e_severity_unrecoverable | 0x0003,
     qdb_e_no_memory_local               = qdb_e_origin_system_local  | qdb_e_severity_unrecoverable | 0x0003,
-    qdb_e_invalid_protocol              = qdb_e_origin_system_local  | qdb_e_severity_unrecoverable | 0x0004,
+    qdb_e_invalid_protocol              = qdb_e_origin_protocol      | qdb_e_severity_unrecoverable | 0x0004,
     qdb_e_host_not_found                = qdb_e_origin_connection    | qdb_e_severity_error         | 0x0005,
     qdb_e_buffer_too_small              = qdb_e_origin_input         | qdb_e_severity_warning       | 0x000b,
     qdb_e_not_implemented               = qdb_e_origin_system_remote | qdb_e_severity_unrecoverable | 0x0011,
-    qdb_e_invalid_version               = qdb_e_origin_system_local  | qdb_e_severity_unrecoverable | 0x0016,
+    qdb_e_invalid_version               = qdb_e_origin_protocol      | qdb_e_severity_unrecoverable | 0x0016,
     qdb_e_invalid_argument              = qdb_e_origin_input         | qdb_e_severity_error         | 0x0018,
     qdb_e_invalid_handle                = qdb_e_origin_input         | qdb_e_severity_error         | 0x001c,
     qdb_e_reserved_alias                = qdb_e_origin_input         | qdb_e_severity_error         | 0x001d,
@@ -81,7 +84,9 @@ typedef enum
     qdb_e_operation_not_permitted       = qdb_e_origin_operation     | qdb_e_severity_error         | 0x002f,
     qdb_e_iterator_end                  = qdb_e_origin_operation     | qdb_e_severity_info          | 0x0030,
     qdb_e_invalid_reply                 = qdb_e_origin_protocol      | qdb_e_severity_unrecoverable | 0x0031,
-    qdb_e_ok_created                    = qdb_e_origin_operation     | qdb_e_severity_info          | 0x0032 
+    qdb_e_ok_created                    = qdb_e_origin_operation     | qdb_e_severity_info          | 0x0032,
+    qdb_e_no_space_left                 = qdb_e_origin_system_remote | qdb_e_severity_unrecoverable | 0x0033,
+    qdb_e_quota_exceeded                = qdb_e_origin_system_remote | qdb_e_severity_error         | 0x0034
 } qdb_error_t;
 
 typedef qdb_error_t qdb_status_t;
