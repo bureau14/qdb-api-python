@@ -492,8 +492,8 @@ class QuasardbExpiry(QuasardbTest):
 
         # expires in one minute from now
         future_exp = 60
-
-        b.expires_from_now(future_exp)
+        future_exp_ms = future_exp * 1000
+        b.expires_from_now(future_exp_ms)
 
         # We use a wide 10 se interval for the check because we have no idea at which speed these tests
         # may run in debug, this will be enough however to check that the interval has properly been converted

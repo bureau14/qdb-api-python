@@ -71,6 +71,7 @@ qdb_time_t get_expiry_time_wrapper(handle_ptr h, const char * alias, error_carri
 {
     qdb_time_t val = 0;
     error->error = h->get_expiry_time(alias, val);
+    val /= 1000; // convert milliseconds to seconds
     return val;
 }
 

@@ -125,7 +125,7 @@ class TimeZone(datetime.tzinfo):
 tz = TimeZone()
 
 def _convert_expiry_time(expiry_time):
-    return long(calendar.timegm(expiry_time.timetuple())) if expiry_time != None else long(0)
+    return 1000 * long(calendar.timegm(expiry_time.timetuple())) if expiry_time != None else long(0)
 
 def make_error_carrier():
     err = impl.error_carrier()
@@ -251,9 +251,9 @@ class ExpirableEntry(RemoveableEntry):
 
     def expires_from_now(self, expiry_delta):
         """
-            Sets the expiry time of an existing Entry relative to the current time, in seconds.
+            Sets the expiry time of an existing Entry relative to the current time, in milliseconds.
 
-            :param expiry_delta: The expiry delta in seconds
+            :param expiry_delta: The expiry delta in milliseconds
             :type expiry_delta: long
 
             :raises: QuasardbException
@@ -712,7 +712,7 @@ class Cluster(object):
     def purge_all(self, timeout):
         """ Removes all the entries from all nodes of the cluster.
 
-            :param timeout: Operation timeout, in seconds
+            :param timeout: Operation timeout, in milliseconds
             :type timeout: long
 
             :raises: QuasardbException
@@ -727,7 +727,7 @@ class Cluster(object):
     def trim_all(self, timeout):
         """ Trims all entries of all nodes of the cluster.
 
-            :param timeout: Operation timeout, in seconds
+            :param timeout: Operation timeout, in milliseconds
             :type timeout: long
 
             :raises: QuasardbException
