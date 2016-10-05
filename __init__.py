@@ -607,7 +607,7 @@ class Blob(ExpirableEntry):
         err = make_error_carrier()
         buf = impl.blob_compare_and_swap(self.handle, super(Blob, self).alias(), new_data, comparand, _convert_expiry_time(expiry_time), err)
         if err.error == impl.error_unmatched_content:
-        	return _api_buffer_to_string(buf)
+            return _api_buffer_to_string(buf)
 
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)

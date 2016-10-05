@@ -30,8 +30,8 @@
 %rename("%(regex:/qdb_op_(.*)/operation_\\1/)s", %$isenumitem) "";
 %rename("%(strip:[qdb_])s", %$isfunction) "";
 
-%typemap(in) qdb_time_t { $1 = PyLong_AsSsize_t($input); }
-%typemap(out) qdb_time_t { $result = PyLong_FromSsize_t($1); }
+%typemap(in) qdb_time_t { $1 = PyLong_AsLongLong($input); }
+%typemap(out) qdb_time_t { $result = PyLong_FromLongLong($1); }
 
 %typemap(in) qdb_int_t { $1 = PyLong_AsLongLong($input); }
 %typemap(out) qdb_int_t { $result = PyLong_FromLongLong($1); }
