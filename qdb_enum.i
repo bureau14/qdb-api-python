@@ -86,7 +86,8 @@ typedef enum
     qdb_e_invalid_reply                 = qdb_e_origin_protocol      | qdb_e_severity_unrecoverable | 0x0031,
     qdb_e_ok_created                    = qdb_e_origin_operation     | qdb_e_severity_info          | 0x0032,
     qdb_e_no_space_left                 = qdb_e_origin_system_remote | qdb_e_severity_unrecoverable | 0x0033,
-    qdb_e_quota_exceeded                = qdb_e_origin_system_remote | qdb_e_severity_error         | 0x0034
+    qdb_e_quota_exceeded                = qdb_e_origin_system_remote | qdb_e_severity_error         | 0x0034,
+    qdb_e_alias_too_long                = qdb_e_origin_input         | qdb_e_severity_error         | 0x0035
 } qdb_error_t;
 
 typedef qdb_error_t qdb_status_t;

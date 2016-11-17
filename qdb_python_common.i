@@ -43,6 +43,7 @@
 %apply (const char *STRING, size_t LENGTH) { (const char * update_content, size_t update_content_length) };
 %apply (const char *STRING, size_t LENGTH) { (const char * new_value, size_t new_value_length) };
 %apply (const char *STRING, size_t LENGTH) { (const char * comparand, size_t comparand_length) };
+%apply (const char *STRING, size_t LENGTH) { (const void * pattern, qdb_size_t pattern_length) };
 
 %include "qdb_enum.i"
 %include "qdb_struct.i"

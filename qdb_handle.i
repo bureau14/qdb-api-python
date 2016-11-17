@@ -76,6 +76,16 @@ public:
     qdb_error_t hset_erase(const char * alias, const char * content, size_t content_length);
     qdb_error_t hset_contains(const char * alias, const char * content, size_t content_length);
 
+    
+    std::vector<std::string> blob_scan(const void * pattern,
+                                   qdb_size_t pattern_length,
+                                   qdb_int_t max_count,
+                                   qdb_error_t & error);
+
+    std::vector<std::string> blob_scan_regex(const char * pattern,
+                                             qdb_int_t max_count,
+                                             qdb_error_t & error);
+
 private:
     qdb_handle_t _handle;
 

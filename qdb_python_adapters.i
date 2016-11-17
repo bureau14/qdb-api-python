@@ -125,5 +125,24 @@ std::vector<std::string> get_tagged(handle_ptr h, const char * tag, error_carrie
     return h->get_tagged(tag, error->error);
 }
 
+std::vector<std::string> blob_scan(handle_ptr h,
+                                   const void * pattern,
+                                   qdb_size_t pattern_length,
+                                   qdb_int_t max_count,
+                                   error_carrier * error)
+{
+    error->error = qdb_e_uninitialized;
+    return h->blob_scan(pattern, pattern_length, max_count, error->error);
+}
+
+std::vector<std::string> blob_scan_regex(handle_ptr h,
+                                   const char * pattern,
+                                   qdb_int_t max_count,
+                                   error_carrier * error)
+{
+    error->error = qdb_e_uninitialized;
+    return h->blob_scan_regex(pattern, max_count, error->error);
+}
+
 }
 %}

@@ -196,6 +196,80 @@ class QuasardbBasic(QuasardbTest):
 
         b.remove()
 
+class QuasardbScan(QuasardbTest):
+
+    def test_blob_scan_nothing(self):
+        res = cluster.blob_scan("ScanWillNotFind", 1000)
+        self.assertEqual(0, len(res))
+
+    def test_blob_scan_match(self):
+        entry_name = entry_gen.next()
+        entry_content = "ScanWillFind"
+
+        b = cluster.blob(entry_name)
+        b.put(entry_content)
+
+        res = cluster.blob_scan("ScanWill", 1000)
+
+        self.assertEqual(1, len(res))
+        self.assertEqual(entry_name, res[0])
+
+        b.remove()
+
+    def test_blob_scan_match_many(self):
+        entry_content = "ScanWillFind"
+
+        blobs = []
+
+        for i in range(0, 10):
+            entry_name = entry_gen.next()
+            b = cluster.blob(entry_name)
+            b.put(entry_content)
+            blobs.append(b)
+
+        res = cluster.blob_scan("ScanWill", 5)
+
+        self.assertEqual(5, len(res))
+
+        for b in blobs:
+            b.remove()
+
+    def test_blob_scan_regex_nothing(self):
+        res = cluster.blob_scan_regex("ScanRegexW.ll.*", 1000)
+        self.assertEqual(0, len(res))
+
+    def test_blob_scan_regex_match(self):
+        entry_name = entry_gen.next()
+        entry_content = "ScanRegexWillFind"
+
+        b = cluster.blob(entry_name)
+        b.put(entry_content)
+
+        res = cluster.blob_scan_regex("ScanRegexW.ll.*", 1000);
+
+        self.assertEqual(1, len(res))
+        self.assertEqual(entry_name, res[0])
+
+        b.remove()
+
+    def test_blob_scan_regex_match_many(self):
+        entry_content = "ScanRegexWillFind"
+
+        blobs = []
+
+        for i in range(0, 10):
+            entry_name = entry_gen.next()
+            b = cluster.blob(entry_name)
+            b.put(entry_content)
+            blobs.append(b)
+
+        res = cluster.blob_scan_regex("ScanRegexW.ll.*", 5);
+
+        self.assertEqual(5, len(res))
+
+        for b in blobs:
+            b.remove()        
+
 class QuasardbInteger(QuasardbTest):
 
     def test_put_get_and_remove(self):

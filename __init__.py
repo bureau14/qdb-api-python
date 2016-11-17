@@ -800,3 +800,48 @@ class Cluster(object):
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
         return json.loads(res)
+
+    def blob_scan(self, pattern, max_count):
+        """ Scans all blobs and returns the list of entries whose content matches the provided sub-string.
+
+            :param pattern: The substring to look for
+            :type pattern: str
+
+            :param max_count: The maximum number of entries to return
+            :type max_count: long
+
+            :returns: The list of matching aliases. If no match is found, returns an empty list.
+
+            :raises: QuasardbException
+        """
+        err = make_error_carrier()
+        result = impl.blob_scan(self.handle, pattern, max_count, err)
+        if err.error == impl.error_alias_not_found:
+            return []
+
+        if err.error != impl.error_ok:
+            raise QuasardbException(err.error)
+        return result
+
+    def blob_scan_regex(self, pattern, max_count):
+        """ Scans all blobs and returns the list of entries whose content that match the provided
+         regular expression (ECMA-262).
+
+        :param pattern: The regular expression to use for matching
+        :type pattern: str
+
+        :param max_count: The maximum number of entries to return
+        :type max_count: long
+
+        :returns: The list of matching aliases. If no match is found, returns an empty list.
+
+        :raises: QuasardbException
+        """
+        err = make_error_carrier()
+        result = impl.blob_scan_regex(self.handle, pattern, max_count, err)
+        if err.error == impl.error_alias_not_found:
+            return []
+
+        if err.error != impl.error_ok:
+            raise QuasardbException(err.error)
+        return result
