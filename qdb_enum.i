@@ -54,8 +54,6 @@ typedef enum
     qdb_e_connection_refused            = qdb_e_origin_connection    | qdb_e_severity_unrecoverable | 0x000e,
     qdb_e_connection_reset              = qdb_e_origin_connection    | qdb_e_severity_error         | 0x000f,
     qdb_e_unstable_cluster              = qdb_e_origin_connection    | qdb_e_severity_error         | 0x0012,
-    qdb_e_outdated_topology             = qdb_e_origin_connection    | qdb_e_severity_error         | 0x0014,
-    qdb_e_wrong_peer                    = qdb_e_origin_connection    | qdb_e_severity_error         | 0x0015,
     qdb_e_try_again                     = qdb_e_origin_connection    | qdb_e_severity_error         | 0x0017,
     qdb_e_conflict                      = qdb_e_origin_operation     | qdb_e_severity_error         | 0x001a,
     qdb_e_not_connected                 = qdb_e_origin_connection    | qdb_e_severity_error         | 0x001b,
