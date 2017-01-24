@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2009-2015, quasardb SAS
+# Copyright (c) 2009-2017, quasardb SAS
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without

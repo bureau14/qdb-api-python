@@ -25,7 +25,7 @@ set(SWIG_COMMON_FILES
     qdb_python_common.i
 )
 
-set(QDB_PY_VERSION "2.0.0rc9")
+set(QDB_PY_VERSION "2.0.0")
 set(QDB_PY_WRAPPER "${CMAKE_CURRENT_BINARY_DIR}/qdb_python_wrapper.cxx")
 
 set(QDB_API_DIR "${CMAKE_SOURCE_DIR}/qdb")
@@ -66,12 +66,10 @@ file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/include/qdb" DESTINATION "include")
 if (WIN32)
     file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/qdb_api.lib" DESTINATION "qdb")
     file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/bin/qdb_api.dll" DESTINATION "qdb")
+elseif (APPLE)
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/libqdb_api.dylib" DESTINATION "qdb")
 else()
-    if (APPLE)
-        file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/libqdb_api.dylib" DESTINATION "qdb")
-    else()
-        file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/libqdb_api.so" DESTINATION "qdb")
-    endif()
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/libqdb_api.so" DESTINATION "qdb")
 endif()
 
 # copy the daemon (for the tests)
