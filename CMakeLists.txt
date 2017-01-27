@@ -25,7 +25,7 @@ set(SWIG_COMMON_FILES
     qdb_python_common.i
 )
 
-set(QDB_PY_VERSION "2.0.0")
+set(QDB_PY_VERSION "2.0.0-1")
 set(QDB_PY_WRAPPER "${CMAKE_CURRENT_BINARY_DIR}/qdb_python_wrapper.cxx")
 
 set(QDB_API_DIR "${CMAKE_SOURCE_DIR}/qdb")
@@ -93,17 +93,21 @@ add_custom_command(
 
 # Step 2: Build
 if(WIN32)
-    add_custom_target(qdb_python_api ALL
+    add_custom_target(qdb_python_api_installer ALL
         COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_wininst sdist
         DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx ${CMAKE_CURRENT_BINARY_DIR}/qdb/impl.py
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-else()
-    add_custom_target(qdb_python_api_build ALL
-        COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_egg sdist
-        DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx ${CMAKE_CURRENT_BINARY_DIR}/qdb/impl.py
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
 endif()
+
+add_custom_target(qdb_python_api_egg ALL
+    COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_egg sdist
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx ${CMAKE_CURRENT_BINARY_DIR}/qdb/impl.py
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+#add_custom_target(qdb_python_api_wheel ALL
+#    COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_wheel sdist
+#    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx ${CMAKE_CURRENT_BINARY_DIR}/qdb/impl.py
+#    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 # Step 3: Test
 add_test(NAME qdb_python_test
