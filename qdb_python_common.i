@@ -1,4 +1,4 @@
-%module(package="qdb") qdb
+%module(package="quasardb") qdb
 #define SwigPyIterator qdbSwigPyIterator
 #define SwigPyIterator_T qdbSwigPyIterator_T
 #define SwigPyIteratorOpen_T qdbSwigPyIteratorOpen_T

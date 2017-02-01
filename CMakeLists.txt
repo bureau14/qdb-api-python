@@ -25,7 +25,7 @@ set(SWIG_COMMON_FILES
     qdb_python_common.i
 )
 
-set(QDB_PY_VERSION "2.0.0-1")
+set(QDB_PY_VERSION "2.0.0.dev2")
 set(QDB_PY_WRAPPER "${CMAKE_CURRENT_BINARY_DIR}/qdb_python_wrapper.cxx")
 
 set(QDB_API_DIR "${CMAKE_SOURCE_DIR}/qdb")
@@ -44,18 +44,28 @@ else()
     set(QDB_PYTHON_LIBRARY_GLOB "lib*")
 endif()
 
-
 string(TOLOWER ${CMAKE_SYSTEM_NAME} PY_PACKAGE_SOURCE_SUFFIX)
 
 # generate setup script by replacing CMake variables
 configure_file(setup.in.py setup.py @ONLY)
 configure_file(setup.in.cfg setup.cfg @ONLY)
 
+set(PACKAGE_NAME quasardb)
+
 configure_file(README.md README.txt COPYONLY)
-configure_file(MANIFEST.in MANIFEST.in COPYONLY)
-configure_file(__init__.py qdb/__init__.py COPYONLY)
+configure_file(__init__.py ${PACKAGE_NAME}/__init__.py COPYONLY)
 configure_file(tests.py test/tests.py COPYONLY)
 configure_file(ez_setup.py ez_setup.py COPYONLY)
+
+set(SHARED_LIBRARY_EXTENSIONS "")
+if(WIN32)
+    set(SHARED_LIBRARY_EXTENSIONS "*.lib *.dll")
+elseif(APPLE)
+    set(SHARED_LIBRARY_EXTENSIONS "*.dylib")
+else()
+    set(SHARED_LIBRARY_EXTENSIONS "*.so")
+endif()
+configure_file(MANIFEST.in MANIFEST.in @ONLY)
 
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/src)
 
@@ -64,12 +74,12 @@ file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/include/qdb" DESTINATION "include")
 
 # copy the libraries
 if (WIN32)
-    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/qdb_api.lib" DESTINATION "qdb")
-    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/bin/qdb_api.dll" DESTINATION "qdb")
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/qdb_api.lib" DESTINATION "${PACKAGE_NAME}")
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/bin/qdb_api.dll" DESTINATION "${PACKAGE_NAME}")
 elseif (APPLE)
-    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/libqdb_api.dylib" DESTINATION "qdb")
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/libqdb_api.dylib" DESTINATION "${PACKAGE_NAME}")
 else()
-    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/libqdb_api.so" DESTINATION "qdb")
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/libqdb_api.so" DESTINATION "${PACKAGE_NAME}")
 endif()
 
 # copy the daemon (for the tests)
@@ -81,33 +91,38 @@ endif()
 
 # for Apple we need to change the id otherwise we won't be able to load the extension
 if (APPLE)
-    execute_process(COMMAND install_name_tool -id "@loader_path/libqdb_api.dylib" ${CMAKE_CURRENT_BINARY_DIR}/qdb/libqdb_api.dylib)
+    execute_process(COMMAND install_name_tool -id "@loader_path/libqdb_api.dylib" ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}/libqdb_api.dylib)
 endif()
 
 # Step 1: SWIG
 add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx ${CMAKE_CURRENT_BINARY_DIR}/qdb/impl.py
-    COMMAND ${SWIG_EXECUTABLE} -c++ -python -o ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx -outdir ${CMAKE_CURRENT_BINARY_DIR}/qdb -O -module impl -interface _qdb ${SWIG_PLATFORM_FILE}
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}/impl.py
+    COMMAND ${SWIG_EXECUTABLE} -c++ -python -o ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx -outdir ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME} -O -module impl -interface _qdb ${SWIG_PLATFORM_FILE}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     DEPENDS ${SWIG_COMMON_FILES} ${SWIG_PLATFORM_FILE})
 
 # Step 2: Build
-if(WIN32)
-    add_custom_target(qdb_python_api_installer ALL
-        COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_wininst sdist
-        DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx ${CMAKE_CURRENT_BINARY_DIR}/qdb/impl.py
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-endif()
+set(BUILD_DEPENDENCIES
+    ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx
+    ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}/impl.py
+)
 
 add_custom_target(qdb_python_api_egg ALL
     COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_egg sdist
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx ${CMAKE_CURRENT_BINARY_DIR}/qdb/impl.py
+    DEPENDS ${BUILD_DEPENDENCIES}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-#add_custom_target(qdb_python_api_wheel ALL
-#    COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_wheel sdist
-#    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx ${CMAKE_CURRENT_BINARY_DIR}/qdb/impl.py
-#    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+add_custom_target(qdb_python_api_wheel ALL
+    COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_wheel
+    DEPENDS ${BUILD_DEPENDENCIES} qdb_python_api_egg
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+if(WIN32)
+    add_custom_target(qdb_python_api_installer ALL
+        COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_wininst
+        DEPENDS ${BUILD_DEPENDENCIES} qdb_python_api_wheel
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+endif()
 
 # Step 3: Test
 add_test(NAME qdb_python_test

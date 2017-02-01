@@ -27,14 +27,14 @@
 #
 
 """
-.. module: qdb
+.. module: quasardb
     :platform: Unix, Windows
     :synopsis: quasardb official Python API
 
 .. moduleauthor: quasardb SAS. All rights reserved
 """
 
-import qdb.impl as impl
+import quasardb.impl as impl
 import cPickle as pickle
 import json
 import datetime
