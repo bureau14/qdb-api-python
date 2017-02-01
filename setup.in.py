@@ -127,4 +127,5 @@ setup(name=package_name,
           extra_compile_args=extra_compile_args,
           extra_link_args=extra_link_args)],
       cmdclass=cmdclass,
+      zip_safe=True,
      )
