@@ -144,5 +144,17 @@ std::vector<std::string> blob_scan_regex(handle_ptr h,
     return h->blob_scan_regex(pattern, max_count, error->error);
 }
 
+std::vector<std::string> prefix_get(handle_ptr h, const char * prefix, qdb_int_t max_count, error_carrier * error)
+{
+    error->error = qdb_e_uninitialized;
+    return h->prefix_get(prefix, max_count, error->error);
+}
+
+std::vector<std::string> suffix_get(handle_ptr h, const char * suffix, qdb_int_t max_count, error_carrier * error)
+{
+    error->error = qdb_e_uninitialized;
+    return h->suffix_get(suffix, max_count, error->error);
+}
+
 }
 %}

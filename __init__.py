@@ -801,6 +801,54 @@ class Cluster(object):
             raise QuasardbException(err.error)
         return json.loads(res)
 
+    def prefix_get(self, prefix, max_count):
+        """
+        Retrieves the list of all entries matching the provided prefix.
+
+        :param prefix: The prefix to use for the search
+        :type prefix: str
+
+        :param max_count: The maximum number of entries to return
+        :type max_count: long
+
+        :returns: The list of matching aliases. If no match is found, returns an empty list.
+
+        :raises: QuasardbException
+
+        """
+        err = make_error_carrier()
+        result = impl.prefix_get(self.handle, prefix, max_count, err)
+        if err.error == impl.error_alias_not_found:
+            return []
+
+        if err.error != impl.error_ok:
+            raise QuasardbException(err.error)
+        return result
+
+    def suffix_get(self, suffix, max_count):
+        """
+        Retrieves the list of all entries matching the provided suffix.
+
+        :param suffix: The suffix to use for the search
+        :type suffix: str
+
+        :param max_count: The maximum number of entries to return
+        :type max_count: long
+
+        :returns: The list of matching aliases. If no match is found, returns an empty list.
+
+        :raises: QuasardbException
+
+        """
+        err = make_error_carrier()
+        result = impl.suffix_get(self.handle, suffix, max_count, err)
+        if err.error == impl.error_alias_not_found:
+            return []
+
+        if err.error != impl.error_ok:
+            raise QuasardbException(err.error)
+        return result
+
     def blob_scan(self, pattern, max_count):
         """ Scans all blobs and returns the list of entries whose content matches the provided sub-string.
 

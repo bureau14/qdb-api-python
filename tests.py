@@ -510,6 +510,45 @@ class QuasardbTag(QuasardbTest):
         self.assertEqual(0, len(entries))
 
 
+class QuasardbPrefix(QuasardbTest):
+
+    def test_empty_prefix(self):
+
+        res = cluster.prefix_get("testazeazeaze", 10)
+        self.assertEqual(len(res), 0)
+
+    def test_find_one(self):
+        dat_prefix = "my_dark_prefix"
+        entry_name =  dat_prefix + entry_gen.next()
+        entry_content = "content"
+
+        b = cluster.blob(entry_name)
+        b.put(entry_content)
+
+        res = cluster.prefix_get(dat_prefix, 10)
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0], entry_name)
+
+class QuasardbSuffix(QuasardbTest):
+
+    def test_empty_suffix(self):
+
+        res = cluster.suffix_get("testazeazeaze", 10)
+        self.assertEqual(len(res), 0)
+
+    def test_find_one(self):
+        dat_suffix = "my_dark_suffix"
+
+        entry_name = entry_gen.next() + dat_suffix
+        entry_content = "content"
+
+        b = cluster.blob(entry_name)
+        b.put(entry_content)
+
+        res = cluster.suffix_get(dat_suffix, 10)
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0], entry_name)
+
 class QuasardbExpiry(QuasardbTest):
 
     def __make_expiry_time(self, td):
