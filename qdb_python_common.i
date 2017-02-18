@@ -36,6 +36,9 @@
 %typemap(in) qdb_int_t { $1 = PyLong_AsLongLong($input); }
 %typemap(out) qdb_int_t { $result = PyLong_FromLongLong($1); }
 
+%typemap(in) qdb_uint_t { $1 = PyLong_AsUnsignedLongLong($input); }
+%typemap(out) qdb_uint_t { $result = PyLong_FromUnsignedLongLong($1); }
+
 %include typemaps.i
 %include cpointer.i
 

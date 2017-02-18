@@ -517,6 +517,8 @@ class QuasardbPrefix(QuasardbTest):
         res = cluster.prefix_get("testazeazeaze", 10)
         self.assertEqual(len(res), 0)
 
+        self.assertEqual(0, cluster.prefix_count("testazeazeaze"))
+
     def test_find_one(self):
         dat_prefix = "my_dark_prefix"
         entry_name =  dat_prefix + entry_gen.next()
@@ -529,12 +531,16 @@ class QuasardbPrefix(QuasardbTest):
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0], entry_name)
 
+        self.assertEqual(1, cluster.prefix_count(dat_prefix))
+
 class QuasardbSuffix(QuasardbTest):
 
     def test_empty_suffix(self):
 
         res = cluster.suffix_get("testazeazeaze", 10)
         self.assertEqual(len(res), 0)
+
+        self.assertEqual(0, cluster.suffix_count("testazeazeaze"))
 
     def test_find_one(self):
         dat_suffix = "my_dark_suffix"
@@ -548,6 +554,8 @@ class QuasardbSuffix(QuasardbTest):
         res = cluster.suffix_get(dat_suffix, 10)
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0], entry_name)
+
+        self.assertEqual(1, cluster.suffix_count(dat_suffix))
 
 class QuasardbExpiry(QuasardbTest):
 

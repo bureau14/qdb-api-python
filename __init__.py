@@ -825,6 +825,24 @@ class Cluster(object):
             raise QuasardbException(err.error)
         return result
 
+    def prefix_count(self, prefix):
+        """
+        Returns the count of all entries matching the provided prefix.
+
+        :param prefix: The prefix to use for the count
+        :type prefix: str
+
+        :returns: The count of entries matching the provided prefix. 0 if there is no match.
+
+        :raises: QuasardbException
+        """
+        err = make_error_carrier()
+        count = impl.prefix_count(self.handle, prefix, err)
+
+        if err.error != impl.error_ok:
+            raise QuasardbException(err.error)
+        return count
+
     def suffix_get(self, suffix, max_count):
         """
         Retrieves the list of all entries matching the provided suffix.
@@ -848,6 +866,24 @@ class Cluster(object):
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
         return result
+
+    def suffix_count(self, suffix):
+        """
+        Returns the count of all entries matching the provided suffix.
+
+        :param suffix: The suffix to use for the count
+        :type suffix: str
+
+        :returns: The count of entries matching the provided suffix. 0 if there is no match.
+
+        :raises: QuasardbException
+        """
+        err = make_error_carrier()
+        count = impl.suffix_count(self.handle, suffix, err)
+
+        if err.error != impl.error_ok:
+            raise QuasardbException(err.error)
+        return count
 
     def blob_scan(self, pattern, max_count):
         """ Scans all blobs and returns the list of entries whose content matches the provided sub-string.

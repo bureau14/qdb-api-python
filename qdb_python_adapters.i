@@ -150,10 +150,22 @@ std::vector<std::string> prefix_get(handle_ptr h, const char * prefix, qdb_int_t
     return h->prefix_get(prefix, max_count, error->error);
 }
 
+qdb_uint_t prefix_count(handle_ptr h, const char * prefix, error_carrier * error)
+{
+    error->error = qdb_e_uninitialized;
+    return h->prefix_count(prefix, error->error);
+}
+
 std::vector<std::string> suffix_get(handle_ptr h, const char * suffix, qdb_int_t max_count, error_carrier * error)
 {
     error->error = qdb_e_uninitialized;
     return h->suffix_get(suffix, max_count, error->error);
+}
+
+qdb_uint_t suffix_count(handle_ptr h, const char * suffix, error_carrier * error)
+{
+    error->error = qdb_e_uninitialized;
+    return h->suffix_count(suffix, error->error);
 }
 
 }
