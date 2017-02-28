@@ -144,6 +144,30 @@ std::vector<std::string> blob_scan_regex(handle_ptr h,
     return h->blob_scan_regex(pattern, max_count, error->error);
 }
 
+struct result_as_string
+{
+    std::string operator()(const char * alias) const
+    {
+        return std::string(alias);
+    }
+};
+
+std::vector<std::string> run_query(handle_ptr h, const char * q, error_carrier * error)
+{
+    const char ** aliases = NULL;
+    size_t count = 0;
+
+    error->error = qdb_query(*h, q, &aliases, &count);
+
+    std::vector<std::string> v(count);
+
+    std::transform(aliases, aliases + count, v.begin(), result_as_string());
+
+    qdb_free_results(*h, aliases, count);
+
+    return v;
+}
+
 std::vector<std::string> prefix_get(handle_ptr h, const char * prefix, qdb_int_t max_count, error_carrier * error)
 {
     error->error = qdb_e_uninitialized;

@@ -509,6 +509,61 @@ class QuasardbTag(QuasardbTest):
         entries = t.get_entries()
         self.assertEqual(0, len(entries))
 
+class QuasardbQuery(QuasardbTest):
+
+
+    def test_types(self):
+
+        my_tag = "my_tag" + entry_gen.next()
+
+        entry_name = entry_gen.next()
+        entry_content = "content"
+
+        b = cluster.blob(entry_name)
+        b.put(entry_content)
+        b.attach_tag(my_tag)
+
+        res = cluster.query("tag='" + my_tag + "'")
+
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0], entry_name)
+
+        res = cluster.query("tag='" + my_tag + "' AND type=blob")
+
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0], entry_name)
+
+        res = cluster.query("tag='" + my_tag + "' AND type=integer")
+
+        self.assertEqual(len(res), 0)
+
+    def test_two_tags(self):
+
+        tag1 = "tag1" + entry_gen.next()
+        tag2 = "tag2" + entry_gen.next()
+
+        entry_name = entry_gen.next()
+        entry_content = "content"
+
+        b = cluster.blob(entry_name)
+        b.put(entry_content)
+        b.attach_tag(tag1)
+        b.attach_tag(tag2)
+
+        res = cluster.query("tag='" + tag1 + "'")
+
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0], entry_name)
+
+        res = cluster.query("tag='" + tag2 + "'")
+
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0], entry_name)
+
+        res = cluster.query("tag='" + tag1 + "' AND tag='" + tag2 + "'")
+
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0], entry_name)
 
 class QuasardbPrefix(QuasardbTest):
 

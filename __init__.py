@@ -801,6 +801,24 @@ class Cluster(object):
             raise QuasardbException(err.error)
         return json.loads(res)
 
+    def query(self, q):
+        """
+        Retrieves all entries' aliases that match the specified query.
+
+        :param q: The query to run
+        :type q: str
+
+        :returns: The list of matching aliases. If no match is found, returns an empty list.
+
+        :raises: QuasardbException
+        """
+        err = make_error_carrier()
+        result = impl.run_query(self.handle, q, err)
+
+        if err.error != impl.error_ok:
+            raise QuasardbException(err.error)
+        return result
+
     def prefix_get(self, prefix, max_count):
         """
         Retrieves the list of all entries matching the provided prefix.
@@ -814,7 +832,6 @@ class Cluster(object):
         :returns: The list of matching aliases. If no match is found, returns an empty list.
 
         :raises: QuasardbException
-
         """
         err = make_error_carrier()
         result = impl.prefix_get(self.handle, prefix, max_count, err)

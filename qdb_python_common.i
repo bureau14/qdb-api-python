@@ -11,6 +11,7 @@
 
 #include <qdb/client.hpp>
 #include <qdb/log.h>
+#include <qdb/query.h>
 
 %}
 
