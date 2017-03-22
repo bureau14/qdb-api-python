@@ -163,7 +163,7 @@ std::vector<std::string> run_query(handle_ptr h, const char * q, error_carrier *
 
     std::transform(aliases, aliases + count, v.begin(), result_as_string());
 
-    qdb_free_results(*h, aliases, count);
+    qdb_release(*h, aliases);
 
     return v;
 }
