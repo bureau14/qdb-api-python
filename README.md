@@ -92,3 +92,36 @@ hset.insert('boom')
 
 hset.contains('boom') # True
 ```
+
+What about time series you say?
+
+You can create a time series as such:
+
+```python
+ts = c.ts("dat_ts")
+
+cols = ts.create([quasardb.TimeSeries.DoubleColumnInfo("col1"), quasardb.TimeSeries.BlobColumnInfo("col2")])
+```
+
+Then you can operate on columns:
+
+```python
+col1 = ts.column(quasardb.TimeSeries.DoubleColumnInfo("col1"))
+
+# you can insert as many points as you want
+col1.insert([(datetime.datetime.now(quasardb.tz), 1.0)])
+
+# get the average for multiple intervals
+# assuming start_time1, end_time1 are datetime.datetime objects
+avg = col1.aggregate(quasardb.TimeSeries.Aggregation.average, [(start_time1, end_time1), (start_time2, end_time2)])
+
+# avg[0].value has the average for the first interval
+# avg[1].value has the average for the second interval
+```
+
+It's also possible to get the raw values:
+
+```python
+# results contains the points, in a flattened list
+results = col1.get_ranges([(start_time1, end_time1), (start_time2, end_time2)])
+```

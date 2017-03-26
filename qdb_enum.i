@@ -33,9 +33,9 @@ typedef enum
 {
     qdb_e_ok = 0,
 
-    /* ------------------------------------------------------------------------------------------------------ */
-    /*  error name                      = origin                     | severity                     | code    */
-    /* ------------------------------------------------------------------------------------------------------ */
+    // ------------------------------------------------------------------------------------------------------
+    //  error name                      = origin                     | severity                     | code
+    // ------------------------------------------------------------------------------------------------------
     qdb_e_uninitialized                 = qdb_e_origin_input         | qdb_e_severity_unrecoverable | 0xFFFF,
     qdb_e_alias_not_found               = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0008,
     qdb_e_alias_already_exists          = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0009,
@@ -58,7 +58,7 @@ typedef enum
     qdb_e_conflict                      = qdb_e_origin_operation     | qdb_e_severity_error         | 0x001a,
     qdb_e_not_connected                 = qdb_e_origin_connection    | qdb_e_severity_error         | 0x001b,
     qdb_e_resource_locked               = qdb_e_origin_operation     | qdb_e_severity_error         | 0x002d,
-    /* check errno or GetLastError() for actual error */
+    // check errno or GetLastError() for actual error
     qdb_e_system_remote                 = qdb_e_origin_system_remote | qdb_e_severity_unrecoverable | 0x0001,
     qdb_e_system_local                  = qdb_e_origin_system_local  | qdb_e_severity_unrecoverable | 0x0001,
 
@@ -85,7 +85,10 @@ typedef enum
     qdb_e_ok_created                    = qdb_e_origin_operation     | qdb_e_severity_info          | 0x0032,
     qdb_e_no_space_left                 = qdb_e_origin_system_remote | qdb_e_severity_unrecoverable | 0x0033,
     qdb_e_quota_exceeded                = qdb_e_origin_system_remote | qdb_e_severity_error         | 0x0034,
-    qdb_e_alias_too_long                = qdb_e_origin_input         | qdb_e_severity_error         | 0x0035
+    qdb_e_alias_too_long                = qdb_e_origin_input         | qdb_e_severity_error         | 0x0035,
+    qdb_e_clock_skew                    = qdb_e_origin_system_remote | qdb_e_severity_error         | 0x0036,
+    qdb_e_access_denied                 = qdb_e_origin_operation     | qdb_e_severity_error         | 0x0037,
+    qdb_e_login_failed                  = qdb_e_origin_system_remote | qdb_e_severity_error         | 0x0038
 } qdb_error_t;
 
 typedef qdb_error_t qdb_status_t;
@@ -138,4 +141,22 @@ enum qdb_log_level_t
     qdb_log_warning = 400,
     qdb_log_error = 500,
     qdb_log_panic = 600
+};
+
+enum qdb_ts_aggregation_type_t
+{
+    qdb_agg_first = 0,
+    qdb_agg_last = 1,
+    qdb_agg_min = 2,
+    qdb_agg_max = 3,
+    qdb_agg_average = 4,
+    qdb_agg_count = 5,
+    qdb_agg_sum = 6
+};
+
+enum qdb_ts_column_type_t
+{
+    qdb_ts_column_uninitialized = -1,
+    qdb_ts_column_double = 0,
+    qdb_ts_column_blob = 1
 };

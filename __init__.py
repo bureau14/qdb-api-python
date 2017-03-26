@@ -63,6 +63,8 @@ Error = __make_enum('Error', 'error_')
 Options = __make_enum('Option', 'option_')
 Operation = __make_enum('Operation', 'operation_')
 Protocol = __make_enum('Protocol', 'protocol_')
+TSAggregation = __make_enum('Aggregation', 'aggregation_')
+TSColumnType = __make_enum('ColumnType', 'column_')
 
 def make_error_string(error_code):
     """ Returns a meaningful error message corresponding to the quasardb error code.
@@ -126,6 +128,35 @@ tz = TimeZone()
 
 def _convert_expiry_time(expiry_time):
     return 1000 * long(calendar.timegm(expiry_time.timetuple())) if expiry_time != None else long(0)
+
+def _convert_time_to_qdb_timespec(user_time):
+    ts = impl.qdb_timespec_t()
+
+    ts.tv_sec = long(calendar.timegm(user_time.timetuple()))
+    ts.tv_nsec = user_time.microsecond * 1000
+
+    return ts
+
+def _convert_time_couple_to_qdb_range_t(time_couple):
+    r = impl.qdb_ts_range_t()
+    r.begin = _convert_time_to_qdb_timespec(time_couple[0])
+    r.end = _convert_time_to_qdb_timespec(time_couple[1])
+    return r
+
+def _convert_time_couples_to_qdb_range_t_vector(time_couples):
+    return map(lambda x: _convert_time_couple_to_qdb_range_t(x), time_couples)
+
+def _convert_qdb_timespec_to_time(qdb_timespec):
+    return datetime.datetime.fromtimestamp(qdb_timespec.tv_sec, tz) + datetime.timedelta(microseconds=qdb_timespec.tv_nsec / 1000)
+
+def _convert_qdb_range_t_to_time_couple(qdb_range):
+    return (_convert_qdb_timespec_to_time(qdb_range.begin), _convert_qdb_timespec_to_time(qdb_range.end))
+
+def make_qdb_ts_double_point(time, value):
+    res = impl.qdb_ts_double_point()
+    res.timestamp = _convert_time_to_qdb_timespec(time)
+    res.value = value
+    return res
 
 def make_error_carrier():
     err = impl.error_carrier()
@@ -504,6 +535,225 @@ class HSet(RemoveableEntry):
         """
         raise QuasardbException(impl.error_not_implemented)
 
+class TimeSeries(RemoveableEntry):
+    """
+    An unlimited, distributed, time series with nanosecond granularity and server-side aggregation capabilities.
+    """
+
+    Aggregation = TSAggregation
+    ColumnType = TSColumnType
+
+    class AggregationResult:
+        """
+        An aggregation result holding the range on which the aggregation was perfomed, the result value as well as the timestamp if it applies.
+        """
+        def __init__(self, r, ts, value):
+            self.range = r
+            self.timestamp = ts
+            self.value = value
+
+    class ColumnInfo:
+        """
+        An object holding column information such as the name and the type.
+        """
+        def __init__(self, col_name, col_type):
+            """
+            Creates a TimeSeries.ColumnInfo object
+
+            :param col_name: The name of the column
+            :type col_name: str
+            :param col_type: The type of the column
+            :type col_type: A TimeSeries.ColumnType value
+            """
+            self.name = col_name
+            self.type = col_type
+
+    class DoubleColumnInfo(ColumnInfo):
+        def __init__(self, col_name):
+            TimeSeries.ColumnInfo.__init__(self, col_name, TimeSeries.ColumnType.double)
+
+    class BlobColumnInfo(ColumnInfo):
+        def __init__(self, col_name):
+            TimeSeries.ColumnInfo.__init__(self, col_name, TimeSeries.ColumnType.blob)
+
+    class Column(object):
+        """
+        A column object within a time series on which one can get ranges and run aggregations.
+        """
+        def __init__(self, ts, col_name):
+            self.__ts = ts
+            self.__col_name = col_name
+
+        def call_ts_fun(self, ts_func, *args, **kwargs):
+            return self.__ts.call_ts_fun(ts_func, self.__col_name, *args, **kwargs)
+
+        def name(self):
+            """
+            Returns the name of the column
+
+            :returns: The name of the column
+            """
+            return self.__col_name
+
+        def aggregate(self, agg_type, intervals):
+            """
+            Aggregates values over the given intervals
+
+            :param agg_type: The aggregation type
+            :type agg_type: A value from TimeSeries.Aggregation
+            :param intervals: The ranges on which to perform the aggregations
+            :type intervals: a list of datetime.datetime couples
+
+            :raises: QuasardbException
+            :returns: The list of aggregation results
+            """
+            error_carrier = make_error_carrier()
+
+            res = self.call_ts_fun(impl.ts_double_aggregation, agg_type, _convert_time_couples_to_qdb_range_t_vector(intervals), error_carrier)
+            if error_carrier.error != impl.error_ok:
+                raise QuasardbException(error_carrier.error)
+
+            return map(lambda x: TimeSeries.AggregationResult(_convert_qdb_range_t_to_time_couple(x.range), _convert_qdb_timespec_to_time(x.result.timestamp), x.result.value), res)
+
+    class DoubleColumn(Column):
+        """
+        A column whose value are double precision floats
+        """
+        def __init__(self, ts, col_name):
+            super(TimeSeries.DoubleColumn, self).__init__(ts, col_name)
+
+        def insert(self, tuples):
+            """
+            Inserts values into the time series.
+
+            :param tuples: The list of couples to insert into the time series
+            :type tuples: list of datetime.datetime, float couples
+
+            :raises: QuasardbException
+            """
+            err = super(TimeSeries.DoubleColumn, self).call_ts_fun(impl.ts_double_insert, map(lambda x: make_qdb_ts_double_point(x[0], x[1]), tuples))
+            if err != impl.error_ok:
+                raise QuasardbException(err)
+
+        def get_ranges(self, intervals):
+            """
+            Returns the ranges matching the provided intervals.
+
+            :param intervals: The intervals for which the ranges should be returned
+            :type intervals: A list of datetime.datetime couples
+
+            :raises: QuasardbException
+            :returns: A flattened list of datetime.datetime, float couples
+            """
+            error_carrier = make_error_carrier()
+
+            res = super(TimeSeries.DoubleColumn, self).call_ts_fun(impl.ts_double_get_range, _convert_time_couples_to_qdb_range_t_vector(intervals), error_carrier)
+            if error_carrier.error != impl.error_ok:
+                raise QuasardbException(error_carrier.error)
+
+            return map(lambda x: (_convert_qdb_timespec_to_time(x.timestamp), x.value), res)
+
+    class BlobColumn(Column):
+        """
+        A column whose values are blobs
+        """
+        def __init__(self, ts, col_name):
+            super(TimeSeries.BlobColumn, self).__init__(ts, col_name)
+
+        def insert(self, tuples):
+            """
+            Inserts values into the time series.
+
+            :param tuples: The list of couples to insert into the time series
+            :type tuples: list of datetime.datetime, str couples
+
+            :raises: QuasardbException
+            """
+            err = super(TimeSeries.BlobColumn, self).call_ts_fun(impl.ts_blob_insert, map(lambda x: impl.wrap_ts_blob_point(_convert_time_to_qdb_timespec(x[0]), x[1]), tuples))
+            if err != impl.error_ok:
+                raise QuasardbException(err)           
+
+        def get_ranges(self, intervals):
+            """
+            Returns the ranges matching the provided intervals.
+
+            :param intervals: The intervals for which the ranges should be returned
+            :type intervals: A list of datetime.datetime couples
+
+            :raises: QuasardbException
+            :returns: A flattened list of datetime.datetime, str couples
+            """
+            error_carrier = make_error_carrier()
+
+            res = super(TimeSeries.BlobColumn, self).call_ts_fun(impl.ts_blob_get_range, _convert_time_couples_to_qdb_range_t_vector(intervals), error_carrier)
+            if error_carrier.error != impl.error_ok:
+                raise QuasardbException(error_carrier.error)
+
+            return map(lambda x: (_convert_qdb_timespec_to_time(x.timestamp), x.data), res)
+
+    def __init__(self, handle, alias, *args, **kwargs):
+        super(TimeSeries, self).__init__(handle, alias)
+
+    def call_ts_fun(self, ts_func, *args, **kwargs):
+        return ts_func(self.handle, super(TimeSeries, self).alias(), *args, **kwargs)
+
+    def create(self, columns):
+        """
+        Creates a time series with the provided columns information
+
+        :param columns: A list describing the columns to create
+        :type columns: a list of TimeSeries.ColumnInfo
+
+        :raises: QuasardbException
+        :returns: A list of columns matching the created columns
+        """
+        err = self.call_ts_fun(impl.ts_create, map(lambda x: impl.wrap_ts_column(x.name, x.type), columns))
+        if err != impl.error_ok:
+            raise QuasardbException(err)
+
+        return map(lambda x: self.column(x), columns)
+
+    def column(self, col_info):
+        """
+        Accesses an existing column.
+
+        :param col_info: A description of the column to access
+        :type col_info: TimeSeries.ColumnInfo
+
+        :raises: QuasardbException
+        :returns: A TimeSeries.Column matching the provided information
+        """
+        if col_info.type == TimeSeries.ColumnType.blob:
+            return TimeSeries.BlobColumn(self, col_info.name)
+
+        if col_info.type == TimeSeries.ColumnType.double:
+            return TimeSeries.DoubleColumn(self, col_info.name)
+
+        raise QuasardbException(Error.invalid_argument)
+
+    def columns(self):
+        """
+        Returns all existing columns.
+
+        :raises: QuasardbException
+        :returns: A list of all existing columns as TimeSeries.Column objects       
+        """
+        return map(lambda x: self.column(x), self.columns_info())
+
+    def columns_info(self):
+        """
+        Returns all existing columns information.
+
+        :raises: QuasardbException
+        :returns: A list of all existing columns as TimeSeries.ColumnInfo objects              
+        """
+        error_carrier = make_error_carrier()
+        raw_cols = self.call_ts_fun(impl.ts_list_columns, error_carrier)
+        if error_carrier.error != impl.error_ok:
+            raise QuasardbException(error_carrier.error)
+
+        return map(lambda x: TimeSeries.ColumnInfo(x.name, x.type), raw_cols)
+
 class Blob(ExpirableEntry):
 
     def __init__(self, handle, alias, *args, **kwargs):
@@ -697,6 +947,17 @@ class Cluster(object):
         :returns: The hash set named alias
         """
         return HSet(self.handle, alias)
+
+    def ts(self, alias):
+        """
+        Return an object representing a time series with the provided alias. The time series may or may not exist yet.
+
+        :param alias: The alias of the time series set to work on
+        :type alias: str
+
+        :returns: The time series named alias
+        """
+        return TimeSeries(self.handle, alias)
 
     def tag(self, alias):
         """

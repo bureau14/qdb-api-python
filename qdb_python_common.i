@@ -7,12 +7,12 @@
 #define SwigPySequence_ArrowProxy qdbSwigPySequence_ArrowProxy
 #define SwigPySequence_InputIterator qdbSwigPySequence_InputIterator
 #define SwigPySequence_Cont qdbSwigPySequence_Cont
-%{
 
+%{
 #include <qdb/client.hpp>
 #include <qdb/log.h>
 #include <qdb/query.h>
-
+#include <qdb/ts.h>
 %}
 
 %include "std_string.i"
@@ -23,12 +23,12 @@
 %shared_ptr(qdb::api_buffer)
 %shared_ptr(qdb::handle)
 
-%template(StringVec) std::vector<std::string>;
-
 %rename("%(regex:/qdb_e_(.*)/error_\\1/)s", %$isenumitem) "";
 %rename("%(regex:/qdb_o_(.*)/option_\\1/)s", %$isenumitem) "";
 %rename("%(regex:/qdb_p_(.*)/protocol_\\1/)s", %$isenumitem) "";
 %rename("%(regex:/qdb_op_(.*)/operation_\\1/)s", %$isenumitem) "";
+%rename("%(regex:/qdb_agg_(.*)/aggregation_\\1/)s", %$isenumitem) "";
+%rename("%(regex:/qdb_ts_column_(.*)/column_\\1/)s", %$isenumitem) "";
 %rename("%(strip:[qdb_])s", %$isfunction) "";
 
 %typemap(in) qdb_time_t { $1 = PyLong_AsLongLong($input); }
@@ -49,8 +49,15 @@
 %apply (const char *STRING, size_t LENGTH) { (const char * comparand, size_t comparand_length) };
 %apply (const char *STRING, size_t LENGTH) { (const void * pattern, qdb_size_t pattern_length) };
 
-%include "qdb_enum.i"
 %include "qdb_struct.i"
+%include "qdb_enum.i"
+
+%template(StringVec) std::vector<std::string>;
+%template(RangeVec) std::vector<qdb_ts_range_t>;
+%template(DoublePointVec) std::vector<qdb_ts_double_point>;
+%template(BlobPointVec) std::vector<wrap_ts_blob_point>;
+%template(AggVec) std::vector<qdb_ts_aggregation_t>;
+%template(TSColsVec) std::vector<wrap_ts_column>;
 
 %rename(version) qdb_version;
 const char * qdb_version();

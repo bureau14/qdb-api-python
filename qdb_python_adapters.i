@@ -192,5 +192,146 @@ qdb_uint_t suffix_count(handle_ptr h, const char * suffix, error_carrier * error
     return h->suffix_count(suffix, error->error);
 }
 
+qdb_error_t ts_create(handle_ptr h, const char * alias, const std::vector<wrap_ts_column> & columns)
+{
+    std::vector<const char *> names_pointers(columns.size());
+    std::vector<qdb_ts_column_type_t> types(columns.size());
+
+    for(size_t i = 0; i < columns.size(); ++i)
+    {
+        names_pointers[i] = columns[i].name.c_str();
+        types[i] = columns[i].type;        
+    }
+
+    return qdb_ts_create(*h, alias, &names_pointers[0], &types[0], columns.size());
+}
+
+struct column_creator
+{
+    wrap_ts_column operator()(const char * col_name, qdb_ts_column_type_t col_type) const
+    {
+        return wrap_ts_column(col_name, col_type);
+    }
+};
+
+std::vector<wrap_ts_column> ts_list_columns(handle_ptr h, const char * alias, error_carrier * error)
+{
+    const char ** column_names = NULL;
+    qdb_ts_column_type_t * column_types = NULL;
+    qdb_size_t count = 0;
+
+    std::vector<wrap_ts_column> res;
+
+    error->error = qdb_ts_list_columns(*h, alias, &column_names, &column_types, &count);
+    if (QDB_SUCCESS(error->error))
+    {
+        res.resize(count);
+
+        std::transform(column_names, column_names + count, column_types, res.begin(), column_creator());
+    }
+
+    qdb_release(*h, column_names);
+    qdb_release(*h, column_types);
+
+    return res;
+}
+
+qdb_error_t ts_double_insert(handle_ptr h, const char * alias, const char * column, const std::vector<qdb_ts_double_point> & values)
+{
+    return qdb_ts_double_insert(*h, alias, column, &values[0], values.size());
+}
+
+struct to_qdb_ts_blob_point
+{
+    qdb_ts_blob_point operator()(const wrap_ts_blob_point & pt) const
+    {
+        qdb_ts_blob_point res;
+
+        res.timestamp = pt.timestamp;
+        res.content = pt.data.data();
+        res.content_length = pt.data.size();
+
+        return res;
+    }
+};
+
+qdb_error_t ts_blob_insert(handle_ptr h, const char * alias, const char * column, const std::vector<wrap_ts_blob_point> & values)
+{
+    std::vector<qdb_ts_blob_point> points(values.size());
+
+    std::transform(values.begin(), values.end(), points.begin(), to_qdb_ts_blob_point());
+
+    return qdb_ts_blob_insert(*h, alias, column, &points[0], points.size());
+}
+
+std::vector<qdb_ts_double_point> ts_double_get_range(handle_ptr h, const char * alias, const char * column,
+    const std::vector<qdb_ts_range_t> & ranges, error_carrier * error)
+{
+    qdb_ts_double_point * points = NULL;
+    qdb_size_t count = 0;
+
+    std::vector<qdb_ts_double_point> res;
+
+    error->error = qdb_ts_double_get_range(*h, alias, column, &ranges[0], ranges.size(), &points, &count);
+    if (QDB_SUCCESS(error->error))
+    {
+        res.resize(count);
+        std::copy(points, points + count, res.begin());
+
+        qdb_release(*h, points);
+    }
+
+    return res;
+}
+
+struct to_ts_blob_point
+{
+    wrap_ts_blob_point operator()(const qdb_ts_blob_point & pt) const
+    {
+        return wrap_ts_blob_point(pt.timestamp, std::string(static_cast<const char *>(pt.content), pt.content_length));
+    }
+};
+
+std::vector<wrap_ts_blob_point> ts_blob_get_range(handle_ptr h, const char * alias, const char * column,
+    const std::vector<qdb_ts_range_t> & ranges, error_carrier * error)
+{
+    qdb_ts_blob_point * points = NULL;
+    qdb_size_t count = 0;
+
+    std::vector<wrap_ts_blob_point> res;
+
+    error->error = qdb_ts_blob_get_range(*h, alias, column, &ranges[0], ranges.size(), &points, &count);
+    if (QDB_SUCCESS(error->error))
+    {
+        res.resize(count);
+        std::transform(points, points + count, res.begin(), to_ts_blob_point());
+
+        qdb_release(*h, points);
+    }
+
+    return res;
+}
+
+struct range_to_agg
+{
+    qdb_ts_aggregation_t operator()(const qdb_ts_range_t & t) const
+    {
+        qdb_ts_aggregation_t res;
+        res.range = t;
+        return res;
+    }
+};
+
+std::vector<qdb_ts_aggregation_t> ts_double_aggregation(handle_ptr h, const char * alias, const char * column, qdb_ts_aggregation_type_t type,
+    const std::vector<qdb_ts_range_t> & ranges, error_carrier * error)
+{
+    std::vector<qdb_ts_aggregation_t> params(ranges.size());
+
+    std::transform(ranges.begin(), ranges.end(), params.begin(), range_to_agg());
+
+    error->error = qdb_ts_aggregate(*h, alias, column, type, &params[0], params.size());
+    return params;
+}
+
 }
 %}
