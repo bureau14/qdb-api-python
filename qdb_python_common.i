@@ -75,4 +75,3 @@ namespace qdb
 {
 std::string make_error_string(qdb_error_t error);
 }
-

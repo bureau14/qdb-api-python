@@ -37,7 +37,7 @@ struct wrap_ts_blob_point
 
     qdb_timespec_t timestamp;
     std::string data;
-};    
+};
 
 %}
 

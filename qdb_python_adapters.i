@@ -192,46 +192,52 @@ qdb_uint_t suffix_count(handle_ptr h, const char * suffix, error_carrier * error
     return h->suffix_count(suffix, error->error);
 }
 
+struct transform_to_col_info
+{
+    qdb_ts_column_info_t operator()(const wrap_ts_column & wtc) const
+    {
+        qdb_ts_column_info_t res;
+
+        res.name = wtc.name.c_str();
+        res.type = wtc.type;
+
+        return res;
+    }
+};
+
 qdb_error_t ts_create(handle_ptr h, const char * alias, const std::vector<wrap_ts_column> & columns)
 {
-    std::vector<const char *> names_pointers(columns.size());
-    std::vector<qdb_ts_column_type_t> types(columns.size());
+    std::vector<qdb_ts_column_info_t> qdb_cols_info(columns.size());
 
-    for(size_t i = 0; i < columns.size(); ++i)
-    {
-        names_pointers[i] = columns[i].name.c_str();
-        types[i] = columns[i].type;        
-    }
+    std::transform(columns.begin(), columns.end(), qdb_cols_info.begin(), transform_to_col_info());
 
-    return qdb_ts_create(*h, alias, &names_pointers[0], &types[0], columns.size());
+    return qdb_ts_create(*h, alias, &qdb_cols_info[0], qdb_cols_info.size());
 }
 
 struct column_creator
 {
-    wrap_ts_column operator()(const char * col_name, qdb_ts_column_type_t col_type) const
+    wrap_ts_column operator()(const qdb_ts_column_info_t & ci) const
     {
-        return wrap_ts_column(col_name, col_type);
+        return wrap_ts_column(ci.name, ci.type);
     }
 };
 
 std::vector<wrap_ts_column> ts_list_columns(handle_ptr h, const char * alias, error_carrier * error)
 {
-    const char ** column_names = NULL;
-    qdb_ts_column_type_t * column_types = NULL;
+    qdb_ts_column_info_t * column_infos = NULL;
     qdb_size_t count = 0;
 
     std::vector<wrap_ts_column> res;
 
-    error->error = qdb_ts_list_columns(*h, alias, &column_names, &column_types, &count);
+    error->error = qdb_ts_list_columns(*h, alias, &column_infos, &count);
     if (QDB_SUCCESS(error->error))
     {
         res.resize(count);
 
-        std::transform(column_names, column_names + count, column_types, res.begin(), column_creator());
+        std::transform(column_infos, column_infos + count, res.begin(), column_creator());
     }
 
-    qdb_release(*h, column_names);
-    qdb_release(*h, column_types);
+    qdb_release(*h, column_infos);
 
     return res;
 }
