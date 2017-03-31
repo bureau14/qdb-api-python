@@ -103,6 +103,9 @@ def build():
 
 import inspect
 
+def _duration_to_timeout_ms(duration):
+    return duration.days * 24 * 3600 * 1000 + duration.seconds * 1000 + duration.microseconds / 1000
+
 def _api_buffer_to_string(buf):
     return None if buf is None else impl.api_buffer_ptr_as_string(buf)
 
@@ -671,7 +674,7 @@ class TimeSeries(RemoveableEntry):
             """
             err = super(TimeSeries.BlobColumn, self).call_ts_fun(impl.ts_blob_insert, map(lambda x: impl.wrap_ts_blob_point(_convert_time_to_qdb_timespec(x[0]), x[1]), tuples))
             if err != impl.error_ok:
-                raise QuasardbException(err)           
+                raise QuasardbException(err)
 
         def get_ranges(self, intervals):
             """
@@ -736,7 +739,7 @@ class TimeSeries(RemoveableEntry):
         Returns all existing columns.
 
         :raises: QuasardbException
-        :returns: A list of all existing columns as TimeSeries.Column objects       
+        :returns: A list of all existing columns as TimeSeries.Column objects
         """
         return map(lambda x: self.column(x), self.columns_info())
 
@@ -745,7 +748,7 @@ class TimeSeries(RemoveableEntry):
         Returns all existing columns information.
 
         :raises: QuasardbException
-        :returns: A list of all existing columns as TimeSeries.ColumnInfo objects              
+        :returns: A list of all existing columns as TimeSeries.ColumnInfo objects
         """
         error_carrier = make_error_carrier()
         raw_cols = self.call_ts_fun(impl.ts_list_columns, error_carrier)
@@ -904,6 +907,24 @@ class Cluster(object):
             self.handle.close()
             self.handle = None
 
+    def set_timeout(self, duration):
+        """
+        Sets the timeout value for requests. Requests that take longer than timeout value will raise an exception.
+
+        The minimum timemout value is 1 ms.
+
+        :param duration: The timeout value
+        :type duration: datetime.timedelta
+
+        :raises: QuasardbException
+        """
+        timeout_value = _duration_to_timeout_ms(duration)
+        if timeout_value == 0:
+            raise QuasardbException(impl.error_invalid_argument)
+        err = self.handle.set_timeout(timeout_value)
+        if err != impl.error_ok:
+            raise QuasardbException(err)
+
     def blob(self, alias):
         """
         Returns an object representing a blob with the provided alias. The blob may or may not exist yet.
@@ -973,27 +994,27 @@ class Cluster(object):
     def purge_all(self, timeout):
         """ Removes all the entries from all nodes of the cluster.
 
-            :param timeout: Operation timeout, in milliseconds
-            :type timeout: long
+            :param timeout: Operation timeout
+            :type timeout: datetime.timedelta
 
             :raises: QuasardbException
 
             .. caution::
                 This method is intended for very specific usage scenarii. Use at your own risks.
         """
-        err = self.handle.purge_all(timeout)
+        err = self.handle.purge_all(_duration_to_timeout_ms(timeout))
         if err != impl.error_ok:
             raise QuasardbException(err)
 
     def trim_all(self, timeout):
         """ Trims all entries of all nodes of the cluster.
 
-            :param timeout: Operation timeout, in milliseconds
-            :type timeout: long
+            :param timeout: Operation timeout
+            :type timeout: datetime.timedelta
 
             :raises: QuasardbException
         """
-        err = self.handle.trim_all(timeout)
+        err = self.handle.trim_all(_duration_to_timeout_ms(timeout))
         if err != impl.error_ok:
             raise QuasardbException(err)
 

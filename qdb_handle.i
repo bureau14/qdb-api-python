@@ -14,9 +14,11 @@ private:
 public:
     void close(void);
     bool connected(void) const;
-    void set_timeout(int timeout);
 
     qdb_error_t connect(const char * uri);
+
+    qdb_error_t set_timeout(int timeout_ms);
+    qdb_error_t set_compression(qdb_compression_t comp_level);
 
     qdb_error_t blob_put(const char * alias, const char * content, size_t content_length, qdb_time_t expiry_time);
     qdb_error_t blob_update(const char * alias, const char * content, size_t content_length, qdb_time_t expiry_time);
@@ -48,7 +50,6 @@ public:
     qdb_error_t get_expiry_time(const char * alias, qdb_time_t & expiry_time);
 
     // tags
-
     qdb_error_t attach_tag(const char * alias, const char * tag);
     qdb_error_t has_tag(const char * alias, const char * tag);
     qdb_error_t detach_tag(const char * alias, const char * tag);
@@ -57,7 +58,6 @@ public:
     std::vector<std::string> get_tags(const char * alias, qdb_error_t & error);
 
     // integer
-
     qdb_error_t int_get(const char * alias, qdb_int_t * number);
     qdb_error_t int_put(const char * alias, qdb_int_t number, qdb_time_t expiry_time);
     qdb_error_t int_update(const char * alias, qdb_int_t number, qdb_time_t expiry_time);
@@ -76,7 +76,7 @@ public:
     qdb_error_t hset_erase(const char * alias, const char * content, size_t content_length);
     qdb_error_t hset_contains(const char * alias, const char * content, size_t content_length);
 
-    
+
     std::vector<std::string> blob_scan(const void * pattern,
                                    qdb_size_t pattern_length,
                                    qdb_int_t max_count,

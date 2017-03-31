@@ -91,6 +91,27 @@ class QuasardbBasic(QuasardbTest):
     def test_trim_all(self):
         cluster.trim_all(60)
 
+    def test_duration_converter(self):
+        self.assertEqual(24 * 3600 * 1000, quasardb._duration_to_timeout_ms(datetime.timedelta(days=1)))
+        self.assertEqual(3600 * 1000, quasardb._duration_to_timeout_ms(datetime.timedelta(hours=1)))
+        self.assertEqual(60 * 1000, quasardb._duration_to_timeout_ms(datetime.timedelta(minutes=1)))
+        self.assertEqual(1000, quasardb._duration_to_timeout_ms(datetime.timedelta(seconds=1)))
+        self.assertEqual(1, quasardb._duration_to_timeout_ms(datetime.timedelta(milliseconds=1)))
+        self.assertEqual(0, quasardb._duration_to_timeout_ms(datetime.timedelta(microseconds=1)))
+
+    def test_timeout(self):
+        # 1 day ok
+        cluster.set_timeout(datetime.timedelta(days=1))
+
+        # 1s ok
+        cluster.set_timeout(datetime.timedelta(seconds=1))
+
+        # 1 ms ok
+        cluster.set_timeout(datetime.timedelta(milliseconds=1))
+
+        # 1 us not ok, timeout must be in milliseconds
+        self.assertRaises(quasardb.QuasardbException, cluster.set_timeout, datetime.timedelta(microseconds=1))
+
     def test_put_get_and_remove(self):
         entry_name = entry_gen.next()
         entry_content = "content"
@@ -195,6 +216,13 @@ class QuasardbBasic(QuasardbTest):
         self.assertEqual(got, entry_new_content)
 
         b.remove()
+
+    def test_purge_all(self):
+        # disabled by default, must raise an exception
+        self.assertRaises(quasardb.QuasardbException, cluster.purge_all, datetime.timedelta(minutes=1))
+
+    def test_trim_all(self):
+        cluster.trim_all(datetime.timedelta(minutes=1))
 
 class QuasardbScan(QuasardbTest):
 
