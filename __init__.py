@@ -147,7 +147,28 @@ def _convert_time_couple_to_qdb_range_t(time_couple):
     return r
 
 def _convert_time_couples_to_qdb_range_t_vector(time_couples):
-    return map(lambda x: _convert_time_couple_to_qdb_range_t(x), time_couples)
+    vec = impl.RangeVec()
+
+    c = len(time_couples)
+
+    vec.resize(c)
+
+    for i in range(0, c):
+        vec[i] = _convert_time_couple_to_qdb_range_t(time_couples[i])
+
+    return vec
+
+def _convert_to_wrap_ts_blop_points_vector(tuples):
+    vec = impl.BlobPointVec()
+
+    c = len(tuples)
+
+    vec.resize(c)
+
+    for i in range(0, c):
+        vec[i] = impl.wrap_ts_blob_point(_convert_time_to_qdb_timespec(tuples[i][0]), tuples[i][1])
+
+    return vec
 
 def _convert_qdb_timespec_to_time(qdb_timespec):
     return datetime.datetime.fromtimestamp(qdb_timespec.tv_sec, tz) + datetime.timedelta(microseconds=qdb_timespec.tv_nsec / 1000)
@@ -160,6 +181,18 @@ def make_qdb_ts_double_point(time, value):
     res.timestamp = _convert_time_to_qdb_timespec(time)
     res.value = value
     return res
+
+def make_qdb_ts_double_point_vector(time_points):
+    vec = impl.DoublePointVec()
+
+    c = len(time_points)
+
+    vec.resize(c)
+
+    for i in range(0, c):
+        vec[i] = make_qdb_ts_double_point(time_points[i][0], time_points[i][1])
+
+    return vec
 
 def make_error_carrier():
     err = impl.error_carrier()
@@ -634,7 +667,7 @@ class TimeSeries(RemoveableEntry):
 
             :raises: QuasardbException
             """
-            err = super(TimeSeries.DoubleColumn, self).call_ts_fun(impl.ts_double_insert, map(lambda x: make_qdb_ts_double_point(x[0], x[1]), tuples))
+            err = super(TimeSeries.DoubleColumn, self).call_ts_fun(impl.ts_double_insert, make_qdb_ts_double_point_vector(tuples))
             if err != impl.error_ok:
                 raise QuasardbException(err)
 
@@ -672,7 +705,7 @@ class TimeSeries(RemoveableEntry):
 
             :raises: QuasardbException
             """
-            err = super(TimeSeries.BlobColumn, self).call_ts_fun(impl.ts_blob_insert, map(lambda x: impl.wrap_ts_blob_point(_convert_time_to_qdb_timespec(x[0]), x[1]), tuples))
+            err = super(TimeSeries.BlobColumn, self).call_ts_fun(impl.ts_blob_insert, _convert_to_wrap_ts_blop_points_vector(tuples))
             if err != impl.error_ok:
                 raise QuasardbException(err)
 
