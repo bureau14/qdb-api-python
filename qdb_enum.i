@@ -152,7 +152,12 @@ enum qdb_ts_aggregation_type_t
     qdb_agg_max = 3,
     qdb_agg_average = 4,
     qdb_agg_count = 5,
-    qdb_agg_sum = 6
+    qdb_agg_sum = 6,
+    qdb_agg_spread = 7,
+    qdb_agg_variance = 8,
+    qdb_agg_stddev = 9,
+    qdb_agg_abs_min = 10,
+    qdb_agg_abs_max = 11
 };
 
 enum qdb_ts_column_type_t
