@@ -5,6 +5,8 @@ import subprocess
 import sys
 import time
 import unittest
+import calendar
+import timeit
 #import numpy
 
 for root, dirnames, filenames in os.walk(os.path.join('..', 'build')):
@@ -99,6 +101,24 @@ class QuasardbBasic(QuasardbTest):
         self.assertEqual(1000, quasardb._duration_to_timeout_ms(datetime.timedelta(seconds=1)))
         self.assertEqual(1, quasardb._duration_to_timeout_ms(datetime.timedelta(milliseconds=1)))
         self.assertEqual(0, quasardb._duration_to_timeout_ms(datetime.timedelta(microseconds=1)))
+
+    def test_time(self):
+        time_no_tz = datetime.datetime.now()
+        tz_offset = time.timezone
+
+        expected_value = long(calendar.timegm(time_no_tz.timetuple()))
+        self.assertEqual(expected_value, quasardb._time_to_unix_timestamp(time_no_tz, tz_offset))
+
+        time_qdb_tz = datetime.datetime.now(quasardb.tz)
+
+        expected_value = long(calendar.timegm(time_qdb_tz.timetuple()))
+        self.assertEqual(expected_value, quasardb._time_to_unix_timestamp(time_qdb_tz, tz_offset))
+
+    def test_ts_convert(self):
+        orig_couple = [(datetime.datetime.now(quasardb.tz), datetime.datetime.now(quasardb.tz))]
+        converted_couple = quasardb._convert_time_couples_to_qdb_range_t_vector(orig_couple)
+        self.assertEqual(len(converted_couple), 1)
+        self.assertEqual(orig_couple[0], quasardb._convert_qdb_range_t_to_time_couple(converted_couple[0]))
 
     def test_timeout(self):
         # 1 day ok

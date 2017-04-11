@@ -35,11 +35,9 @@
 """
 
 import quasardb.impl as impl
-import cPickle as pickle
 import json
 import datetime
-import calendar
-import copy
+import time
 
 def __make_enum(type_name, prefix):
     """
@@ -129,22 +127,14 @@ class TimeZone(datetime.tzinfo):
 
 tz = TimeZone()
 
+def _time_to_unix_timestamp(t, tz_offset):
+    return long(time.mktime((t.year, t.month, t.day, t.hour, t.minute, t.second, -1, -1, 0))) - tz_offset
+
+def _time_to_qdb_timestamp(t, tz_offset):
+    return _time_to_unix_timestamp(t, tz_offset) * 1000 + (t.microsecond / 1000)
+
 def _convert_expiry_time(expiry_time):
-    return 1000 * long(calendar.timegm(expiry_time.timetuple())) if expiry_time != None else long(0)
-
-def _convert_time_to_qdb_timespec(user_time):
-    ts = impl.qdb_timespec_t()
-
-    ts.tv_sec = long(calendar.timegm(user_time.timetuple()))
-    ts.tv_nsec = user_time.microsecond * 1000
-
-    return ts
-
-def _convert_time_couple_to_qdb_range_t(time_couple):
-    r = impl.qdb_ts_range_t()
-    r.begin = _convert_time_to_qdb_timespec(time_couple[0])
-    r.end = _convert_time_to_qdb_timespec(time_couple[1])
-    return r
+    return _time_to_qdb_timestamp(expiry_time, time.timezone) if expiry_time != None else long(0)
 
 def _convert_time_couples_to_qdb_range_t_vector(time_couples):
     vec = impl.RangeVec()
@@ -153,8 +143,13 @@ def _convert_time_couples_to_qdb_range_t_vector(time_couples):
 
     vec.resize(c)
 
+    tz_offset = time.timezone
+
     for i in range(0, c):
-        vec[i] = _convert_time_couple_to_qdb_range_t(time_couples[i])
+        vec[i].begin.tv_sec = _time_to_unix_timestamp(time_couples[i][0], tz_offset)
+        vec[i].begin.tv_nsec = time_couples[i][0].microsecond * 1000
+        vec[i].end.tv_sec = _time_to_unix_timestamp(time_couples[i][1], tz_offset)
+        vec[i].end.tv_nsec = time_couples[i][1].microsecond * 1000
 
     return vec
 
@@ -165,22 +160,14 @@ def _convert_to_wrap_ts_blop_points_vector(tuples):
 
     vec.resize(c)
 
+    tz_offset = time.timezone
+
     for i in range(0, c):
-        vec[i] = impl.wrap_ts_blob_point(_convert_time_to_qdb_timespec(tuples[i][0]), tuples[i][1])
+        vec[i].timestamp.tv_sec =  _time_to_unix_timestamp(tuples[i][0], tz_offset)
+        vec[i].timestamp.tv_nsec = tuples[i][0].microsecond * 1000
+        vec[i].data = tuples[i][1]
 
     return vec
-
-def _convert_qdb_timespec_to_time(qdb_timespec):
-    return datetime.datetime.fromtimestamp(qdb_timespec.tv_sec, tz) + datetime.timedelta(microseconds=qdb_timespec.tv_nsec / 1000)
-
-def _convert_qdb_range_t_to_time_couple(qdb_range):
-    return (_convert_qdb_timespec_to_time(qdb_range.begin), _convert_qdb_timespec_to_time(qdb_range.end))
-
-def make_qdb_ts_double_point(time, value):
-    res = impl.qdb_ts_double_point()
-    res.timestamp = _convert_time_to_qdb_timespec(time)
-    res.value = value
-    return res
 
 def make_qdb_ts_double_point_vector(time_points):
     vec = impl.DoublePointVec()
@@ -189,10 +176,20 @@ def make_qdb_ts_double_point_vector(time_points):
 
     vec.resize(c)
 
+    tz_offset = time.timezone
+
     for i in range(0, c):
-        vec[i] = make_qdb_ts_double_point(time_points[i][0], time_points[i][1])
+        vec[i].timestamp.tv_sec = _time_to_unix_timestamp(time_points[i][0], tz_offset)
+        vec[i].timestamp.tv_nsec = time_points[i][0].microsecond * 1000
+        vec[i].value = time_points[i][1]
 
     return vec
+
+def _convert_qdb_timespec_to_time(qdb_timespec):
+    return datetime.datetime.fromtimestamp(qdb_timespec.tv_sec, tz) + datetime.timedelta(microseconds=qdb_timespec.tv_nsec / 1000)
+
+def _convert_qdb_range_t_to_time_couple(qdb_range):
+    return (_convert_qdb_timespec_to_time(qdb_range.begin), _convert_qdb_timespec_to_time(qdb_range.end))
 
 def make_error_carrier():
     err = impl.error_carrier()
