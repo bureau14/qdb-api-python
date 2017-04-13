@@ -914,19 +914,26 @@ class Cluster(object):
     """
     """
 
-    def __init__(self, uri, *args, **kwargs):
+    def __init__(self, uri, timeout, *args, **kwargs):
         """ Creates the raw client.
         Connection is delayed until the client is actually used.
         If the client is not used for some time, the connection is dropped and reestablished at need.
 
             :param uri: The connection string
             :type uri: str
+            :param timeout: The connection timeout
+            :type timeout: datetime.timedelta
 
             :raises: QuasardbException
         """
         err = make_error_carrier()
+
+        timeout_value = _duration_to_timeout_ms(timeout)
+        if timeout_value == 0:
+            raise QuasardbException(impl.error_invalid_argument)
+
         self.handle = None
-        self.handle = impl.connect(uri, err)
+        self.handle = impl.connect(uri, timeout_value, err)
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
 

@@ -61,7 +61,7 @@ def setUpModule():
     __current_port += 1
 
     try:
-        cluster = quasardb.Cluster(uri)
+        cluster = quasardb.Cluster(uri, datetime.timedelta(minutes=2))
 
     except quasardb.QuasardbException, q:
         __clusterd.terminate()
