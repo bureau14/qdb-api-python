@@ -274,7 +274,7 @@ qdb_error_t ts_blob_insert(handle_ptr h, const char * alias, const char * column
     return qdb_ts_blob_insert(*h, alias, column, &points[0], points.size());
 }
 
-std::vector<qdb_ts_double_point> ts_double_get_range(handle_ptr h, const char * alias, const char * column,
+std::vector<qdb_ts_double_point> ts_double_get_ranges(handle_ptr h, const char * alias, const char * column,
     const std::vector<qdb_ts_range_t> & ranges, error_carrier * error)
 {
     qdb_ts_double_point * points = NULL;
@@ -282,7 +282,7 @@ std::vector<qdb_ts_double_point> ts_double_get_range(handle_ptr h, const char * 
 
     std::vector<qdb_ts_double_point> res;
 
-    error->error = qdb_ts_double_get_range(*h, alias, column, &ranges[0], ranges.size(), &points, &count);
+    error->error = qdb_ts_double_get_ranges(*h, alias, column, &ranges[0], ranges.size(), &points, &count);
     if (QDB_SUCCESS(error->error))
     {
         res.resize(count);
@@ -302,7 +302,7 @@ struct to_ts_blob_point
     }
 };
 
-std::vector<wrap_ts_blob_point> ts_blob_get_range(handle_ptr h, const char * alias, const char * column,
+std::vector<wrap_ts_blob_point> ts_blob_get_ranges(handle_ptr h, const char * alias, const char * column,
     const std::vector<qdb_ts_range_t> & ranges, error_carrier * error)
 {
     qdb_ts_blob_point * points = NULL;
@@ -310,7 +310,7 @@ std::vector<wrap_ts_blob_point> ts_blob_get_range(handle_ptr h, const char * ali
 
     std::vector<wrap_ts_blob_point> res;
 
-    error->error = qdb_ts_blob_get_range(*h, alias, column, &ranges[0], ranges.size(), &points, &count);
+    error->error = qdb_ts_blob_get_ranges(*h, alias, column, &ranges[0], ranges.size(), &points, &count);
     if (QDB_SUCCESS(error->error))
     {
         res.resize(count);

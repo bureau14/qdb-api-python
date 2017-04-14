@@ -1,4 +1,5 @@
-import cPickle as pickle
+# pylint: disable=C0103,C0111,C0302,C0330,W0212
+
 import datetime
 import os
 import subprocess
@@ -14,14 +15,15 @@ for root, dirnames, filenames in os.walk(os.path.join('..', 'build')):
         if p.startswith('lib'):
             sys.path.append(os.path.join(root, p))
 
-import quasardb
+import quasardb  # pylint: disable=C0413,E0401
 
 # generate an unique entry name for the tests
+
 
 class UniqueEntryNameGenerator(object):
 
     def __init__(self):
-        self.__prefix  = "entry_"
+        self.__prefix = "entry_"
         self.__counter = 0
 
     def __iter__(self):
@@ -31,12 +33,13 @@ class UniqueEntryNameGenerator(object):
         self.__counter += 1
         return self.__prefix + str(self.__counter)
 
+
 def setUpModule():
 
-    global uri
-    global cluster
-    global __clusterd
-    global entry_gen
+    global uri  # pylint: disable=W0601
+    global cluster  # pylint: disable=W0601
+    global __clusterd  # pylint: disable=W0601
+    global entry_gen  # pylint: disable=W0601
 
     entry_gen = UniqueEntryNameGenerator()
 
@@ -44,11 +47,13 @@ def setUpModule():
     uri = ""
 
     # don't save anything to disk
-    __clusterd = subprocess.Popen([os.path.join('.', 'qdbd'), '--address=127.0.0.1:' + str(__current_port), '--transient'])
+    __clusterd = subprocess.Popen([os.path.join(
+        '.', 'qdbd'), '--address=127.0.0.1:' + str(__current_port), '--transient'])
     if __clusterd.pid == 0:
         raise Exception("daemon", "cannot run daemon")
 
-    # startup may take a couple of seconds, temporize to make sure the connection will be accepted
+    # startup may take a couple of seconds, temporize to make sure the
+    # connection will be accepted
     time.sleep(2)
 
     __clusterd.poll()
@@ -63,44 +68,62 @@ def setUpModule():
     try:
         cluster = quasardb.Cluster(uri, datetime.timedelta(minutes=2))
 
-    except quasardb.QuasardbException, q:
+    except quasardb.QuasardbException:
         __clusterd.terminate()
         __clusterd.wait()
         raise
 
-    except BaseException, e:
+    except BaseException:
         __clusterd.terminate()
         __clusterd.wait()
         raise
+
 
 def tearDownModule():
     __clusterd.terminate()
     __clusterd.wait()
 
-class QuasardbTest(unittest.TestCase):
 
+class QuasardbTest(unittest.TestCase):
     pass
+
 
 class QuasardbBasic(QuasardbTest):
     """
     Basic operations tests such as put/get/remove
     """
-    def test_info(self):
-        str = quasardb.build()
-        self.assertGreater(len(str), 0)
-        str = quasardb.version()
-        self.assertGreater(len(str), 0)
 
-    def test_trim_all(self):
-        cluster.trim_all(60)
+    def test_info(self):
+        ''' Checks build and version information. '''
+
+        build = quasardb.build()
+        self.assertGreater(len(build), 0)
+        version = quasardb.version()
+        self.assertGreater(len(version), 0)
+
+    def test_trim_all_at_begin(self):
+        try:
+            cluster.trim_all(datetime.timedelta(minutes=1))
+        except quasardb.QuasardbException:
+            self.fail('cluster::trim_all raised an unexpected exception')
 
     def test_duration_converter(self):
-        self.assertEqual(24 * 3600 * 1000, quasardb._duration_to_timeout_ms(datetime.timedelta(days=1)))
-        self.assertEqual(3600 * 1000, quasardb._duration_to_timeout_ms(datetime.timedelta(hours=1)))
-        self.assertEqual(60 * 1000, quasardb._duration_to_timeout_ms(datetime.timedelta(minutes=1)))
-        self.assertEqual(1000, quasardb._duration_to_timeout_ms(datetime.timedelta(seconds=1)))
-        self.assertEqual(1, quasardb._duration_to_timeout_ms(datetime.timedelta(milliseconds=1)))
-        self.assertEqual(0, quasardb._duration_to_timeout_ms(datetime.timedelta(microseconds=1)))
+        '''
+        Test conversion of time durations.
+        '''
+
+        self.assertEqual(
+            24 * 3600 * 1000, quasardb._duration_to_timeout_ms(datetime.timedelta(days=1)))
+        self.assertEqual(
+            3600 * 1000, quasardb._duration_to_timeout_ms(datetime.timedelta(hours=1)))
+        self.assertEqual(
+            60 * 1000, quasardb._duration_to_timeout_ms(datetime.timedelta(minutes=1)))
+        self.assertEqual(1000, quasardb._duration_to_timeout_ms(
+            datetime.timedelta(seconds=1)))
+        self.assertEqual(1, quasardb._duration_to_timeout_ms(
+            datetime.timedelta(milliseconds=1)))
+        self.assertEqual(0, quasardb._duration_to_timeout_ms(
+            datetime.timedelta(microseconds=1)))
 
     def test_time(self):
         time_no_tz = datetime.datetime.now()
@@ -131,7 +154,8 @@ class QuasardbBasic(QuasardbTest):
         cluster.set_timeout(datetime.timedelta(milliseconds=1))
 
         # 1 us not ok, timeout must be in milliseconds
-        self.assertRaises(quasardb.QuasardbException, cluster.set_timeout, datetime.timedelta(microseconds=1))
+        self.assertRaises(quasardb.QuasardbException,
+                          cluster.set_timeout, datetime.timedelta(microseconds=1))
 
     def test_put_get_and_remove(self):
         entry_name = entry_gen.next()
@@ -164,7 +188,7 @@ class QuasardbBasic(QuasardbTest):
         self.assertEqual(got, entry_content)
         b.remove()
 
-        entry_content = ''.join('%c' % x for x in range(0,256))
+        entry_content = ''.join('%c' % x for x in range(0, 256))
         self.assertEqual(len(entry_content), 256)
 
         b.update(entry_content)
@@ -209,7 +233,8 @@ class QuasardbBasic(QuasardbTest):
         b.put(entry_content)
         got = b.get()
         self.assertEqual(got, entry_content)
-        self.assertRaises(quasardb.QuasardbException, b.remove_if, entry_content + 'a')
+        self.assertRaises(quasardb.QuasardbException,
+                          b.remove_if, entry_content + 'a')
         got = b.get()
         self.assertEqual(got, entry_content)
         b.remove_if(entry_content)
@@ -240,10 +265,15 @@ class QuasardbBasic(QuasardbTest):
 
     def test_purge_all(self):
         # disabled by default, must raise an exception
-        self.assertRaises(quasardb.QuasardbException, cluster.purge_all, datetime.timedelta(minutes=1))
+        self.assertRaises(quasardb.QuasardbException,
+                          cluster.purge_all, datetime.timedelta(minutes=1))
 
-    def test_trim_all(self):
-        cluster.trim_all(datetime.timedelta(minutes=1))
+    def test_trim_all_at_end(self):
+        try:
+            cluster.trim_all(datetime.timedelta(minutes=1))
+        except quasardb.QuasardbException:
+            self.fail('cluster::trim_all raised an unexpected exception')
+
 
 class QuasardbScan(QuasardbTest):
 
@@ -270,7 +300,7 @@ class QuasardbScan(QuasardbTest):
 
         blobs = []
 
-        for i in range(0, 10):
+        for _ in range(0, 10):
             entry_name = entry_gen.next()
             b = cluster.blob(entry_name)
             b.put(entry_content)
@@ -294,7 +324,7 @@ class QuasardbScan(QuasardbTest):
         b = cluster.blob(entry_name)
         b.put(entry_content)
 
-        res = cluster.blob_scan_regex("ScanRegexW.ll.*", 1000);
+        res = cluster.blob_scan_regex("ScanRegexW.ll.*", 1000)
 
         self.assertEqual(1, len(res))
         self.assertEqual(entry_name, res[0])
@@ -306,18 +336,19 @@ class QuasardbScan(QuasardbTest):
 
         blobs = []
 
-        for i in range(0, 10):
+        for _ in range(0, 10):
             entry_name = entry_gen.next()
             b = cluster.blob(entry_name)
             b.put(entry_content)
             blobs.append(b)
 
-        res = cluster.blob_scan_regex("ScanRegexW.ll.*", 5);
+        res = cluster.blob_scan_regex("ScanRegexW.ll.*", 5)
 
         self.assertEqual(5, len(res))
 
         for b in blobs:
             b.remove()
+
 
 class QuasardbInteger(QuasardbTest):
 
@@ -378,6 +409,7 @@ class QuasardbInteger(QuasardbTest):
         self.assertEqual(got, entry_value + entry_increment + entry_decrement)
 
         i.remove()
+
 
 class QuasardbDeque(QuasardbTest):
 
@@ -457,6 +489,7 @@ class QuasardbDeque(QuasardbTest):
         self.assertRaises(quasardb.QuasardbException, q.front)
         self.assertRaises(quasardb.QuasardbException, q.back)
 
+
 class QuasardbHSet(QuasardbTest):
 
     def test_insert_erase_contains(self):
@@ -467,11 +500,13 @@ class QuasardbHSet(QuasardbTest):
         hset = cluster.hset(entry_name)
 
         # does not exist yet
-        self.assertRaises(quasardb.QuasardbException, hset.contains, entry_content)
+        self.assertRaises(quasardb.QuasardbException,
+                          hset.contains, entry_content)
 
         hset.insert(entry_content)
 
-        self.assertRaises(quasardb.QuasardbException, hset.insert, entry_content)
+        self.assertRaises(quasardb.QuasardbException,
+                          hset.insert, entry_content)
 
         self.assertTrue(hset.contains(entry_content))
 
@@ -485,13 +520,15 @@ class QuasardbHSet(QuasardbTest):
 
         hset.erase(entry_content)
 
-        self.assertRaises(quasardb.QuasardbException, hset.erase, entry_content)
+        self.assertRaises(quasardb.QuasardbException,
+                          hset.erase, entry_content)
 
 
 class QuasardbInfo(QuasardbTest):
     """
     Tests the json information string query
     """
+
     def test_node_status(self):
         status = cluster.node_status(uri)
         self.assertGreater(len(status), 0)
@@ -500,9 +537,8 @@ class QuasardbInfo(QuasardbTest):
         config = cluster.node_config(uri)
         self.assertGreater(len(config), 0)
 
+
 class QuasardbTag(QuasardbTest):
-    """
-    """
 
     def test_get_entries(self):
         entry_name = entry_gen.next()
@@ -558,6 +594,7 @@ class QuasardbTag(QuasardbTest):
         entries = t.get_entries()
         self.assertEqual(0, len(entries))
 
+
 class QuasardbTimeSeries(QuasardbTest):
 
     def __generate_double_ts(self, start_time, start_val, count):
@@ -565,7 +602,7 @@ class QuasardbTimeSeries(QuasardbTest):
 
         step = datetime.timedelta(microseconds=1)
 
-        for i in range(0, count):
+        for _ in range(0, count):
             result.append((start_time, start_val))
             start_time += step
             start_val += 1.0
@@ -577,7 +614,7 @@ class QuasardbTimeSeries(QuasardbTest):
 
         step = datetime.timedelta(microseconds=1)
 
-        for i in range(0, count):
+        for _ in range(0, count):
             result.append((start_time, "1911"))
             start_time += step
 
@@ -609,7 +646,8 @@ class QuasardbTimeSeries(QuasardbTest):
 
         my_ts = cluster.ts(entry_name)
 
-        cols = my_ts.create([quasardb.TimeSeries.DoubleColumnInfo(entry_gen.next()), quasardb.TimeSeries.BlobColumnInfo(entry_gen.next())])
+        cols = my_ts.create([quasardb.TimeSeries.DoubleColumnInfo(
+            entry_gen.next()), quasardb.TimeSeries.BlobColumnInfo(entry_gen.next())])
         self.assertEqual(2, len(cols))
 
         return (my_ts, cols[0], cols[1])
@@ -627,9 +665,15 @@ class QuasardbTimeSeries(QuasardbTest):
 
         start_time = datetime.datetime.now(quasardb.tz)
 
-        self.assertRaises(quasardb.QuasardbException, double_col.insert, [(start_time, 1.0)])
-        self.assertRaises(quasardb.QuasardbException, double_col.get_ranges, [(start_time, start_time + datetime.timedelta(microseconds=1))])
-        self.assertRaises(quasardb.QuasardbException, double_col.aggregate, quasardb.TimeSeries.Aggregation.sum, [(start_time, start_time + datetime.timedelta(microseconds=1))])
+        self.assertRaises(quasardb.QuasardbException,
+                          double_col.insert, [(start_time, 1.0)])
+        self.assertRaises(quasardb.QuasardbException,
+                          double_col.get_ranges,
+                          [(start_time, start_time + datetime.timedelta(microseconds=1))])
+        self.assertRaises(quasardb.QuasardbException,
+                          double_col.aggregate,
+                          quasardb.TimeSeries.Aggregation.sum,
+                          [(start_time, start_time + datetime.timedelta(microseconds=1))])
 
     def test_creation_multiple(self):
         (my_ts, double_col, blob_col) = self.__create_ts()
@@ -638,56 +682,70 @@ class QuasardbTimeSeries(QuasardbTest):
         self.assertEqual(2, len(col_list))
 
         self.assertEqual(col_list[0].name, double_col.name())
-        self.assertEqual(col_list[0].type, quasardb.TimeSeries.ColumnType.double)
+        self.assertEqual(col_list[0].type,
+                         quasardb.TimeSeries.ColumnType.double)
         self.assertEqual(col_list[1].name, blob_col.name())
         self.assertEqual(col_list[1].type, quasardb.TimeSeries.ColumnType.blob)
 
         # invalid columinfo
-        self.assertRaises(quasardb.QuasardbException, my_ts.column, quasardb.TimeSeries.ColumnInfo(double_col.name(), quasardb.TimeSeries.ColumnType.uninitialized))
+        self.assertRaises(quasardb.QuasardbException, my_ts.column, quasardb.TimeSeries.ColumnInfo(
+            double_col.name(), quasardb.TimeSeries.ColumnType.uninitialized))
 
         # cannot double create
-        self.assertRaises(quasardb.QuasardbException, my_ts.create, [quasardb.TimeSeries.DoubleColumnInfo(entry_gen.next())])
+        self.assertRaises(quasardb.QuasardbException, my_ts.create, [
+                          quasardb.TimeSeries.DoubleColumnInfo(entry_gen.next())])
 
-    @unittest.skip("bug in quasardb: internal remote error when getting the ranges")
-    def test_double_get_range(self):
+    def test_double_get_ranges(self):
         (my_ts, double_col, blob_col) = self.__create_ts()
 
         start_time = datetime.datetime.now(quasardb.tz)
 
         # empty result: nothing inserted
-        results = double_col.get_ranges([(start_time, start_time + datetime.timedelta(microseconds=10))])
+        results = double_col.get_ranges(
+            [(start_time, start_time + datetime.timedelta(microseconds=10))])
         self.assertEqual(0, len(results))
 
         inserted_double_data = self.__generate_double_ts(start_time, 1.0, 1000)
         double_col.insert(inserted_double_data)
 
-        results = double_col.get_ranges([(start_time, start_time + datetime.timedelta(microseconds=10))])
+        results = double_col.get_ranges(
+            [(start_time, start_time + datetime.timedelta(microseconds=10))])
 
         self.__check_double_ts(results, start_time, 1.0, 10)
 
-        results = double_col.get_ranges([(start_time, start_time + datetime.timedelta(microseconds=10)), (start_time + datetime.timedelta(microseconds=10), start_time + datetime.timedelta(microseconds=20))])
+        results = double_col.get_ranges(
+            [(start_time, start_time + datetime.timedelta(microseconds=10)),
+             (start_time + datetime.timedelta(microseconds=10),
+              start_time + datetime.timedelta(microseconds=20))])
 
         self.__check_double_ts(results, start_time, 1.0, 20)
 
         # empty result
         out_of_time = start_time + datetime.timedelta(hours=10)
-        results = double_col.get_ranges([(out_of_time, out_of_time + datetime.timedelta(microseconds=10))])
+        results = double_col.get_ranges(
+            [(out_of_time, out_of_time + datetime.timedelta(microseconds=10))])
         self.assertEqual(0, len(results))
 
         # error: column doesn't exist
-        wrong_col = my_ts.column(quasardb.TimeSeries.DoubleColumnInfo("lolilol"))
+        wrong_col = my_ts.column(
+            quasardb.TimeSeries.DoubleColumnInfo("lolilol"))
 
-        self.assertRaises(quasardb.QuasardbException, wrong_col.get_ranges, [(start_time, start_time + datetime.timedelta(microseconds=10))])
-        self.assertRaises(quasardb.QuasardbException, wrong_col.insert, inserted_double_data)
+        self.assertRaises(quasardb.QuasardbException, wrong_col.get_ranges, [
+                          (start_time, start_time + datetime.timedelta(microseconds=10))])
+        self.assertRaises(quasardb.QuasardbException,
+                          wrong_col.insert, inserted_double_data)
 
         # error: column of wrong type
-        wrong_col = my_ts.column(quasardb.TimeSeries.DoubleColumnInfo(blob_col.name()))
+        wrong_col = my_ts.column(
+            quasardb.TimeSeries.DoubleColumnInfo(blob_col.name()))
 
-        self.assertRaises(quasardb.QuasardbException, wrong_col.get_ranges, [(start_time, start_time + datetime.timedelta(microseconds=10))])
-        self.assertRaises(quasardb.QuasardbException, wrong_col.insert, inserted_double_data)
+        self.assertRaises(quasardb.QuasardbException, wrong_col.get_ranges, [
+                          (start_time, start_time + datetime.timedelta(microseconds=10))])
+        self.assertRaises(quasardb.QuasardbException,
+                          wrong_col.insert, inserted_double_data)
 
     def test_aggregation(self):
-        (my_ts, double_col, blob_col) = self.__create_ts()
+        (_, double_col, blob_col) = self.__create_ts()
         start_time = datetime.datetime.now(quasardb.tz)
 
         inserted_double_data = self.__generate_double_ts(start_time, 1.0, 10)
@@ -698,13 +756,15 @@ class QuasardbTimeSeries(QuasardbTest):
         double_col.insert(inserted_double_data)
         blob_col.insert(inserted_blob_data)
 
-        test_intervals = [(start_time, start_time + datetime.timedelta(microseconds=10))]
+        test_intervals = [
+            (start_time, start_time + datetime.timedelta(microseconds=10))]
 
         computed_sum = reduce(lambda x, y: x + y, inserted_double_col, 0.0)
         computed_count = len(inserted_double_data)
 
         # first
-        agg_res = double_col.aggregate(quasardb.TimeSeries.Aggregation.first, test_intervals)
+        agg_res = double_col.aggregate(
+            quasardb.TimeSeries.Aggregation.first, test_intervals)
 
         self.assertEqual(1, len(agg_res))
         self.assertEqual(agg_res[0].range, test_intervals[0])
@@ -712,10 +772,13 @@ class QuasardbTimeSeries(QuasardbTest):
         self.assertEqual(agg_res[0].value, inserted_double_data[0][1])
 
         # unsupported for blob?
-        # self.assertRaises(quasardb.QuasardbException, blob_col.aggregate, quasardb.TimeSeries.Aggregation.first, test_intervals)
+        # self.assertRaises(quasardb.QuasardbException,
+        #                   blob_col.aggregate,
+        # quasardb.TimeSeries.Aggregation.first, test_intervals)
 
         # last
-        agg_res = double_col.aggregate(quasardb.TimeSeries.Aggregation.last, test_intervals)
+        agg_res = double_col.aggregate(
+            quasardb.TimeSeries.Aggregation.last, test_intervals)
 
         self.assertEqual(1, len(agg_res))
         self.assertEqual(agg_res[0].range, test_intervals[-1])
@@ -723,10 +786,13 @@ class QuasardbTimeSeries(QuasardbTest):
         self.assertEqual(agg_res[0].value, inserted_double_data[-1][1])
 
         # unsupported for blob?
-        # self.assertRaises(quasardb.QuasardbException, blob_col.aggregate, quasardb.TimeSeries.Aggregation.first, test_intervals)
+        # self.assertRaises(quasardb.QuasardbException,
+        #                   blob_col.aggregate,
+        # quasardb.TimeSeries.Aggregation.first, test_intervals)
 
         # min
-        agg_res = double_col.aggregate(quasardb.TimeSeries.Aggregation.min, test_intervals)
+        agg_res = double_col.aggregate(
+            quasardb.TimeSeries.Aggregation.min, test_intervals)
 
         self.assertEqual(1, len(agg_res))
         self.assertEqual(agg_res[0].range, test_intervals[0])
@@ -742,10 +808,13 @@ class QuasardbTimeSeries(QuasardbTest):
         self.assertEqual(agg_res[0].value, min(inserted_double_data)[1])
 
         # unsupported for blob?
-        # self.assertRaises(quasardb.QuasardbException, blob_col.aggregate, quasardb.TimeSeries.Aggregation.first, test_intervals)
+        # self.assertRaises(quasardb.QuasardbException,
+        #                   blob_col.aggregate,
+        # quasardb.TimeSeries.Aggregation.first, test_intervals)
 
         # max
-        agg_res = double_col.aggregate(quasardb.TimeSeries.Aggregation.max, test_intervals)
+        agg_res = double_col.aggregate(
+            quasardb.TimeSeries.Aggregation.max, test_intervals)
 
         self.assertEqual(1, len(agg_res))
         self.assertEqual(agg_res[0].range, test_intervals[0])
@@ -780,80 +849,117 @@ class QuasardbTimeSeries(QuasardbTest):
      #   self.assertEqual(agg_res[0].value, numpy.std(inserted_double_col))
 
         # unsupported for blob?
-        # self.assertRaises(quasardb.QuasardbException, blob_col.aggregate, quasardb.TimeSeries.Aggregation.first, test_intervals)
+        # self.assertRaises(quasardb.QuasardbException,
+        #                   blob_col.aggregate,
+        # quasardb.TimeSeries.Aggregation.first, test_intervals)
 
         # average
-        agg_res = double_col.aggregate(quasardb.TimeSeries.Aggregation.average, test_intervals)
+        agg_res = double_col.aggregate(
+            quasardb.TimeSeries.Aggregation.average, test_intervals)
 
         self.assertEqual(1, len(agg_res))
         self.assertEqual(agg_res[0].range, test_intervals[0])
         self.assertEqual(agg_res[0].value, computed_sum / computed_count)
 
         # unsupported for blob?
-        #self.assertRaises(quasardb.QuasardbException, blob_col.aggregate, quasardb.TimeSeries.Aggregation.first, test_intervals)
+        # self.assertRaises(quasardb.QuasardbException,
+        #                   blob_col.aggregate,
+        # quasardb.TimeSeries.Aggregation.first, test_intervals)
 
         # count
-        agg_res = double_col.aggregate(quasardb.TimeSeries.Aggregation.count, test_intervals)
+        agg_res = double_col.aggregate(
+            quasardb.TimeSeries.Aggregation.count, test_intervals)
 
         self.assertEqual(1, len(agg_res))
         self.assertEqual(agg_res[0].range, test_intervals[0])
         self.assertEqual(agg_res[0].value, computed_count)
 
-        agg_res = blob_col.aggregate(quasardb.TimeSeries.Aggregation.count, test_intervals)
+        agg_res = blob_col.aggregate(
+            quasardb.TimeSeries.Aggregation.count, test_intervals)
 
         self.assertEqual(1, len(agg_res))
         self.assertEqual(agg_res[0].range, test_intervals[0])
         self.assertEqual(agg_res[0].value, len(inserted_blob_data))
 
         # sum
-        agg_res = double_col.aggregate(quasardb.TimeSeries.Aggregation.sum, test_intervals)
+        agg_res = double_col.aggregate(
+            quasardb.TimeSeries.Aggregation.sum, test_intervals)
 
         self.assertEqual(1, len(agg_res))
         self.assertEqual(agg_res[0].range, test_intervals[0])
         self.assertEqual(agg_res[0].value, computed_sum)
         # unsupported for blob?
-        # self.assertRaises(quasardb.QuasardbException, blob_col.aggregate, quasardb.TimeSeries.Aggregation.first, test_intervals)
+        # self.assertRaises(quasardb.QuasardbException, blob_col.aggregate,
+        # quasardb.TimeSeries.Aggregation.first, test_intervals)
 
-    @unittest.skip("bug in quasardb: internal remote error when getting the ranges")
-    def test_blob_get_range(self):
+    def test_blob_get_ranges(self):
         (my_ts, double_col, blob_col) = self.__create_ts()
 
         start_time = datetime.datetime.now(quasardb.tz)
 
         # empty result: nothing inserted
-        results = blob_col.get_ranges([(start_time, start_time + datetime.timedelta(microseconds=10))])
+        results = blob_col.get_ranges(
+            [(start_time, start_time + datetime.timedelta(microseconds=10))])
         self.assertEqual(0, len(results))
 
         inserted_blob_data = self.__generate_blob_ts(start_time, 20)
         blob_col.insert(inserted_blob_data)
 
-        results = blob_col.get_ranges([(start_time, start_time + datetime.timedelta(microseconds=10))])
+        results = blob_col.get_ranges(
+            [(start_time, start_time + datetime.timedelta(microseconds=10))])
 
         self.__check_blob_ts(results, start_time, 10)
 
-        results = blob_col.get_ranges([(start_time, start_time + datetime.timedelta(microseconds=10)), (start_time + datetime.timedelta(microseconds=10), start_time + datetime.timedelta(microseconds=20))])
+        results = blob_col.get_ranges(
+            [(start_time, start_time + datetime.timedelta(microseconds=10)),
+             (start_time + datetime.timedelta(microseconds=10),
+              start_time + datetime.timedelta(microseconds=20))])
 
         self.__check_blob_ts(results, start_time, 20)
 
         # empty result
         out_of_time = start_time + datetime.timedelta(hours=10)
-        results = double_col.get_ranges([(out_of_time, out_of_time + datetime.timedelta(microseconds=10))])
+        results = blob_col.get_ranges(
+            [(out_of_time, out_of_time + datetime.timedelta(microseconds=10))])
         self.assertEqual(0, len(results))
 
         # error: column doesn't exist
         wrong_col = my_ts.column(quasardb.TimeSeries.BlobColumnInfo("lolilol"))
 
-        self.assertRaises(quasardb.QuasardbException, wrong_col.get_ranges, [(start_time, start_time + datetime.timedelta(microseconds=10))])
-        self.assertRaises(quasardb.QuasardbException, wrong_col.insert, inserted_blob_data)
+        self.assertRaises(quasardb.QuasardbException, wrong_col.get_ranges, [
+                          (start_time, start_time + datetime.timedelta(microseconds=10))])
+        self.assertRaises(quasardb.QuasardbException,
+                          wrong_col.insert, inserted_blob_data)
 
         # error: column of wrong type
-        wrong_col = my_ts.column(quasardb.TimeSeries.BlobColumnInfo(double_col.name()))
+        wrong_col = my_ts.column(
+            quasardb.TimeSeries.BlobColumnInfo(double_col.name()))
 
-        self.assertRaises(quasardb.QuasardbException, wrong_col.get_ranges, [(start_time, start_time + datetime.timedelta(microseconds=10))])
-        self.assertRaises(quasardb.QuasardbException, wrong_col.insert, inserted_blob_data)
+        self.assertRaises(quasardb.QuasardbException, wrong_col.get_ranges, [
+                          (start_time, start_time + datetime.timedelta(microseconds=10))])
+        self.assertRaises(quasardb.QuasardbException,
+                          wrong_col.insert, inserted_blob_data)
+
+    def test_blob_get_ranges_double_column(self):
+        (_, double_col, _) = self.__create_ts()
+        start_time = datetime.datetime.now(quasardb.tz)
+
+        out_of_time = start_time + datetime.timedelta(hours=10)
+        results = double_col.get_ranges(
+            [(out_of_time, out_of_time + datetime.timedelta(microseconds=10))])
+        self.assertEqual(0, len(results))
+
+    def test_double_get_ranges_blob_column(self):
+        (_, _, blob_col) = self.__create_ts()
+        start_time = datetime.datetime.now(quasardb.tz)
+
+        out_of_time = start_time + datetime.timedelta(hours=10)
+        results = blob_col.get_ranges(
+            [(out_of_time, out_of_time + datetime.timedelta(microseconds=10))])
+        self.assertEqual(0, len(results))
+
 
 class QuasardbQuery(QuasardbTest):
-
 
     def test_types(self):
 
@@ -908,6 +1014,7 @@ class QuasardbQuery(QuasardbTest):
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0], entry_name)
 
+
 class QuasardbPrefix(QuasardbTest):
 
     def test_empty_prefix(self):
@@ -919,7 +1026,7 @@ class QuasardbPrefix(QuasardbTest):
 
     def test_find_one(self):
         dat_prefix = "my_dark_prefix"
-        entry_name =  dat_prefix + entry_gen.next()
+        entry_name = dat_prefix + entry_gen.next()
         entry_content = "content"
 
         b = cluster.blob(entry_name)
@@ -930,6 +1037,7 @@ class QuasardbPrefix(QuasardbTest):
         self.assertEqual(res[0], entry_name)
 
         self.assertEqual(1, cluster.prefix_count(dat_prefix))
+
 
 class QuasardbSuffix(QuasardbTest):
 
@@ -955,6 +1063,7 @@ class QuasardbSuffix(QuasardbTest):
 
         self.assertEqual(1, cluster.suffix_count(dat_suffix))
 
+
 class QuasardbExpiry(QuasardbTest):
 
     def __make_expiry_time(self, td):
@@ -965,8 +1074,10 @@ class QuasardbExpiry(QuasardbTest):
 
     def test_expires_at(self):
         """
-        Test for expiry. We want to make sure, in particular, that the conversion from Python datetime is right.
+        Test for expiry.
+        We want to make sure, in particular, that the conversion from Python datetime is right.
         """
+
         # add one entry
         entry_name = entry_gen.next()
         entry_content = "content"
@@ -1014,11 +1125,14 @@ class QuasardbExpiry(QuasardbTest):
         future_exp_ms = future_exp * 1000
         b.expires_from_now(future_exp_ms)
 
-        # We use a wide 10 se interval for the check because we have no idea at which speed these tests
-        # may run in debug, this will be enough however to check that the interval has properly been converted
-        # and the time zone is correct
-        future_exp_lower_bound = datetime.datetime.now(quasardb.tz) + datetime.timedelta(seconds=future_exp-10)
-        future_exp_higher_bound = future_exp_lower_bound + datetime.timedelta(seconds=future_exp+10)
+        # We use a wide 10s interval for the check, because we have no idea at which speed
+        # these tests may run in debug. This will be enough however to check that
+        # the interval has properly been converted and the time zone is
+        # correct.
+        future_exp_lower_bound = datetime.datetime.now(
+            quasardb.tz) + datetime.timedelta(seconds=future_exp - 10)
+        future_exp_higher_bound = future_exp_lower_bound + \
+            datetime.timedelta(seconds=future_exp + 10)
 
         exp = b.get_expiry_time()
         self.assertNotEqual(exp.tzinfo, None)
@@ -1083,4 +1197,5 @@ class QuasardbExpiry(QuasardbTest):
 
 if __name__ == '__main__':
     import xmlrunner
-    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'))()
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(  # pylint: disable=E1102
+        output='test-reports'))()
