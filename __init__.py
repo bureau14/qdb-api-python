@@ -998,7 +998,7 @@ class Blob(ExpirableEntry):
 
 class Cluster(object):
 
-    def __init__(self, uri, timeout, *args, **kwargs):  # pylint: disable=W0613
+    def __init__(self, uri, timeout=None, *args, **kwargs):  # pylint: disable=W0613
         """
         Creates the raw client.
         Connection is delayed until the client is actually used.
@@ -1013,6 +1013,9 @@ class Cluster(object):
             :raises: QuasardbException
         """
         err = make_error_carrier()
+
+        if timeout is None:
+            timeout = datetime.timedelta(minutes=1)
 
         timeout_value = _duration_to_timeout_ms(timeout)
         if timeout_value == 0:
