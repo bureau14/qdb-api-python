@@ -150,14 +150,23 @@ enum qdb_ts_aggregation_type_t
     qdb_agg_last = 1,
     qdb_agg_min = 2,
     qdb_agg_max = 3,
-    qdb_agg_average = 4,
-    qdb_agg_count = 5,
-    qdb_agg_sum = 6,
-    qdb_agg_spread = 7,
-    qdb_agg_variance = 8,
-    qdb_agg_stddev = 9,
-    qdb_agg_abs_min = 10,
-    qdb_agg_abs_max = 11
+    qdb_agg_arithmetic_mean = 4,
+    qdb_agg_harmonic_mean = 5,
+    qdb_agg_geometric_mean = 6,
+    qdb_agg_quadratic_mean = 7,
+    qdb_agg_count = 8,
+    qdb_agg_sum = 9,
+    qdb_agg_sum_of_squares = 10,
+    qdb_agg_spread = 11,
+    qdb_agg_sample_variance = 12,
+    qdb_agg_sample_stddev = 13,
+    qdb_agg_population_variance = 14,
+    qdb_agg_population_stddev = 15,
+    qdb_agg_abs_min = 16,
+    qdb_agg_abs_max = 17,
+    qdb_agg_product = 18,
+    qdb_agg_skewness = 19,
+    qdb_agg_kurtosis = 20
 };
 
 enum qdb_ts_column_type_t

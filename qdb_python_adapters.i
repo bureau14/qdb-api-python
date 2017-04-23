@@ -332,15 +332,10 @@ struct range_to_agg
     }
 };
 
-std::vector<qdb_ts_aggregation_t> ts_double_aggregation(handle_ptr h, const char * alias, const char * column, qdb_ts_aggregation_type_t type,
-    const std::vector<qdb_ts_range_t> & ranges, error_carrier * error)
+void ts_double_aggregation(handle_ptr h, const char * alias, const char * column, 
+    std::vector<qdb_ts_aggregation_t> & ranges, error_carrier * error)
 {
-    std::vector<qdb_ts_aggregation_t> params(ranges.size());
-
-    std::transform(ranges.begin(), ranges.end(), params.begin(), range_to_agg());
-
-    error->error = qdb_ts_aggregate(*h, alias, column, type, &params[0], params.size());
-    return params;
+    error->error = qdb_ts_aggregate(*h, alias, column, &ranges[0], ranges.size());
 }
 
 }

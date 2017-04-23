@@ -69,6 +69,7 @@ typedef struct
 
 typedef struct qdb_ts_aggregation
 {
+    qdb_ts_aggregation_type_t type;
     qdb_ts_range_t range;
     qdb_ts_double_point result;
 } qdb_ts_aggregation_t;

@@ -113,7 +113,11 @@ col1.insert([(datetime.datetime.now(quasardb.tz), 1.0)])
 
 # get the average for multiple intervals
 # assuming start_time1, end_time1 are datetime.datetime objects
-avg = col1.aggregate(quasardb.TimeSeries.Aggregation.average, [(start_time1, end_time1), (start_time2, end_time2)])
+agg = quasardb.TimeSeries.Aggregations()
+agg.append(quasardb.TimeSeries.Aggregation.arithmetic_mean, (start_time1, end_time1))
+agg.append(quasardb.TimeSeries.Aggregation.arithmetic_mean, (start_time2, end_time2))
+
+avg = col1.aggregate(agg)
 
 # avg[0].value has the average for the first interval
 # avg[1].value has the average for the second interval

@@ -136,19 +136,15 @@ class TimeZone(datetime.tzinfo):
 
 tz = TimeZone()
 
-
 def _time_to_unix_timestamp(t, tz_offset):
     return long(time.mktime((t.year, t.month, t.day, t.hour, t.minute, t.second, -1, -1, 0))) \
         - tz_offset
 
-
 def _time_to_qdb_timestamp(t, tz_offset):
     return _time_to_unix_timestamp(t, tz_offset) * 1000 + (t.microsecond / 1000)
 
-
 def _convert_expiry_time(expiry_time):
     return _time_to_qdb_timestamp(expiry_time, time.timezone) if expiry_time != None else long(0)
-
 
 def _convert_time_couples_to_qdb_range_t_vector(time_couples):
     vec = impl.RangeVec()
@@ -629,16 +625,66 @@ class TimeSeries(RemoveableEntry):
     Aggregation = TSAggregation
     ColumnType = TSColumnType
 
-    class AggregationResult(object):
+    class AggregationResult:
         """
         An aggregation result holding the range on which the aggregation was perfomed,
         the result value as well as the timestamp if it applies.
         """
 
-        def __init__(self, r, ts, value):
+        def __init__(self, t, r, ts, value):
+            self.type = t
             self.range = r
             self.timestamp = ts
             self.value = value
+
+    class Aggregations:
+        """
+        A list of aggregations
+        """
+
+        def __init__(self, size=0):
+            self.__aggregations = impl.AggVec()
+            self.__aggregations.reserve(size)
+
+        def append(self, agg_type, time_couple):
+            """
+            Appends an aggregation
+
+            :param agg_type: the type of aggregation
+            :type agg_type: TimeSeries.Aggregation
+
+            :param time_couple: the interval on which to perform the aggregation
+            :type time_couple: a couple of datetime.datetime
+            """
+            agg = impl.qdb_ts_aggregation_t()
+
+            agg.result.value = 0.0
+            agg.type = agg_type
+
+            tz_offset = time.timezone
+
+            agg.range.begin.tv_sec = _time_to_unix_timestamp(time_couple[0], tz_offset)
+            agg.range.begin.tv_nsec = time_couple[0].microsecond * 1000
+            agg.range.end.tv_sec = _time_to_unix_timestamp(time_couple[1], tz_offset)
+            agg.range.end.tv_nsec = time_couple[1].microsecond * 1000
+
+            self.__aggregations.push_back(agg)
+
+        def __getitem__(self, index):
+            if self.__aggregations.size() <= index:
+                raise IndexError()
+
+            agg = self.__aggregations[index]
+            return TimeSeries.AggregationResult(agg.type, 
+                _convert_qdb_range_t_to_time_couple(agg.range), 
+                _convert_qdb_timespec_to_time(agg.result.timestamp),
+                 agg.result.value)
+
+        def __len__(self):
+            return self.__aggregations.size()
+
+        def cpp_struct(self):
+            return self.__aggregations
 
     class ColumnInfo(object):
         """
@@ -689,31 +735,25 @@ class TimeSeries(RemoveableEntry):
             """
             return self.__col_name
 
-        def aggregate(self, agg_type, intervals):
+        def aggregate(self, aggregations):
             """
             Aggregates values over the given intervals
 
-            :param agg_type: The aggregation type
-            :type agg_type: A value from TimeSeries.Aggregation
-            :param intervals: The ranges on which to perform the aggregations
-            :type intervals: a list of datetime.datetime couples
+            :param aggregations: The aggregations to perform
+            :type aggregations: a list of datetime.datetime couples
 
             :raises: QuasardbException
             :returns: The list of aggregation results
             """
             error_carrier = make_error_carrier()
 
-            res = self.call_ts_fun(impl.ts_double_aggregation, agg_type,
-                                   _convert_time_couples_to_qdb_range_t_vector(
-                                       intervals),
+            res = self.call_ts_fun(impl.ts_double_aggregation, aggregations.cpp_struct(),
                                    error_carrier)
+
             if error_carrier.error != impl.error_ok:
                 raise QuasardbException(error_carrier.error)
 
-            return [TimeSeries.AggregationResult(
-                _convert_qdb_range_t_to_time_couple(x.range),
-                _convert_qdb_timespec_to_time(x.result.timestamp),
-                x.result.value) for x in res]
+            return aggregations
 
     class DoubleColumn(Column):
         """
@@ -1031,6 +1071,21 @@ class Cluster(object):
         if self.handle != None:
             self.handle.close()
             self.handle = None
+
+    def set_max_cardinality(self, max_cardinality):
+        """
+        Sets the maximum allowed cardinality of a quasardb query.
+
+        The default values is 10,007. The minimum value is 1,000.
+
+        :param max_cardinality: The cardinality value
+        :type max_cardinality: long
+
+        :raises: QuasardbException
+        """
+        err = self.handle.set_max_cardinality(max_cardinality)
+        if err != impl.error_ok:
+            raise QuasardbException(err)
 
     def set_timeout(self, duration):
         """
