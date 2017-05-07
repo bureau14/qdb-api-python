@@ -324,18 +324,18 @@ std::vector<wrap_ts_blob_point> ts_blob_get_ranges(handle_ptr h, const char * al
 
 struct range_to_agg
 {
-    qdb_ts_aggregation_t operator()(const qdb_ts_range_t & t) const
+    qdb_ts_double_aggregation_t operator()(const qdb_ts_range_t & t) const
     {
-        qdb_ts_aggregation_t res;
+        qdb_ts_double_aggregation_t res;
         res.range = t;
         return res;
     }
 };
 
 void ts_double_aggregation(handle_ptr h, const char * alias, const char * column, 
-    std::vector<qdb_ts_aggregation_t> & ranges, error_carrier * error)
+    std::vector<qdb_ts_double_aggregation_t> & ranges, error_carrier * error)
 {
-    error->error = qdb_ts_aggregate(*h, alias, column, &ranges[0], ranges.size());
+    error->error = qdb_ts_double_aggregate(*h, alias, column, &ranges[0], ranges.size());
 }
 
 }

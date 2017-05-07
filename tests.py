@@ -672,7 +672,7 @@ class QuasardbTimeSeries(QuasardbTest):
                           double_col.get_ranges,
                           [(start_time, start_time + datetime.timedelta(microseconds=1))])
 
-        agg = quasardb.TimeSeries.Aggregations()
+        agg = quasardb.TimeSeries.DoubleAggregations()
         agg.append(quasardb.TimeSeries.Aggregation.sum, (start_time, start_time + datetime.timedelta(microseconds=1)))
 
         self.assertEqual(agg[0].type, quasardb.TimeSeries.Aggregation.sum)
@@ -754,7 +754,7 @@ class QuasardbTimeSeries(QuasardbTest):
         self.assertRaises(quasardb.QuasardbException,
                           wrong_col.insert, inserted_double_data)
 
-    def test_aggregation(self):
+    def test_double_aggregation(self):
         (_, double_col, blob_col) = self.__create_ts()
         start_time = datetime.datetime.now(quasardb.tz)
 
@@ -773,7 +773,7 @@ class QuasardbTimeSeries(QuasardbTest):
         computed_count = len(inserted_double_data)
 
         # first
-        agg = quasardb.TimeSeries.Aggregations()
+        agg = quasardb.TimeSeries.DoubleAggregations()
         agg.append(quasardb.TimeSeries.Aggregation.first, test_intervals[0])
 
         agg_res = double_col.aggregate(agg)
@@ -783,13 +783,8 @@ class QuasardbTimeSeries(QuasardbTest):
         self.assertEqual(agg_res[0].timestamp, inserted_double_data[0][0])
         self.assertEqual(agg_res[0].value, inserted_double_data[0][1])
 
-        # unsupported for blob?
-        # self.assertRaises(quasardb.QuasardbException,
-        #                   blob_col.aggregate,
-        # quasardb.TimeSeries.Aggregation.first, test_intervals)
-
         # last
-        agg = quasardb.TimeSeries.Aggregations()
+        agg = quasardb.TimeSeries.DoubleAggregations()
         agg.append(quasardb.TimeSeries.Aggregation.last, test_intervals[0])
 
         agg_res = double_col.aggregate(agg)
@@ -799,13 +794,8 @@ class QuasardbTimeSeries(QuasardbTest):
         self.assertEqual(agg_res[0].timestamp, inserted_double_data[-1][0])
         self.assertEqual(agg_res[0].value, inserted_double_data[-1][1])
 
-        # unsupported for blob?
-        # self.assertRaises(quasardb.QuasardbException,
-        #                   blob_col.aggregate,
-        # quasardb.TimeSeries.Aggregation.first, test_intervals)
-
         # min
-        agg = quasardb.TimeSeries.Aggregations()
+        agg = quasardb.TimeSeries.DoubleAggregations()
         agg.append(quasardb.TimeSeries.Aggregation.min, test_intervals[0])
         agg_res = double_col.aggregate(agg)
 
@@ -815,7 +805,7 @@ class QuasardbTimeSeries(QuasardbTest):
         self.assertEqual(agg_res[0].value, min(inserted_double_data)[1])
 
         # abs_min
-        agg = quasardb.TimeSeries.Aggregations()
+        agg = quasardb.TimeSeries.DoubleAggregations()
         agg.append(quasardb.TimeSeries.Aggregation.abs_min, test_intervals[0])
         agg_res = double_col.aggregate(agg)
 
@@ -824,13 +814,9 @@ class QuasardbTimeSeries(QuasardbTest):
         self.assertEqual(agg_res[0].timestamp, min(inserted_double_data)[0])
         self.assertEqual(agg_res[0].value, min(inserted_double_data)[1])
 
-        # unsupported for blob?
-        # self.assertRaises(quasardb.QuasardbException,
-        #                   blob_col.aggregate,
-        # quasardb.TimeSeries.Aggregation.first, test_intervals)
 
         # max
-        agg = quasardb.TimeSeries.Aggregations()
+        agg = quasardb.TimeSeries.DoubleAggregations()
         agg.append(quasardb.TimeSeries.Aggregation.max, test_intervals[0])
         agg_res = double_col.aggregate(agg)
 
@@ -840,7 +826,7 @@ class QuasardbTimeSeries(QuasardbTest):
         self.assertEqual(agg_res[0].value, max(inserted_double_data)[1])
 
         # abs_max
-        agg = quasardb.TimeSeries.Aggregations()
+        agg = quasardb.TimeSeries.DoubleAggregations()
         agg.append(quasardb.TimeSeries.Aggregation.abs_max, test_intervals[0])
         agg_res = double_col.aggregate(agg)
 
@@ -850,7 +836,7 @@ class QuasardbTimeSeries(QuasardbTest):
         self.assertEqual(agg_res[0].value, max(inserted_double_data)[1])
 
         # spread
-        agg = quasardb.TimeSeries.Aggregations()
+        agg = quasardb.TimeSeries.DoubleAggregations()
         agg.append(quasardb.TimeSeries.Aggregation.spread, test_intervals[0])
         agg_res = double_col.aggregate(agg)
 
@@ -859,7 +845,7 @@ class QuasardbTimeSeries(QuasardbTest):
         self.assertEqual(agg_res[0].value, max(inserted_double_data)[1] - min(inserted_double_data)[1])
 
         # variance
-        agg = quasardb.TimeSeries.Aggregations()
+        agg = quasardb.TimeSeries.DoubleAggregations()
         agg.append(quasardb.TimeSeries.Aggregation.sample_variance, test_intervals[0])
         agg_res = double_col.aggregate(agg)
         self.assertEqual(1, len(agg_res))
@@ -867,7 +853,7 @@ class QuasardbTimeSeries(QuasardbTest):
      #   self.assertEqual(agg_res[0].value, numpy.var(inserted_double_col))
 
         # standard deviation
-        agg = quasardb.TimeSeries.Aggregations()
+        agg = quasardb.TimeSeries.DoubleAggregations()
         agg.append(quasardb.TimeSeries.Aggregation.sample_stddev, test_intervals[0])
         agg_res = double_col.aggregate(agg)
 
@@ -875,13 +861,8 @@ class QuasardbTimeSeries(QuasardbTest):
         self.assertEqual(agg_res[0].range, test_intervals[0])
      #   self.assertEqual(agg_res[0].value, numpy.std(inserted_double_col))
 
-        # unsupported for blob?
-        # self.assertRaises(quasardb.QuasardbException,
-        #                   blob_col.aggregate,
-        # quasardb.TimeSeries.Aggregation.first, test_intervals)
-
         # average
-        agg = quasardb.TimeSeries.Aggregations()
+        agg = quasardb.TimeSeries.DoubleAggregations()
         agg.append(quasardb.TimeSeries.Aggregation.arithmetic_mean, test_intervals[0])
         agg_res = double_col.aggregate(agg)
 
@@ -889,13 +870,8 @@ class QuasardbTimeSeries(QuasardbTest):
         self.assertEqual(agg_res[0].range, test_intervals[0])
         self.assertEqual(agg_res[0].value, computed_sum / computed_count)
 
-        # unsupported for blob?
-        # self.assertRaises(quasardb.QuasardbException,
-        #                   blob_col.aggregate,
-        # quasardb.TimeSeries.Aggregation.first, test_intervals)
-
         # count
-        agg = quasardb.TimeSeries.Aggregations()
+        agg = quasardb.TimeSeries.DoubleAggregations()
         agg.append(quasardb.TimeSeries.Aggregation.count, test_intervals[0])
         agg_res = double_col.aggregate(agg)
 
@@ -903,23 +879,14 @@ class QuasardbTimeSeries(QuasardbTest):
         self.assertEqual(agg_res[0].range, test_intervals[0])
         self.assertEqual(agg_res[0].value, computed_count)
 
-        agg_res = blob_col.aggregate(agg)
-
-        self.assertEqual(1, len(agg_res))
-        self.assertEqual(agg_res[0].range, test_intervals[0])
-        self.assertEqual(agg_res[0].value, len(inserted_blob_data))
-
         # sum
-        agg = quasardb.TimeSeries.Aggregations()
+        agg = quasardb.TimeSeries.DoubleAggregations()
         agg.append(quasardb.TimeSeries.Aggregation.sum, test_intervals[0])
         agg_res = double_col.aggregate(agg)
 
         self.assertEqual(1, len(agg_res))
         self.assertEqual(agg_res[0].range, test_intervals[0])
         self.assertEqual(agg_res[0].value, computed_sum)
-        # unsupported for blob?
-        # self.assertRaises(quasardb.QuasardbException, blob_col.aggregate,
-        # quasardb.TimeSeries.Aggregation.first, test_intervals)
 
     def test_blob_get_ranges(self):
         (my_ts, double_col, blob_col) = self.__create_ts()

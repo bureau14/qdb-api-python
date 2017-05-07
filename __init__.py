@@ -637,13 +637,13 @@ class TimeSeries(RemoveableEntry):
             self.timestamp = ts
             self.value = value
 
-    class Aggregations:
+    class DoubleAggregations:
         """
-        A list of aggregations
+        A list of double aggregations
         """
 
         def __init__(self, size=0):
-            self.__aggregations = impl.AggVec()
+            self.__aggregations = impl.AggDoubleVec()
             self.__aggregations.reserve(size)
 
         def append(self, agg_type, time_couple):
@@ -656,7 +656,7 @@ class TimeSeries(RemoveableEntry):
             :param time_couple: the interval on which to perform the aggregation
             :type time_couple: a couple of datetime.datetime
             """
-            agg = impl.qdb_ts_aggregation_t()
+            agg = impl.qdb_ts_double_aggregation_t()
 
             agg.result.value = 0.0
             agg.type = agg_type

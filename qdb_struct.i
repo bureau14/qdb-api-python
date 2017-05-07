@@ -67,9 +67,18 @@ typedef struct
     qdb_timespec_t end;
 } qdb_ts_range_t;
 
-typedef struct qdb_ts_aggregation
+typedef struct qdb_ts_double_aggregation
 {
     qdb_ts_aggregation_type_t type;
     qdb_ts_range_t range;
+    qdb_size_t count;
     qdb_ts_double_point result;
-} qdb_ts_aggregation_t;
+} qdb_ts_double_aggregation_t;
+
+typedef struct qdb_ts_blob_aggregation
+{
+    qdb_ts_aggregation_type_t type;
+    qdb_ts_range_t range;
+    qdb_size_t count;
+    qdb_ts_blob_point result;
+} qdb_ts_blob_aggregation_t;

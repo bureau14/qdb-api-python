@@ -56,7 +56,7 @@
 %template(RangeVec) std::vector<qdb_ts_range_t>;
 %template(DoublePointVec) std::vector<qdb_ts_double_point>;
 %template(BlobPointVec) std::vector<wrap_ts_blob_point>;
-%template(AggVec) std::vector<qdb_ts_aggregation_t>;
+%template(AggDoubleVec) std::vector<qdb_ts_double_aggregation_t>;
 %template(TSColsVec) std::vector<wrap_ts_column>;
 
 %rename(version) qdb_version;
