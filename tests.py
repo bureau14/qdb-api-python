@@ -156,7 +156,7 @@ class QuasardbBasic(QuasardbTest):
         cluster.set_max_cardinality(140000)
 
         # invalid values
-     #   self.assertRaises(quasardb.QuasardbException, cluster.set_max_cardinality, 0)
+        self.assertRaises(quasardb.QuasardbException, cluster.set_max_cardinality, 0)
 
     def test_put_get_and_remove(self):
         entry_name = entry_gen.next()

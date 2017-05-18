@@ -108,7 +108,7 @@ def build():
 
 
 def _duration_to_timeout_ms(duration):
-    return duration.days * 24 * 3600 * 1000 + duration.seconds * 1000 + duration.microseconds / 1000
+    return long(duration.days * 24 * 3600 * 1000 + duration.seconds * 1000 + duration.microseconds / 1000)
 
 
 def _api_buffer_to_string(buf):
@@ -141,7 +141,7 @@ def _time_to_unix_timestamp(t, tz_offset):
         - tz_offset
 
 def _time_to_qdb_timestamp(t, tz_offset):
-    return _time_to_unix_timestamp(t, tz_offset) * 1000 + (t.microsecond / 1000)
+    return _time_to_unix_timestamp(t, tz_offset) * long(1000) + long(t.microsecond) / long(1000)
 
 def _convert_expiry_time(expiry_time):
     return _time_to_qdb_timestamp(expiry_time, time.timezone) if expiry_time != None else long(0)
@@ -158,13 +158,12 @@ def _convert_time_couples_to_qdb_range_t_vector(time_couples):
     for i in range(0, c):
         vec[i].begin.tv_sec = _time_to_unix_timestamp(
             time_couples[i][0], tz_offset)
-        vec[i].begin.tv_nsec = time_couples[i][0].microsecond * 1000
+        vec[i].begin.tv_nsec = long(time_couples[i][0].microsecond) * 1000
         vec[i].end.tv_sec = _time_to_unix_timestamp(
             time_couples[i][1], tz_offset)
-        vec[i].end.tv_nsec = time_couples[i][1].microsecond * 1000
+        vec[i].end.tv_nsec = long(time_couples[i][1].microsecond) * 1000
 
     return vec
-
 
 def _convert_to_wrap_ts_blop_points_vector(tuples):
     vec = impl.BlobPointVec()
@@ -178,7 +177,7 @@ def _convert_to_wrap_ts_blop_points_vector(tuples):
     for i in range(0, c):
         vec[i].timestamp.tv_sec = _time_to_unix_timestamp(
             tuples[i][0], tz_offset)
-        vec[i].timestamp.tv_nsec = tuples[i][0].microsecond * 1000
+        vec[i].timestamp.tv_nsec = long(tuples[i][0].microsecond) * 1000
         vec[i].data = tuples[i][1]
 
     return vec
@@ -196,7 +195,7 @@ def make_qdb_ts_double_point_vector(time_points):
     for i in range(0, c):
         vec[i].timestamp.tv_sec = _time_to_unix_timestamp(
             time_points[i][0], tz_offset)
-        vec[i].timestamp.tv_nsec = time_points[i][0].microsecond * 1000
+        vec[i].timestamp.tv_nsec = long(time_points[i][0].microsecond) * 1000
         vec[i].value = time_points[i][1]
 
     return vec
@@ -216,7 +215,6 @@ def make_error_carrier():
     err = impl.error_carrier()
     err.error = impl.error_uninitialized
     return err
-
 
 class Entry(object):
 
@@ -301,7 +299,6 @@ class Entry(object):
 
         return True
 
-
 class RemoveableEntry(Entry):
 
     def __init__(self, handle, alias, *args, **kwargs):  # pylint: disable=W0613
@@ -316,7 +313,6 @@ class RemoveableEntry(Entry):
         err = self.handle.remove(self.alias())
         if err != impl.error_ok:
             raise QuasardbException(err)
-
 
 class ExpirableEntry(RemoveableEntry):
 
@@ -367,7 +363,6 @@ class ExpirableEntry(RemoveableEntry):
 
         return datetime.datetime.fromtimestamp(t, tz)
 
-
 class Tag(Entry):
     """
     A tag to perform tag-based queries, such as listing all entries having the tag.
@@ -386,7 +381,6 @@ class Tag(Entry):
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
         return result
-
 
 class Integer(ExpirableEntry):
     """
@@ -664,9 +658,9 @@ class TimeSeries(RemoveableEntry):
             tz_offset = time.timezone
 
             agg.range.begin.tv_sec = _time_to_unix_timestamp(time_couple[0], tz_offset)
-            agg.range.begin.tv_nsec = time_couple[0].microsecond * 1000
+            agg.range.begin.tv_nsec = long(time_couple[0].microsecond) * 1000
             agg.range.end.tv_sec = _time_to_unix_timestamp(time_couple[1], tz_offset)
-            agg.range.end.tv_nsec = time_couple[1].microsecond * 1000
+            agg.range.end.tv_nsec = long(time_couple[1].microsecond) * 1000
 
             self.__aggregations.push_back(agg)
 
@@ -1083,7 +1077,7 @@ class Cluster(object):
 
         :raises: QuasardbException
         """
-        err = self.handle.set_max_cardinality(max_cardinality)
+        err = self.handle.set_max_cardinality(long(max_cardinality))
         if err != impl.error_ok:
             raise QuasardbException(err)
 

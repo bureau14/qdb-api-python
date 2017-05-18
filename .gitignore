@@ -1,6 +1,7 @@
 # Where you normaly run CMake
 /build*
 /project/
+/x64/
 
 # Where you must unzip qdb_api
 /qdb*
