@@ -46,7 +46,7 @@ def setUpModule():
 
     # don't save anything to disk
     __clusterd = subprocess.Popen([os.path.join(
-        '.', 'qdbd'), '--address=127.0.0.1:' + str(__current_port), '--transient'])
+        '.', 'qdbd'), '--address=127.0.0.1:' + str(__current_port), '--security=false', '--transient'])
     if __clusterd.pid == 0:
         raise Exception("daemon", "cannot run daemon")
 
@@ -676,10 +676,10 @@ class QuasardbTimeSeries(QuasardbTest):
         agg.append(quasardb.TimeSeries.Aggregation.sum, (start_time, start_time + datetime.timedelta(microseconds=1)))
 
         self.assertEqual(agg[0].type, quasardb.TimeSeries.Aggregation.sum)
-        self.assertEqual(agg[0].value, 0.0) 
+        self.assertEqual(agg[0].value, 0.0)
         self.assertEqual(agg[0].range[0], start_time)
         self.assertEqual(agg[0].range[1], start_time + datetime.timedelta(microseconds=1))
-        
+
 
         self.assertRaises(quasardb.QuasardbException,
                           double_col.aggregate,
