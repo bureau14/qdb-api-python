@@ -1,4 +1,4 @@
-# pylint: disable=C0103,C0111,C0302
+# pylint: disable=C0103,C0111,C0302,W0235
 
 # Copyright (c) 2009-2017, quasardb SAS
 # All rights reserved.
@@ -59,6 +59,7 @@ def __make_enum(type_name, prefix):
 
     return type(type_name, (), members)
 
+
 Error = __make_enum('Error', 'error_')
 Options = __make_enum('Option', 'option_')
 Operation = __make_enum('Operation', 'operation_')
@@ -108,7 +109,8 @@ def build():
 
 
 def _duration_to_timeout_ms(duration):
-    return long(duration.days * 24 * 3600 * 1000 + duration.seconds * 1000 + duration.microseconds / 1000)
+    seconds_in_day = long(24 * 60 * 60)
+    return long((duration.days * seconds_in_day + duration.seconds) * 1000) + long(duration.microseconds / 1000)
 
 
 def _api_buffer_to_string(buf):
@@ -134,17 +136,22 @@ class TimeZone(datetime.tzinfo):
     def dst(self, _):
         return datetime.timedelta(0)
 
+
 tz = TimeZone()
+
 
 def _time_to_unix_timestamp(t, tz_offset):
     return long(time.mktime((t.year, t.month, t.day, t.hour, t.minute, t.second, -1, -1, 0))) \
         - tz_offset
 
+
 def _time_to_qdb_timestamp(t, tz_offset):
     return _time_to_unix_timestamp(t, tz_offset) * long(1000) + long(t.microsecond) / long(1000)
 
+
 def _convert_expiry_time(expiry_time):
     return _time_to_qdb_timestamp(expiry_time, time.timezone) if expiry_time != None else long(0)
+
 
 def _convert_time_couples_to_qdb_range_t_vector(time_couples):
     vec = impl.RangeVec()
@@ -152,18 +159,11 @@ def _convert_time_couples_to_qdb_range_t_vector(time_couples):
     c = len(time_couples)
 
     vec.resize(c)
-
-    tz_offset = time.timezone
-
     for i in range(0, c):
-        vec[i].begin.tv_sec = _time_to_unix_timestamp(
-            time_couples[i][0], tz_offset)
-        vec[i].begin.tv_nsec = long(time_couples[i][0].microsecond) * 1000
-        vec[i].end.tv_sec = _time_to_unix_timestamp(
-            time_couples[i][1], tz_offset)
-        vec[i].end.tv_nsec = long(time_couples[i][1].microsecond) * 1000
+        vec[i] = _convert_time_couple_to_qdb_range_t(time_couples[i])
 
     return vec
+
 
 def _convert_to_wrap_ts_blop_points_vector(tuples):
     vec = impl.BlobPointVec()
@@ -211,10 +211,26 @@ def _convert_qdb_range_t_to_time_couple(qdb_range):
             _convert_qdb_timespec_to_time(qdb_range.end))
 
 
+def _convert_time_couple_to_qdb_range_t(time_couple):
+    tz_offset = time.timezone
+
+    rng = impl.qdb_ts_range_t()
+
+    rng.begin.tv_sec = _time_to_unix_timestamp(
+        time_couple[0], tz_offset)
+    rng.begin.tv_nsec = long(time_couple[0].microsecond) * 1000
+    rng.end.tv_sec = _time_to_unix_timestamp(
+        time_couple[1], tz_offset)
+    rng.end.tv_nsec = long(time_couple[1].microsecond) * 1000
+
+    return rng
+
+
 def make_error_carrier():
     err = impl.error_carrier()
     err.error = impl.error_uninitialized
     return err
+
 
 class Entry(object):
 
@@ -299,6 +315,7 @@ class Entry(object):
 
         return True
 
+
 class RemoveableEntry(Entry):
 
     def __init__(self, handle, alias, *args, **kwargs):  # pylint: disable=W0613
@@ -313,6 +330,7 @@ class RemoveableEntry(Entry):
         err = self.handle.remove(self.alias())
         if err != impl.error_ok:
             raise QuasardbException(err)
+
 
 class ExpirableEntry(RemoveableEntry):
 
@@ -363,6 +381,7 @@ class ExpirableEntry(RemoveableEntry):
 
         return datetime.datetime.fromtimestamp(t, tz)
 
+
 class Tag(Entry):
     """
     A tag to perform tag-based queries, such as listing all entries having the tag.
@@ -381,6 +400,7 @@ class Tag(Entry):
         if err.error != impl.error_ok:
             raise QuasardbException(err.error)
         return result
+
 
 class Integer(ExpirableEntry):
     """
@@ -619,25 +639,79 @@ class TimeSeries(RemoveableEntry):
     Aggregation = TSAggregation
     ColumnType = TSColumnType
 
-    class AggregationResult:
+    class BlobAggregationResult(object):
         """
         An aggregation result holding the range on which the aggregation was perfomed,
         the result value as well as the timestamp if it applies.
         """
 
-        def __init__(self, t, r, ts, value):
+        def __init__(self, t, r, ts, count, content, content_length):
             self.type = t
             self.range = r
             self.timestamp = ts
+            self.count = count
+            self.content = impl.api_content_as_string(content, content_length)
+            self.content_length = content_length
+
+    class DoubleAggregationResult(object):
+        """
+        An aggregation result holding the range on which the aggregation was perfomed,
+        the result value as well as the timestamp if it applies.
+        """
+
+        def __init__(self, t, r, ts, count, value):
+            self.type = t
+            self.range = r
+            self.timestamp = ts
+            self.count = count
             self.value = value
 
-    class DoubleAggregations:
-        """
-        A list of double aggregations
-        """
-
+    class BlobAggregations(object):
         def __init__(self, size=0):
-            self.__aggregations = impl.AggDoubleVec()
+            self.__aggregations = impl.BlobAggVec()
+            self.__aggregations.reserve(size)
+
+        def append(self, agg_type, time_couple):
+            """
+            Appends an aggregation
+
+            :param agg_type: the type of aggregation
+            :type agg_type: TimeSeries.Aggregation
+
+            :param time_couple: the interval on which to perform the aggregation
+            :type time_couple: a couple of datetime.datetime
+            """
+            agg = impl.qdb_ts_blob_aggregation_t()
+
+            agg.type = agg_type
+            agg.range = _convert_time_couple_to_qdb_range_t(time_couple)
+            agg.count = 0
+            agg.result.content_length = 0
+
+            self.__aggregations.push_back(agg)
+
+        def __getitem__(self, index):
+            if self.__aggregations.size() <= index:
+                raise IndexError()
+
+            agg = self.__aggregations[index]
+            return TimeSeries.BlobAggregationResult(
+                agg.type,
+                _convert_qdb_range_t_to_time_couple(agg.range),
+                _convert_qdb_timespec_to_time(agg.result.timestamp),
+                agg.count,
+                agg.result.content,
+                agg.result.content_length)
+
+        def __len__(self):
+            return self.__aggregations.size()
+
+        def cpp_struct(self):
+            return self.__aggregations
+
+    class DoubleAggregations(object):
+        def __init__(self, size=0):
+            self.__aggregations = impl.DoubleAggVec()
             self.__aggregations.reserve(size)
 
         def append(self, agg_type, time_couple):
@@ -652,15 +726,10 @@ class TimeSeries(RemoveableEntry):
             """
             agg = impl.qdb_ts_double_aggregation_t()
 
-            agg.result.value = 0.0
             agg.type = agg_type
-
-            tz_offset = time.timezone
-
-            agg.range.begin.tv_sec = _time_to_unix_timestamp(time_couple[0], tz_offset)
-            agg.range.begin.tv_nsec = long(time_couple[0].microsecond) * 1000
-            agg.range.end.tv_sec = _time_to_unix_timestamp(time_couple[1], tz_offset)
-            agg.range.end.tv_nsec = long(time_couple[1].microsecond) * 1000
+            agg.range = _convert_time_couple_to_qdb_range_t(time_couple)
+            agg.count = 0
+            agg.result.value = 0.0
 
             self.__aggregations.push_back(agg)
 
@@ -669,10 +738,12 @@ class TimeSeries(RemoveableEntry):
                 raise IndexError()
 
             agg = self.__aggregations[index]
-            return TimeSeries.AggregationResult(agg.type, 
-                _convert_qdb_range_t_to_time_couple(agg.range), 
+            return TimeSeries.DoubleAggregationResult(
+                agg.type,
+                _convert_qdb_range_t_to_time_couple(agg.range),
                 _convert_qdb_timespec_to_time(agg.result.timestamp),
-                 agg.result.value)
+                agg.count,
+                agg.result.value)
 
         def __len__(self):
             return self.__aggregations.size()
@@ -729,20 +800,20 @@ class TimeSeries(RemoveableEntry):
             """
             return self.__col_name
 
-        def aggregate(self, aggregations):
+        def aggregate(self, ts_func, aggregations):
             """
             Aggregates values over the given intervals
 
+            :param ts_func: Function to call
             :param aggregations: The aggregations to perform
-            :type aggregations: a list of datetime.datetime couples
 
             :raises: QuasardbException
             :returns: The list of aggregation results
             """
             error_carrier = make_error_carrier()
 
-            res = self.call_ts_fun(impl.ts_double_aggregation, aggregations.cpp_struct(),
-                                   error_carrier)
+            self.call_ts_fun(ts_func, aggregations.cpp_struct(),
+                             error_carrier)
 
             if error_carrier.error != impl.error_ok:
                 raise QuasardbException(error_carrier.error)
@@ -792,6 +863,19 @@ class TimeSeries(RemoveableEntry):
 
             return [(_convert_qdb_timespec_to_time(x.timestamp), x.value) for x in res]
 
+        def aggregate(self, aggregations):  # pylint: disable=W0221
+            """
+            Aggregates values over the given intervals
+
+            :param aggregations: The aggregations to perform
+            :type aggregations: a list of datetime.datetime couples
+
+            :raises: QuasardbException
+            :returns: The list of aggregation results
+            """
+            return super(TimeSeries.DoubleColumn, self).aggregate(
+                impl.ts_double_aggregation, aggregations)
+
     class BlobColumn(Column):
         """
         A column whose values are blobs
@@ -834,6 +918,19 @@ class TimeSeries(RemoveableEntry):
                 raise QuasardbException(error_carrier.error)
 
             return [(_convert_qdb_timespec_to_time(x.timestamp), x.data) for x in res]
+
+        def aggregate(self, aggregations):  # pylint: disable=W0221
+            """
+            Aggregates values over the given intervals
+
+            :param aggregations: The aggregations to perform
+            :type aggregations: a list of datetime.datetime couples
+
+            :raises: QuasardbException
+            :returns: The list of aggregation results
+            """
+            return super(TimeSeries.BlobColumn, self).aggregate(
+                impl.ts_blob_aggregation, aggregations)
 
     def __init__(self, handle, alias, *args, **kwargs):
         super(TimeSeries, self).__init__(handle, alias)

@@ -14,9 +14,19 @@ qdb::api_buffer_ptr make_api_buffer_ptr_from_string(handle_ptr h, const char * c
     return qdb::make_api_buffer_ptr(*h, content, content_length);
 }
 
+PyObject * api_content_as_string(const char * buffer_data, size_t buffer_size)
+{
+    return SWIG_FromCharPtrAndSize(buffer_data, buffer_size);
+}
+
+PyObject * api_content_as_string(const void * buffer_data, size_t buffer_size)
+{
+    return SWIG_FromCharPtrAndSize(static_cast<const char *>(buffer_data), buffer_size);
+}
+
 PyObject * api_buffer_ptr_as_string(const qdb::api_buffer_ptr & buf)
 {
-    return SWIG_FromCharPtrAndSize(buf->data(), buf->size());
+    return api_content_as_string(buf->data(), buf->size());
 }
 
 api_buffer_ptr blob_get(handle_ptr h, const char * alias, error_carrier * error)
@@ -215,7 +225,7 @@ qdb_error_t ts_create(handle_ptr h, const char * alias, const std::vector<wrap_t
 
     std::transform(columns.begin(), columns.end(), qdb_cols_info.begin(), transform_to_col_info());
 
-    return qdb_ts_create(*h, alias, &qdb_cols_info[0], qdb_cols_info.size());
+    return qdb_ts_create(*h, alias, &qdb_cols_info.front(), qdb_cols_info.size());
 }
 
 struct column_creator
@@ -248,7 +258,7 @@ std::vector<wrap_ts_column> ts_list_columns(handle_ptr h, const char * alias, er
 
 qdb_error_t ts_double_insert(handle_ptr h, const char * alias, const char * column, const std::vector<qdb_ts_double_point> & values)
 {
-    return qdb_ts_double_insert(*h, alias, column, &values[0], values.size());
+    return qdb_ts_double_insert(*h, alias, column, &values.front(), values.size());
 }
 
 struct to_qdb_ts_blob_point
@@ -271,7 +281,7 @@ qdb_error_t ts_blob_insert(handle_ptr h, const char * alias, const char * column
 
     std::transform(values.begin(), values.end(), points.begin(), to_qdb_ts_blob_point());
 
-    return qdb_ts_blob_insert(*h, alias, column, &points[0], points.size());
+    return qdb_ts_blob_insert(*h, alias, column, &points.front(), points.size());
 }
 
 std::vector<qdb_ts_double_point> ts_double_get_ranges(handle_ptr h, const char * alias, const char * column,
@@ -282,7 +292,7 @@ std::vector<qdb_ts_double_point> ts_double_get_ranges(handle_ptr h, const char *
 
     std::vector<qdb_ts_double_point> res;
 
-    error->error = qdb_ts_double_get_ranges(*h, alias, column, &ranges[0], ranges.size(), &points, &count);
+    error->error = qdb_ts_double_get_ranges(*h, alias, column, &ranges.front(), ranges.size(), &points, &count);
     if (QDB_SUCCESS(error->error))
     {
         res.resize(count);
@@ -310,7 +320,7 @@ std::vector<wrap_ts_blob_point> ts_blob_get_ranges(handle_ptr h, const char * al
 
     std::vector<wrap_ts_blob_point> res;
 
-    error->error = qdb_ts_blob_get_ranges(*h, alias, column, &ranges[0], ranges.size(), &points, &count);
+    error->error = qdb_ts_blob_get_ranges(*h, alias, column, &ranges.front(), ranges.size(), &points, &count);
     if (QDB_SUCCESS(error->error))
     {
         res.resize(count);
@@ -322,7 +332,17 @@ std::vector<wrap_ts_blob_point> ts_blob_get_ranges(handle_ptr h, const char * al
     return res;
 }
 
-struct range_to_agg
+struct range_to_blob_agg
+{
+    qdb_ts_blob_aggregation_t operator()(const qdb_ts_range_t & t) const
+    {
+        qdb_ts_blob_aggregation_t res;
+        res.range = t;
+        return res;
+    }
+};
+
+struct range_to_double_agg
 {
     qdb_ts_double_aggregation_t operator()(const qdb_ts_range_t & t) const
     {
@@ -332,10 +352,16 @@ struct range_to_agg
     }
 };
 
-void ts_double_aggregation(handle_ptr h, const char * alias, const char * column, 
+void ts_blob_aggregation(handle_ptr h, const char * alias, const char * column,
+    std::vector<qdb_ts_blob_aggregation_t> & ranges, error_carrier * error)
+{
+    error->error = qdb_ts_blob_aggregate(*h, alias, column, &ranges.front(), ranges.size());
+}
+
+void ts_double_aggregation(handle_ptr h, const char * alias, const char * column,
     std::vector<qdb_ts_double_aggregation_t> & ranges, error_carrier * error)
 {
-    error->error = qdb_ts_double_aggregate(*h, alias, column, &ranges[0], ranges.size());
+    error->error = qdb_ts_double_aggregate(*h, alias, column, &ranges.front(), ranges.size());
 }
 
 }

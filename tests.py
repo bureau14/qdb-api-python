@@ -1,4 +1,4 @@
-# pylint: disable=C0103,C0111,C0302,C0330,W0212
+# pylint: disable=C0103,C0111,C0302,W0212
 
 import datetime
 import os
@@ -7,8 +7,12 @@ import sys
 import time
 import unittest
 import calendar
-import timeit
-#import numpy
+# TODO(marek): Update agents by installing numpy.
+_has_numpy = True
+try:
+    import numpy
+except ImportError:
+    _has_numpy = False
 
 for root, dirnames, filenames in os.walk(os.path.join('..', 'build')):
     for p in dirnames:
@@ -19,7 +23,8 @@ import quasardb  # pylint: disable=C0413,E0401
 
 # generate an unique entry name for the tests
 
-class UniqueEntryNameGenerator(object):
+
+class UniqueEntryNameGenerator(object):  # pylint: disable=R0903
 
     def __init__(self):
         self.__prefix = "entry_"
@@ -31,6 +36,7 @@ class UniqueEntryNameGenerator(object):
     def next(self):
         self.__counter += 1
         return self.__prefix + str(self.__counter)
+
 
 def setUpModule():
 
@@ -45,8 +51,9 @@ def setUpModule():
     uri = ""
 
     # don't save anything to disk
-    __clusterd = subprocess.Popen([os.path.join(
-        '.', 'qdbd'), '--address=127.0.0.1:' + str(__current_port), '--security=false', '--transient'])
+    __clusterd = subprocess.Popen(
+        [os.path.join('.', 'qdbd'),
+         '--address=127.0.0.1:' + str(__current_port), '--security=false', '--transient'])
     if __clusterd.pid == 0:
         raise Exception("daemon", "cannot run daemon")
 
@@ -128,18 +135,23 @@ class QuasardbBasic(QuasardbTest):
         tz_offset = time.timezone
 
         expected_value = long(calendar.timegm(time_no_tz.timetuple()))
-        self.assertEqual(expected_value, quasardb._time_to_unix_timestamp(time_no_tz, tz_offset))
+        self.assertEqual(
+            expected_value, quasardb._time_to_unix_timestamp(time_no_tz, tz_offset))
 
         time_qdb_tz = datetime.datetime.now(quasardb.tz)
 
         expected_value = long(calendar.timegm(time_qdb_tz.timetuple()))
-        self.assertEqual(expected_value, quasardb._time_to_unix_timestamp(time_qdb_tz, tz_offset))
+        self.assertEqual(expected_value, quasardb._time_to_unix_timestamp(
+            time_qdb_tz, tz_offset))
 
     def test_ts_convert(self):
-        orig_couple = [(datetime.datetime.now(quasardb.tz), datetime.datetime.now(quasardb.tz))]
-        converted_couple = quasardb._convert_time_couples_to_qdb_range_t_vector(orig_couple)
+        orig_couple = [(datetime.datetime.now(quasardb.tz),
+                        datetime.datetime.now(quasardb.tz))]
+        converted_couple = quasardb._convert_time_couples_to_qdb_range_t_vector(
+            orig_couple)
         self.assertEqual(len(converted_couple), 1)
-        self.assertEqual(orig_couple[0], quasardb._convert_qdb_range_t_to_time_couple(converted_couple[0]))
+        self.assertEqual(orig_couple[0], quasardb._convert_qdb_range_t_to_time_couple(
+            converted_couple[0]))
 
     def test_timeout(self):
         # 1 day ok
@@ -156,7 +168,8 @@ class QuasardbBasic(QuasardbTest):
         cluster.set_max_cardinality(140000)
 
         # invalid values
-        self.assertRaises(quasardb.QuasardbException, cluster.set_max_cardinality, 0)
+        self.assertRaises(quasardb.QuasardbException,
+                          cluster.set_max_cardinality, 0)
 
     def test_put_get_and_remove(self):
         entry_name = entry_gen.next()
@@ -414,115 +427,163 @@ class QuasardbInteger(QuasardbTest):
 
 class QuasardbDeque(QuasardbTest):
 
+    def __init__(self, methodName="runTest"):
+        super(QuasardbDeque, self).__init__(methodName)
+        self.entry_content_front = "front"
+        self.entry_content_back = "back"
+
+    def setUp(self):
+        entry_name = entry_gen.next()
+        self.q = cluster.deque(entry_name)
+
+    def test_empty_queue(self):
+        self.assertRaises(quasardb.QuasardbException, self.q.pop_back)
+        self.assertRaises(quasardb.QuasardbException, self.q.pop_front)
+        self.assertRaises(quasardb.QuasardbException, self.q.front)
+        self.assertRaises(quasardb.QuasardbException, self.q.back)
+
+    def test_push_front_single_element(self):
+        self.q.push_front(self.entry_content_front)
+
+        got = self.q.back()
+        self.assertEqual(got, self.entry_content_front)
+        got = self.q.front()
+        self.assertEqual(got, self.entry_content_front)
+
+    def test_push_back_single_element(self):
+        self.q.push_back(self.entry_content_back)
+
+        got = self.q.back()
+        self.assertEqual(got, self.entry_content_back)
+        got = self.q.front()
+        self.assertEqual(got, self.entry_content_back)
+
     def test_sequence(self):
         """
         A series of test to make sure back and front operations are properly wired
         """
-        entry_name = entry_gen.next()
-        entry_content_back = "back"
+        self.q.push_back(self.entry_content_back)
+        self.q.push_front(self.entry_content_front)
 
-        q = cluster.deque(entry_name)
-
-        self.assertRaises(quasardb.QuasardbException, q.pop_back)
-        self.assertRaises(quasardb.QuasardbException, q.pop_front)
-        self.assertRaises(quasardb.QuasardbException, q.front)
-        self.assertRaises(quasardb.QuasardbException, q.back)
-
-        q.push_back(entry_content_back)
-
-        got = q.back()
-        self.assertEqual(got, entry_content_back)
-        got = q.front()
-        self.assertEqual(got, entry_content_back)
-
-        entry_content_front = "front"
-
-        q.push_front(entry_content_front)
-
-        got = q.back()
-        self.assertEqual(got, entry_content_back)
-        got = q.front()
-        self.assertEqual(got, entry_content_front)
+        got = self.q.back()
+        self.assertEqual(got, self.entry_content_back)
+        got = self.q.front()
+        self.assertEqual(got, self.entry_content_front)
 
         entry_content_canary = "canary"
 
-        q.push_back(entry_content_canary)
+        self.q.push_back(entry_content_canary)
 
-        got = q.back()
+        got = self.q.back()
         self.assertEqual(got, entry_content_canary)
-        got = q.front()
-        self.assertEqual(got, entry_content_front)
+        got = self.q.front()
+        self.assertEqual(got, self.entry_content_front)
 
-        got = q.pop_back()
+        got = self.q.pop_back()
         self.assertEqual(got, entry_content_canary)
-        got = q.back()
-        self.assertEqual(got, entry_content_back)
-        got = q.front()
-        self.assertEqual(got, entry_content_front)
+        got = self.q.back()
+        self.assertEqual(got, self.entry_content_back)
+        got = self.q.front()
+        self.assertEqual(got, self.entry_content_front)
 
-        q.push_front(entry_content_canary)
+        self.q.push_front(entry_content_canary)
 
-        got = q.back()
-        self.assertEqual(got, entry_content_back)
-        got = q.front()
+        got = self.q.back()
+        self.assertEqual(got, self.entry_content_back)
+        got = self.q.front()
         self.assertEqual(got, entry_content_canary)
 
-        got = q.pop_front()
+        got = self.q.pop_front()
         self.assertEqual(got, entry_content_canary)
-        got = q.back()
-        self.assertEqual(got, entry_content_back)
-        got = q.front()
-        self.assertEqual(got, entry_content_front)
+        got = self.q.back()
+        self.assertEqual(got, self.entry_content_back)
+        got = self.q.front()
+        self.assertEqual(got, self.entry_content_front)
 
-        got = q.pop_back()
-        self.assertEqual(got, entry_content_back)
+        got = self.q.pop_back()
+        self.assertEqual(got, self.entry_content_back)
 
-        got = q.back()
-        self.assertEqual(got, entry_content_front)
-        got = q.front()
-        self.assertEqual(got, entry_content_front)
+        got = self.q.back()
+        self.assertEqual(got, self.entry_content_front)
+        got = self.q.front()
+        self.assertEqual(got, self.entry_content_front)
 
-        got = q.pop_back()
-        self.assertEqual(got, entry_content_front)
+        got = self.q.pop_back()
+        self.assertEqual(got, self.entry_content_front)
 
-        self.assertRaises(quasardb.QuasardbException, q.pop_back)
-        self.assertRaises(quasardb.QuasardbException, q.pop_front)
-        self.assertRaises(quasardb.QuasardbException, q.front)
-        self.assertRaises(quasardb.QuasardbException, q.back)
+        self.assertRaises(quasardb.QuasardbException, self.q.pop_back)
+        self.assertRaises(quasardb.QuasardbException, self.q.pop_front)
+        self.assertRaises(quasardb.QuasardbException, self.q.front)
+        self.assertRaises(quasardb.QuasardbException, self.q.back)
 
 
 class QuasardbHSet(QuasardbTest):
 
-    def test_insert_erase_contains(self):
-
+    def setUp(self):
+        self.entry_content = "content"
         entry_name = entry_gen.next()
-        entry_content = "content"
+        self.hset = cluster.hset(entry_name)
 
-        hset = cluster.hset(entry_name)
-
-        # does not exist yet
+    def test_contains_throws__when_does_not_exist(self):
         self.assertRaises(quasardb.QuasardbException,
-                          hset.contains, entry_content)
+                          self.hset.contains, self.entry_content)
 
-        hset.insert(entry_content)
+    def test_insert_does_not_throw__when_does_not_exist(self):
+        try:
+            self.hset.insert(self.entry_content)
+        except:  # pylint: disable=W0702
+            self.fail(msg='insert should not have raised an exception')
+
+    def test_erase_throws__when_does_not_exist(self):
+        self.assertRaises(quasardb.QuasardbException,
+                          self.hset.erase, self.entry_content)
+
+    def test_contains_returns_false__after_erase(self):
+        self.hset.insert(self.entry_content)
+        self.hset.erase(self.entry_content)
+
+        self.assertFalse(self.hset.contains(self.entry_content))
+
+    def test_erase_throws__when_called_twice(self):
+        self.hset.insert(self.entry_content)
+        self.hset.erase(self.entry_content)
 
         self.assertRaises(quasardb.QuasardbException,
-                          hset.insert, entry_content)
+                          self.hset.erase, self.entry_content)
 
-        self.assertTrue(hset.contains(entry_content))
-
-        hset.erase(entry_content)
-
-        self.assertFalse(hset.contains(entry_content))
-
-        hset.insert(entry_content)
-
-        self.assertTrue(hset.contains(entry_content))
-
-        hset.erase(entry_content)
+    def test_insert_throws__when_called_twice(self):
+        self.hset.insert(self.entry_content)
 
         self.assertRaises(quasardb.QuasardbException,
-                          hset.erase, entry_content)
+                          self.hset.insert, self.entry_content)
+
+    def test_contains_returns_true__after_insert(self):
+        self.hset.insert(self.entry_content)
+
+        self.assertTrue(self.hset.contains(self.entry_content))
+
+    # TODO(marek): Insert and erase multiple values.
+
+    def test_insert_erase_contains(self):
+        self.hset.insert(self.entry_content)
+
+        self.assertRaises(quasardb.QuasardbException,
+                          self.hset.insert, self.entry_content)
+
+        self.assertTrue(self.hset.contains(self.entry_content))
+
+        self.hset.erase(self.entry_content)
+
+        self.assertFalse(self.hset.contains(self.entry_content))
+
+        self.hset.insert(self.entry_content)
+
+        self.assertTrue(self.hset.contains(self.entry_content))
+
+        self.hset.erase(self.entry_content)
+
+        self.assertRaises(quasardb.QuasardbException,
+                          self.hset.erase, self.entry_content)
 
 
 class QuasardbInfo(QuasardbTest):
@@ -596,30 +657,41 @@ class QuasardbTag(QuasardbTest):
         self.assertEqual(0, len(entries))
 
 
+def _generate_double_ts(start_time, start_val, count):
+    result = []
+
+    step = datetime.timedelta(microseconds=1)
+
+    for _ in range(0, count):
+        result.append((start_time, start_val))
+        start_time += step
+        start_val += 1.0
+
+    return result
+
+
+def _generate_blob_ts(start_time, count):
+    result = []
+
+    step = datetime.timedelta(microseconds=1)
+
+    for _ in range(0, count):
+        result.append((start_time, "content_" + str(start_time)))
+        start_time += step
+
+    return result
+
+
 class QuasardbTimeSeries(QuasardbTest):
 
-    def __generate_double_ts(self, start_time, start_val, count):
-        result = []
+    def __init__(self, methodName="runTest"):
+        super(QuasardbTimeSeries, self).__init__(methodName)
+        (self.my_ts, self.double_col, self.blob_col) = (None, None, None)
+        self.test_intervals = []
 
-        step = datetime.timedelta(microseconds=1)
-
-        for _ in range(0, count):
-            result.append((start_time, start_val))
-            start_time += step
-            start_val += 1.0
-
-        return result
-
-    def __generate_blob_ts(self, start_time, count):
-        result = []
-
-        step = datetime.timedelta(microseconds=1)
-
-        for _ in range(0, count):
-            result.append((start_time, "1911"))
-            start_time += step
-
-        return result
+    def setUp(self):
+        (self.my_ts, self.double_col, self.blob_col) = self.__create_ts()
+        self.test_intervals = []
 
     def __check_double_ts(self, results, start_time, start_val, count):
         self.assertEqual(count, len(results))
@@ -639,7 +711,7 @@ class QuasardbTimeSeries(QuasardbTest):
 
         for i in range(0, count):
             self.assertEqual(results[i][0], start_time)
-            self.assertEqual(results[i][1], "1911")
+            self.assertEqual(results[i][1], "content_" + str(start_time))
             start_time += step
 
     def __create_ts(self):
@@ -673,57 +745,57 @@ class QuasardbTimeSeries(QuasardbTest):
                           [(start_time, start_time + datetime.timedelta(microseconds=1))])
 
         agg = quasardb.TimeSeries.DoubleAggregations()
-        agg.append(quasardb.TimeSeries.Aggregation.sum, (start_time, start_time + datetime.timedelta(microseconds=1)))
+        agg.append(quasardb.TimeSeries.Aggregation.sum,
+                   (start_time, start_time + datetime.timedelta(microseconds=1)))
 
         self.assertEqual(agg[0].type, quasardb.TimeSeries.Aggregation.sum)
+        self.assertEqual(agg[0].count, 0)
         self.assertEqual(agg[0].value, 0.0)
         self.assertEqual(agg[0].range[0], start_time)
-        self.assertEqual(agg[0].range[1], start_time + datetime.timedelta(microseconds=1))
-
+        self.assertEqual(agg[0].range[1], start_time +
+                         datetime.timedelta(microseconds=1))
 
         self.assertRaises(quasardb.QuasardbException,
                           double_col.aggregate,
                           agg)
 
     def test_creation_multiple(self):
-        (my_ts, double_col, blob_col) = self.__create_ts()
-
-        col_list = my_ts.columns_info()
+        col_list = self.my_ts.columns_info()
         self.assertEqual(2, len(col_list))
 
-        self.assertEqual(col_list[0].name, double_col.name())
+        self.assertEqual(col_list[0].name, self.double_col.name())
         self.assertEqual(col_list[0].type,
                          quasardb.TimeSeries.ColumnType.double)
-        self.assertEqual(col_list[1].name, blob_col.name())
+        self.assertEqual(col_list[1].name, self.blob_col.name())
         self.assertEqual(col_list[1].type, quasardb.TimeSeries.ColumnType.blob)
 
         # invalid columinfo
-        self.assertRaises(quasardb.QuasardbException, my_ts.column, quasardb.TimeSeries.ColumnInfo(
-            double_col.name(), quasardb.TimeSeries.ColumnType.uninitialized))
+        self.assertRaises(
+            quasardb.QuasardbException, self.my_ts.column,
+            quasardb.TimeSeries.ColumnInfo(self.double_col.name(),
+                                           quasardb.TimeSeries.ColumnType.uninitialized))
 
         # cannot double create
-        self.assertRaises(quasardb.QuasardbException, my_ts.create, [
-                          quasardb.TimeSeries.DoubleColumnInfo(entry_gen.next())])
+        self.assertRaises(quasardb.QuasardbException, self.my_ts.create,
+                          [quasardb.TimeSeries.DoubleColumnInfo(entry_gen.next())])
 
     def test_double_get_ranges(self):
-        (my_ts, double_col, blob_col) = self.__create_ts()
-
         start_time = datetime.datetime.now(quasardb.tz)
 
         # empty result: nothing inserted
-        results = double_col.get_ranges(
+        results = self.double_col.get_ranges(
             [(start_time, start_time + datetime.timedelta(microseconds=10))])
         self.assertEqual(0, len(results))
 
-        inserted_double_data = self.__generate_double_ts(start_time, 1.0, 1000)
-        double_col.insert(inserted_double_data)
+        inserted_double_data = _generate_double_ts(start_time, 1.0, 1000)
+        self.double_col.insert(inserted_double_data)
 
-        results = double_col.get_ranges(
+        results = self.double_col.get_ranges(
             [(start_time, start_time + datetime.timedelta(microseconds=10))])
 
         self.__check_double_ts(results, start_time, 1.0, 10)
 
-        results = double_col.get_ranges(
+        results = self.double_col.get_ranges(
             [(start_time, start_time + datetime.timedelta(microseconds=10)),
              (start_time + datetime.timedelta(microseconds=10),
               start_time + datetime.timedelta(microseconds=20))])
@@ -732,181 +804,147 @@ class QuasardbTimeSeries(QuasardbTest):
 
         # empty result
         out_of_time = start_time + datetime.timedelta(hours=10)
-        results = double_col.get_ranges(
+        results = self.double_col.get_ranges(
             [(out_of_time, out_of_time + datetime.timedelta(microseconds=10))])
         self.assertEqual(0, len(results))
 
         # error: column doesn't exist
-        wrong_col = my_ts.column(
+        wrong_col = self.my_ts.column(
             quasardb.TimeSeries.DoubleColumnInfo("lolilol"))
 
-        self.assertRaises(quasardb.QuasardbException, wrong_col.get_ranges, [
-                          (start_time, start_time + datetime.timedelta(microseconds=10))])
+        self.assertRaises(quasardb.QuasardbException, wrong_col.get_ranges,
+                          [(start_time, start_time + datetime.timedelta(microseconds=10))])
         self.assertRaises(quasardb.QuasardbException,
                           wrong_col.insert, inserted_double_data)
 
         # error: column of wrong type
-        wrong_col = my_ts.column(
-            quasardb.TimeSeries.DoubleColumnInfo(blob_col.name()))
+        wrong_col = self.my_ts.column(
+            quasardb.TimeSeries.DoubleColumnInfo(self.blob_col.name()))
 
-        self.assertRaises(quasardb.QuasardbException, wrong_col.get_ranges, [
-                          (start_time, start_time + datetime.timedelta(microseconds=10))])
+        self.assertRaises(quasardb.QuasardbException, wrong_col.get_ranges,
+                          [(start_time, start_time + datetime.timedelta(microseconds=10))])
         self.assertRaises(quasardb.QuasardbException,
                           wrong_col.insert, inserted_double_data)
 
+    def _test_aggregation_of_doubles(self, agg_type, expected, expected_count):
+        agg = quasardb.TimeSeries.DoubleAggregations()
+        agg.append(agg_type, self.test_intervals[0])
+
+        agg_res = self.double_col.aggregate(agg)
+
+        self.assertEqual(1, len(agg_res))
+        self.assertEqual(agg_res[0].range, self.test_intervals[0])
+        timestamp = expected[0]
+        if timestamp is None:
+            timestamp = datetime.datetime.fromtimestamp(0, quasardb.tz)
+        self.assertEqual(agg_res[0].timestamp, timestamp)
+        self.assertEqual(agg_res[0].count, expected_count)
+        self.assertEqual(agg_res[0].value, expected[1])
+
+    def _test_aggregation_of_blobs(self, agg_type, expected, expected_count):
+        agg = quasardb.TimeSeries.BlobAggregations()
+        agg.append(agg_type, self.test_intervals[0])
+
+        agg_res = self.blob_col.aggregate(agg)
+
+        self.assertEqual(1, len(agg_res))
+        self.assertEqual(agg_res[0].range, self.test_intervals[0])
+        timestamp = expected[0]
+        if timestamp is None:
+            timestamp = datetime.datetime.fromtimestamp(0, quasardb.tz)
+        self.assertEqual(agg_res[0].timestamp, timestamp)
+        self.assertEqual(agg_res[0].count, expected_count)
+        expected_length = 0
+        if expected[1] is not None:
+            expected_length = len(expected[1])
+        self.assertEqual(agg_res[0].content_length, expected_length)
+        self.assertEqual(agg_res[0].content, expected[1])
+
     def test_double_aggregation(self):
-        (_, double_col, blob_col) = self.__create_ts()
         start_time = datetime.datetime.now(quasardb.tz)
 
-        inserted_double_data = self.__generate_double_ts(start_time, 1.0, 10)
-        inserted_double_col = map(lambda x: x[1], inserted_double_data)
+        inserted_double_data = _generate_double_ts(start_time, 1.0, 10)
+        inserted_double_col = [x[1] for x in inserted_double_data]
 
-        inserted_blob_data = self.__generate_blob_ts(start_time, 5)
+        inserted_blob_data = _generate_blob_ts(start_time, 5)
 
-        double_col.insert(inserted_double_data)
-        blob_col.insert(inserted_blob_data)
+        self.double_col.insert(inserted_double_data)
+        self.blob_col.insert(inserted_blob_data)
 
-        test_intervals = [
+        self.test_intervals = [
             (start_time, start_time + datetime.timedelta(microseconds=10))]
 
         computed_sum = reduce(lambda x, y: x + y, inserted_double_col, 0.0)
-        computed_count = len(inserted_double_data)
 
-        # first
-        agg = quasardb.TimeSeries.DoubleAggregations()
-        agg.append(quasardb.TimeSeries.Aggregation.first, test_intervals[0])
+        # Doubles
+        self._test_aggregation_of_doubles(
+            quasardb.TimeSeries.Aggregation.first, inserted_double_data[0], 1)
+        self._test_aggregation_of_doubles(
+            quasardb.TimeSeries.Aggregation.last, inserted_double_data[-1], 1)
+        self._test_aggregation_of_doubles(
+            quasardb.TimeSeries.Aggregation.min, min(inserted_double_data), 1)
+        self._test_aggregation_of_doubles(
+            quasardb.TimeSeries.Aggregation.abs_min, min(inserted_double_data), 1)
+        self._test_aggregation_of_doubles(
+            quasardb.TimeSeries.Aggregation.max, max(inserted_double_data), 1)
+        self._test_aggregation_of_doubles(
+            quasardb.TimeSeries.Aggregation.abs_max, max(inserted_double_data), 1)
+        self._test_aggregation_of_doubles(
+            quasardb.TimeSeries.Aggregation.spread,
+            (None,
+             max(inserted_double_data)[1] - min(inserted_double_data)[1]),
+            1)
+        self._test_aggregation_of_doubles(quasardb.TimeSeries.Aggregation.arithmetic_mean,
+                                          (None, computed_sum /
+                                           len(inserted_double_data)),
+                                          len(inserted_double_data))
+        self._test_aggregation_of_doubles(quasardb.TimeSeries.Aggregation.count,
+                                          (None, len(inserted_double_data)),
+                                          len(inserted_double_data))
+        self._test_aggregation_of_doubles(quasardb.TimeSeries.Aggregation.sum,
+                                          (None, computed_sum), len(inserted_double_data))
 
-        agg_res = double_col.aggregate(agg)
+        if _has_numpy:
+            self._test_aggregation_of_doubles(quasardb.TimeSeries.Aggregation.population_variance,
+                                              (None, numpy.var(inserted_double_col)),
+                                              len(inserted_double_data))
+            self._test_aggregation_of_doubles(quasardb.TimeSeries.Aggregation.population_stddev,
+                                              (None, numpy.std(inserted_double_col)),
+                                              len(inserted_double_data))
+            self._test_aggregation_of_doubles(quasardb.TimeSeries.Aggregation.sample_variance,
+                                              (None,
+                                               numpy.var(inserted_double_col, ddof=1)),
+                                              len(inserted_double_data))
+            self._test_aggregation_of_doubles(quasardb.TimeSeries.Aggregation.sample_stddev,
+                                              (None,
+                                               numpy.std(inserted_double_col, ddof=1)),
+                                              len(inserted_double_data))
 
-        self.assertEqual(1, len(agg_res))
-        self.assertEqual(agg_res[0].range, test_intervals[0])
-        self.assertEqual(agg_res[0].timestamp, inserted_double_data[0][0])
-        self.assertEqual(agg_res[0].value, inserted_double_data[0][1])
-
-        # last
-        agg = quasardb.TimeSeries.DoubleAggregations()
-        agg.append(quasardb.TimeSeries.Aggregation.last, test_intervals[0])
-
-        agg_res = double_col.aggregate(agg)
-
-        self.assertEqual(1, len(agg_res))
-        self.assertEqual(agg_res[0].range, test_intervals[-1])
-        self.assertEqual(agg_res[0].timestamp, inserted_double_data[-1][0])
-        self.assertEqual(agg_res[0].value, inserted_double_data[-1][1])
-
-        # min
-        agg = quasardb.TimeSeries.DoubleAggregations()
-        agg.append(quasardb.TimeSeries.Aggregation.min, test_intervals[0])
-        agg_res = double_col.aggregate(agg)
-
-        self.assertEqual(1, len(agg_res))
-        self.assertEqual(agg_res[0].range, test_intervals[0])
-        self.assertEqual(agg_res[0].timestamp, min(inserted_double_data)[0])
-        self.assertEqual(agg_res[0].value, min(inserted_double_data)[1])
-
-        # abs_min
-        agg = quasardb.TimeSeries.DoubleAggregations()
-        agg.append(quasardb.TimeSeries.Aggregation.abs_min, test_intervals[0])
-        agg_res = double_col.aggregate(agg)
-
-        self.assertEqual(1, len(agg_res))
-        self.assertEqual(agg_res[0].range, test_intervals[0])
-        self.assertEqual(agg_res[0].timestamp, min(inserted_double_data)[0])
-        self.assertEqual(agg_res[0].value, min(inserted_double_data)[1])
-
-
-        # max
-        agg = quasardb.TimeSeries.DoubleAggregations()
-        agg.append(quasardb.TimeSeries.Aggregation.max, test_intervals[0])
-        agg_res = double_col.aggregate(agg)
-
-        self.assertEqual(1, len(agg_res))
-        self.assertEqual(agg_res[0].range, test_intervals[0])
-        self.assertEqual(agg_res[0].timestamp, max(inserted_double_data)[0])
-        self.assertEqual(agg_res[0].value, max(inserted_double_data)[1])
-
-        # abs_max
-        agg = quasardb.TimeSeries.DoubleAggregations()
-        agg.append(quasardb.TimeSeries.Aggregation.abs_max, test_intervals[0])
-        agg_res = double_col.aggregate(agg)
-
-        self.assertEqual(1, len(agg_res))
-        self.assertEqual(agg_res[0].range, test_intervals[0])
-        self.assertEqual(agg_res[0].timestamp, max(inserted_double_data)[0])
-        self.assertEqual(agg_res[0].value, max(inserted_double_data)[1])
-
-        # spread
-        agg = quasardb.TimeSeries.DoubleAggregations()
-        agg.append(quasardb.TimeSeries.Aggregation.spread, test_intervals[0])
-        agg_res = double_col.aggregate(agg)
-
-        self.assertEqual(1, len(agg_res))
-        self.assertEqual(agg_res[0].range, test_intervals[0])
-        self.assertEqual(agg_res[0].value, max(inserted_double_data)[1] - min(inserted_double_data)[1])
-
-        # variance
-        agg = quasardb.TimeSeries.DoubleAggregations()
-        agg.append(quasardb.TimeSeries.Aggregation.sample_variance, test_intervals[0])
-        agg_res = double_col.aggregate(agg)
-        self.assertEqual(1, len(agg_res))
-        self.assertEqual(agg_res[0].range, test_intervals[0])
-     #   self.assertEqual(agg_res[0].value, numpy.var(inserted_double_col))
-
-        # standard deviation
-        agg = quasardb.TimeSeries.DoubleAggregations()
-        agg.append(quasardb.TimeSeries.Aggregation.sample_stddev, test_intervals[0])
-        agg_res = double_col.aggregate(agg)
-
-        self.assertEqual(1, len(agg_res))
-        self.assertEqual(agg_res[0].range, test_intervals[0])
-     #   self.assertEqual(agg_res[0].value, numpy.std(inserted_double_col))
-
-        # average
-        agg = quasardb.TimeSeries.DoubleAggregations()
-        agg.append(quasardb.TimeSeries.Aggregation.arithmetic_mean, test_intervals[0])
-        agg_res = double_col.aggregate(agg)
-
-        self.assertEqual(1, len(agg_res))
-        self.assertEqual(agg_res[0].range, test_intervals[0])
-        self.assertEqual(agg_res[0].value, computed_sum / computed_count)
-
-        # count
-        agg = quasardb.TimeSeries.DoubleAggregations()
-        agg.append(quasardb.TimeSeries.Aggregation.count, test_intervals[0])
-        agg_res = double_col.aggregate(agg)
-
-        self.assertEqual(1, len(agg_res))
-        self.assertEqual(agg_res[0].range, test_intervals[0])
-        self.assertEqual(agg_res[0].value, computed_count)
-
-        # sum
-        agg = quasardb.TimeSeries.DoubleAggregations()
-        agg.append(quasardb.TimeSeries.Aggregation.sum, test_intervals[0])
-        agg_res = double_col.aggregate(agg)
-
-        self.assertEqual(1, len(agg_res))
-        self.assertEqual(agg_res[0].range, test_intervals[0])
-        self.assertEqual(agg_res[0].value, computed_sum)
+        # Blobs
+        self._test_aggregation_of_blobs(quasardb.TimeSeries.Aggregation.count,
+                                        (None, None), len(inserted_blob_data))
+        self._test_aggregation_of_blobs(quasardb.TimeSeries.Aggregation.first,
+                                        inserted_blob_data[0], 1)
+        self._test_aggregation_of_blobs(quasardb.TimeSeries.Aggregation.last,
+                                        inserted_blob_data[-1], 1)
 
     def test_blob_get_ranges(self):
-        (my_ts, double_col, blob_col) = self.__create_ts()
-
         start_time = datetime.datetime.now(quasardb.tz)
 
         # empty result: nothing inserted
-        results = blob_col.get_ranges(
+        results = self.blob_col.get_ranges(
             [(start_time, start_time + datetime.timedelta(microseconds=10))])
         self.assertEqual(0, len(results))
 
-        inserted_blob_data = self.__generate_blob_ts(start_time, 20)
-        blob_col.insert(inserted_blob_data)
+        inserted_blob_data = _generate_blob_ts(start_time, 20)
+        self.blob_col.insert(inserted_blob_data)
 
-        results = blob_col.get_ranges(
+        results = self.blob_col.get_ranges(
             [(start_time, start_time + datetime.timedelta(microseconds=10))])
 
         self.__check_blob_ts(results, start_time, 10)
 
-        results = blob_col.get_ranges(
+        results = self.blob_col.get_ranges(
             [(start_time, start_time + datetime.timedelta(microseconds=10)),
              (start_time + datetime.timedelta(microseconds=10),
               start_time + datetime.timedelta(microseconds=20))])
@@ -915,42 +953,41 @@ class QuasardbTimeSeries(QuasardbTest):
 
         # empty result
         out_of_time = start_time + datetime.timedelta(hours=10)
-        results = blob_col.get_ranges(
+        results = self.blob_col.get_ranges(
             [(out_of_time, out_of_time + datetime.timedelta(microseconds=10))])
         self.assertEqual(0, len(results))
 
         # error: column doesn't exist
-        wrong_col = my_ts.column(quasardb.TimeSeries.BlobColumnInfo("lolilol"))
+        wrong_col = self.my_ts.column(
+            quasardb.TimeSeries.BlobColumnInfo("lolilol"))
 
-        self.assertRaises(quasardb.QuasardbException, wrong_col.get_ranges, [
-                          (start_time, start_time + datetime.timedelta(microseconds=10))])
+        self.assertRaises(quasardb.QuasardbException, wrong_col.get_ranges,
+                          [(start_time, start_time + datetime.timedelta(microseconds=10))])
         self.assertRaises(quasardb.QuasardbException,
                           wrong_col.insert, inserted_blob_data)
 
         # error: column of wrong type
-        wrong_col = my_ts.column(
-            quasardb.TimeSeries.BlobColumnInfo(double_col.name()))
+        wrong_col = self.my_ts.column(
+            quasardb.TimeSeries.BlobColumnInfo(self.double_col.name()))
 
-        self.assertRaises(quasardb.QuasardbException, wrong_col.get_ranges, [
-                          (start_time, start_time + datetime.timedelta(microseconds=10))])
+        self.assertRaises(quasardb.QuasardbException, wrong_col.get_ranges,
+                          [(start_time, start_time + datetime.timedelta(microseconds=10))])
         self.assertRaises(quasardb.QuasardbException,
                           wrong_col.insert, inserted_blob_data)
 
     def test_blob_get_ranges_double_column(self):
-        (_, double_col, _) = self.__create_ts()
         start_time = datetime.datetime.now(quasardb.tz)
 
         out_of_time = start_time + datetime.timedelta(hours=10)
-        results = double_col.get_ranges(
+        results = self.double_col.get_ranges(
             [(out_of_time, out_of_time + datetime.timedelta(microseconds=10))])
         self.assertEqual(0, len(results))
 
     def test_double_get_ranges_blob_column(self):
-        (_, _, blob_col) = self.__create_ts()
         start_time = datetime.datetime.now(quasardb.tz)
 
         out_of_time = start_time + datetime.timedelta(hours=10)
-        results = blob_col.get_ranges(
+        results = self.blob_col.get_ranges(
             [(out_of_time, out_of_time + datetime.timedelta(microseconds=10))])
         self.assertEqual(0, len(results))
 
@@ -1060,14 +1097,14 @@ class QuasardbSuffix(QuasardbTest):
         self.assertEqual(1, cluster.suffix_count(dat_suffix))
 
 
+def _make_expiry_time(td):
+        # expires in one minute
+    now = datetime.datetime.now(quasardb.tz)
+    # get rid of the microsecond for the tests
+    return now + td - datetime.timedelta(microseconds=now.microsecond)
+
+
 class QuasardbExpiry(QuasardbTest):
-
-    def __make_expiry_time(self, td):
-         # expires in one minute
-        now = datetime.datetime.now(quasardb.tz)
-        # get rid of the microsecond for the tests
-        return now + td - datetime.timedelta(microseconds=now.microsecond)
-
     def test_expires_at(self):
         """
         Test for expiry.
@@ -1091,7 +1128,7 @@ class QuasardbExpiry(QuasardbTest):
         self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
         self.assertEqual(exp, datetime.datetime.fromtimestamp(0, quasardb.tz))
 
-        future_exp = self.__make_expiry_time(datetime.timedelta(minutes=1))
+        future_exp = _make_expiry_time(datetime.timedelta(minutes=1))
         b.expires_at(future_exp)
 
         exp = b.get_expiry_time()
@@ -1144,7 +1181,7 @@ class QuasardbExpiry(QuasardbTest):
         entry_name = entry_gen.next()
         entry_content = "content"
 
-        future_exp = self.__make_expiry_time(datetime.timedelta(minutes=1))
+        future_exp = _make_expiry_time(datetime.timedelta(minutes=1))
 
         b = cluster.blob(entry_name)
         b.put(entry_content, future_exp)
@@ -1156,7 +1193,7 @@ class QuasardbExpiry(QuasardbTest):
         self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
         self.assertEqual(exp, future_exp)
 
-        future_exp = self.__make_expiry_time(datetime.timedelta(minutes=2))
+        future_exp = _make_expiry_time(datetime.timedelta(minutes=2))
 
         b.update(entry_content, future_exp)
 
@@ -1167,7 +1204,7 @@ class QuasardbExpiry(QuasardbTest):
         self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
         self.assertEqual(exp, future_exp)
 
-        future_exp = self.__make_expiry_time(datetime.timedelta(minutes=3))
+        future_exp = _make_expiry_time(datetime.timedelta(minutes=3))
 
         b.get_and_update(entry_content, future_exp)
 
@@ -1178,7 +1215,7 @@ class QuasardbExpiry(QuasardbTest):
         self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
         self.assertEqual(exp, future_exp)
 
-        future_exp = self.__make_expiry_time(datetime.timedelta(minutes=4))
+        future_exp = _make_expiry_time(datetime.timedelta(minutes=4))
 
         b.compare_and_swap(entry_content, entry_content, future_exp)
 
@@ -1190,6 +1227,7 @@ class QuasardbExpiry(QuasardbTest):
         self.assertEqual(exp, future_exp)
 
         b.remove()
+
 
 if __name__ == '__main__':
     import xmlrunner

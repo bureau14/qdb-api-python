@@ -43,6 +43,7 @@
 %include typemaps.i
 %include cpointer.i
 
+%apply size_t { qdb_size_t };
 %apply (const char *STRING, size_t LENGTH) { (const char * content, size_t content_length) };
 %apply (const char *STRING, size_t LENGTH) { (const char * update_content, size_t update_content_length) };
 %apply (const char *STRING, size_t LENGTH) { (const char * new_value, size_t new_value_length) };
@@ -56,7 +57,8 @@
 %template(RangeVec) std::vector<qdb_ts_range_t>;
 %template(DoublePointVec) std::vector<qdb_ts_double_point>;
 %template(BlobPointVec) std::vector<wrap_ts_blob_point>;
-%template(AggDoubleVec) std::vector<qdb_ts_double_aggregation_t>;
+%template(BlobAggVec) std::vector<qdb_ts_blob_aggregation_t>;
+%template(DoubleAggVec) std::vector<qdb_ts_double_aggregation_t>;
 %template(TSColsVec) std::vector<wrap_ts_column>;
 
 %rename(version) qdb_version;

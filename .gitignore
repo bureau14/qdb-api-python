@@ -1,7 +1,11 @@
-# Where you normaly run CMake
+# Build and tests
 /build*
 /project/
 /x64/
+/test-reports/
 
 # Where you must unzip qdb_api
 /qdb*
+
+# Editors
+/.vscode/
