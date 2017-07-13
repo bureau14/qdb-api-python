@@ -73,7 +73,7 @@ def setUpModule():
     try:
         cluster = quasardb.Cluster(uri)
 
-    except quasardb.QuasardbException:
+    except quasardb.Error:
         __clusterd.terminate()
         __clusterd.wait()
         raise
@@ -98,6 +98,14 @@ class QuasardbBasic(QuasardbTest):
     Basic operations tests such as put/get/remove
     """
 
+    def test_connect_throws_input_error__when_uri_is_invalid(self):
+        self.assertRaises(quasardb.InputError,
+                          quasardb.Cluster, 'invalid_uri')
+
+    def test_connect_throws_connection_error__when_no_cluster_on_given_uri(self):
+        self.assertRaises(quasardb.ConnectionError,
+                          quasardb.Cluster, 'qdb://127.0.0.1:1')
+
     def test_build(self):
         build = quasardb.build()
         self.assertGreater(len(build), 0)
@@ -109,7 +117,7 @@ class QuasardbBasic(QuasardbTest):
     def test_trim_all_at_begin(self):
         try:
             cluster.trim_all(datetime.timedelta(minutes=1))
-        except quasardb.QuasardbException:
+        except quasardb.Error:
             self.fail('cluster.trim_all raised an unexpected exception')
 
     def test_duration_converter(self):
@@ -169,7 +177,7 @@ class QuasardbBasic(QuasardbTest):
 
     def test_set_timeout_throws__when_timeout_is_1_microsecond(self):
         # timeout must be in milliseconds
-        self.assertRaises(quasardb.QuasardbException,
+        self.assertRaises(quasardb.InputError,
                           cluster.set_timeout, datetime.timedelta(microseconds=1))
 
     def test_max_cardinality_ok(self):
@@ -180,15 +188,15 @@ class QuasardbBasic(QuasardbTest):
                 msg='cluster.set_max_cardinality should not have raised an exception')
 
     def test_max_cardinality_throws_when_value_is_zero(self):
-        self.assertRaises(quasardb.QuasardbException,
+        self.assertRaises(quasardb.InputError,
                           cluster.set_max_cardinality, 0)
 
     def test_max_cardinality_throws_when_value_is_negative(self):
-        self.assertRaises(quasardb.QuasardbException,
+        self.assertRaises(quasardb.InputError,
                           cluster.set_max_cardinality, -143)
 
     def test_purge_all_throws_excpetion__when_disabled_by_default(self):
-        self.assertRaises(quasardb.QuasardbException,
+        self.assertRaises(quasardb.OperationError,
                           cluster.purge_all, datetime.timedelta(minutes=1))
 
     def test_trim_all_at_end(self):
@@ -211,7 +219,7 @@ class QuasardbBlob(QuasardbTest):
     def test_put_throws_exception__when_called_twice(self):
         self.b.put(self.entry_content)
 
-        self.assertRaises(quasardb.QuasardbException,
+        self.assertRaises(quasardb.OperationError,
                           self.b.put, self.entry_content)
 
     def test_get(self):
@@ -226,7 +234,7 @@ class QuasardbBlob(QuasardbTest):
 
         self.b.remove()
 
-        self.assertRaises(quasardb.QuasardbException, self.b.get)
+        self.assertRaises(quasardb.OperationError, self.b.get)
 
     def test_put_after_remove(self):
         self.b.put(self.entry_content)
@@ -242,7 +250,7 @@ class QuasardbBlob(QuasardbTest):
         self.b.put(self.entry_content)
         self.b.remove()
 
-        self.assertRaises(quasardb.QuasardbException, self.b.remove)
+        self.assertRaises(quasardb.OperationError, self.b.remove)
 
     def test_update(self):
         self.b.update(self.entry_content)
@@ -279,18 +287,18 @@ class QuasardbBlob(QuasardbTest):
 
         got = self.b.get_and_remove()
         self.assertEqual(self.entry_content, got)
-        self.assertRaises(quasardb.QuasardbException, self.b.get)
+        self.assertRaises(quasardb.OperationError, self.b.get)
 
     def test_remove_if(self):
         self.b.put(self.entry_content)
         got = self.b.get()
         self.assertEqual(self.entry_content, got)
-        self.assertRaises(quasardb.QuasardbException,
+        self.assertRaises(quasardb.OperationError,
                           self.b.remove_if, self.entry_content + 'a')
         got = self.b.get()
         self.assertEqual(self.entry_content, got)
         self.b.remove_if(self.entry_content)
-        self.assertRaises(quasardb.QuasardbException, self.b.get)
+        self.assertRaises(quasardb.OperationError, self.b.get)
 
     def test_compare_and_swap(self):
         self.b.put(self.entry_content)
@@ -400,14 +408,14 @@ class QuasardbInteger(QuasardbTest):
     def test_put_get_and_remove(self):
         self.i.put(self.entry_value)
 
-        self.assertRaises(quasardb.QuasardbException,
+        self.assertRaises(quasardb.OperationError,
                           self.i.put, self.entry_value)
 
         got = self.i.get()
         self.assertEqual(self.entry_value, got)
         self.i.remove()
-        self.assertRaises(quasardb.QuasardbException, self.i.get)
-        self.assertRaises(quasardb.QuasardbException, self.i.remove)
+        self.assertRaises(quasardb.OperationError, self.i.get)
+        self.assertRaises(quasardb.OperationError, self.i.remove)
 
     def test_update(self):
         self.i.update(self.entry_value)
@@ -455,11 +463,11 @@ class QuasardbDeque(QuasardbTest):
         self.q = cluster.deque(entry_name)
 
     def test_empty_queue(self):
-        self.assertRaises(quasardb.QuasardbException, self.q.pop_back)
-        self.assertRaises(quasardb.QuasardbException, self.q.pop_front)
-        self.assertRaises(quasardb.QuasardbException, self.q.front)
-        self.assertRaises(quasardb.QuasardbException, self.q.back)
-        self.assertRaises(quasardb.QuasardbException, self.q.size)
+        self.assertRaises(quasardb.OperationError, self.q.pop_back)
+        self.assertRaises(quasardb.OperationError, self.q.pop_front)
+        self.assertRaises(quasardb.OperationError, self.q.front)
+        self.assertRaises(quasardb.OperationError, self.q.back)
+        self.assertRaises(quasardb.OperationError, self.q.size)
 
     def test_push_front_single_element(self):
         self.q.push_front(self.entry_content_front)
@@ -546,10 +554,10 @@ class QuasardbDeque(QuasardbTest):
         self.assertEqual(self.entry_content_front, got)
         self.assertEqual(0, self.q.size())
 
-        self.assertRaises(quasardb.QuasardbException, self.q.pop_back)
-        self.assertRaises(quasardb.QuasardbException, self.q.pop_front)
-        self.assertRaises(quasardb.QuasardbException, self.q.front)
-        self.assertRaises(quasardb.QuasardbException, self.q.back)
+        self.assertRaises(quasardb.OperationError, self.q.pop_back)
+        self.assertRaises(quasardb.OperationError, self.q.pop_front)
+        self.assertRaises(quasardb.OperationError, self.q.front)
+        self.assertRaises(quasardb.OperationError, self.q.back)
 
 
 class QuasardbHSet(QuasardbTest):
@@ -560,7 +568,7 @@ class QuasardbHSet(QuasardbTest):
         self.hset = cluster.hset(entry_name)
 
     def test_contains_throws__when_does_not_exist(self):
-        self.assertRaises(quasardb.QuasardbException,
+        self.assertRaises(quasardb.OperationError,
                           self.hset.contains, self.entry_content)
 
     def test_insert_does_not_throw__when_does_not_exist(self):
@@ -570,7 +578,7 @@ class QuasardbHSet(QuasardbTest):
             self.fail(msg='hset.insert should not have raised an exception')
 
     def test_erase_throws__when_does_not_exist(self):
-        self.assertRaises(quasardb.QuasardbException,
+        self.assertRaises(quasardb.OperationError,
                           self.hset.erase, self.entry_content)
 
     def test_contains_returns_false__after_erase(self):
@@ -583,13 +591,13 @@ class QuasardbHSet(QuasardbTest):
         self.hset.insert(self.entry_content)
         self.hset.erase(self.entry_content)
 
-        self.assertRaises(quasardb.QuasardbException,
+        self.assertRaises(quasardb.OperationError,
                           self.hset.erase, self.entry_content)
 
     def test_insert_throws__when_called_twice(self):
         self.hset.insert(self.entry_content)
 
-        self.assertRaises(quasardb.QuasardbException,
+        self.assertRaises(quasardb.OperationError,
                           self.hset.insert, self.entry_content)
 
     def test_contains_returns_true__after_insert(self):
@@ -614,7 +622,7 @@ class QuasardbHSet(QuasardbTest):
     def test_insert_erase_contains(self):
         self.hset.insert(self.entry_content)
 
-        self.assertRaises(quasardb.QuasardbException,
+        self.assertRaises(quasardb.OperationError,
                           self.hset.insert, self.entry_content)
 
         self.assertTrue(self.hset.contains(self.entry_content))
@@ -629,7 +637,7 @@ class QuasardbHSet(QuasardbTest):
 
         self.hset.erase(self.entry_content)
 
-        self.assertRaises(quasardb.QuasardbException,
+        self.assertRaises(quasardb.OperationError,
                           self.hset.erase, self.entry_content)
 
 
@@ -764,28 +772,28 @@ class QuasardbTimeSeriesNonExisting(QuasardbTimeSeries):
         agg = quasardb.TimeSeries.DoubleAggregations()
         agg.append(quasardb.TimeSeries.Aggregation.sum, self.test_intervals[0])
 
-        self.assertRaises(quasardb.QuasardbException,
+        self.assertRaises(quasardb.OperationError,
                           double_col.aggregate,
                           agg)
 
     def test_columns_info_throws_when_timeseries_does_not_exist(self):
-        self.assertRaises(quasardb.QuasardbException, self.my_ts.columns_info)
+        self.assertRaises(quasardb.OperationError, self.my_ts.columns_info)
 
     def test_columns_throws_when_timeseries_does_not_exist(self):
-        self.assertRaises(quasardb.QuasardbException, self.my_ts.columns)
+        self.assertRaises(quasardb.OperationError, self.my_ts.columns)
 
     def test_insert_throws_when_timeseries_does_not_exist(self):
         double_col = self.my_ts.column(
             quasardb.TimeSeries.DoubleColumnInfo("blah"))
 
-        self.assertRaises(quasardb.QuasardbException,
+        self.assertRaises(quasardb.OperationError,
                           double_col.insert, [(self.start_time, 1.0)])
 
     def test_get_ranges_throws_when_timeseries_does_not_exist(self):
         double_col = self.my_ts.column(
             quasardb.TimeSeries.DoubleColumnInfo("blah"))
 
-        self.assertRaises(quasardb.QuasardbException,
+        self.assertRaises(quasardb.OperationError,
                           double_col.get_ranges,
                           self.test_intervals)
 
@@ -850,12 +858,12 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
 
         # invalid columinfo
         self.assertRaises(
-            quasardb.QuasardbException, self.my_ts.column,
+            quasardb.InputError, self.my_ts.column,
             quasardb.TimeSeries.ColumnInfo(self.double_col.name(),
                                            quasardb.TimeSeries.ColumnType.uninitialized))
 
         # cannot double create
-        self.assertRaises(quasardb.QuasardbException, self.my_ts.create,
+        self.assertRaises(quasardb.OperationError, self.my_ts.create,
                           [quasardb.TimeSeries.DoubleColumnInfo(entry_gen.next())])
 
     def test_double_get_ranges__when_timeseries_is_empty(self):
@@ -888,20 +896,20 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
         wrong_col = self.my_ts.column(
             quasardb.TimeSeries.DoubleColumnInfo("lolilol"))
 
-        self.assertRaises(quasardb.QuasardbException, wrong_col.get_ranges,
+        self.assertRaises(quasardb.OperationError, wrong_col.get_ranges,
                           [(self.start_time,
                             self.start_time + datetime.timedelta(microseconds=10))])
-        self.assertRaises(quasardb.QuasardbException,
+        self.assertRaises(quasardb.OperationError,
                           wrong_col.insert, inserted_double_data)
 
         # error: column of wrong type
         wrong_col = self.my_ts.column(
             quasardb.TimeSeries.DoubleColumnInfo(self.blob_col.name()))
 
-        self.assertRaises(quasardb.QuasardbException, wrong_col.get_ranges,
+        self.assertRaises(quasardb.OperationError, wrong_col.get_ranges,
                           [(self.start_time,
                             self.start_time + datetime.timedelta(microseconds=10))])
-        self.assertRaises(quasardb.QuasardbException,
+        self.assertRaises(quasardb.OperationError,
                           wrong_col.insert, inserted_double_data)
 
     def test_blob_get_ranges__when_timeseries_is_empty(self):
@@ -935,20 +943,20 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
         wrong_col = self.my_ts.column(
             quasardb.TimeSeries.BlobColumnInfo("lolilol"))
 
-        self.assertRaises(quasardb.QuasardbException, wrong_col.get_ranges,
+        self.assertRaises(quasardb.OperationError, wrong_col.get_ranges,
                           [(self.start_time,
                             self.start_time + datetime.timedelta(microseconds=10))])
-        self.assertRaises(quasardb.QuasardbException,
+        self.assertRaises(quasardb.OperationError,
                           wrong_col.insert, inserted_blob_data)
 
         # error: column of wrong type
         wrong_col = self.my_ts.column(
             quasardb.TimeSeries.BlobColumnInfo(self.double_col.name()))
 
-        self.assertRaises(quasardb.QuasardbException, wrong_col.get_ranges,
+        self.assertRaises(quasardb.OperationError, wrong_col.get_ranges,
                           [(self.start_time,
                             self.start_time + datetime.timedelta(microseconds=10))])
-        self.assertRaises(quasardb.QuasardbException,
+        self.assertRaises(quasardb.OperationError,
                           wrong_col.insert, inserted_blob_data)
 
 
@@ -1254,7 +1262,7 @@ class QuasardbExpiry(QuasardbTest):
         b = cluster.blob(entry_name)
 
         # entry does not exist yet
-        self.assertRaises(quasardb.QuasardbException, b.get_expiry_time)
+        self.assertRaises(quasardb.OperationError, b.get_expiry_time)
 
         b.put(entry_content)
 

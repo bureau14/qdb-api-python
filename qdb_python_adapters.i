@@ -3,6 +3,16 @@
 namespace qdb
 {
 
+qdb_error_origin_t error_origin(qdb_error_t err)
+{
+    return qdb_error_origin_t(QDB_ERROR_ORIGIN(err));
+}
+
+qdb_error_severity_t error_severity(qdb_error_t err)
+{
+    return qdb_error_severity_t(QDB_ERROR_SEVERITY(err));
+}
+
 // thanks to the definitions, content/content_length will be matched for a Python string
 qdb::api_buffer_ptr make_api_buffer_ptr_from_string(handle_ptr h, const char * content, size_t content_length)
 {
