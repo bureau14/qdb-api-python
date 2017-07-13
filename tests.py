@@ -183,7 +183,6 @@ class QuasardbBasic(QuasardbTest):
         self.assertRaises(quasardb.QuasardbException,
                           cluster.set_max_cardinality, 0)
 
-    @unittest.skip("TODO(marek): handle negative values")
     def test_max_cardinality_throws_when_value_is_negative(self):
         self.assertRaises(quasardb.QuasardbException,
                           cluster.set_max_cardinality, -143)

@@ -1172,7 +1172,11 @@ class Cluster(object):
 
         :raises: QuasardbException
         """
-        err = self.handle.set_max_cardinality(long(max_cardinality))
+        long_max_cardinality = long(max_cardinality)
+        if long_max_cardinality < 0:
+            raise QuasardbException(impl.error_invalid_argument)
+
+        err = self.handle.set_max_cardinality(long_max_cardinality)
         if err != impl.error_ok:
             raise QuasardbException(err)
 
