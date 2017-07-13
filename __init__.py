@@ -1,4 +1,4 @@
-# pylint: disable=C0103,C0111,C0302,W0235
+# pylint: disable=C0103,C0111,C0302
 
 # Copyright (c) 2009-2017, quasardb SAS
 # All rights reserved.
@@ -159,7 +159,7 @@ def _convert_time_couples_to_qdb_range_t_vector(time_couples):
     c = len(time_couples)
 
     vec.resize(c)
-    for i in range(0, c):
+    for i in xrange(c):
         vec[i] = _convert_time_couple_to_qdb_range_t(time_couples[i])
 
     return vec
@@ -174,7 +174,7 @@ def _convert_to_wrap_ts_blop_points_vector(tuples):
 
     tz_offset = time.timezone
 
-    for i in range(0, c):
+    for i in xrange(c):
         vec[i].timestamp.tv_sec = _time_to_unix_timestamp(
             tuples[i][0], tz_offset)
         vec[i].timestamp.tv_nsec = long(tuples[i][0].microsecond) * 1000
@@ -192,7 +192,7 @@ def make_qdb_ts_double_point_vector(time_points):
 
     tz_offset = time.timezone
 
-    for i in range(0, c):
+    for i in xrange(c):
         vec[i].timestamp.tv_sec = _time_to_unix_timestamp(
             time_points[i][0], tz_offset)
         vec[i].timestamp.tv_nsec = long(time_points[i][0].microsecond) * 1000
@@ -436,7 +436,7 @@ class Integer(ExpirableEntry):
 
             :raises: QuasardbException
         """
-        assert isinstance(number, long) or isinstance(number, int)
+        assert isinstance(number, (int, long))
         err = self.handle.int_put(super(Integer, self).alias(
         ), number, _convert_expiry_time(expiry_time))
         if err != impl.error_ok:
@@ -453,7 +453,7 @@ class Integer(ExpirableEntry):
 
             :raises: QuasardbException
         """
-        assert isinstance(number, long) or isinstance(number, int)
+        assert isinstance(number, (int, long))
         err = self.handle.int_update(
             super(Integer, self).alias(), number, _convert_expiry_time(expiry_time))
         if not ((err == impl.error_ok) or (err == impl.error_ok_created)):
@@ -471,7 +471,7 @@ class Integer(ExpirableEntry):
             :returns: The value of the entry post add
             :raises: QuasardbException
         """
-        assert isinstance(addend, long) or isinstance(addend, int)
+        assert isinstance(addend, (int, long))
         err = make_error_carrier()
         res = impl.int_add(self.handle, super(
             Integer, self).alias(), addend, err)
@@ -825,9 +825,6 @@ class TimeSeries(RemoveableEntry):
         A column whose value are double precision floats
         """
 
-        def __init__(self, ts, col_name):
-            super(TimeSeries.DoubleColumn, self).__init__(ts, col_name)
-
         def insert(self, tuples):
             """
             Inserts values into the time series.
@@ -880,9 +877,6 @@ class TimeSeries(RemoveableEntry):
         """
         A column whose values are blobs
         """
-
-        def __init__(self, ts, col_name):
-            super(TimeSeries.BlobColumn, self).__init__(ts, col_name)
 
         def insert(self, tuples):
             """

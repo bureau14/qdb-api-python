@@ -98,11 +98,11 @@ class QuasardbBasic(QuasardbTest):
     Basic operations tests such as put/get/remove
     """
 
-    def test_info(self):
-        ''' Checks build and version information. '''
-
+    def test_build(self):
         build = quasardb.build()
         self.assertGreater(len(build), 0)
+
+    def test_version(self):
         version = quasardb.version()
         self.assertGreater(len(version), 0)
 
@@ -110,7 +110,7 @@ class QuasardbBasic(QuasardbTest):
         try:
             cluster.trim_all(datetime.timedelta(minutes=1))
         except quasardb.QuasardbException:
-            self.fail('cluster::trim_all raised an unexpected exception')
+            self.fail('cluster.trim_all raised an unexpected exception')
 
     def test_duration_converter(self):
         '''
@@ -153,140 +153,163 @@ class QuasardbBasic(QuasardbTest):
         self.assertEqual(orig_couple[0], quasardb._convert_qdb_range_t_to_time_couple(
             converted_couple[0]))
 
-    def test_timeout(self):
-        # 1 day ok
-        cluster.set_timeout(datetime.timedelta(days=1))
+    def test_set_timeout_1_day(self):
+        try:
+            cluster.set_timeout(datetime.timedelta(days=1))
+        except:  # pylint: disable=W0702
+            self.fail(
+                msg='cluster.set_timeout should not have raised an exception')
 
-        # 1s ok
-        cluster.set_timeout(datetime.timedelta(seconds=1))
+    def test_set_timeout_1_second(self):
+        try:
+            cluster.set_timeout(datetime.timedelta(seconds=1))
+        except:  # pylint: disable=W0702
+            self.fail(
+                msg='cluster.set_timeout should not have raised an exception')
 
-        # 1 us not ok, timeout must be in milliseconds
+    def test_set_timeout_throws__when_timeout_is_1_microsecond(self):
+        # timeout must be in milliseconds
         self.assertRaises(quasardb.QuasardbException,
                           cluster.set_timeout, datetime.timedelta(microseconds=1))
 
-    def test_max_cardinality(self):
-        cluster.set_max_cardinality(140000)
+    def test_max_cardinality_ok(self):
+        try:
+            cluster.set_max_cardinality(140000)
+        except:  # pylint: disable=W0702
+            self.fail(
+                msg='cluster.set_max_cardinality should not have raised an exception')
 
-        # invalid values
+    def test_max_cardinality_throws_when_value_is_zero(self):
         self.assertRaises(quasardb.QuasardbException,
                           cluster.set_max_cardinality, 0)
 
-    def test_put_get_and_remove(self):
-        entry_name = entry_gen.next()
-        entry_content = "content"
-
-        b = cluster.blob(entry_name)
-
-        b.put(entry_content)
-
-        self.assertRaises(quasardb.QuasardbException, b.put, entry_content)
-
-        got = b.get()
-        self.assertEqual(got, entry_content)
-        b.remove()
-        self.assertRaises(quasardb.QuasardbException, b.get)
-        self.assertRaises(quasardb.QuasardbException, b.remove)
-
-    def test_update(self):
-        entry_name = entry_gen.next()
-        entry_content = "content"
-
-        b = cluster.blob(entry_name)
-
-        b.update(entry_content)
-        got = b.get()
-        self.assertEqual(got, entry_content)
-        entry_content = "it's a new style"
-        b.update(entry_content)
-        got = b.get()
-        self.assertEqual(got, entry_content)
-        b.remove()
-
-        entry_content = ''.join('%c' % x for x in range(0, 256))
-        self.assertEqual(len(entry_content), 256)
-
-        b.update(entry_content)
-        got = b.get()
-        self.assertEqual(got, entry_content)
-
-    def test_get_and_update(self):
-        entry_name = entry_gen.next()
-        entry_content = "content"
-
-        b = cluster.blob(entry_name)
-
-        b.put(entry_content)
-        got = b.get()
-        self.assertEqual(got, entry_content)
-
-        entry_new_content = "new stuff"
-        got = b.get_and_update(entry_new_content)
-        self.assertEqual(got, entry_content)
-        got = b.get()
-        self.assertEqual(got, entry_new_content)
-
-        b.remove()
-
-    def test_get_and_remove(self):
-        entry_name = entry_gen.next()
-        entry_content = "content"
-
-        b = cluster.blob(entry_name)
-        b.put(entry_content)
-
-        got = b.get_and_remove()
-        self.assertEqual(got, entry_content)
-        self.assertRaises(quasardb.QuasardbException, b.get)
-
-    def test_remove_if(self):
-        entry_name = entry_gen.next()
-        entry_content = "content"
-
-        b = cluster.blob(entry_name)
-
-        b.put(entry_content)
-        got = b.get()
-        self.assertEqual(got, entry_content)
+    @unittest.skip("TODO(marek): handle negative values")
+    def test_max_cardinality_throws_when_value_is_negative(self):
         self.assertRaises(quasardb.QuasardbException,
-                          b.remove_if, entry_content + 'a')
-        got = b.get()
-        self.assertEqual(got, entry_content)
-        b.remove_if(entry_content)
-        self.assertRaises(quasardb.QuasardbException, b.get)
+                          cluster.set_max_cardinality, -143)
 
-    def test_compare_and_swap(self):
-        entry_name = entry_gen.next()
-        entry_content = "content"
-
-        b = cluster.blob(entry_name)
-
-        b.put(entry_content)
-        got = b.get()
-        self.assertEqual(got, entry_content)
-        entry_new_content = "new stuff"
-        got = b.compare_and_swap(entry_new_content, entry_new_content)
-        self.assertEqual(got, entry_content)
-        # unchanged because unmatched
-        got = b.get()
-        self.assertEqual(got, entry_content)
-        got = b.compare_and_swap(entry_new_content, entry_content)
-        self.assertEqual(got, None)
-        # changed because matched
-        got = b.get()
-        self.assertEqual(got, entry_new_content)
-
-        b.remove()
-
-    def test_purge_all(self):
-        # disabled by default, must raise an exception
+    def test_purge_all_throws_excpetion__when_disabled_by_default(self):
         self.assertRaises(quasardb.QuasardbException,
                           cluster.purge_all, datetime.timedelta(minutes=1))
 
     def test_trim_all_at_end(self):
         try:
             cluster.trim_all(datetime.timedelta(minutes=1))
-        except quasardb.QuasardbException:
-            self.fail('cluster::trim_all raised an unexpected exception')
+        except:  # pylint: disable=W0702
+            self.fail('cluster.trim_all raised an unexpected exception')
+
+
+class QuasardbBlob(QuasardbTest):
+    def setUp(self):
+        self.entry_name = entry_gen.next()
+        self.entry_content = "content"
+
+        self.b = cluster.blob(self.entry_name)
+
+    def test_put(self):
+        self.b.put(self.entry_content)
+
+    def test_put_throws_exception__when_called_twice(self):
+        self.b.put(self.entry_content)
+
+        self.assertRaises(quasardb.QuasardbException,
+                          self.b.put, self.entry_content)
+
+    def test_get(self):
+        self.b.put(self.entry_content)
+
+        got = self.b.get()
+
+        self.assertEqual(self.entry_content, got)
+
+    def test_remove(self):
+        self.b.put(self.entry_content)
+
+        self.b.remove()
+
+        self.assertRaises(quasardb.QuasardbException, self.b.get)
+
+    def test_put_after_remove(self):
+        self.b.put(self.entry_content)
+
+        self.b.remove()
+
+        try:
+            self.b.put(self.entry_content)
+        except:  # pylint: disable=W0702
+            self.fail(msg='blob.put should not have raised an exception')
+
+    def test_remove_throws_exception__when_called_twice(self):
+        self.b.put(self.entry_content)
+        self.b.remove()
+
+        self.assertRaises(quasardb.QuasardbException, self.b.remove)
+
+    def test_update(self):
+        self.b.update(self.entry_content)
+        got = self.b.get()
+        self.assertEqual(self.entry_content, got)
+        new_entry_content = "it's a new style"
+        self.b.update(new_entry_content)
+        got = self.b.get()
+        self.assertEqual(new_entry_content, got)
+        self.b.remove()
+
+        new_entry_content = ''.join('%c' % x for x in range(0, 256))
+        self.assertEqual(len(new_entry_content), 256)
+
+        self.b.update(new_entry_content)
+        got = self.b.get()
+        self.assertEqual(new_entry_content, got)
+
+    def test_get_and_update(self):
+        self.b.put(self.entry_content)
+        got = self.b.get()
+        self.assertEqual(self.entry_content, got)
+
+        entry_new_content = "new stuff"
+        got = self.b.get_and_update(entry_new_content)
+        self.assertEqual(self.entry_content, got)
+        got = self.b.get()
+        self.assertEqual(entry_new_content, got)
+
+        self.b.remove()
+
+    def test_get_and_remove(self):
+        self.b.put(self.entry_content)
+
+        got = self.b.get_and_remove()
+        self.assertEqual(self.entry_content, got)
+        self.assertRaises(quasardb.QuasardbException, self.b.get)
+
+    def test_remove_if(self):
+        self.b.put(self.entry_content)
+        got = self.b.get()
+        self.assertEqual(self.entry_content, got)
+        self.assertRaises(quasardb.QuasardbException,
+                          self.b.remove_if, self.entry_content + 'a')
+        got = self.b.get()
+        self.assertEqual(self.entry_content, got)
+        self.b.remove_if(self.entry_content)
+        self.assertRaises(quasardb.QuasardbException, self.b.get)
+
+    def test_compare_and_swap(self):
+        self.b.put(self.entry_content)
+        got = self.b.get()
+        self.assertEqual(self.entry_content, got)
+        entry_new_content = "new stuff"
+        got = self.b.compare_and_swap(entry_new_content, entry_new_content)
+        self.assertEqual(self.entry_content, got)
+        # unchanged because unmatched
+        got = self.b.get()
+        self.assertEqual(self.entry_content, got)
+        got = self.b.compare_and_swap(entry_new_content, self.entry_content)
+        self.assertEqual(None, got)
+        # changed because matched
+        got = self.b.get()
+        self.assertEqual(entry_new_content, got)
+
+        self.b.remove()
 
 
 class QuasardbScan(QuasardbTest):
@@ -366,63 +389,59 @@ class QuasardbScan(QuasardbTest):
 
 class QuasardbInteger(QuasardbTest):
 
-    def test_put_get_and_remove(self):
+    def __init__(self, methodName="runTest"):
+        super(QuasardbInteger, self).__init__(methodName)
+        self.entry_value = 0
+
+    def setUp(self):
         entry_name = entry_gen.next()
-        entry_value = 0
+        self.i = cluster.integer(entry_name)
+        self.entry_value += 1
 
-        i = cluster.integer(entry_name)
+    def test_put_get_and_remove(self):
+        self.i.put(self.entry_value)
 
-        i.put(entry_value)
+        self.assertRaises(quasardb.QuasardbException,
+                          self.i.put, self.entry_value)
 
-        self.assertRaises(quasardb.QuasardbException, i.put, entry_value)
-
-        got = i.get()
-        self.assertEqual(got, entry_value)
-        i.remove()
-        self.assertRaises(quasardb.QuasardbException, i.get)
-        self.assertRaises(quasardb.QuasardbException, i.remove)
+        got = self.i.get()
+        self.assertEqual(self.entry_value, got)
+        self.i.remove()
+        self.assertRaises(quasardb.QuasardbException, self.i.get)
+        self.assertRaises(quasardb.QuasardbException, self.i.remove)
 
     def test_update(self):
-        entry_name = entry_gen.next()
-        entry_value = 1
-
-        i = cluster.integer(entry_name)
-
-        i.update(entry_value)
-        got = i.get()
-        self.assertEqual(got, entry_value)
-        entry_value = 2
-        i.update(entry_value)
-        got = i.get()
-        self.assertEqual(got, entry_value)
-        i.remove()
+        self.i.update(self.entry_value)
+        got = self.i.get()
+        self.assertEqual(self.entry_value, got)
+        self.entry_value = 2
+        self.i.update(self.entry_value)
+        got = self.i.get()
+        self.assertEqual(self.entry_value, got)
+        self.i.remove()
 
     def test_add(self):
-        entry_name = entry_gen.next()
-        entry_value = 0
+        self.i.put(self.entry_value)
 
-        i = cluster.integer(entry_name)
-
-        i.put(entry_value)
-
-        got = i.get()
-        self.assertEqual(got, entry_value)
+        got = self.i.get()
+        self.assertEqual(self.entry_value, got)
 
         entry_increment = 10
 
-        i.add(entry_increment)
+        self.i.add(entry_increment)
 
-        got = i.get()
-        self.assertEqual(got, entry_value + entry_increment)
+        got = self.i.get()
+        self.assertEqual(self.entry_value + entry_increment, got)
 
         entry_decrement = -100
 
-        i.add(entry_decrement)
+        self.i.add(entry_decrement)
 
-        got = i.get()
-        self.assertEqual(got, entry_value + entry_increment + entry_decrement)
+        got = self.i.get()
+        self.assertEqual(self.entry_value + entry_increment + entry_decrement,
+                         got)
 
-        i.remove()
+        self.i.remove()
 
 
 class QuasardbDeque(QuasardbTest):
@@ -441,22 +460,29 @@ class QuasardbDeque(QuasardbTest):
         self.assertRaises(quasardb.QuasardbException, self.q.pop_front)
         self.assertRaises(quasardb.QuasardbException, self.q.front)
         self.assertRaises(quasardb.QuasardbException, self.q.back)
+        #self.assertRaises(quasardb.QuasardbException, self.q.size)
 
     def test_push_front_single_element(self):
         self.q.push_front(self.entry_content_front)
 
+        #self.assertEqual(1, self.q.size())
+
         got = self.q.back()
-        self.assertEqual(got, self.entry_content_front)
+        self.assertEqual(self.entry_content_front, got)
+
         got = self.q.front()
-        self.assertEqual(got, self.entry_content_front)
+        self.assertEqual(self.entry_content_front, got)
 
     def test_push_back_single_element(self):
         self.q.push_back(self.entry_content_back)
 
+        #self.assertEqual(1, self.q.size())
+
         got = self.q.back()
-        self.assertEqual(got, self.entry_content_back)
+        self.assertEqual(self.entry_content_back, got)
+
         got = self.q.front()
-        self.assertEqual(got, self.entry_content_back)
+        self.assertEqual(self.entry_content_back, got)
 
     def test_sequence(self):
         """
@@ -466,50 +492,50 @@ class QuasardbDeque(QuasardbTest):
         self.q.push_front(self.entry_content_front)
 
         got = self.q.back()
-        self.assertEqual(got, self.entry_content_back)
+        self.assertEqual(self.entry_content_back, got)
         got = self.q.front()
-        self.assertEqual(got, self.entry_content_front)
+        self.assertEqual(self.entry_content_front, got)
 
         entry_content_canary = "canary"
 
         self.q.push_back(entry_content_canary)
 
         got = self.q.back()
-        self.assertEqual(got, entry_content_canary)
+        self.assertEqual(entry_content_canary, got)
         got = self.q.front()
-        self.assertEqual(got, self.entry_content_front)
+        self.assertEqual(self.entry_content_front, got)
 
         got = self.q.pop_back()
-        self.assertEqual(got, entry_content_canary)
+        self.assertEqual(entry_content_canary, got)
         got = self.q.back()
-        self.assertEqual(got, self.entry_content_back)
+        self.assertEqual(self.entry_content_back, got)
         got = self.q.front()
-        self.assertEqual(got, self.entry_content_front)
+        self.assertEqual(self.entry_content_front, got)
 
         self.q.push_front(entry_content_canary)
 
         got = self.q.back()
-        self.assertEqual(got, self.entry_content_back)
+        self.assertEqual(self.entry_content_back, got)
         got = self.q.front()
-        self.assertEqual(got, entry_content_canary)
+        self.assertEqual(entry_content_canary, got)
 
         got = self.q.pop_front()
-        self.assertEqual(got, entry_content_canary)
+        self.assertEqual(entry_content_canary, got)
         got = self.q.back()
-        self.assertEqual(got, self.entry_content_back)
+        self.assertEqual(self.entry_content_back, got)
         got = self.q.front()
-        self.assertEqual(got, self.entry_content_front)
+        self.assertEqual(self.entry_content_front, got)
 
         got = self.q.pop_back()
-        self.assertEqual(got, self.entry_content_back)
+        self.assertEqual(self.entry_content_back, got)
 
         got = self.q.back()
-        self.assertEqual(got, self.entry_content_front)
+        self.assertEqual(self.entry_content_front, got)
         got = self.q.front()
-        self.assertEqual(got, self.entry_content_front)
+        self.assertEqual(self.entry_content_front, got)
 
         got = self.q.pop_back()
-        self.assertEqual(got, self.entry_content_front)
+        self.assertEqual(self.entry_content_front, got)
 
         self.assertRaises(quasardb.QuasardbException, self.q.pop_back)
         self.assertRaises(quasardb.QuasardbException, self.q.pop_front)
@@ -532,7 +558,7 @@ class QuasardbHSet(QuasardbTest):
         try:
             self.hset.insert(self.entry_content)
         except:  # pylint: disable=W0702
-            self.fail(msg='insert should not have raised an exception')
+            self.fail(msg='hset.insert should not have raised an exception')
 
     def test_erase_throws__when_does_not_exist(self):
         self.assertRaises(quasardb.QuasardbException,
@@ -562,7 +588,19 @@ class QuasardbHSet(QuasardbTest):
 
         self.assertTrue(self.hset.contains(self.entry_content))
 
-    # TODO(marek): Insert and erase multiple values.
+    def test_insert_multiple(self):
+        for i in xrange(10):
+            self.hset.insert(str(i))
+
+        for i in xrange(10):
+            self.assertTrue(self.hset.contains(str(i)))
+
+        for i in xrange(10):
+            self.hset.erase(str(i))
+
+        # insert again
+        for i in xrange(10):
+            self.hset.insert(str(i))
 
     def test_insert_erase_contains(self):
         self.hset.insert(self.entry_content)
@@ -587,17 +625,23 @@ class QuasardbHSet(QuasardbTest):
 
 
 class QuasardbInfo(QuasardbTest):
-    """
-    Tests the json information string query
-    """
-
     def test_node_status(self):
         status = cluster.node_status(uri)
         self.assertGreater(len(status), 0)
+        self.assertIsNotNone(status.get('overall'))
 
     def test_node_config(self):
         config = cluster.node_config(uri)
         self.assertGreater(len(config), 0)
+        self.assertIsNotNone(config.get('global'))
+        self.assertIsNotNone(config.get('local'))
+
+    def test_node_topology(self):
+        topology = cluster.node_topology(uri)
+        self.assertGreater(len(topology), 0)
+        self.assertIsNotNone(topology.get('predecessor'))
+        self.assertIsNotNone(topology.get('center'))
+        self.assertIsNotNone(topology.get('successor'))
 
 
 class QuasardbTag(QuasardbTest):
@@ -709,7 +753,7 @@ class QuasardbTimeSeries(QuasardbTest):
 
         step = datetime.timedelta(microseconds=1)
 
-        for i in range(0, count):
+        for i in xrange(0, count):
             self.assertEqual(results[i][0], start_time)
             self.assertEqual(results[i][1], "content_" + str(start_time))
             start_time += step
@@ -719,41 +763,81 @@ class QuasardbTimeSeries(QuasardbTest):
 
         my_ts = cluster.ts(entry_name)
 
-        cols = my_ts.create([quasardb.TimeSeries.DoubleColumnInfo(
-            entry_gen.next()), quasardb.TimeSeries.BlobColumnInfo(entry_gen.next())])
+        cols = my_ts.create([
+            quasardb.TimeSeries.DoubleColumnInfo(entry_gen.next()),
+            quasardb.TimeSeries.BlobColumnInfo(entry_gen.next())
+        ])
         self.assertEqual(2, len(cols))
 
         return (my_ts, cols[0], cols[1])
 
-    def test_non_existing(self):
+    def test_columns_info_throws_when_timeseries_does_not_exist(self):
         entry_name = entry_gen.next()
-
         my_ts = cluster.ts(entry_name)
 
-        # ts doesn't exist yet
         self.assertRaises(quasardb.QuasardbException, my_ts.columns_info)
+
+    def test_columns_throws_when_timeseries_does_not_exist(self):
+        entry_name = entry_gen.next()
+        my_ts = cluster.ts(entry_name)
+
         self.assertRaises(quasardb.QuasardbException, my_ts.columns)
 
+    def test_insert_throws_when_timeseries_does_not_exist(self):
+        entry_name = entry_gen.next()
+        my_ts = cluster.ts(entry_name)
         double_col = my_ts.column(quasardb.TimeSeries.DoubleColumnInfo("blah"))
-
         start_time = datetime.datetime.now(quasardb.tz)
 
         self.assertRaises(quasardb.QuasardbException,
                           double_col.insert, [(start_time, 1.0)])
+
+    def test_get_ranges_throws_when_timeseries_does_not_exist(self):
+        entry_name = entry_gen.next()
+        my_ts = cluster.ts(entry_name)
+        double_col = my_ts.column(quasardb.TimeSeries.DoubleColumnInfo("blah"))
+        start_time = datetime.datetime.now(quasardb.tz)
+
         self.assertRaises(quasardb.QuasardbException,
                           double_col.get_ranges,
                           [(start_time, start_time + datetime.timedelta(microseconds=1))])
 
+    def test_blob_aggregations_default_values(self):
+        start_time = datetime.datetime.now(quasardb.tz)
+        agg = quasardb.TimeSeries.BlobAggregations()
+        agg.append(quasardb.TimeSeries.Aggregation.first,
+                   (start_time, start_time + datetime.timedelta(microseconds=1)))
+
+        self.assertEqual(agg[0].type, quasardb.TimeSeries.Aggregation.first)
+        self.assertEqual(agg[0].count, 0)
+        self.assertEqual(agg[0].content, None)
+        self.assertEqual(agg[0].content_length, 0L)
+        self.assertEqual(agg[0].range[0], start_time)
+        self.assertEqual(agg[0].range[1], start_time +
+                         datetime.timedelta(microseconds=1))
+
+    def test_double_aggregations_default_values(self):
+        start_time = datetime.datetime.now(quasardb.tz)
         agg = quasardb.TimeSeries.DoubleAggregations()
         agg.append(quasardb.TimeSeries.Aggregation.sum,
                    (start_time, start_time + datetime.timedelta(microseconds=1)))
 
         self.assertEqual(agg[0].type, quasardb.TimeSeries.Aggregation.sum)
-        self.assertEqual(agg[0].count, 0)
+        self.assertEqual(agg[0].count, 0L)
         self.assertEqual(agg[0].value, 0.0)
         self.assertEqual(agg[0].range[0], start_time)
         self.assertEqual(agg[0].range[1], start_time +
                          datetime.timedelta(microseconds=1))
+
+    def test_aggregate_throws_when_timeseries_does_not_exist(self):
+        entry_name = entry_gen.next()
+        my_ts = cluster.ts(entry_name)
+        double_col = my_ts.column(quasardb.TimeSeries.DoubleColumnInfo("blah"))
+        start_time = datetime.datetime.now(quasardb.tz)
+
+        agg = quasardb.TimeSeries.DoubleAggregations()
+        agg.append(quasardb.TimeSeries.Aggregation.sum,
+                   (start_time, start_time + datetime.timedelta(microseconds=1)))
 
         self.assertRaises(quasardb.QuasardbException,
                           double_col.aggregate,
@@ -854,7 +938,7 @@ class QuasardbTimeSeries(QuasardbTest):
             timestamp = datetime.datetime.fromtimestamp(0, quasardb.tz)
         self.assertEqual(agg_res[0].timestamp, timestamp)
         self.assertEqual(agg_res[0].count, expected_count)
-        expected_length = 0
+        expected_length = 0L
         if expected[1] is not None:
             expected_length = len(expected[1])
         self.assertEqual(agg_res[0].content_length, expected_length)
