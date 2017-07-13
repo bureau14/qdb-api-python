@@ -103,6 +103,13 @@ qdb_int_t int_add(handle_ptr h, const char * alias, qdb_int_t addend, error_carr
     return res;
 }
 
+qdb_size_t deque_size(handle_ptr h, const char * alias, error_carrier * error)
+{
+    qdb_size_t res = 0;
+    error->error = h->deque_size(alias, &res);
+    return res;
+}
+
 api_buffer_ptr deque_pop_front(handle_ptr h, const char * alias, error_carrier * error)
 {
     error->error = qdb_e_uninitialized;

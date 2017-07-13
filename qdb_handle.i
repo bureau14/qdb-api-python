@@ -71,6 +71,7 @@ public:
     api_buffer_ptr deque_pop_back(const char * alias, qdb_error_t & error);
     api_buffer_ptr deque_front(const char * alias, qdb_error_t & error);
     api_buffer_ptr deque_back(const char * alias, qdb_error_t & error);
+    qdb_error_t deque_size(const char * alias, qdb_size_t * size);
 
     // hset
     qdb_error_t hset_insert(const char * alias, const char * content, size_t content_length);

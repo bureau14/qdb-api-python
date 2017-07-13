@@ -570,7 +570,11 @@ class Deque(RemoveableEntry):
         :raises: QuasardbException
         :returns: The current size of the deque.
         """
-        raise QuasardbException(impl.error_not_implemented)
+        err = make_error_carrier()
+        res = impl.deque_size(self.handle, super(Deque, self).alias(), err)
+        if err.error != impl.error_ok:
+            raise QuasardbException(err.error)
+        return res
 
 
 class HSet(RemoveableEntry):
