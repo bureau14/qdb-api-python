@@ -89,7 +89,9 @@ typedef enum
     qdb_e_clock_skew                    = qdb_e_origin_system_remote | qdb_e_severity_error         | 0x0036,
     qdb_e_access_denied                 = qdb_e_origin_operation     | qdb_e_severity_error         | 0x0037,
     qdb_e_login_failed                  = qdb_e_origin_system_remote | qdb_e_severity_error         | 0x0038,
-    qdb_e_column_not_found              = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0039
+    qdb_e_column_not_found              = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0039,
+    qdb_e_query_too_complex             = qdb_e_origin_operation     | qdb_e_severity_error         | 0x0040,
+    qdb_e_invalid_crypto_key            = qdb_e_origin_input         | qdb_e_severity_error         | 0x0041
 } qdb_error_t;
 
 typedef qdb_error_t qdb_status_t;
