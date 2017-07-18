@@ -35,6 +35,7 @@
 .. moduleauthor: quasardb SAS. All rights reserved
 """
 
+from builtins import range as xrange, int as long  # pylint: disable=W0622
 import json
 import datetime
 import time
@@ -54,7 +55,7 @@ def __make_enum(type_name, prefix):
             continue
 
         v = getattr(impl, x)
-        if isinstance(v, int):
+        if isinstance(v, long):
             members[x[prefix_len:]] = v
 
     return type(type_name, (), members)
@@ -81,7 +82,7 @@ class Error(Exception):
     """The quasardb database exception, based on the API error codes."""
 
     def __init__(self, error_code=0):
-        assert isinstance(error_code, int)
+        assert isinstance(error_code, long)
         Exception.__init__(self)
         self.code = error_code
         self.origin = impl.error_origin(error_code)
@@ -152,9 +153,9 @@ def build():
 
 
 def _duration_to_timeout_ms(duration):
-    seconds_in_day = 24L * 60L * 60L
-    return (duration.days * seconds_in_day + duration.seconds) * 1000L \
-        + (duration.microseconds / 1000L)
+    seconds_in_day = long(24) * long(60) * long(60)
+    return ((duration.days * seconds_in_day + duration.seconds) * long(1000)
+            + (duration.microseconds // long(1000)))
 
 
 def _api_buffer_to_string(buf):
@@ -190,11 +191,11 @@ def _time_to_unix_timestamp(t, tz_offset):
 
 
 def _time_to_qdb_timestamp(t, tz_offset):
-    return _time_to_unix_timestamp(t, tz_offset) * 1000L + t.microsecond / 1000L
+    return _time_to_unix_timestamp(t, tz_offset) * long(1000) + t.microsecond / long(1000)
 
 
 def _convert_expiry_time(expiry_time):
-    return _time_to_qdb_timestamp(expiry_time, time.timezone) if expiry_time != None else 0L
+    return _time_to_qdb_timestamp(expiry_time, time.timezone) if expiry_time != None else long(0)
 
 
 def _convert_time_couples_to_qdb_range_t_vector(time_couples):
@@ -221,7 +222,7 @@ def _convert_to_wrap_ts_blop_points_vector(tuples):
     for i in xrange(c):
         vec[i].timestamp.tv_sec = _time_to_unix_timestamp(
             tuples[i][0], tz_offset)
-        vec[i].timestamp.tv_nsec = tuples[i][0].microsecond * 1000L
+        vec[i].timestamp.tv_nsec = tuples[i][0].microsecond * long(1000)
         vec[i].data = tuples[i][1]
 
     return vec
@@ -239,7 +240,7 @@ def make_qdb_ts_double_point_vector(time_points):
     for i in xrange(c):
         vec[i].timestamp.tv_sec = _time_to_unix_timestamp(
             time_points[i][0], tz_offset)
-        vec[i].timestamp.tv_nsec = time_points[i][0].microsecond * 1000L
+        vec[i].timestamp.tv_nsec = time_points[i][0].microsecond * long(1000)
         vec[i].value = time_points[i][1]
 
     return vec
@@ -262,10 +263,10 @@ def _convert_time_couple_to_qdb_range_t(time_couple):
 
     rng.begin.tv_sec = _time_to_unix_timestamp(
         time_couple[0], tz_offset)
-    rng.begin.tv_nsec = time_couple[0].microsecond * 1000L
+    rng.begin.tv_nsec = time_couple[0].microsecond * long(1000)
     rng.end.tv_sec = _time_to_unix_timestamp(
         time_couple[1], tz_offset)
-    rng.end.tv_nsec = time_couple[1].microsecond * 1000L
+    rng.end.tv_nsec = time_couple[1].microsecond * long(1000)
 
     return rng
 
@@ -480,7 +481,7 @@ class Integer(ExpirableEntry):
 
             :raises: Error
         """
-        assert isinstance(number, (int, long))
+        assert isinstance(number, long)
         err = self.handle.int_put(super(Integer, self).alias(
         ), number, _convert_expiry_time(expiry_time))
         if err != impl.error_ok:
@@ -497,7 +498,7 @@ class Integer(ExpirableEntry):
 
             :raises: Error
         """
-        assert isinstance(number, (int, long))
+        assert isinstance(number, long)
         err = self.handle.int_update(
             super(Integer, self).alias(), number, _convert_expiry_time(expiry_time))
         if not ((err == impl.error_ok) or (err == impl.error_ok_created)):
@@ -515,7 +516,7 @@ class Integer(ExpirableEntry):
             :returns: The value of the entry post add
             :raises: Error
         """
-        assert isinstance(addend, (int, long))
+        assert isinstance(addend, long)
         err = make_error_carrier()
         res = impl.int_add(self.handle, super(
             Integer, self).alias(), addend, err)
@@ -1175,7 +1176,6 @@ class Cluster(object):
     def __init__(self, uri, timeout=None, *args, **kwargs):  # pylint: disable=W0613
         """
         Creates the raw client.
-        Connection is delayed until the client is actually used.
         If the client is not used for some time,
         the connection is dropped and reestablished at need.
 

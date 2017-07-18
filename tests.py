@@ -1,5 +1,7 @@
 # pylint: disable=C0103,C0111,C0302,W0212
 
+from builtins import range as xrange, int as long  # pylint: disable=W0622
+from functools import reduce  # pylint: disable=W0622
 import datetime
 import os
 import subprocess
@@ -72,13 +74,7 @@ def setUpModule():
 
     try:
         cluster = quasardb.Cluster(uri)
-
-    except quasardb.Error:
-        __clusterd.terminate()
-        __clusterd.wait()
-        raise
-
-    except BaseException:
+    except (BaseException, quasardb.Error):
         __clusterd.terminate()
         __clusterd.wait()
         raise
@@ -93,10 +89,7 @@ class QuasardbTest(unittest.TestCase):
     pass
 
 
-class QuasardbBasic(QuasardbTest):
-    """
-    Basic operations tests such as put/get/remove
-    """
+class QuasardbConnection(QuasardbTest):
 
     def test_connect_throws_input_error__when_uri_is_invalid(self):
         self.assertRaises(quasardb.InputError,
@@ -106,6 +99,9 @@ class QuasardbBasic(QuasardbTest):
         self.assertRaises(quasardb.ConnectionError,
                           quasardb.Cluster, 'qdb://127.0.0.1:1')
 
+
+class QuasardbBasic(QuasardbTest):
+
     def test_build(self):
         build = quasardb.build()
         self.assertGreater(len(build), 0)
@@ -114,11 +110,12 @@ class QuasardbBasic(QuasardbTest):
         version = quasardb.version()
         self.assertGreater(len(version), 0)
 
-    def test_trim_all_at_begin(self):
-        try:
-            cluster.trim_all(datetime.timedelta(minutes=1))
-        except quasardb.Error:
-            self.fail('cluster.trim_all raised an unexpected exception')
+    def test_purge_all_throws_excpetion__when_disabled_by_default(self):
+        self.assertRaises(quasardb.OperationError,
+                          cluster.purge_all, datetime.timedelta(minutes=1))
+
+
+class QuasardbTimeUtils(QuasardbTest):
 
     def test_duration_converter(self):
         '''
@@ -161,6 +158,9 @@ class QuasardbBasic(QuasardbTest):
         self.assertEqual(orig_couple[0], quasardb._convert_qdb_range_t_to_time_couple(
             converted_couple[0]))
 
+
+class QuasardbClusterSetTimeout(QuasardbTest):
+
     def test_set_timeout_1_day(self):
         try:
             cluster.set_timeout(datetime.timedelta(days=1))
@@ -180,6 +180,9 @@ class QuasardbBasic(QuasardbTest):
         self.assertRaises(quasardb.InputError,
                           cluster.set_timeout, datetime.timedelta(microseconds=1))
 
+
+class QuasardbClusterSetMaxCardinality(QuasardbTest):
+
     def test_max_cardinality_ok(self):
         try:
             cluster.set_max_cardinality(140000)
@@ -195,16 +198,6 @@ class QuasardbBasic(QuasardbTest):
         self.assertRaises(quasardb.InputError,
                           cluster.set_max_cardinality, -143)
 
-    def test_purge_all_throws_excpetion__when_disabled_by_default(self):
-        self.assertRaises(quasardb.OperationError,
-                          cluster.purge_all, datetime.timedelta(minutes=1))
-
-    def test_trim_all_at_end(self):
-        try:
-            cluster.trim_all(datetime.timedelta(minutes=1))
-        except:  # pylint: disable=W0702
-            self.fail('cluster.trim_all raised an unexpected exception')
-
 
 class QuasardbBlob(QuasardbTest):
     def setUp(self):
@@ -212,6 +205,12 @@ class QuasardbBlob(QuasardbTest):
         self.entry_content = "content"
 
         self.b = cluster.blob(self.entry_name)
+
+    def test_trim_all_at_begin(self):
+        try:
+            cluster.trim_all(datetime.timedelta(minutes=1))
+        except quasardb.Error:
+            self.fail('cluster.trim_all raised an unexpected exception')
 
     def test_put(self):
         self.b.put(self.entry_content)
@@ -833,7 +832,7 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
         self.assertEqual(agg[0].type, quasardb.TimeSeries.Aggregation.first)
         self.assertEqual(agg[0].count, 0)
         self.assertEqual(agg[0].content, None)
-        self.assertEqual(agg[0].content_length, 0L)
+        self.assertEqual(agg[0].content_length, long(0))
         self.assertEqual(agg[0].range, self.test_intervals[0])
 
     def test_double_aggregations_default_values(self):
@@ -842,7 +841,7 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
                    self.test_intervals[0])
 
         self.assertEqual(agg[0].type, quasardb.TimeSeries.Aggregation.sum)
-        self.assertEqual(agg[0].count, 0L)
+        self.assertEqual(agg[0].count, long(0))
         self.assertEqual(agg[0].value, 0.0)
         self.assertEqual(agg[0].range, self.test_intervals[0])
 
@@ -993,7 +992,7 @@ class QuasardbTimeSeriesExistingWithBlobs(QuasardbTimeSeries):
             timestamp = datetime.datetime.fromtimestamp(0, quasardb.tz)
         self.assertEqual(agg_res[0].timestamp, timestamp)
         self.assertEqual(agg_res[0].count, expected_count)
-        expected_length = 0L
+        expected_length = long(0)
         if expected[1] is not None:
             expected_length = len(expected[1])
         self.assertEqual(agg_res[0].content_length, expected_length)
@@ -1371,6 +1370,12 @@ class QuasardbExpiry(QuasardbTest):
         self.assertEqual(exp, future_exp)
 
         b.remove()
+
+    def test_trim_all_at_end(self):
+        try:
+            cluster.trim_all(datetime.timedelta(minutes=1))
+        except:  # pylint: disable=W0702
+            self.fail('cluster.trim_all raised an unexpected exception')
 
 
 if __name__ == '__main__':

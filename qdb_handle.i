@@ -3,17 +3,16 @@ namespace qdb
 
 class handle
 {
-
 public:
-    handle(void);
-    ~handle(void);
+    handle();
+    ~handle();
 
 private:
     handle(const handle &);
 
 public:
-    void close(void);
-    bool connected(void) const;
+    void close();
+    bool connected() const;
 
     qdb_error_t connect(const char * uri);
 
@@ -78,7 +77,6 @@ public:
     qdb_error_t hset_erase(const char * alias, const char * content, size_t content_length);
     qdb_error_t hset_contains(const char * alias, const char * content, size_t content_length);
 
-
     std::vector<std::string> blob_scan(const void * pattern,
                                    qdb_size_t pattern_length,
                                    qdb_int_t max_count,
@@ -93,4 +91,4 @@ private:
 
 };
 
-}
+} // namespace qdb
