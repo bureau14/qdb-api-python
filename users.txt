@@ -1,0 +1,8 @@
+{
+    "users": [
+        {
+            "username": "qdb-api-python",
+            "public_key": "PEt66yMXbLbq4Cm3uV6useofRnSqSPXSeY7xWXpB12xw="
+        }
+    ]
+}

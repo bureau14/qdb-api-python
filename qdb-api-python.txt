@@ -1,0 +1,4 @@
+{
+    "username": "qdb-api-python",
+    "secret_key": "SoHHpH26NtZvfq5pqm/8BXKbVIkf+yYiVZ5fQbq1nbcI="
+}

@@ -89,7 +89,7 @@ else()
 endif()
 
 # copy the daemon (for the tests)
-if (WIN32)
+if(WIN32)
     file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/bin/qdbd.exe" DESTINATION "test")
 else()
     file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/bin/qdbd" DESTINATION "test")
@@ -103,7 +103,13 @@ endif()
 # Step 1: SWIG
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}/impl.py
-    COMMAND ${SWIG_EXECUTABLE} -c++ -python -o ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx -outdir ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME} -O -module impl -interface _qdb ${SWIG_PLATFORM_FILE}
+    COMMAND ${SWIG_EXECUTABLE} -c++ -python
+        -o ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx
+        -outdir ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}
+        -O
+        -module impl
+        -interface _qdb
+        ${SWIG_PLATFORM_FILE}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     DEPENDS ${SWIG_COMMON_FILES} ${SWIG_PLATFORM_FILE})
 

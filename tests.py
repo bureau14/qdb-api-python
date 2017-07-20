@@ -9,12 +9,12 @@ import sys
 import time
 import unittest
 import calendar
-# TODO(marek): Update agents by installing numpy.
-_has_numpy = True
+
+HAS_NUMPY = True
 try:
     import numpy
 except ImportError:
-    _has_numpy = False
+    HAS_NUMPY = False
 
 for root, dirnames, filenames in os.walk(os.path.join('..', 'build')):
     for p in dirnames:
@@ -40,49 +40,86 @@ class UniqueEntryNameGenerator(object):  # pylint: disable=R0903
         return self.__prefix + str(self.__counter)
 
 
-def setUpModule():
+def __cleanupProcess(process):
+    process.terminate()
+    process.wait()
 
-    global uri  # pylint: disable=W0601
+
+SECURE_USER_NAME = 'qdb-api-python'
+SECURE_USER_PRIVATE_KEY = 'SoHHpH26NtZvfq5pqm/8BXKbVIkf+yYiVZ5fQbq1nbcI='
+SECURE_CLUSTER_PUBLIC_KEY = 'Pb+d1o3HuFtxEb5uTl9peU89ze9BZTK9f8KdKr4k7zGA='
+
+
+def setUpModule():
+    global INSECURE_URI  # pylint: disable=W0601
+    global SECURE_URI  # pylint: disable=W0601
+
     global cluster  # pylint: disable=W0601
-    global __clusterd  # pylint: disable=W0601
+    global __CLUSTERD  # pylint: disable=W0601
+    global __SECURE_CLUSTERD  # pylint: disable=W0601
+
     global entry_gen  # pylint: disable=W0601
 
     entry_gen = UniqueEntryNameGenerator()
 
     __current_port = 3000
-    uri = ""
+    insecure_endpoint = '127.0.0.1:' + str(__current_port)
+    __current_port += 1
+    secure_endpoint = '127.0.0.1:' + str(__current_port)
+    __current_port += 1
+
+    INSECURE_URI = ""
+    SECURE_URI = ""
 
     # don't save anything to disk
-    __clusterd = subprocess.Popen(
+    common_parameters = '--transient'
+
+    __CLUSTERD = subprocess.Popen(
         [os.path.join('.', 'qdbd'),
-         '--address=127.0.0.1:' + str(__current_port), '--security=false', '--transient'])
-    if __clusterd.pid == 0:
-        raise Exception("daemon", "cannot run daemon")
+         common_parameters, '--address=' + insecure_endpoint, '--security=false'])
+    if __CLUSTERD.pid == 0:
+        raise Exception("daemon", "cannot run insecure daemon")
 
     # startup may take a couple of seconds, temporize to make sure the
     # connection will be accepted
+
+    __SECURE_CLUSTERD = subprocess.Popen(
+        [os.path.join(os.getcwd(), 'qdbd'),
+         common_parameters, '--address=' + secure_endpoint,
+         '--cluster-private-file=' +
+         os.path.join(os.getcwd(), '..', '..', 'cluster-secret-key.txt'),
+         '--user-list=' + os.path.join(os.getcwd(), '..', '..', 'users.txt')])
+    if __SECURE_CLUSTERD.pid == 0:
+        __cleanupProcess(__CLUSTERD)
+        raise Exception("daemon", "cannot run secure daemon")
+
     time.sleep(2)
+    __CLUSTERD.poll()
+    if __CLUSTERD.returncode != None:
+        __cleanupProcess(__SECURE_CLUSTERD)
+        raise Exception("daemon", "error while running insecure daemon (returned {})"
+                        .format(__CLUSTERD.returncode))
 
-    __clusterd.poll()
+    __SECURE_CLUSTERD.poll()
+    if __SECURE_CLUSTERD.returncode != None:
+        __cleanupProcess(__CLUSTERD)
+        raise Exception("daemon", "error while running secure daemon (returned {})"
+                        .format(__SECURE_CLUSTERD.returncode))
 
-    if __clusterd.returncode != None:
-        raise Exception("daemon", "error while running daemon")
-
-    uri = "qdb://127.0.0.1:" + str(__current_port)
-
-    __current_port += 1
+    INSECURE_URI = 'qdb://' + insecure_endpoint
+    SECURE_URI = 'qdb://' + secure_endpoint
 
     try:
-        cluster = quasardb.Cluster(uri)
+        cluster = quasardb.Cluster(INSECURE_URI)
     except (BaseException, quasardb.Error):
-        __clusterd.terminate()
-        __clusterd.wait()
+        __cleanupProcess(__CLUSTERD)
+        __cleanupProcess(__SECURE_CLUSTERD)
         raise
 
 
 def tearDownModule():
-    __clusterd.terminate()
-    __clusterd.wait()
+    __cleanupProcess(__CLUSTERD)
+    __cleanupProcess(__SECURE_CLUSTERD)
 
 
 class QuasardbTest(unittest.TestCase):
@@ -93,11 +130,38 @@ class QuasardbConnection(QuasardbTest):
 
     def test_connect_throws_input_error__when_uri_is_invalid(self):
         self.assertRaises(quasardb.InputError,
-                          quasardb.Cluster, 'invalid_uri')
+                          quasardb.Cluster, uri='invalid_uri')
 
     def test_connect_throws_connection_error__when_no_cluster_on_given_uri(self):
         self.assertRaises(quasardb.ConnectionError,
-                          quasardb.Cluster, 'qdb://127.0.0.1:1')
+                          quasardb.Cluster, uri='qdb://127.0.0.1:1')
+
+    def test_connect_throws_connection_error__when_no_cluster_public_key(self):
+        self.assertRaises(quasardb.InputError,
+                          quasardb.Cluster, uri=SECURE_URI,
+                          user_name=SECURE_USER_NAME,
+                          user_private_key=SECURE_USER_PRIVATE_KEY)
+
+    def test_connect_throws_connection_error__when_no_user_private_key(self):
+        self.assertRaises(quasardb.InputError,
+                          quasardb.Cluster, uri=SECURE_URI,
+                          user_name=SECURE_USER_NAME,
+                          cluster_public_key=SECURE_CLUSTER_PUBLIC_KEY)
+
+    def test_connect_throws_connection_error__when_no_user_name(self):
+        self.assertRaises(quasardb.RemoteSystemError,
+                          quasardb.Cluster, uri=SECURE_URI,
+                          user_private_key=SECURE_USER_PRIVATE_KEY,
+                          cluster_public_key=SECURE_CLUSTER_PUBLIC_KEY)
+
+    def test_connect_ok__secure_cluster(self):
+        try:
+            quasardb.Cluster(uri=SECURE_URI,
+                             user_name=SECURE_USER_NAME,
+                             user_private_key=SECURE_USER_PRIVATE_KEY,
+                             cluster_public_key=SECURE_CLUSTER_PUBLIC_KEY)
+        except Exception as ex:  # pylint: disable=W0703
+            self.fail(msg='Cannot connect to secure cluster: ' + str(ex))
 
 
 class QuasardbBasic(QuasardbTest):
@@ -110,7 +174,7 @@ class QuasardbBasic(QuasardbTest):
         version = quasardb.version()
         self.assertGreater(len(version), 0)
 
-    def test_purge_all_throws_excpetion__when_disabled_by_default(self):
+    def test_purge_all_throws_exception__when_disabled_by_default(self):
         self.assertRaises(quasardb.OperationError,
                           cluster.purge_all, datetime.timedelta(minutes=1))
 
@@ -179,6 +243,11 @@ class QuasardbClusterSetTimeout(QuasardbTest):
         # timeout must be in milliseconds
         self.assertRaises(quasardb.InputError,
                           cluster.set_timeout, datetime.timedelta(microseconds=1))
+
+    def test_cluster_with_timeout_throws__when_timeout_is_less_than_1_millisecond(self):
+        self.assertRaises(quasardb.InputError,
+                          quasardb.Cluster, uri=INSECURE_URI,
+                          timeout=datetime.timedelta(microseconds=1))
 
 
 class QuasardbClusterSetMaxCardinality(QuasardbTest):
@@ -642,18 +711,18 @@ class QuasardbHSet(QuasardbTest):
 
 class QuasardbInfo(QuasardbTest):
     def test_node_status(self):
-        status = cluster.node_status(uri)
+        status = cluster.node_status(INSECURE_URI)
         self.assertGreater(len(status), 0)
         self.assertIsNotNone(status.get('overall'))
 
     def test_node_config(self):
-        config = cluster.node_config(uri)
+        config = cluster.node_config(INSECURE_URI)
         self.assertGreater(len(config), 0)
         self.assertIsNotNone(config.get('global'))
         self.assertIsNotNone(config.get('local'))
 
     def test_node_topology(self):
-        topology = cluster.node_topology(uri)
+        topology = cluster.node_topology(INSECURE_URI)
         self.assertGreater(len(topology), 0)
         self.assertIsNotNone(topology.get('predecessor'))
         self.assertIsNotNone(topology.get('center'))
@@ -1106,28 +1175,28 @@ class QuasardbTimeSeriesExistingWithDoubles(QuasardbTimeSeries):
         self._test_aggregation_of_doubles(quasardb.TimeSeries.Aggregation.sum_of_squares,
                                           (None, computed_sum), len(self.inserted_double_data))
 
-    @unittest.skipUnless(_has_numpy, 'requires numpy package')
+    @unittest.skipUnless(HAS_NUMPY, 'requires numpy package')
     def test_double_aggregation_population_variance(self):
         self._test_aggregation_of_doubles(quasardb.TimeSeries.Aggregation.population_variance,
                                           (None, numpy.var(
                                               self.inserted_double_col)),
                                           len(self.inserted_double_data))
 
-    @unittest.skipUnless(_has_numpy, 'requires numpy package')
+    @unittest.skipUnless(HAS_NUMPY, 'requires numpy package')
     def test_double_aggregation_population_stddev(self):
         self._test_aggregation_of_doubles(quasardb.TimeSeries.Aggregation.population_stddev,
                                           (None, numpy.std(
                                               self.inserted_double_col)),
                                           len(self.inserted_double_data))
 
-    @unittest.skipUnless(_has_numpy, 'requires numpy package')
+    @unittest.skipUnless(HAS_NUMPY, 'requires numpy package')
     def test_double_aggregation_sample_variance(self):
         self._test_aggregation_of_doubles(quasardb.TimeSeries.Aggregation.sample_variance,
                                           (None,
                                            numpy.var(self.inserted_double_col, ddof=1)),
                                           len(self.inserted_double_data))
 
-    @unittest.skipUnless(_has_numpy, 'requires numpy package')
+    @unittest.skipUnless(HAS_NUMPY, 'requires numpy package')
     def test_double_aggregation_sample_stddev(self):
         self._test_aggregation_of_doubles(quasardb.TimeSeries.Aggregation.sample_stddev,
                                           (None,

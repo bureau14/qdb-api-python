@@ -5,7 +5,9 @@
 /test-reports/
 
 # Where you must unzip qdb_api
-/qdb*
+/qdb
+/qdb32
+/qdb64
 
 # Editors
 /.vscode/

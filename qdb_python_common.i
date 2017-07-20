@@ -34,14 +34,11 @@
 %typemap(in) qdb_time_t { $1 = PyLong_AsLongLong($input); }
 %typemap(out) qdb_time_t { $result = PyLong_FromLongLong($1); }
 
-%typemap(in) qdb_int_t { $1 = PyLong_AsLongLong($input); }
-%typemap(out) qdb_int_t { $result = PyLong_FromLongLong($1); }
-
-%typemap(in) qdb_uint_t { $1 = PyLong_AsUnsignedLongLong($input); }
-%typemap(out) qdb_uint_t { $result = PyLong_FromUnsignedLongLong($1); }
-
 %include typemaps.i
 %include cpointer.i
+
+%apply long long { qdb_int_t };
+%apply unsigned long long { qdb_uint_t };
 
 %apply size_t { qdb_size_t };
 %apply (const char *STRING, size_t LENGTH) { (const char * content, size_t content_length) };

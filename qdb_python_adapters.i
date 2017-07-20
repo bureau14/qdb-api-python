@@ -80,15 +80,21 @@ std::string node_topology(handle_ptr h, const char * uri, error_carrier * error)
     return h->node_topology(uri, error->error);
 }
 
-handle_ptr connect(const char * uri, int timeout_ms, error_carrier * error)
+handle_ptr create_handle()
 {
     handle_ptr h(new handle());
-    error->error = h->set_timeout(timeout_ms);
-    if (QDB_SUCCESS(error->error))
-    {
-        error->error = h->connect(uri);
-    }
     return h;
+}
+
+qdb_error_t connect(handle_ptr h, const char * uri, int timeout_ms)
+{
+    qdb_error_t error = h->set_timeout(timeout_ms);
+    if (QDB_FAILURE(error))
+    {
+        return error;
+    }
+
+    return h->connect(uri);
 }
 
 qdb_time_t get_expiry_time_wrapper(handle_ptr h, const char * alias, error_carrier * error)
