@@ -162,6 +162,12 @@ std::vector<std::string> get_tagged(handle_ptr h, const char * tag, error_carrie
     return h->get_tagged(tag, error->error);
 }
 
+qdb_uint_t get_tagged_count(handle_ptr h, const char * tag, error_carrier * error)
+{
+    error->error = qdb_e_uninitialized;
+    return h->get_tagged_count(tag, error->error);
+}
+
 std::vector<std::string> blob_scan(handle_ptr h,
                                    const void * pattern,
                                    qdb_size_t pattern_length,

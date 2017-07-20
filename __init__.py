@@ -438,6 +438,8 @@ class Tag(Entry):
     def get_entries(self):
         """
             Returns all entries with the tag
+
+            :returns: The list of entries aliases tagged
             :raises: Error
         """
         err = make_error_carrier()
@@ -446,6 +448,19 @@ class Tag(Entry):
             raise chooseError(err.error)
         return result
 
+    def count(self):
+        """
+            Returns an approximate count of the entries matching the tag,
+            up to the configured maximum cardinality.
+
+            :returns: The approximative count of entries tagged
+            :raises: Error
+        """
+        err = make_error_carrier()
+        result = impl.get_tagged_count(self.handle, self.alias(), err)
+        if err.error != impl.error_ok:
+            raise chooseError(err.error)
+        return result
 
 class Integer(ExpirableEntry):
     """

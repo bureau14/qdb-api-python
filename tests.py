@@ -24,8 +24,6 @@ for root, dirnames, filenames in os.walk(os.path.join('..', 'build')):
 import quasardb  # pylint: disable=C0413,E0401
 
 # generate an unique entry name for the tests
-
-
 class UniqueEntryNameGenerator(object):  # pylint: disable=R0903
 
     def __init__(self):
@@ -781,10 +779,11 @@ class QuasardbTag(QuasardbTest):
         self.assertEqual(1, len(tags))
         self.assertEqual(tags[0], entry_name)
 
+        self.assertEqual(1, t.count())
+
         self.assertTrue(b.detach_tag(tag_name))
         entries = t.get_entries()
         self.assertEqual(0, len(entries))
-
 
 def _generate_double_ts(start_time, start_val, count):
     result = []
@@ -798,7 +797,6 @@ def _generate_double_ts(start_time, start_val, count):
 
     return result
 
-
 def _generate_blob_ts(start_time, count):
     result = []
 
@@ -809,7 +807,6 @@ def _generate_blob_ts(start_time, count):
         start_time += step
 
     return result
-
 
 class QuasardbTimeSeries(QuasardbTest):
 
@@ -829,7 +826,6 @@ class QuasardbTimeSeries(QuasardbTest):
         self.assertEqual(2, len(cols))
 
         return (cols[0], cols[1])
-
 
 class QuasardbTimeSeriesNonExisting(QuasardbTimeSeries):
 
@@ -864,7 +860,6 @@ class QuasardbTimeSeriesNonExisting(QuasardbTimeSeries):
         self.assertRaises(quasardb.OperationError,
                           double_col.get_ranges,
                           self.test_intervals)
-
 
 class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
 

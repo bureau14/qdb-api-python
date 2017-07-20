@@ -59,6 +59,8 @@ public:
     std::vector<std::string> get_tagged(const char * tag, qdb_error_t & error);
     std::vector<std::string> get_tags(const char * alias, qdb_error_t & error);
 
+    qdb_uint_t get_tagged_count(const char * tag, qdb_error_t & error);
+
     // integer
     qdb_error_t int_get(const char * alias, qdb_int_t * number);
     qdb_error_t int_put(const char * alias, qdb_int_t number, qdb_time_t expiry_time);
