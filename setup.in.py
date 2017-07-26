@@ -126,7 +126,7 @@ setup(name=package_name,
       ],
       keywords='quasardb database key-value storage NoSQL NewSQL API driver cache',
       setup_requires=["setuptools_git >= 0.3", "xmlrunner"],
-      install_requires=["xmlrunner"],
+      install_requires=["xmlrunner", "future"],
       packages=[package_name],
       package_data={package_name: [
           os.path.basename(mod) for mod in package_modules]},
