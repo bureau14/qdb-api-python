@@ -183,8 +183,10 @@ class TimeZone(datetime.tzinfo):
 
 tz = TimeZone()
 
+# don't use timetuple because of tz
 def _time_to_unix_timestamp(t, tz_offset):
-    return long(time.mktime(t.timetuple())) - tz_offset
+    return long(time.mktime((t.year, t.month, t.day, t.hour, t.minute, t.second, -1, -1, 0))) \
+        - tz_offset
 
 def _time_to_qdb_timestamp(t, tz_offset):
     return _time_to_unix_timestamp(t, tz_offset) * long(1000) + t.microsecond / long(1000)
