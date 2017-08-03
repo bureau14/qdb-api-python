@@ -18,6 +18,7 @@ public:
 
     qdb_error_t set_timeout(int timeout_ms);
     qdb_error_t set_compression(qdb_compression_t comp_level);
+    qdb_error_t set_encryption(qdb_encryption_t enc_level);
     qdb_error_t set_max_cardinality(qdb_uint_t max_cardinality);
     qdb_error_t set_user_credentials(const std::string & user_name, const std::string & private_key);
     qdb_error_t set_cluster_public_key(const std::string & public_key);

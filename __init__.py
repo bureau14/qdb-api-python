@@ -67,7 +67,8 @@ Operation = __make_enum('Operation', 'operation_')
 Protocol = __make_enum('Protocol', 'protocol_')
 TSAggregation = __make_enum('Aggregation', 'aggregation_')
 TSColumnType = __make_enum('ColumnType', 'column_')
-
+Compression = __make_enum('Compression', 'compression_')
+Encryption = __make_enum('Encryption', 'encryption_')
 
 def make_error_string(error_code):
     """ Returns a meaningful error message corresponding to the quasardb error code.
@@ -100,30 +101,23 @@ class Error(Exception):
 # Deprecated name. Please use Error.
 QuasardbException = Error
 
-
 class RemoteSystemError(Error):
     pass
-
 
 class LocalSystemError(Error):
     pass
 
-
 class ConnectionError(Error):
     pass
-
 
 class InputError(Error):
     pass
 
-
 class OperationError(Error):
     pass
 
-
 class ProtocolError(Error):
     pass
-
 
 def chooseError(error_code=0):
     return {
@@ -143,7 +137,6 @@ def version():
     """
     return impl.version()
 
-
 def build():
     """ Returns the build tag and build date as a string
 
@@ -151,23 +144,19 @@ def build():
     """
     return impl.build()
 
-
 def _duration_to_timeout_ms(duration):
     seconds_in_day = long(24) * long(60) * long(60)
     return ((duration.days * seconds_in_day + duration.seconds) * long(1000)
             + (duration.microseconds // long(1000)))
 
-
 def _api_buffer_to_string(buf):
     return None if buf is None else impl.api_buffer_ptr_as_string(buf)
-
 
 def _string_to_api_buffer(h, s):
     """
     Converts a string to an internal qdb::api_buffer_ptr
     """
     return None if s is None else impl.make_api_buffer_ptr_from_string(h, s)
-
 
 class TimeZone(datetime.tzinfo):
     """The quasardb time zone is UTC. Please refer to the documentation for further information."""
@@ -1191,6 +1180,7 @@ class Cluster(object):
     def __init__(self, uri, timeout=None,
                  user_name=None, user_private_key=None,
                  cluster_public_key=None,
+                 encryption=Encryption.none,
                  *args, **kwargs):  # pylint: disable=W0613
         """
         Creates the raw client.
@@ -1201,6 +1191,14 @@ class Cluster(object):
             :type uri: str
             :param timeout: The connection timeout
             :type timeout: datetime.timedelta
+            :param user_name: An optional user name
+            :type user_name: str
+            :param user_private_key: An optional user private key
+            :type user_private_key: str
+            :param cluster_public_key: An optional cluster public key
+            :type cluster_public_key: str
+            :param encryption: Configure the encryption level with the cluster
+            :type encryption: quasardb.Encryption
 
             :raises: Error
         """
@@ -1225,6 +1223,10 @@ class Cluster(object):
             if error != impl.error_ok:
                 raise chooseError(error)
 
+            error = self.handle.set_encryption(encryption)
+            if error != impl.error_ok:
+                raise chooseError(error)
+
         error = impl.connect(self.handle, uri, timeout_value)
         if error != impl.error_ok:
             raise chooseError(error)
@@ -1234,6 +1236,20 @@ class Cluster(object):
         if self.handle != None:
             self.handle.close()
             self.handle = None
+
+    def set_compression(self, compression_level):
+        """
+        Sets the compression level for communications with the cluster.
+
+        By default fast compression is enabled, but you may want to disable the compression.
+
+        :param compression_level: The compression level
+
+        :raises: Error
+        """
+        err = self.handle.set_compression(compression_level)
+        if err != impl.error_ok:
+            raise chooseError(err)
 
     def set_max_cardinality(self, max_cardinality):
         """

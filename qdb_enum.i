@@ -103,6 +103,11 @@ enum qdb_compression_t
     qdb_comp_best = 2  /* not implemented yet */
 };
 
+typedef enum qdb_encryption {
+    qdb_crypt_none = 0,
+    qdb_crypt_aes_gcm_256 = 1
+} qdb_encryption_t;
+
 enum qdb_protocol_t
 {
     qdb_p_tcp = 0

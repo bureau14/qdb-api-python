@@ -266,6 +266,23 @@ class QuasardbClusterSetMaxCardinality(QuasardbTest):
                           cluster.set_max_cardinality, -143)
 
 
+class QuasardbClusterSetCompression(QuasardbTest):
+
+    def test_compression_none(self):
+        try:
+            cluster.set_compression(quasardb.Compression.none)
+        except:
+            self.fail(msg='cluster.set_compression should not have raised an exception')
+
+    def test_compression_fast(self):
+        try:
+            cluster.set_compression(quasardb.Compression.fast)
+        except:
+            self.fail(msg='cluster.set_compression should not have raised an exception')
+
+    def test_compression_invalid(self):
+        self.assertRaises(quasardb.InputError, cluster.set_compression, 123)
+
 class QuasardbBlob(QuasardbTest):
     def setUp(self):
         self.entry_name = entry_gen.next()
