@@ -9,6 +9,7 @@ import sys
 import time
 import unittest
 import calendar
+import pytz
 
 HAS_NUMPY = True
 try:
@@ -176,8 +177,28 @@ class QuasardbBasic(QuasardbTest):
         self.assertRaises(quasardb.OperationError,
                           cluster.purge_all, datetime.timedelta(minutes=1))
 
-
 class QuasardbTimeUtils(QuasardbTest):
+
+    def time_zone_nightmare(self):
+
+        moscow_tz = pytz.timezone('Europe/Moscow') 
+
+        record_dates = [
+                        datetime(1971, 1, 1, 0, 0, 0, 0, moscow_tz),
+                        datetime(1971, 1, 1, 0, 0, 0, 0, pytz.UTC),
+                        datetime(1971, 1, 1, 0, 0, 0, 0),
+                        datetime(2011, 1, 1, 0, 0, 0, 0, moscow_tz),
+                        datetime(2012, 1, 1, 0, 0, 0, 0, moscow_tz),
+                        datetime(2012, 1, 1, 0, 0, 0, 0, pytz.UTC),
+                        datetime(2012, 1, 1, 0, 0, 0, 0),
+                        datetime(2013, 1, 1, 0, 0, 0, 0, moscow_tz),
+                        datetime(2014, 1, 1, 0, 0, 0, 0, moscow_tz),
+                        datetime(2014, 1, 1, 0, 0, 0, 0),
+                        datetime(2015, 1, 1, 0, 0, 0, 0, moscow_tz),
+                        datetime(2016, 1, 1, 0, 0, 0, 0, moscow_tz)]
+
+        for r in record_dates:
+            self.assertEqual(datetime.datetime.fromtimestamp(_time_to_unix_timestamp(r)), r.astimezone(pytz.UTC))
 
     def test_duration_converter(self):
         '''
@@ -196,20 +217,6 @@ class QuasardbTimeUtils(QuasardbTest):
             datetime.timedelta(milliseconds=1)))
         self.assertEqual(0, quasardb._duration_to_timeout_ms(
             datetime.timedelta(microseconds=1)))
-
-    def test_time(self):
-        time_no_tz = datetime.datetime.now()
-        tz_offset = time.timezone
-
-        expected_value = long(calendar.timegm(time_no_tz.timetuple()))
-        self.assertEqual(
-            expected_value, quasardb._time_to_unix_timestamp(time_no_tz, tz_offset))
-
-        time_qdb_tz = datetime.datetime.now(quasardb.tz)
-
-        expected_value = long(calendar.timegm(time_qdb_tz.timetuple()))
-        self.assertEqual(expected_value, quasardb._time_to_unix_timestamp(
-            time_qdb_tz, tz_offset))
 
     def test_ts_convert(self):
         orig_couple = [(datetime.datetime.now(quasardb.tz),

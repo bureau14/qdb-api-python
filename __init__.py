@@ -40,7 +40,9 @@ import json
 import datetime
 import time
 import quasardb.impl as impl  # pylint: disable=C0413,E0401
-
+import pytz
+import calendar
+from tzlocal import get_localzone
 
 def __make_enum(type_name, prefix):
     """
@@ -158,31 +160,27 @@ def _string_to_api_buffer(h, s):
     """
     return None if s is None else impl.make_api_buffer_ptr_from_string(h, s)
 
-class TimeZone(datetime.tzinfo):
-    """The quasardb time zone is UTC. Please refer to the documentation for further information."""
+tz = pytz.UTC
 
-    def utcoffset(self, _):
-        return datetime.timedelta(0)
+try:
+    local_tz = get_localzone()
+except:
+    local_tz = tz
 
-    def tzname(self, _):
-        return "UTC"
-
-    def dst(self, _):
-        return datetime.timedelta(0)
-
-tz = TimeZone()
+_epoch = datetime.datetime(1970, 1, 1, tzinfo=pytz.UTC)
 
 # don't use timetuple because of tz
-def _time_to_unix_timestamp(t, tz_offset):
-    return long(time.mktime((t.year, t.month, t.day, t.hour, t.minute, t.second, -1, -1, 0))) \
-        - tz_offset
+def _time_to_unix_timestamp(t):
+    if t.tzinfo:
+        return (t - _epoch).total_seconds()
+    else:
+        return long(time.mktime((t.year, t.month, t.day, t.hour, t.minute, t.second, -1, -1, -1))) + long(local_tz.utcoffset(t).total_seconds())
 
-def _time_to_qdb_timestamp(t, tz_offset):
-    return _time_to_unix_timestamp(t, tz_offset) * long(1000) + t.microsecond / long(1000)
-
+def _time_to_qdb_timestamp(t):
+    return _time_to_unix_timestamp(t) * long(1000) + t.microsecond / long(1000)
 
 def _convert_expiry_time(expiry_time):
-    return _time_to_qdb_timestamp(expiry_time, time.timezone) if expiry_time != None else long(0)
+    return _time_to_qdb_timestamp(expiry_time) if expiry_time != None else long(0)
 
 
 def _convert_time_couples_to_qdb_range_t_vector(time_couples):
@@ -204,11 +202,9 @@ def _convert_to_wrap_ts_blop_points_vector(tuples):
 
     vec.resize(c)
 
-    tz_offset = time.timezone
-
     for i in xrange(c):
         vec[i].timestamp.tv_sec = _time_to_unix_timestamp(
-            tuples[i][0], tz_offset)
+            tuples[i][0])
         vec[i].timestamp.tv_nsec = tuples[i][0].microsecond * long(1000)
         vec[i].data = tuples[i][1]
 
@@ -222,11 +218,9 @@ def make_qdb_ts_double_point_vector(time_points):
 
     vec.resize(c)
 
-    tz_offset = time.timezone
-
     for i in xrange(c):
         vec[i].timestamp.tv_sec = _time_to_unix_timestamp(
-            time_points[i][0], tz_offset)
+            time_points[i][0])
         vec[i].timestamp.tv_nsec = time_points[i][0].microsecond * long(1000)
         vec[i].value = time_points[i][1]
 
@@ -244,15 +238,13 @@ def _convert_qdb_range_t_to_time_couple(qdb_range):
 
 
 def _convert_time_couple_to_qdb_range_t(time_couple):
-    tz_offset = time.timezone
-
     rng = impl.qdb_ts_range_t()
 
     rng.begin.tv_sec = _time_to_unix_timestamp(
-        time_couple[0], tz_offset)
+        time_couple[0])
     rng.begin.tv_nsec = time_couple[0].microsecond * long(1000)
     rng.end.tv_sec = _time_to_unix_timestamp(
-        time_couple[1], tz_offset)
+        time_couple[1])
     rng.end.tv_nsec = time_couple[1].microsecond * long(1000)
 
     return rng

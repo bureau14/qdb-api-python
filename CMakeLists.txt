@@ -136,6 +136,11 @@ if(WIN32)
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
+add_custom_command(TARGET qdb_python_api_egg
+    PRE_BUILD
+    COMMAND pip install pytz tzlocal
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
 # Step 3: Test
 add_test(NAME qdb_python_test
     COMMAND ${PYTHON_EXECUTABLE} tests.py
