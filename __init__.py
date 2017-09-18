@@ -864,6 +864,27 @@ class TimeSeries(RemoveableEntry):
 
             return aggregations
 
+        def erase_ranges(self, intervals):
+            """
+            Erase points within the specified intervals, left inclusive.
+
+            :param intervals: The intervals for which the ranges should be erased
+            :type intervals: A list of (datetime.datetime, datetime.datetime) couples
+
+            :raises: Error
+            :returns: The number of erased points
+            """
+            error_carrier = make_error_carrier()
+
+            erased_count = self.call_ts_fun(impl.ts_erase_ranges,
+                _convert_time_couples_to_qdb_range_t_vector(intervals),
+                error_carrier)
+
+            if error_carrier.error != impl.error_ok:
+                raise chooseError(error_carrier.error)
+
+            return erased_count
+
     class DoubleColumn(Column):
         """
         A column whose value are double precision floats
@@ -885,7 +906,7 @@ class TimeSeries(RemoveableEntry):
 
         def get_ranges(self, intervals):
             """
-            Returns the ranges matching the provided intervals.
+            Returns the ranges matching the provided intervals, left inclusive.
 
             :param intervals: The intervals for which the ranges should be returned
             :type intervals: A list of (datetime.datetime, datetime.datetime) couples

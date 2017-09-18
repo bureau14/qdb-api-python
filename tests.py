@@ -885,6 +885,14 @@ class QuasardbTimeSeriesNonExisting(QuasardbTimeSeries):
                           double_col.get_ranges,
                           self.test_intervals)
 
+    def test_erase_ranges_throw_when_timeseries_does_not_exist(self):
+        double_col = self.my_ts.column(
+            quasardb.TimeSeries.DoubleColumnInfo("blah"))
+
+        self.assertRaises(quasardb.OperationError,
+                          double_col.erase_ranges,
+                          self.test_intervals)
+
 class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
 
     def setUp(self):
@@ -957,6 +965,10 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
         results = self.double_col.get_ranges(self.test_intervals)
         self.assertEqual(0, len(results))
 
+    def test_double_erase_ranges__when_timeseries_is_empty(self):
+        erased_count = self.double_col.erase_ranges(self.test_intervals)
+        self.assertEqual(0, erased_count)
+
     def test_double_get_ranges(self):
         inserted_double_data = _generate_double_ts(self.start_time, 1.0, 1000)
         self.double_col.insert(inserted_double_data)
@@ -999,10 +1011,37 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
         self.assertRaises(quasardb.OperationError,
                           wrong_col.insert, inserted_double_data)
 
+    def test_double_erase_ranges(self):
+        inserted_double_data = _generate_double_ts(self.start_time, 1.0, 1000)
+        self.double_col.insert(inserted_double_data)
+
+        results = self.double_col.get_ranges(
+            [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
+
+        erased_count = self.double_col.erase_ranges(
+            [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
+
+        self.assertEqual(erased_count, len(results))
+
+        erased_count = self.double_col.erase_ranges(
+            [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
+
+        self.assertEqual(erased_count, 0)
+
+        results = self.double_col.get_ranges(
+            [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
+
+        self.assertEqual(len(results), 0)
+
     def test_blob_get_ranges__when_timeseries_is_empty(self):
         results = self.blob_col.get_ranges(
             [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
         self.assertEqual(0, len(results))
+
+    def test_blob_erase_ranges__when_timeseries_is_empty(self):
+        erased_count = self.blob_col.erase_ranges(
+            [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
+        self.assertEqual(0, erased_count)
 
     def test_blob_get_ranges(self):
         inserted_blob_data = _generate_blob_ts(self.start_time, 20)
@@ -1046,6 +1085,28 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
         self.assertRaises(quasardb.OperationError,
                           wrong_col.insert, inserted_blob_data)
 
+
+    def test_blob_erase_ranges(self):
+        inserted_blob_data = _generate_blob_ts(self.start_time, 20)
+        self.blob_col.insert(inserted_blob_data)
+
+        results = self.blob_col.get_ranges(
+            [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
+
+        erased_count = self.blob_col.erase_ranges(
+            [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
+
+        self.assertEqual(erased_count, len(results))
+
+        erased_count = self.blob_col.erase_ranges(
+            [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
+
+        self.assertEqual(erased_count, 0)
+
+        results = self.blob_col.get_ranges(
+            [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
+
+        self.assertEqual(len(results), 0)
 
 class QuasardbTimeSeriesExistingWithBlobs(QuasardbTimeSeries):
 

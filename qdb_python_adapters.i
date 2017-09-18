@@ -393,5 +393,12 @@ void ts_double_aggregation(handle_ptr h, const char * alias, const char * column
     error->error = qdb_ts_double_aggregate(*h, alias, column, &ranges.front(), ranges.size());
 }
 
+qdb_uint_t ts_erase_ranges(handle_ptr h, const char * alias, const char * column, const std::vector<qdb_ts_range_t> & ranges, error_carrier * error)
+{
+    qdb_uint_t res = 0;
+    error->error = qdb_ts_erase_ranges(*h, alias, column, &ranges.front(), ranges.size(), &res);
+    return res;
+}
+
 }
 %}
