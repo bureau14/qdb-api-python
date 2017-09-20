@@ -63,8 +63,30 @@ typedef struct
 
 typedef struct
 {
+    //! Beginning of the interval, inclusive.
     qdb_timespec_t begin;
+    //! End of the interval, exclusive.
     qdb_timespec_t end;
+
+    //! Filter the interval
+    qdb_ts_filter_type_t filter;
+
+    //! Optional filter parameters
+    union {
+
+        struct
+        {
+            qdb_size_t size;
+        } sample;
+
+        struct
+        {
+            double min;
+            double max;
+        } double_range;
+
+    } filter_params;
+
 } qdb_ts_range_t;
 
 typedef struct qdb_ts_blob_aggregation

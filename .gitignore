@@ -12,3 +12,6 @@
 # Editors
 /.vscode/
 *.exe
+
+# Database directory
+/db

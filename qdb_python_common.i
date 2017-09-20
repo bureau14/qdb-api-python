@@ -29,6 +29,7 @@
 %rename("%(regex:/qdb_op_(.*)/operation_\\1/)s", %$isenumitem) "";
 %rename("%(regex:/qdb_agg_(.*)/aggregation_\\1/)s", %$isenumitem) "";
 %rename("%(regex:/qdb_ts_column_(.*)/column_\\1/)s", %$isenumitem) "";
+%rename("%(regex:/qdb_filter_(.*)/filter_\\1/)s", %$isenumitem) "";
 %rename("%(regex:/qdb_comp_(.*)/compression_\\1/)s",  %$isenumitem) "";
 %rename("%(regex:/qdb_crypt_(.*)/encryption_\\1/)s",  %$isenumitem) "";
 %rename("%(strip:[qdb_])s", %$isfunction) "";

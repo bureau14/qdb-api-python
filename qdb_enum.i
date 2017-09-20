@@ -182,3 +182,16 @@ enum qdb_ts_column_type_t
     qdb_ts_column_double = 0,
     qdb_ts_column_blob = 1
 };
+
+enum qdb_ts_filter_type_t
+{
+    qdb_filter_none = 0,
+    //! not implemented
+    qdb_filter_unique = 1,
+    //! not implemented
+    qdb_filter_sample = 2,
+    //! not implemented
+    qdb_filter_double_inside_range = 3,
+    //! not implemented
+    qdb_filter_double_outside_range = 4
+};

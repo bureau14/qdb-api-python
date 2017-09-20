@@ -69,6 +69,7 @@ Operation = __make_enum('Operation', 'operation_')
 Protocol = __make_enum('Protocol', 'protocol_')
 TSAggregation = __make_enum('Aggregation', 'aggregation_')
 TSColumnType = __make_enum('ColumnType', 'column_')
+TSFilter = __make_enum('Filter', 'filter_')
 Compression = __make_enum('Compression', 'compression_')
 Encryption = __make_enum('Encryption', 'encryption_')
 
@@ -79,7 +80,6 @@ def make_error_string(error_code):
     :returns: str -- An error string
     """
     return impl.make_error_string(error_code)
-
 
 class Error(Exception):
     """The quasardb database exception, based on the API error codes."""
@@ -182,7 +182,6 @@ def _time_to_qdb_timestamp(t):
 def _convert_expiry_time(expiry_time):
     return _time_to_qdb_timestamp(expiry_time) if expiry_time != None else long(0)
 
-
 def _convert_time_couples_to_qdb_range_t_vector(time_couples):
     vec = impl.RangeVec()
 
@@ -194,9 +193,11 @@ def _convert_time_couples_to_qdb_range_t_vector(time_couples):
 
     return vec
 
+DoublePointsVector = impl.DoublePointVec
+BlobPointsVector = impl.BlobPointVec
 
 def _convert_to_wrap_ts_blop_points_vector(tuples):
-    vec = impl.BlobPointVec()
+    vec = BlobPointsVector()
 
     c = len(tuples)
 
@@ -210,9 +211,8 @@ def _convert_to_wrap_ts_blop_points_vector(tuples):
 
     return vec
 
-
 def make_qdb_ts_double_point_vector(time_points):
-    vec = impl.DoublePointVec()
+    vec = DoublePointsVector()
 
     c = len(time_points)
 
@@ -226,16 +226,13 @@ def make_qdb_ts_double_point_vector(time_points):
 
     return vec
 
-
 def _convert_qdb_timespec_to_time(qdb_timespec):
     return datetime.datetime.fromtimestamp(qdb_timespec.tv_sec, tz) \
         + datetime.timedelta(microseconds=qdb_timespec.tv_nsec / 1000)
 
-
 def _convert_qdb_range_t_to_time_couple(qdb_range):
     return (_convert_qdb_timespec_to_time(qdb_range.begin),
             _convert_qdb_timespec_to_time(qdb_range.end))
-
 
 def _convert_time_couple_to_qdb_range_t(time_couple):
     rng = impl.qdb_ts_range_t()
@@ -246,15 +243,14 @@ def _convert_time_couple_to_qdb_range_t(time_couple):
     rng.end.tv_sec = _time_to_unix_timestamp(
         time_couple[1])
     rng.end.tv_nsec = time_couple[1].microsecond * long(1000)
+    rng.filter = TSFilter.none
 
     return rng
-
 
 def make_error_carrier():
     err = impl.error_carrier()
     err.error = impl.error_uninitialized
     return err
-
 
 class Entry(object):
 
@@ -682,6 +678,7 @@ class TimeSeries(RemoveableEntry):
 
     Aggregation = TSAggregation
     ColumnType = TSColumnType
+    Filter = TSFilter
 
     class BlobAggregationResult(object):
         """
@@ -890,6 +887,19 @@ class TimeSeries(RemoveableEntry):
         A column whose value are double precision floats
         """
 
+        def fast_insert(self, vector):
+            """
+            Inserts value into the time series.
+
+            :param vector: A vector of double points
+            :type vector: quasardb.DoublePointsVector
+
+            :raises: Error
+            """
+            err = super(TimeSeries.DoubleColumn, self).call_ts_fun(impl.ts_double_insert, vector)
+            if err != impl.error_ok:
+                raise chooseError(err)
+
         def insert(self, tuples):
             """
             Inserts values into the time series.
@@ -899,10 +909,8 @@ class TimeSeries(RemoveableEntry):
 
             :raises: Error
             """
-            err = super(TimeSeries.DoubleColumn, self).call_ts_fun(
-                impl.ts_double_insert, make_qdb_ts_double_point_vector(tuples))
-            if err != impl.error_ok:
-                raise chooseError(err)
+            self.fast_insert(make_qdb_ts_double_point_vector(tuples))
+
 
         def get_ranges(self, intervals):
             """
@@ -944,6 +952,19 @@ class TimeSeries(RemoveableEntry):
         A column whose values are blobs
         """
 
+        def fast_insert(self, vector):
+            """
+            Inserts value into the time series.
+
+            :param vector: A vector of blob points
+            :type vector: quasardb.BlobPointsVector
+
+            :raises: Error
+            """
+            err = super(TimeSeries.BlobColumn, self).call_ts_fun(impl.ts_blob_insert, vector)
+            if err != impl.error_ok:
+                raise chooseError(err)
+
         def insert(self, tuples):
             """
             Inserts values into the time series.
@@ -953,10 +974,7 @@ class TimeSeries(RemoveableEntry):
 
             :raises: Error
             """
-            err = super(TimeSeries.BlobColumn, self).call_ts_fun(
-                impl.ts_blob_insert, _convert_to_wrap_ts_blop_points_vector(tuples))
-            if err != impl.error_ok:
-                raise chooseError(err)
+            self.fast_insert(_convert_to_wrap_ts_blop_points_vector(tuples))
 
         def get_ranges(self, intervals):
             """
