@@ -314,7 +314,7 @@ qdb_error_t ts_blob_insert(handle_ptr h, const char * alias, const char * column
 }
 
 std::vector<qdb_ts_double_point> ts_double_get_ranges(handle_ptr h, const char * alias, const char * column,
-    const std::vector<qdb_ts_range_t> & ranges, error_carrier * error)
+    const std::vector<qdb_ts_filtered_range_t> & ranges, error_carrier * error)
 {
     qdb_ts_double_point * points = NULL;
     qdb_size_t count = 0;
@@ -342,7 +342,7 @@ struct to_ts_blob_point
 };
 
 std::vector<wrap_ts_blob_point> ts_blob_get_ranges(handle_ptr h, const char * alias, const char * column,
-    const std::vector<qdb_ts_range_t> & ranges, error_carrier * error)
+    const std::vector<qdb_ts_filtered_range_t> & ranges, error_carrier * error)
 {
     qdb_ts_blob_point * points = NULL;
     qdb_size_t count = 0;
@@ -363,20 +363,20 @@ std::vector<wrap_ts_blob_point> ts_blob_get_ranges(handle_ptr h, const char * al
 
 struct range_to_blob_agg
 {
-    qdb_ts_blob_aggregation_t operator()(const qdb_ts_range_t & t) const
+    qdb_ts_blob_aggregation_t operator()(const qdb_ts_filtered_range_t & t) const
     {
         qdb_ts_blob_aggregation_t res;
-        res.range = t;
+        res.filtered_range = t;
         return res;
     }
 };
 
 struct range_to_double_agg
 {
-    qdb_ts_double_aggregation_t operator()(const qdb_ts_range_t & t) const
+    qdb_ts_double_aggregation_t operator()(const qdb_ts_filtered_range_t & t) const
     {
         qdb_ts_double_aggregation_t res;
-        res.range = t;
+        res.filtered_range = t;
         return res;
     }
 };
@@ -393,7 +393,7 @@ void ts_double_aggregation(handle_ptr h, const char * alias, const char * column
     error->error = qdb_ts_double_aggregate(*h, alias, column, &ranges.front(), ranges.size());
 }
 
-qdb_uint_t ts_erase_ranges(handle_ptr h, const char * alias, const char * column, const std::vector<qdb_ts_range_t> & ranges, error_carrier * error)
+qdb_uint_t ts_erase_ranges(handle_ptr h, const char * alias, const char * column, const std::vector<qdb_ts_filtered_range_t> & ranges, error_carrier * error)
 {
     qdb_uint_t res = 0;
     error->error = qdb_ts_erase_ranges(*h, alias, column, &ranges.front(), ranges.size(), &res);

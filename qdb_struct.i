@@ -63,15 +63,14 @@ typedef struct
 
 typedef struct
 {
-    //! Beginning of the interval, inclusive.
     qdb_timespec_t begin;
-    //! End of the interval, exclusive.
     qdb_timespec_t end;
+} qdb_ts_range_t;
 
-    //! Filter the interval
-    qdb_ts_filter_type_t filter;
+typedef struct
+{
+    qdb_ts_filter_type_t type;
 
-    //! Optional filter parameters
     union {
 
         struct
@@ -85,14 +84,19 @@ typedef struct
             double max;
         } double_range;
 
-    } filter_params;
+    } params;
+} qdb_ts_filter_t;
 
-} qdb_ts_range_t;
+typedef struct
+{
+    qdb_ts_range_t range;
+    qdb_ts_filter_t filter;
+} qdb_ts_filtered_range_t;
 
 typedef struct qdb_ts_blob_aggregation
 {
     qdb_ts_aggregation_type_t type;
-    qdb_ts_range_t range;
+    qdb_ts_filtered_range_t filtered_range;
     qdb_size_t count;
     qdb_ts_blob_point result;
 } qdb_ts_blob_aggregation_t;
@@ -100,7 +104,7 @@ typedef struct qdb_ts_blob_aggregation
 typedef struct qdb_ts_double_aggregation
 {
     qdb_ts_aggregation_type_t type;
-    qdb_ts_range_t range;
+    qdb_ts_filtered_range_t filtered_range;
     qdb_size_t count;
     qdb_ts_double_point result;
 } qdb_ts_double_aggregation_t;

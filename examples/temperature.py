@@ -87,7 +87,7 @@ def generate_points(points_count):
     return vec
 
 def generate_cities(temp_col):
-    vec = quasardb.BlobPointsVec()
+    vec = quasardb.BlobPointsVector()
     vec.resize(temp_col.size())
 
     for i in xrange(temp_col.size()):

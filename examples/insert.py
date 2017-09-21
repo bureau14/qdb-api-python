@@ -92,7 +92,7 @@ def fast_insert(q, points_count):
     ts_name = gen_ts_name()
 
     (ts, col) = time_execution("Creating a time series of name {}".format(ts_name), create_ts, q, ts_name)
-    points = time_execution("Generating {:,} points".format(points_count), haxx0r_generate, points_count)
+    points = time_execution("Generating {:,} points".format(points_count), fast_generate, points_count)
     time_execution("Inserting {:,} points into {}".format(points_count, ts_name), col.fast_insert, points)
     time_execution("Removing time series {}".format(ts_name), ts.remove)
 

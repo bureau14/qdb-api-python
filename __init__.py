@@ -182,14 +182,33 @@ def _time_to_qdb_timestamp(t):
 def _convert_expiry_time(expiry_time):
     return _time_to_qdb_timestamp(expiry_time) if expiry_time != None else long(0)
 
-def _convert_time_couples_to_qdb_range_t_vector(time_couples):
-    vec = impl.RangeVec()
+def _convert_qdb_timespec_to_time(qdb_timespec):
+    return datetime.datetime.fromtimestamp(qdb_timespec.tv_sec, tz) \
+        + datetime.timedelta(microseconds=qdb_timespec.tv_nsec / 1000)
+
+def _convert_qdb_filtered_range_t_to_time_couple(qdb_range):
+    return (_convert_qdb_timespec_to_time(qdb_range.range.begin),
+            _convert_qdb_timespec_to_time(qdb_range.range.end))
+
+def _convert_time_couple_to_qdb_filtered_range_t(time_couple):
+    rng = impl.qdb_ts_filtered_range_t()
+
+    rng.range.begin.tv_sec = _time_to_unix_timestamp(time_couple[0])
+    rng.range.begin.tv_nsec = time_couple[0].microsecond * long(1000)
+    rng.range.end.tv_sec = _time_to_unix_timestamp(time_couple[1])
+    rng.range.end.tv_nsec = time_couple[1].microsecond * long(1000)
+    rng.filter.type = TSFilter.none
+
+    return rng
+
+def _convert_time_couples_to_qdb_filtered_range_t_vector(time_couples):
+    vec = impl.FilteredRangeVec()
 
     c = len(time_couples)
 
     vec.resize(c)
     for i in xrange(c):
-        vec[i] = _convert_time_couple_to_qdb_range_t(time_couples[i])
+        vec[i] = _convert_time_couple_to_qdb_filtered_range_t(time_couples[i])
 
     return vec
 
@@ -225,27 +244,6 @@ def make_qdb_ts_double_point_vector(time_points):
         vec[i].value = time_points[i][1]
 
     return vec
-
-def _convert_qdb_timespec_to_time(qdb_timespec):
-    return datetime.datetime.fromtimestamp(qdb_timespec.tv_sec, tz) \
-        + datetime.timedelta(microseconds=qdb_timespec.tv_nsec / 1000)
-
-def _convert_qdb_range_t_to_time_couple(qdb_range):
-    return (_convert_qdb_timespec_to_time(qdb_range.begin),
-            _convert_qdb_timespec_to_time(qdb_range.end))
-
-def _convert_time_couple_to_qdb_range_t(time_couple):
-    rng = impl.qdb_ts_range_t()
-
-    rng.begin.tv_sec = _time_to_unix_timestamp(
-        time_couple[0])
-    rng.begin.tv_nsec = time_couple[0].microsecond * long(1000)
-    rng.end.tv_sec = _time_to_unix_timestamp(
-        time_couple[1])
-    rng.end.tv_nsec = time_couple[1].microsecond * long(1000)
-    rng.filter = TSFilter.none
-
-    return rng
 
 def make_error_carrier():
     err = impl.error_carrier()
@@ -688,7 +686,7 @@ class TimeSeries(RemoveableEntry):
 
         def __init__(self, t, r, ts, count, content, content_length):
             self.type = t
-            self.range = r
+            self.filtered_range = r
             self.timestamp = ts
             self.count = count
             self.content = impl.api_content_as_string(content, content_length)
@@ -702,7 +700,7 @@ class TimeSeries(RemoveableEntry):
 
         def __init__(self, t, r, ts, count, value):
             self.type = t
-            self.range = r
+            self.filtered_range = r
             self.timestamp = ts
             self.count = count
             self.value = value
@@ -725,7 +723,7 @@ class TimeSeries(RemoveableEntry):
             agg = impl.qdb_ts_blob_aggregation_t()
 
             agg.type = agg_type
-            agg.range = _convert_time_couple_to_qdb_range_t(time_couple)
+            agg.filtered_range = _convert_time_couple_to_qdb_filtered_range_t(time_couple)
             agg.count = 0
             agg.result.content_length = 0
 
@@ -738,7 +736,7 @@ class TimeSeries(RemoveableEntry):
             agg = self.__aggregations[index]
             return TimeSeries.BlobAggregationResult(
                 agg.type,
-                _convert_qdb_range_t_to_time_couple(agg.range),
+                _convert_qdb_filtered_range_t_to_time_couple(agg.filtered_range),
                 _convert_qdb_timespec_to_time(agg.result.timestamp),
                 agg.count,
                 agg.result.content,
@@ -768,7 +766,7 @@ class TimeSeries(RemoveableEntry):
             agg = impl.qdb_ts_double_aggregation_t()
 
             agg.type = agg_type
-            agg.range = _convert_time_couple_to_qdb_range_t(time_couple)
+            agg.filtered_range = _convert_time_couple_to_qdb_filtered_range_t(time_couple)
             agg.count = 0
             agg.result.value = 0.0
 
@@ -781,7 +779,7 @@ class TimeSeries(RemoveableEntry):
             agg = self.__aggregations[index]
             return TimeSeries.DoubleAggregationResult(
                 agg.type,
-                _convert_qdb_range_t_to_time_couple(agg.range),
+                _convert_qdb_filtered_range_t_to_time_couple(agg.filtered_range),
                 _convert_qdb_timespec_to_time(agg.result.timestamp),
                 agg.count,
                 agg.result.value)
@@ -874,7 +872,7 @@ class TimeSeries(RemoveableEntry):
             error_carrier = make_error_carrier()
 
             erased_count = self.call_ts_fun(impl.ts_erase_ranges,
-                _convert_time_couples_to_qdb_range_t_vector(intervals),
+                _convert_time_couples_to_qdb_filtered_range_t_vector(intervals),
                 error_carrier)
 
             if error_carrier.error != impl.error_ok:
@@ -926,7 +924,7 @@ class TimeSeries(RemoveableEntry):
 
             res = super(TimeSeries.DoubleColumn, self).call_ts_fun(
                 impl.ts_double_get_ranges,
-                _convert_time_couples_to_qdb_range_t_vector(intervals),
+                _convert_time_couples_to_qdb_filtered_range_t_vector(intervals),
                 error_carrier)
             if error_carrier.error != impl.error_ok:
                 raise chooseError(error_carrier.error)
@@ -990,7 +988,7 @@ class TimeSeries(RemoveableEntry):
 
             res = super(TimeSeries.BlobColumn, self).call_ts_fun(
                 impl.ts_blob_get_ranges,
-                _convert_time_couples_to_qdb_range_t_vector(intervals),
+                _convert_time_couples_to_qdb_filtered_range_t_vector(intervals),
                 error_carrier)
             if error_carrier.error != impl.error_ok:
                 raise chooseError(error_carrier.error)
