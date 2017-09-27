@@ -400,5 +400,47 @@ qdb_uint_t ts_erase_ranges(handle_ptr h, const char * alias, const char * column
     return res;
 }
 
+qdb_local_table_t qdb_ts_make_local_table(handle_ptr h, const char * alias, error_carrier * error)
+{
+    qdb_ts_column_info_t * columns = NULL;
+    qdb_size_t col_count = 0;
+
+    error->error = qdb_ts_list_columns(*h, alias, &columns, &col_count);
+    if (error->error != qdb_e_ok) return qdb_local_table_t();
+
+    qdb_local_table_t res;
+
+    error->error = qdb_ts_local_table_init(*h, alias, columns, col_count, &res);
+
+    qdb_release(*h, columns);
+
+    return res;
+}
+
+qdb_local_table_t qdb_ts_make_local_table_with_columns(handle_ptr h, const char * alias, const std::vector<wrap_ts_column> & columns, error_carrier * error)
+{
+    std::vector<qdb_ts_column_info_t> qdb_cols_info(columns.size());
+
+    std::transform(columns.begin(), columns.end(), qdb_cols_info.begin(), transform_to_col_info());
+
+    qdb_local_table_t res;
+
+    error->error = qdb_ts_local_table_init(*h, alias, &qdb_cols_info.front(), qdb_cols_info.size(), &res);
+
+    return res;
+}
+
+qdb_size_t qdb_ts_table_row_append(qdb_local_table_t table, const qdb_timespec_t * timestamp, error_carrier * error)
+{
+    qdb_size_t res = 0;
+    error->error = qdb_ts_table_row_append(table, timestamp, &res);
+    return res;
+}
+
+void qdb_ts_release_local_table(handle_ptr h, qdb_local_table_t table)
+{
+    qdb_release(*h, table);
+}
+
 }
 %}

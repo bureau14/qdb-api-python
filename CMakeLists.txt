@@ -60,6 +60,8 @@ set(PACKAGE_NAME quasardb)
 
 configure_file(README.md README.txt COPYONLY)
 configure_file(__init__.py ${PACKAGE_NAME}/__init__.py COPYONLY)
+configure_file(qdb_convert.py ${PACKAGE_NAME}/qdb_convert.py COPYONLY)
+configure_file(qdb_enum.py ${PACKAGE_NAME}/qdb_enum.py COPYONLY)
 configure_file(tests.py test/tests.py COPYONLY)
 configure_file(ez_setup.py ez_setup.py COPYONLY)
 

@@ -43,11 +43,9 @@ def __cleanupProcess(process):
     process.terminate()
     process.wait()
 
-
 SECURE_USER_NAME = 'qdb-api-python'
 SECURE_USER_PRIVATE_KEY = 'SoHHpH26NtZvfq5pqm/8BXKbVIkf+yYiVZ5fQbq1nbcI='
 SECURE_CLUSTER_PUBLIC_KEY = 'Pb+d1o3HuFtxEb5uTl9peU89ze9BZTK9f8KdKr4k7zGA='
-
 
 def setUpModule():
     global INSECURE_URI  # pylint: disable=W0601
@@ -181,7 +179,7 @@ class QuasardbTimeUtils(QuasardbTest):
 
     def time_zone_nightmare(self):
 
-        moscow_tz = pytz.timezone('Europe/Moscow') 
+        moscow_tz = pytz.timezone('Europe/Moscow')
 
         record_dates = [
                         datetime(1971, 1, 1, 0, 0, 0, 0, moscow_tz),
@@ -206,25 +204,25 @@ class QuasardbTimeUtils(QuasardbTest):
         '''
 
         self.assertEqual(
-            24 * 3600 * 1000, quasardb._duration_to_timeout_ms(datetime.timedelta(days=1)))
+            24 * 3600 * 1000, quasardb.qdb_convert.duration_to_timeout_ms(datetime.timedelta(days=1)))
         self.assertEqual(
-            3600 * 1000, quasardb._duration_to_timeout_ms(datetime.timedelta(hours=1)))
+            3600 * 1000, quasardb.qdb_convert.duration_to_timeout_ms(datetime.timedelta(hours=1)))
         self.assertEqual(
-            60 * 1000, quasardb._duration_to_timeout_ms(datetime.timedelta(minutes=1)))
-        self.assertEqual(1000, quasardb._duration_to_timeout_ms(
+            60 * 1000, quasardb.qdb_convert.duration_to_timeout_ms(datetime.timedelta(minutes=1)))
+        self.assertEqual(1000, quasardb.qdb_convert.duration_to_timeout_ms(
             datetime.timedelta(seconds=1)))
-        self.assertEqual(1, quasardb._duration_to_timeout_ms(
+        self.assertEqual(1, quasardb.qdb_convert.duration_to_timeout_ms(
             datetime.timedelta(milliseconds=1)))
-        self.assertEqual(0, quasardb._duration_to_timeout_ms(
+        self.assertEqual(0, quasardb.qdb_convert.duration_to_timeout_ms(
             datetime.timedelta(microseconds=1)))
 
     def test_ts_convert(self):
         orig_couple = [(datetime.datetime.now(quasardb.tz),
                         datetime.datetime.now(quasardb.tz))]
-        converted_couple = quasardb._convert_time_couples_to_qdb_filtered_range_t_vector(
+        converted_couple = quasardb.qdb_convert.convert_time_couples_to_qdb_filtered_range_t_vector(
             orig_couple)
         self.assertEqual(len(converted_couple), 1)
-        self.assertEqual(orig_couple[0], quasardb._convert_qdb_filtered_range_t_to_time_couple(
+        self.assertEqual(orig_couple[0], quasardb.qdb_convert.convert_qdb_filtered_range_t_to_time_couple(
             converted_couple[0]))
 
 
@@ -1284,6 +1282,70 @@ class QuasardbTimeSeriesExistingWithDoubles(QuasardbTimeSeries):
                                           len(self.inserted_double_data))
 
 
+class QuasardbTimeSeriesBulk(QuasardbTimeSeries):
+
+    def setUp(self):
+        super(QuasardbTimeSeriesBulk, self).setUp()
+        (self.double_col, self.blob_col) = self._create_ts()
+
+    def test_non_existing_bulk_insert(self):
+        fake_ts = cluster.ts("this_ts_does_not_exist")
+
+        self.assertRaises(quasardb.OperationError, fake_ts.local_table)
+
+    def _test_with_table(self, local_table):
+        val = 1.0
+
+        start_time = datetime.datetime.now()
+        current_time = start_time
+
+        for i in xrange(0, 10):
+            self.assertEqual(i, local_table.append_row(current_time, val, "content"))
+            val += 1.0
+            current_time += datetime.timedelta(seconds=1)
+
+        the_ranges = [(start_time - datetime.timedelta(hours=1), start_time + datetime.timedelta(hours=1))]
+
+        results = self.double_col.get_ranges(the_ranges)
+        self.assertEqual(len(results), 0)
+
+        results = self.blob_col.get_ranges(the_ranges)
+        self.assertEqual(len(results), 0)
+
+        local_table.push()
+
+        results = self.double_col.get_ranges(the_ranges)
+        self.assertEqual(len(results), 10)
+
+        val = 1.0
+
+        for r in results:
+            self.assertEqual(r[1], val)
+            val += 1.0
+
+        results = self.blob_col.get_ranges(the_ranges)
+        self.assertEqual(len(results), 10)
+
+        for r in results:
+            self.assertEqual(r[1], "content")
+
+    def test_successful_bulk_insert(self):
+        local_table = self.my_ts.local_table()
+        self._test_with_table(local_table)
+
+    def test_failed_local_table_with_wrong_columns(self):
+        columns = [ quasardb.TimeSeries.DoubleColumnInfo("1000flavorsofwrong") ]
+
+        self.assertRaises(quasardb.OperationError, self.my_ts.local_table, columns)
+
+    def test_successful_bulk_insert_specified_columns(self):
+        columns = [ quasardb.TimeSeries.DoubleColumnInfo(self.double_col.name()),
+            quasardb.TimeSeries.BlobColumnInfo(self.blob_col.name()) ]
+
+        local_table = self.my_ts.local_table(columns)
+        self._test_with_table(local_table)
+
+
 class QuasardbQuery(QuasardbTest):
 
     def test_types(self):
@@ -1387,7 +1449,6 @@ class QuasardbSuffix(QuasardbTest):
         self.assertEqual(res[0], entry_name)
 
         self.assertEqual(1, cluster.suffix_count(dat_suffix))
-
 
 def _make_expiry_time(td):
         # expires in one minute

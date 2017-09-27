@@ -2,19 +2,7 @@
 
 ## Installation
 
-Experimental installation using `pip` or `easy_install`.
-
-On Linux and FreeBSD:
-
-```
-easy_install -i https://testpypi.python.org/pypi quasardb
-```
-
-On macOS and Windows:
-
-```
-pip install -i https://testpypi.python.org/pypi quasardb
-```
+You can download a precompiled egg directly from our site, or you can build from the sources.
 
 ### quasardb C API
 

@@ -45,6 +45,7 @@
 
 %apply size_t { qdb_size_t };
 %apply (const char *STRING, size_t LENGTH) { (const char * content, size_t content_length) };
+%apply (const char *STRING, size_t LENGTH) { (const void * content, qdb_size_t content_length) };
 %apply (const char *STRING, size_t LENGTH) { (const char * update_content, size_t update_content_length) };
 %apply (const char *STRING, size_t LENGTH) { (const char * new_value, size_t new_value_length) };
 %apply (const char *STRING, size_t LENGTH) { (const char * comparand, size_t comparand_length) };
@@ -73,6 +74,17 @@ const char * qdb_version();
 
 %rename(build) qdb_build;
 const char * qdb_build();
+
+qdb_error_t qdb_ts_row_set_double(qdb_local_table_t table,
+                                  qdb_size_t col_index,
+                                  double value);
+
+qdb_error_t qdb_ts_row_set_blob(qdb_local_table_t table,
+                                qdb_size_t col_index,
+                                const void * content,
+                                qdb_size_t content_length);
+
+qdb_error_t qdb_ts_push(qdb_local_table_t table);
 
 namespace qdb
 {
