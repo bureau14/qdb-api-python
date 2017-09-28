@@ -34,7 +34,7 @@ import datetime
 import calendar
 import pytz
 import pytz
-from qdb_enum import TSFilter
+from quasardb.qdb_enum import TSFilter
 
 from tzlocal import get_localzone
 

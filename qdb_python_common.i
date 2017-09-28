@@ -23,6 +23,8 @@
 %shared_ptr(qdb::api_buffer)
 %shared_ptr(qdb::handle)
 
+typedef struct qdb_local_table_internal * qdb_local_table_t;
+
 %rename("%(regex:/qdb_e_(.*)/error_\\1/)s", %$isenumitem) "";
 %rename("%(regex:/qdb_o_(.*)/option_\\1/)s", %$isenumitem) "";
 %rename("%(regex:/qdb_p_(.*)/protocol_\\1/)s", %$isenumitem) "";

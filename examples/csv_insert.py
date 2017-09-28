@@ -36,19 +36,22 @@ def create_ts(q, name, columns):
 
     return ts
 
-def main(quasardb_uri, ts_name, csv_file):
+def display_pts(start_time, end_time, points_count):
+    elapsed = end_time - start_time
+    pts_sec = points_count /elapsed
 
-    print("Connecting to: ", quasardb_uri)
-    q = quasardb.Cluster(uri=quasardb_uri)
+    print("...loaded {} points in {}s ({} points/sec)".format(points_count, elapsed, pts_sec))
+
+def main(quasardb_uri, ts_name, csv_file):
 
     print("Loading CSV: ", csv_file)
     start_time = time.time()
     series = pd.read_csv(csv_file, header=0, parse_dates = {'Timestamp' : ['Date', 'Time']}, index_col = 'Timestamp')
-    end_time = time.time()
 
-    print("...duration: {}s".format(end_time - start_time))
+    display_pts(start_time, time.time(), series.size)
 
-    print("Uploading to server")
+    print("Uploading to server: ", quasardb_uri)
+    q = quasardb.Cluster(uri=quasardb_uri)
     start_time = time.time()
     ts = create_ts(q, ts_name, series.columns.tolist())
 
@@ -69,8 +72,7 @@ def main(quasardb_uri, ts_name, csv_file):
     # this is when the data is going to be pushed to the remote host
     local_table.push()
 
-    end_time = time.time()
-    print("...duration: {}s".format(end_time - start_time))
+    display_pts(start_time, time.time(), series.size)
 
 if __name__ == "__main__":
 

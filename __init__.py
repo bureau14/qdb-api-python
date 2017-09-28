@@ -39,10 +39,10 @@ from builtins import range as xrange, int as long  # pylint: disable=W0622
 import json
 import datetime
 import quasardb.impl as impl  # pylint: disable=C0413,E0401
-import qdb_convert
+import quasardb.qdb_convert
 import numbers
 
-from qdb_enum import Compression, Encryption, ErrorCode, Operation, Options, Protocol, TSAggregation, TSColumnType, TSFilter
+from quasardb.qdb_enum import Compression, Encryption, ErrorCode, Operation, Options, Protocol, TSAggregation, TSColumnType, TSFilter
 
 tz = qdb_convert.tz
 
