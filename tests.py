@@ -1,4 +1,6 @@
-import cPickle as pickle
+# pylint: disable=C0103,C0111,C0302,W0212
+
+from builtins import range as xrange, int as long  # pylint: disable=W0622
 import datetime
 import os
 import subprocess
@@ -11,7 +13,7 @@ for root, dirnames, filenames in os.walk(os.path.join('..', 'build')):
         if p.startswith('lib'):
             sys.path.append(os.path.join(root, p))
 
-import qdb
+import qdb  # pylint: disable=C0413,E0401
 
 # generate an unique entry name for the tests
 
@@ -59,13 +61,11 @@ def setUpModule():
 
     try:
         cluster = qdb.Cluster(uri)
-
-    except qdb.QuasardbException, q:
+    except qdb.QuasardbException as q:
         __clusterd.terminate()
         __clusterd.wait()
         raise
-
-    except BaseException, e:
+    except BaseException as e:
         __clusterd.terminate()
         __clusterd.wait()
         raise

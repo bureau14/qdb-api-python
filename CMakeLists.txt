@@ -3,9 +3,15 @@ project(qdb-api-python)
 enable_testing()
 
 if(DEFINED ENV{PYTHON_EXECUTABLE})
-    set(PYTHON_EXECUTABLE "$ENV{PYTHON_EXECUTABLE}")
+    if("$ENV{PYTHON_EXECUTABLE}" STREQUAL "python2")
+        find_package(PythonInterp 2.7 REQUIRED)
+    elseif("$ENV{PYTHON_EXECUTABLE}" STREQUAL "python3")
+        find_package(PythonInterp 3.6 REQUIRED)
+    else()
+        set(PYTHON_EXECUTABLE "$ENV{PYTHON_EXECUTABLE}")
+    endif()
 else()
-    find_package(PythonInterp 2.7 REQUIRED)
+    find_package(PythonInterp REQUIRED)
 endif()
 
 find_package(SWIG 3.0 REQUIRED)
@@ -44,16 +50,17 @@ else()
     set(QDB_PYTHON_LIBRARY_GLOB "lib*")
 endif()
 
-
 string(TOLOWER ${CMAKE_SYSTEM_NAME} PY_PACKAGE_SOURCE_SUFFIX)
 
 # generate setup script by replacing CMake variables
 configure_file(setup.in.py setup.py @ONLY)
 configure_file(setup.in.cfg setup.cfg @ONLY)
 
+set(PACKAGE_NAME qdb)
+
 configure_file(README.md README.txt COPYONLY)
 configure_file(MANIFEST.in MANIFEST.in COPYONLY)
-configure_file(__init__.py qdb/__init__.py COPYONLY)
+configure_file(__init__.py ${PACKAGE_NAME}/__init__.py COPYONLY)
 configure_file(tests.py test/tests.py COPYONLY)
 configure_file(ez_setup.py ez_setup.py COPYONLY)
 
@@ -64,12 +71,12 @@ file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/include/qdb" DESTINATION "include")
 
 # copy the libraries
 if (WIN32)
-    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/qdb_api.lib" DESTINATION "qdb")
-    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/bin/qdb_api.dll" DESTINATION "qdb")
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/qdb_api.lib" DESTINATION "${PACKAGE_NAME}")
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/bin/qdb_api.dll" DESTINATION "${PACKAGE_NAME}")
 elseif (APPLE)
-    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/libqdb_api.dylib" DESTINATION "qdb")
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/libqdb_api.dylib" DESTINATION "${PACKAGE_NAME}")
 else()
-    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/libqdb_api.so" DESTINATION "qdb")
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/libqdb_api.so" DESTINATION "${PACKAGE_NAME}")
 endif()
 
 # copy the daemon (for the tests)
@@ -81,26 +88,31 @@ endif()
 
 # for Apple we need to change the id otherwise we won't be able to load the extension
 if (APPLE)
-    execute_process(COMMAND install_name_tool -id "@loader_path/libqdb_api.dylib" ${CMAKE_CURRENT_BINARY_DIR}/qdb/libqdb_api.dylib)
+    execute_process(COMMAND install_name_tool -id "@loader_path/libqdb_api.dylib" ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}/libqdb_api.dylib)
 endif()
 
 # Step 1: SWIG
 add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx ${CMAKE_CURRENT_BINARY_DIR}/qdb/impl.py
-    COMMAND ${SWIG_EXECUTABLE} -c++ -python -o ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx -outdir ${CMAKE_CURRENT_BINARY_DIR}/qdb -O -module impl -interface _qdb ${SWIG_PLATFORM_FILE}
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}/impl.py
+    COMMAND ${SWIG_EXECUTABLE} -c++ -python -o ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx -outdir ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME} -O -module impl -interface _qdb ${SWIG_PLATFORM_FILE}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     DEPENDS ${SWIG_COMMON_FILES} ${SWIG_PLATFORM_FILE})
 
 # Step 2: Build
+set(BUILD_DEPENDENCIES
+    ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx
+    ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}/impl.py
+)
+
 if(WIN32)
     add_custom_target(qdb_python_api ALL
         COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_wininst sdist
-        DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx ${CMAKE_CURRENT_BINARY_DIR}/qdb/impl.py
+        DEPENDS ${BUILD_DEPENDENCIES}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 else()
     add_custom_target(qdb_python_api_build ALL
         COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_egg sdist
-        DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx ${CMAKE_CURRENT_BINARY_DIR}/qdb/impl.py
+        DEPENDS ${BUILD_DEPENDENCIES}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 endif()

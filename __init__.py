@@ -1,4 +1,5 @@
-#
+# pylint: disable=C0103,C0111,C0302,R0903
+
 # Copyright (c) 2009-2017, quasardb SAS
 # All rights reserved.
 #
@@ -34,12 +35,12 @@
 .. moduleauthor: quasardb SAS. All rights reserved
 """
 
-import qdb.impl as impl
-import cPickle as pickle
+from builtins import range as xrange, int as long  # pylint: disable=W0622
 import json
 import datetime
 import calendar
 import copy
+import qdb.impl as impl  # pylint: disable=C0413,E0401
 
 def __make_enum(type_name, prefix):
     """
@@ -54,7 +55,7 @@ def __make_enum(type_name, prefix):
             continue
 
         v = getattr(impl, x)
-        if isinstance(v, int):
+        if isinstance(v, long):
             members[x[prefix_len:]] = v
 
     return type(type_name, (), members)
@@ -75,7 +76,7 @@ def make_error_string(error_code):
 class QuasardbException(Exception):
     """The quasardb exception, based on the API error codes."""
     def __init__(self, error_code = 0):
-        assert(isinstance(error_code, int))
+        assert(isinstance(error_code, long))
         Exception.__init__(self)
         self.error_code = error_code
 
@@ -92,6 +93,7 @@ def version():
     """
     return impl.version()
 
+
 def build():
     """ Returns the build tag and build date as a string
 
@@ -104,11 +106,13 @@ import inspect
 def _api_buffer_to_string(buf):
     return None if buf is None else impl.api_buffer_ptr_as_string(buf)
 
+
 def _string_to_api_buffer(h, s):
     """
     Converts a string to an internal qdb::api_buffer_ptr
     """
     return None if s is None else impl.make_api_buffer_ptr_from_string(h, s)
+
 
 class TimeZone(datetime.tzinfo):
     """The quasardb time zone is UTC. Please refer to the documentation for further information."""
