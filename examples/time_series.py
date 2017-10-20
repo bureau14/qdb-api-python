@@ -29,13 +29,9 @@ from __future__ import print_function
 from builtins import int
 
 import os
-from socket import gethostname
 import sys
 import traceback
-import random
-import time
 import datetime
-import locale
 
 # you don't need the following, it's just added so it can be run from the git repo
 # without installing the quasardb library
