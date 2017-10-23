@@ -57,12 +57,12 @@ def main(quasardb_uri, ts_name):
     # if the time series already exist it will throw an exception
     # the function returns objects enabling direct insertion to the columns
     # here an array of one
-    cols = ts.create([quasardb.TimeSeries.DoubleColumnInfo("my_col")])
+    cols = ts.create([quasardb.TimeSeries.DoubleColumnInfo("close")])
 
     # you can also directly access the column, which is what you want to do
     # if the time series already exist
     # in our example we could have written my_col = cols[0]
-    my_col = ts.column(quasardb.TimeSeries.DoubleColumnInfo("my_col"))
+    my_col = ts.column(quasardb.TimeSeries.DoubleColumnInfo("close"))
 
     # once you have a column, you can directly insert data into it
     # here we use the high level Python API which isn't the fastest
@@ -95,7 +95,7 @@ def main(quasardb_uri, ts_name):
 
     # this is how we remove the time series
     # note that if it doesn't exist it will throw an exception
-    ts.remove()
+#  ts.remove()
 
 if __name__ == "__main__":
 
