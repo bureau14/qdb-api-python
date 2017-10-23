@@ -1204,26 +1204,26 @@ class QuasardbTimeSeriesExistingWithDoubles(QuasardbTimeSeries):
 
     def test_double_aggregation_min(self):
         self._test_aggregation_of_doubles(
-            quasardb.TimeSeries.Aggregation.min, min(self.inserted_double_data), 1)
+            quasardb.TimeSeries.Aggregation.min, min(self.inserted_double_data), len(self.inserted_double_data))
 
     def test_double_aggregation_max(self):
         self._test_aggregation_of_doubles(
-            quasardb.TimeSeries.Aggregation.max, max(self.inserted_double_data), 1)
+            quasardb.TimeSeries.Aggregation.max, max(self.inserted_double_data), len(self.inserted_double_data))
 
     def test_double_aggregation_abs_min(self):
         self._test_aggregation_of_doubles(
-            quasardb.TimeSeries.Aggregation.abs_min, min(self.inserted_double_data), 1)
+            quasardb.TimeSeries.Aggregation.abs_min, min(self.inserted_double_data), len(self.inserted_double_data))
 
     def test_double_aggregation_abs_max(self):
         self._test_aggregation_of_doubles(
-            quasardb.TimeSeries.Aggregation.abs_max, max(self.inserted_double_data), 1)
+            quasardb.TimeSeries.Aggregation.abs_max, max(self.inserted_double_data), len(self.inserted_double_data))
 
     def test_double_aggregation_spread(self):
         self._test_aggregation_of_doubles(
             quasardb.TimeSeries.Aggregation.spread,
             (None,
              max(self.inserted_double_data)[1] - min(self.inserted_double_data)[1]),
-            1)
+            len(self.inserted_double_data))
 
     def test_double_aggregation_count(self):
         self._test_aggregation_of_doubles(quasardb.TimeSeries.Aggregation.count,
