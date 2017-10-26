@@ -1034,7 +1034,7 @@ class TimeSeries(RemoveableEntry):
         err = self.call_ts_fun(
             impl.ts_create,
             [impl.wrap_ts_column(x.name, x.type) for x in columns],
-            millis * impl.duration_millisecond)
+            (int)(millis * impl.duration_millisecond))
         if err != impl.error_ok:
             raise chooseError(err)
 
