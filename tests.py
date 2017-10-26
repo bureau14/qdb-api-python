@@ -25,6 +25,8 @@ for root, dirnames, filenames in os.walk(os.path.join('..', 'build')):
 import quasardb  # pylint: disable=C0413,E0401
 
 # generate an unique entry name for the tests
+
+
 class UniqueEntryNameGenerator(object):  # pylint: disable=R0903
 
     def __init__(self):
@@ -43,9 +45,11 @@ def __cleanupProcess(process):
     process.terminate()
     process.wait()
 
+
 SECURE_USER_NAME = 'qdb-api-python'
 SECURE_USER_PRIVATE_KEY = 'SoHHpH26NtZvfq5pqm/8BXKbVIkf+yYiVZ5fQbq1nbcI='
 SECURE_CLUSTER_PUBLIC_KEY = 'Pb+d1o3HuFtxEb5uTl9peU89ze9BZTK9f8KdKr4k7zGA='
+
 
 def setUpModule():
     global INSECURE_URI  # pylint: disable=W0601
@@ -175,6 +179,7 @@ class QuasardbBasic(QuasardbTest):
         self.assertRaises(quasardb.OperationError,
                           cluster.purge_all, datetime.timedelta(minutes=1))
 
+
 class QuasardbTimeUtils(QuasardbTest):
 
     def time_zone_nightmare(self):
@@ -182,21 +187,22 @@ class QuasardbTimeUtils(QuasardbTest):
         moscow_tz = pytz.timezone('Europe/Moscow')
 
         record_dates = [
-                        datetime(1971, 1, 1, 0, 0, 0, 0, moscow_tz),
-                        datetime(1971, 1, 1, 0, 0, 0, 0, pytz.UTC),
-                        datetime(1971, 1, 1, 0, 0, 0, 0),
-                        datetime(2011, 1, 1, 0, 0, 0, 0, moscow_tz),
-                        datetime(2012, 1, 1, 0, 0, 0, 0, moscow_tz),
-                        datetime(2012, 1, 1, 0, 0, 0, 0, pytz.UTC),
-                        datetime(2012, 1, 1, 0, 0, 0, 0),
-                        datetime(2013, 1, 1, 0, 0, 0, 0, moscow_tz),
-                        datetime(2014, 1, 1, 0, 0, 0, 0, moscow_tz),
-                        datetime(2014, 1, 1, 0, 0, 0, 0),
-                        datetime(2015, 1, 1, 0, 0, 0, 0, moscow_tz),
-                        datetime(2016, 1, 1, 0, 0, 0, 0, moscow_tz)]
+            datetime(1971, 1, 1, 0, 0, 0, 0, moscow_tz),
+            datetime(1971, 1, 1, 0, 0, 0, 0, pytz.UTC),
+            datetime(1971, 1, 1, 0, 0, 0, 0),
+            datetime(2011, 1, 1, 0, 0, 0, 0, moscow_tz),
+            datetime(2012, 1, 1, 0, 0, 0, 0, moscow_tz),
+            datetime(2012, 1, 1, 0, 0, 0, 0, pytz.UTC),
+            datetime(2012, 1, 1, 0, 0, 0, 0),
+            datetime(2013, 1, 1, 0, 0, 0, 0, moscow_tz),
+            datetime(2014, 1, 1, 0, 0, 0, 0, moscow_tz),
+            datetime(2014, 1, 1, 0, 0, 0, 0),
+            datetime(2015, 1, 1, 0, 0, 0, 0, moscow_tz),
+            datetime(2016, 1, 1, 0, 0, 0, 0, moscow_tz)]
 
         for r in record_dates:
-            self.assertEqual(datetime.datetime.fromtimestamp(_time_to_unix_timestamp(r)), r.astimezone(pytz.UTC))
+            self.assertEqual(datetime.datetime.fromtimestamp(
+                _time_to_unix_timestamp(r)), r.astimezone(pytz.UTC))
 
     def test_duration_converter(self):
         '''
@@ -277,16 +283,19 @@ class QuasardbClusterSetCompression(QuasardbTest):
         try:
             cluster.set_compression(quasardb.Compression.none)
         except:
-            self.fail(msg='cluster.set_compression should not have raised an exception')
+            self.fail(
+                msg='cluster.set_compression should not have raised an exception')
 
     def test_compression_fast(self):
         try:
             cluster.set_compression(quasardb.Compression.fast)
         except:
-            self.fail(msg='cluster.set_compression should not have raised an exception')
+            self.fail(
+                msg='cluster.set_compression should not have raised an exception')
 
     def test_compression_invalid(self):
         self.assertRaises(quasardb.InputError, cluster.set_compression, 123)
+
 
 class QuasardbBlob(QuasardbTest):
     def setUp(self):
@@ -807,6 +816,7 @@ class QuasardbTag(QuasardbTest):
         entries = t.get_entries()
         self.assertEqual(0, len(entries))
 
+
 def _generate_double_ts(start_time, start_val, count):
     result = []
 
@@ -819,6 +829,7 @@ def _generate_double_ts(start_time, start_val, count):
 
     return result
 
+
 def _generate_blob_ts(start_time, count):
     result = []
 
@@ -829,6 +840,7 @@ def _generate_blob_ts(start_time, count):
         start_time += step
 
     return result
+
 
 class QuasardbTimeSeries(QuasardbTest):
 
@@ -848,6 +860,7 @@ class QuasardbTimeSeries(QuasardbTest):
         self.assertEqual(2, len(cols))
 
         return (cols[0], cols[1])
+
 
 class QuasardbTimeSeriesNonExisting(QuasardbTimeSeries):
 
@@ -890,6 +903,7 @@ class QuasardbTimeSeriesNonExisting(QuasardbTimeSeries):
         self.assertRaises(quasardb.OperationError,
                           double_col.erase_ranges,
                           self.test_intervals)
+
 
 class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
 
@@ -1083,7 +1097,6 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
         self.assertRaises(quasardb.OperationError,
                           wrong_col.insert, inserted_blob_data)
 
-
     def test_blob_erase_ranges(self):
         inserted_blob_data = _generate_blob_ts(self.start_time, 20)
         self.blob_col.insert(inserted_blob_data)
@@ -1105,6 +1118,7 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
             [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
 
         self.assertEqual(len(results), 0)
+
 
 class QuasardbTimeSeriesExistingWithBlobs(QuasardbTimeSeries):
 
@@ -1300,11 +1314,13 @@ class QuasardbTimeSeriesBulk(QuasardbTimeSeries):
         current_time = start_time
 
         for i in xrange(0, 10):
-            self.assertEqual(i, local_table.append_row(current_time, val, "content"))
+            self.assertEqual(i, local_table.append_row(
+                current_time, val, "content"))
             val += 1.0
             current_time += datetime.timedelta(seconds=1)
 
-        the_ranges = [(start_time - datetime.timedelta(hours=1), start_time + datetime.timedelta(hours=1))]
+        the_ranges = [(start_time - datetime.timedelta(hours=1),
+                       start_time + datetime.timedelta(hours=1))]
 
         results = self.double_col.get_ranges(the_ranges)
         self.assertEqual(len(results), 0)
@@ -1334,13 +1350,14 @@ class QuasardbTimeSeriesBulk(QuasardbTimeSeries):
         self._test_with_table(local_table)
 
     def test_failed_local_table_with_wrong_columns(self):
-        columns = [ quasardb.TimeSeries.DoubleColumnInfo("1000flavorsofwrong") ]
+        columns = [quasardb.TimeSeries.DoubleColumnInfo("1000flavorsofwrong")]
 
-        self.assertRaises(quasardb.OperationError, self.my_ts.local_table, columns)
+        self.assertRaises(quasardb.OperationError,
+                          self.my_ts.local_table, columns)
 
     def test_successful_bulk_insert_specified_columns(self):
-        columns = [ quasardb.TimeSeries.DoubleColumnInfo(self.double_col.name()),
-            quasardb.TimeSeries.BlobColumnInfo(self.blob_col.name()) ]
+        columns = [quasardb.TimeSeries.DoubleColumnInfo(self.double_col.name()),
+                   quasardb.TimeSeries.BlobColumnInfo(self.blob_col.name())]
 
         local_table = self.my_ts.local_table(columns)
         self._test_with_table(local_table)
@@ -1449,6 +1466,7 @@ class QuasardbSuffix(QuasardbTest):
         self.assertEqual(res[0], entry_name)
 
         self.assertEqual(1, cluster.suffix_count(dat_suffix))
+
 
 def _make_expiry_time(td):
         # expires in one minute

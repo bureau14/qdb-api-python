@@ -49,6 +49,7 @@ tz = qdb_convert.tz
 DoublePointsVector = impl.DoublePointVec
 BlobPointsVector = impl.BlobPointVec
 
+
 def make_error_string(error_code):
     """ Returns a meaningful error message corresponding to the quasardb error code.
 
@@ -56,6 +57,7 @@ def make_error_string(error_code):
     :returns: str -- An error string
     """
     return impl.make_error_string(error_code)
+
 
 class Error(Exception):
     """The quasardb database exception, based on the API error codes."""
@@ -79,23 +81,30 @@ class Error(Exception):
 # Deprecated name. Please use Error.
 QuasardbException = Error
 
+
 class RemoteSystemError(Error):
     pass
+
 
 class LocalSystemError(Error):
     pass
 
+
 class ConnectionError(Error):
     pass
+
 
 class InputError(Error):
     pass
 
+
 class OperationError(Error):
     pass
 
+
 class ProtocolError(Error):
     pass
+
 
 def chooseError(error_code=0):
     return {
@@ -114,6 +123,7 @@ def version():
     :returns: str -- The API version number
     """
     return impl.version()
+
 
 def build():
     """ Returns the build tag and build date as a string
@@ -307,6 +317,7 @@ class Tag(Entry):
         if err.error != impl.error_ok:
             raise chooseError(err.error)
         return result
+
 
 class Integer(ExpirableEntry):
     """
@@ -556,7 +567,7 @@ class TimeSeries(RemoveableEntry):
         A local table object that enables row by row bulk inserts.
         """
 
-        def __init__(self, ts, columns = None):
+        def __init__(self, ts, columns=None):
             """
             Creates a local table bound to a time series object. If columns is None, the
             LocalTable will match all existing columns.
@@ -574,13 +585,16 @@ class TimeSeries(RemoveableEntry):
 
             if columns == None:
                 self.__table_handle = impl.ts_make_local_table(self.__ts.handle,
-                    super(TimeSeries, self.__ts).alias(),
-                    error_carrier)
+                                                               super(
+                                                                   TimeSeries, self.__ts).alias(),
+                                                               error_carrier)
             else:
                 self.__table_handle = impl.ts_make_local_table_with_columns(self.__ts.handle,
-                    super(TimeSeries, self.__ts).alias(),
-                    [impl.wrap_ts_column(x.name, x.type) for x in columns],
-                    error_carrier)
+                                                                            super(
+                                                                                TimeSeries, self.__ts).alias(),
+                                                                            [impl.wrap_ts_column(
+                                                                                x.name, x.type) for x in columns],
+                                                                            error_carrier)
 
             if error_carrier.error != impl.error_ok:
                 raise chooseError(error_carrier.error)
@@ -588,7 +602,8 @@ class TimeSeries(RemoveableEntry):
         def __del__(self):
             """ On delete, the object is released. """
             if self.__table_handle != None:
-                impl.ts_release_local_table(self.__ts.handle, self.__table_handle)
+                impl.ts_release_local_table(
+                    self.__ts.handle, self.__table_handle)
                 self.__table_handle = None
 
         def fast_append_row(self, timestamp, *args):
@@ -609,9 +624,11 @@ class TimeSeries(RemoveableEntry):
             for arg in args:
                 if arg != None:
                     if isinstance(arg, numbers.Real):
-                        err = impl.ts_row_set_double(self.__table_handle, col_index, float(arg))
+                        err = impl.ts_row_set_double(
+                            self.__table_handle, col_index, float(arg))
                     else:
-                        err = impl.ts_row_set_blob(self.__table_handle, col_index, str(arg))
+                        err = impl.ts_row_set_blob(
+                            self.__table_handle, col_index, str(arg))
 
                     if err != impl.error_ok:
                         raise chooseError(err)
@@ -619,7 +636,8 @@ class TimeSeries(RemoveableEntry):
                 col_index += 1
 
             error_carrier = qdb_convert.make_error_carrier()
-            row_index = impl.ts_table_row_append(self.__table_handle, timestamp, error_carrier)
+            row_index = impl.ts_table_row_append(
+                self.__table_handle, timestamp, error_carrier)
             if error_carrier.error != impl.error_ok:
                 raise chooseError(error_carrier.error)
 
@@ -696,7 +714,8 @@ class TimeSeries(RemoveableEntry):
             agg = impl.qdb_ts_blob_aggregation_t()
 
             agg.type = agg_type
-            agg.filtered_range = qdb_convert.convert_time_couple_to_qdb_filtered_range_t(time_couple)
+            agg.filtered_range = qdb_convert.convert_time_couple_to_qdb_filtered_range_t(
+                time_couple)
             agg.count = 0
             agg.result.content_length = 0
 
@@ -709,7 +728,8 @@ class TimeSeries(RemoveableEntry):
             agg = self.__aggregations[index]
             return TimeSeries.BlobAggregationResult(
                 agg.type,
-                qdb_convert.convert_qdb_filtered_range_t_to_time_couple(agg.filtered_range),
+                qdb_convert.convert_qdb_filtered_range_t_to_time_couple(
+                    agg.filtered_range),
                 qdb_convert.convert_qdb_timespec_to_time(agg.result.timestamp),
                 agg.count,
                 agg.result.content,
@@ -739,7 +759,8 @@ class TimeSeries(RemoveableEntry):
             agg = impl.qdb_ts_double_aggregation_t()
 
             agg.type = agg_type
-            agg.filtered_range = qdb_convert.convert_time_couple_to_qdb_filtered_range_t(time_couple)
+            agg.filtered_range = qdb_convert.convert_time_couple_to_qdb_filtered_range_t(
+                time_couple)
             agg.count = 0
             agg.result.value = 0.0
 
@@ -752,7 +773,8 @@ class TimeSeries(RemoveableEntry):
             agg = self.__aggregations[index]
             return TimeSeries.DoubleAggregationResult(
                 agg.type,
-                qdb_convert.convert_qdb_filtered_range_t_to_time_couple(agg.filtered_range),
+                qdb_convert.convert_qdb_filtered_range_t_to_time_couple(
+                    agg.filtered_range),
                 qdb_convert.convert_qdb_timespec_to_time(agg.result.timestamp),
                 agg.count,
                 agg.result.value)
@@ -845,8 +867,9 @@ class TimeSeries(RemoveableEntry):
             error_carrier = qdb_convert.make_error_carrier()
 
             erased_count = self.call_ts_fun(impl.ts_erase_ranges,
-                qdb_convert.convert_time_couples_to_qdb_filtered_range_t_vector(intervals),
-                error_carrier)
+                                            qdb_convert.convert_time_couples_to_qdb_filtered_range_t_vector(
+                                                intervals),
+                                            error_carrier)
 
             if error_carrier.error != impl.error_ok:
                 raise chooseError(error_carrier.error)
@@ -867,7 +890,8 @@ class TimeSeries(RemoveableEntry):
 
             :raises: Error
             """
-            err = super(TimeSeries.DoubleColumn, self).call_ts_fun(impl.ts_double_insert, vector)
+            err = super(TimeSeries.DoubleColumn, self).call_ts_fun(
+                impl.ts_double_insert, vector)
             if err != impl.error_ok:
                 raise chooseError(err)
 
@@ -880,8 +904,8 @@ class TimeSeries(RemoveableEntry):
 
             :raises: Error
             """
-            self.fast_insert(qdb_convert.make_qdb_ts_double_point_vector(tuples))
-
+            self.fast_insert(
+                qdb_convert.make_qdb_ts_double_point_vector(tuples))
 
         def get_ranges(self, intervals):
             """
@@ -897,7 +921,8 @@ class TimeSeries(RemoveableEntry):
 
             res = super(TimeSeries.DoubleColumn, self).call_ts_fun(
                 impl.ts_double_get_ranges,
-                qdb_convert.convert_time_couples_to_qdb_filtered_range_t_vector(intervals),
+                qdb_convert.convert_time_couples_to_qdb_filtered_range_t_vector(
+                    intervals),
                 error_carrier)
             if error_carrier.error != impl.error_ok:
                 raise chooseError(error_carrier.error)
@@ -932,7 +957,8 @@ class TimeSeries(RemoveableEntry):
 
             :raises: Error
             """
-            err = super(TimeSeries.BlobColumn, self).call_ts_fun(impl.ts_blob_insert, vector)
+            err = super(TimeSeries.BlobColumn, self).call_ts_fun(
+                impl.ts_blob_insert, vector)
             if err != impl.error_ok:
                 raise chooseError(err)
 
@@ -945,7 +971,8 @@ class TimeSeries(RemoveableEntry):
 
             :raises: Error
             """
-            self.fast_insert(qdb_convert.convert_to_wrap_ts_blop_points_vector(tuples))
+            self.fast_insert(
+                qdb_convert.convert_to_wrap_ts_blop_points_vector(tuples))
 
         def get_ranges(self, intervals):
             """
@@ -961,7 +988,8 @@ class TimeSeries(RemoveableEntry):
 
             res = super(TimeSeries.BlobColumn, self).call_ts_fun(
                 impl.ts_blob_get_ranges,
-                qdb_convert.convert_time_couples_to_qdb_filtered_range_t_vector(intervals),
+                qdb_convert.convert_time_couples_to_qdb_filtered_range_t_vector(
+                    intervals),
                 error_carrier)
             if error_carrier.error != impl.error_ok:
                 raise chooseError(error_carrier.error)
@@ -1046,8 +1074,7 @@ class TimeSeries(RemoveableEntry):
 
         return [TimeSeries.ColumnInfo(x.name, x.type) for x in raw_cols]
 
-
-    def local_table(self, columns = None):
+    def local_table(self, columns=None):
         """
         Returns a LocalTable matching the provided columns or the full time series if None.
 
@@ -1058,6 +1085,7 @@ class TimeSeries(RemoveableEntry):
         :returns: A list quasardb.LocalTable initialized
         """
         return TimeSeries.LocalTable(self, columns)
+
 
 class Blob(ExpirableEntry):
 
@@ -1387,7 +1415,8 @@ class Cluster(object):
         .. caution::
             This method is intended for very specific usage scenarii. Use at your own risks.
         """
-        err = self.handle.purge_all(qdb_convert.duration_to_timeout_ms(timeout))
+        err = self.handle.purge_all(
+            qdb_convert.duration_to_timeout_ms(timeout))
         if err != impl.error_ok:
             raise chooseError(err)
 
