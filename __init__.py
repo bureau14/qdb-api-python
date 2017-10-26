@@ -38,9 +38,9 @@
 from builtins import range as xrange, int as long  # pylint: disable=W0622
 import json
 import datetime
+import numbers
 import quasardb.impl as impl  # pylint: disable=C0413,E0401
 import quasardb.qdb_convert
-import numbers
 
 from quasardb.qdb_enum import Compression, Encryption, ErrorCode, Operation, Options, Protocol, TSAggregation, TSColumnType, TSFilter
 
@@ -1016,18 +1016,25 @@ class TimeSeries(RemoveableEntry):
     def call_ts_fun(self, ts_func, *args, **kwargs):
         return ts_func(self.handle, super(TimeSeries, self).alias(), *args, **kwargs)
 
-    def create(self, columns):
+    def create(self, columns,
+               shard_size=datetime.timedelta(milliseconds=impl.duration_default_shard_size)):
         """
         Creates a time series with the provided columns information
 
         :param columns: A list describing the columns to create
         :type columns: a list of TimeSeries.ColumnInfo
 
+        :param shard_size: The length of a single timeseries shard (bucket).
+        :type shard_size: datetime.timedelta
+
         :raises: Error
         :returns: A list of columns matching the created columns
         """
+        millis = long(1000) * shard_size.total_seconds() + shard_size.microseconds / 1000
         err = self.call_ts_fun(
-            impl.ts_create, [impl.wrap_ts_column(x.name, x.type) for x in columns])
+            impl.ts_create,
+            [impl.wrap_ts_column(x.name, x.type) for x in columns],
+            millis * impl.duration_millisecond)
         if err != impl.error_ok:
             raise chooseError(err)
 

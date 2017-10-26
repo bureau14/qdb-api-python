@@ -248,13 +248,13 @@ struct transform_to_col_info
     }
 };
 
-qdb_error_t ts_create(handle_ptr h, const char * alias, const std::vector<wrap_ts_column> & columns)
+qdb_error_t ts_create(handle_ptr h, const char * alias, const std::vector<wrap_ts_column> & columns, qdb_duration_t shard_size)
 {
     std::vector<qdb_ts_column_info_t> qdb_cols_info(columns.size());
 
     std::transform(columns.begin(), columns.end(), qdb_cols_info.begin(), transform_to_col_info());
 
-    return qdb_ts_create(*h, alias, &qdb_cols_info.front(), qdb_cols_info.size());
+    return qdb_ts_create(*h, alias, shard_size, &qdb_cols_info.front(), qdb_cols_info.size());
 }
 
 struct column_creator
