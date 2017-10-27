@@ -904,6 +904,30 @@ class QuasardbTimeSeriesNonExisting(QuasardbTimeSeries):
                           double_col.erase_ranges,
                           self.test_intervals)
 
+    def test_create_without_columns(self):
+        cols = self.my_ts.create([])
+        self.assertEqual(0, len(cols))
+
+    def test_create_with_shard_size_less_than_1_millisecond_throws(self):
+        self.assertRaises(quasardb.InputError,
+                          self.my_ts.create, [], datetime.timedelta(milliseconds=0))
+
+    def test_create_with_shard_size_of_1_millisecond(self):
+        cols = self.my_ts.create([], datetime.timedelta(milliseconds=1))
+        self.assertEqual(0, len(cols))
+
+    def test_create_with_shard_size_of_1_day(self):
+        cols = self.my_ts.create([], datetime.timedelta(hours=24))
+        self.assertEqual(0, len(cols))
+
+    def test_create_with_shard_size_of_4_weeks(self):
+        cols = self.my_ts.create([], datetime.timedelta(weeks=4))
+        self.assertEqual(0, len(cols))
+
+    def test_create_with_shard_size_of_more_than_1_year(self):
+        cols = self.my_ts.create([], datetime.timedelta(weeks=52))
+        self.assertEqual(0, len(cols))
+
 
 class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
 

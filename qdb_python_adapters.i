@@ -248,7 +248,7 @@ struct transform_to_col_info
     }
 };
 
-qdb_error_t ts_create(handle_ptr h, const char * alias, const std::vector<wrap_ts_column> & columns, qdb_duration_t shard_size)
+qdb_error_t ts_create(handle_ptr h, const char * alias, const std::vector<wrap_ts_column> & columns, qdb_uint_t shard_size)
 {
     std::vector<qdb_ts_column_info_t> qdb_cols_info(columns.size());
 

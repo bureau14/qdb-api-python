@@ -866,10 +866,11 @@ class TimeSeries(RemoveableEntry):
             """
             error_carrier = qdb_convert.make_error_carrier()
 
-            erased_count = self.call_ts_fun(impl.ts_erase_ranges,
-                                            qdb_convert.convert_time_couples_to_qdb_filtered_range_t_vector(
-                                                intervals),
-                                            error_carrier)
+            erased_count = self.call_ts_fun(
+                impl.ts_erase_ranges,
+                qdb_convert.convert_time_couples_to_qdb_filtered_range_t_vector(
+                    intervals),
+                error_carrier)
 
             if error_carrier.error != impl.error_ok:
                 raise chooseError(error_carrier.error)
@@ -1030,11 +1031,11 @@ class TimeSeries(RemoveableEntry):
         :raises: Error
         :returns: A list of columns matching the created columns
         """
-        millis = long(1000) * shard_size.total_seconds() + shard_size.microseconds / 1000
+        millis = 1000 * shard_size.total_seconds() + shard_size.microseconds / 1000
         err = self.call_ts_fun(
             impl.ts_create,
             [impl.wrap_ts_column(x.name, x.type) for x in columns],
-            (int)(millis * impl.duration_millisecond))
+            long(millis * impl.duration_millisecond))
         if err != impl.error_ok:
             raise chooseError(err)
 
