@@ -248,13 +248,25 @@ struct transform_to_col_info
     }
 };
 
+template <typename Collection>
+static const typename Collection::value_type * get_safe_pointer(const Collection & col)
+{
+    return col.size() > 0u ? &col.front() : NULL;
+}
+
+template <typename Collection>
+static typename Collection::value_type * get_safe_pointer(Collection & col)
+{
+    return col.size() > 0u ? &col.front() : NULL;
+}
+
 qdb_error_t ts_create(handle_ptr h, const char * alias, const std::vector<wrap_ts_column> & columns, qdb_uint_t shard_size)
 {
     std::vector<qdb_ts_column_info_t> qdb_cols_info(columns.size());
 
     std::transform(columns.begin(), columns.end(), qdb_cols_info.begin(), transform_to_col_info());
 
-    return qdb_ts_create(*h, alias, shard_size, &qdb_cols_info.front(), qdb_cols_info.size());
+    return qdb_ts_create(*h, alias, shard_size, get_safe_pointer(qdb_cols_info), qdb_cols_info.size());
 }
 
 struct column_creator
@@ -287,7 +299,7 @@ std::vector<wrap_ts_column> ts_list_columns(handle_ptr h, const char * alias, er
 
 qdb_error_t ts_double_insert(handle_ptr h, const char * alias, const char * column, const std::vector<qdb_ts_double_point> & values)
 {
-    return qdb_ts_double_insert(*h, alias, column, &values.front(), values.size());
+    return qdb_ts_double_insert(*h, alias, column, get_safe_pointer(values), values.size());
 }
 
 struct to_qdb_ts_blob_point
@@ -310,7 +322,7 @@ qdb_error_t ts_blob_insert(handle_ptr h, const char * alias, const char * column
 
     std::transform(values.begin(), values.end(), points.begin(), to_qdb_ts_blob_point());
 
-    return qdb_ts_blob_insert(*h, alias, column, &points.front(), points.size());
+    return qdb_ts_blob_insert(*h, alias, column, get_safe_pointer(points), points.size());
 }
 
 std::vector<qdb_ts_double_point> ts_double_get_ranges(handle_ptr h, const char * alias, const char * column,
@@ -321,7 +333,7 @@ std::vector<qdb_ts_double_point> ts_double_get_ranges(handle_ptr h, const char *
 
     std::vector<qdb_ts_double_point> res;
 
-    error->error = qdb_ts_double_get_ranges(*h, alias, column, &ranges.front(), ranges.size(), &points, &count);
+    error->error = qdb_ts_double_get_ranges(*h, alias, column, get_safe_pointer(ranges), ranges.size(), &points, &count);
     if (QDB_SUCCESS(error->error))
     {
         res.resize(count);
@@ -349,7 +361,7 @@ std::vector<wrap_ts_blob_point> ts_blob_get_ranges(handle_ptr h, const char * al
 
     std::vector<wrap_ts_blob_point> res;
 
-    error->error = qdb_ts_blob_get_ranges(*h, alias, column, &ranges.front(), ranges.size(), &points, &count);
+    error->error = qdb_ts_blob_get_ranges(*h, alias, column, get_safe_pointer(ranges), ranges.size(), &points, &count);
     if (QDB_SUCCESS(error->error))
     {
         res.resize(count);
@@ -384,19 +396,19 @@ struct range_to_double_agg
 void ts_blob_aggregation(handle_ptr h, const char * alias, const char * column,
     std::vector<qdb_ts_blob_aggregation_t> & ranges, error_carrier * error)
 {
-    error->error = qdb_ts_blob_aggregate(*h, alias, column, &ranges.front(), ranges.size());
+    error->error = qdb_ts_blob_aggregate(*h, alias, column, get_safe_pointer(ranges), ranges.size());
 }
 
 void ts_double_aggregation(handle_ptr h, const char * alias, const char * column,
     std::vector<qdb_ts_double_aggregation_t> & ranges, error_carrier * error)
 {
-    error->error = qdb_ts_double_aggregate(*h, alias, column, &ranges.front(), ranges.size());
+    error->error = qdb_ts_double_aggregate(*h, alias, column, get_safe_pointer(ranges), ranges.size());
 }
 
 qdb_uint_t ts_erase_ranges(handle_ptr h, const char * alias, const char * column, const std::vector<qdb_ts_filtered_range_t> & ranges, error_carrier * error)
 {
     qdb_uint_t res = 0;
-    error->error = qdb_ts_erase_ranges(*h, alias, column, &ranges.front(), ranges.size(), &res);
+    error->error = qdb_ts_erase_ranges(*h, alias, column, get_safe_pointer(ranges), ranges.size(), &res);
     return res;
 }
 
@@ -425,7 +437,7 @@ qdb_local_table_t qdb_ts_make_local_table_with_columns(handle_ptr h, const char 
 
     qdb_local_table_t res;
 
-    error->error = qdb_ts_local_table_init(*h, alias, &qdb_cols_info.front(), qdb_cols_info.size(), &res);
+    error->error = qdb_ts_local_table_init(*h, alias, get_safe_pointer(qdb_cols_info), qdb_cols_info.size(), &res);
 
     return res;
 }
