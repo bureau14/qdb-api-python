@@ -117,3 +117,13 @@ It's also possible to get the raw values:
 # results contains the points, in a flattened list
 results = col1.get_ranges([(start_time1, end_time1), (start_time2, end_time2)])
 ```
+
+## Compilation Issues
+
+`ImportError: No module named builtins`
+
+Can be solved installing `future` library
+
+```shell
+pip install future
+```
