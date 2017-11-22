@@ -17,6 +17,7 @@ qdb_version = "@QDB_PY_VERSION@".lower()
 is_clang = 'Clang' in '@CMAKE_CXX_COMPILER_ID@'
 is_windows = os.name == 'nt'
 is_freebsd = sys.platform.startswith('freebsd')
+is_linux = sys.platform.startswith('linux')
 is_osx = sys.platform == 'darwin'
 is_64_bits = sys.maxsize > 2**32
 arch = "x64" if is_64_bits else "x86"
@@ -44,6 +45,10 @@ else:
     else:
         extra_compile_args = ['-std=c++11', '-Wno-unused-function']
         extra_link_args = ['-static-libgcc', '-static-libstdc++']
+
+    if is_linux:
+        extra_link_args += ['-Wl,--wrap=memcpy']
+
     if not is_osx:
         extra_link_args += ['-Wl,-z,origin',
                             '-Wl,--gc-sections', '-Wl,-R$ORIGIN']
@@ -124,7 +129,7 @@ setup(name=package_name,
           'Topic :: Database',
           'Topic :: Software Development :: Libraries :: Python Modules',
       ],
-      keywords='quasardb database key-value storage NoSQL NewSQL API driver cache',
+      keywords='quasardb timeseries database API driver ',
       setup_requires=["setuptools_git >= 0.3", "xmlrunner", "future"],
       install_requires=["xmlrunner", "future", "pytz", "tzlocal"],
       packages=[package_name],
@@ -132,7 +137,7 @@ setup(name=package_name,
           os.path.basename(mod) for mod in package_modules]},
       include_package_data=True,
       ext_modules=[Extension(
-          'quasardb._qdb', [os.path.join('src', 'qdb_python_wrapper.cxx')],
+          'quasardb._qdb', [os.path.join('src', 'qdb_python_wrapper.cxx'), os.path.join('src', 'memcpy_wrap.cxx')],
           include_dirs=['include'],
           library_dirs=[package_name],
           libraries=qdb_libraries,

@@ -97,6 +97,8 @@ else()
     file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/bin/qdbd" DESTINATION "test")
 endif()
 
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/memcpy_wrap.cxx DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/src/)
+
 # for Apple we need to change the id otherwise we won't be able to load the extension
 if (APPLE)
     execute_process(COMMAND install_name_tool -id "@loader_path/libqdb_api.dylib" ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}/libqdb_api.dylib)
@@ -117,6 +119,7 @@ add_custom_command(
 
 # Step 2: Build
 set(BUILD_DEPENDENCIES
+    ${CMAKE_CURRENT_BINARY_DIR}/src/memcpy_wrap.cxx
     ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx
     ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}/impl.py
 )
