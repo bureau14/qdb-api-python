@@ -36,10 +36,11 @@ import random
 import time
 import datetime
 import locale
+import re
 
 # you don't need the following, it's just added so it can be run from the git repo
 # without installing the quasardb library
-for root, dirnames, filenames in os.walk(os.path.join('..', 'build')):
+for root, dirnames, filenames in os.walk(os.path.join(re.search(".*qdb-api-python", os.getcwd()).group(), 'build')):
     for p in dirnames:
         if p.startswith('lib'):
             sys.path.append(os.path.join(root, p))
@@ -102,7 +103,7 @@ def generate_points(points_count):
     vec = quasardb.DoublePointsVector()
     vec.resize(points_count)
 
-    tv_sec = quasardb._time_to_unix_timestamp(datetime.datetime(2017, 1, 1))
+    tv_sec = quasardb.qdb_convert.time_to_unix_timestamp(datetime.datetime(2017, 1, 1))
     tv_nsec = 0
 
     for i in xrange(points_count):

@@ -33,13 +33,14 @@ import traceback
 import sys
 import subprocess
 import time
+import re
 
 from yahoo_finance import Share
 from zipfile import ZipFile
 
 # you don't need the following, it's just added so it can be run from the git repo
 # without installing the quasardb library
-for root, dirnames, filenames in os.walk(os.path.join('..', 'build')):
+for root, dirnames, filenames in os.walk(os.path.join(re.search(".*qdb-api-python", os.getcwd()).group(), 'build')):
     for p in dirnames:
         if p.startswith('lib'):
             sys.path.append(os.path.join(root, p))
