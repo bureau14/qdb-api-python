@@ -52,7 +52,7 @@ def setUpModule():
 
     entry_gen = UniqueEntryNameGenerator()
 
-    root_directory = re.search(".*qdb-api-python", os.getcwd()).group()
+    root_directory = os.path.join(os.path.split(__file__)[0], '..')
     qdb_directory = root_directory + "\\qdb\\bin\\"
 
     __current_port = 3000
