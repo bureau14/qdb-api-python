@@ -62,7 +62,7 @@ configure_file(README.md README.txt COPYONLY)
 configure_file(__init__.py ${PACKAGE_NAME}/__init__.py COPYONLY)
 configure_file(qdb_convert.py ${PACKAGE_NAME}/qdb_convert.py COPYONLY)
 configure_file(qdb_enum.py ${PACKAGE_NAME}/qdb_enum.py COPYONLY)
-configure_file(tests.py test/tests.py COPYONLY)
+#configure_file(tests.py test/tests.py COPYONLY)
 configure_file(ez_setup.py ez_setup.py COPYONLY)
 
 set(SHARED_LIBRARY_EXTENSIONS "")
@@ -91,11 +91,11 @@ else()
 endif()
 
 # copy the daemon (for the tests)
-if(WIN32)
-    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/bin/qdbd.exe" DESTINATION "test")
-else()
-    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/bin/qdbd" DESTINATION "test")
-endif()
+# if(WIN32)
+    # file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/bin/qdbd.exe" DESTINATION "test")
+# else()
+    # file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/bin/qdbd" DESTINATION "test")
+# endif()
 
 # for Apple we need to change the id otherwise we won't be able to load the extension
 if (APPLE)
@@ -145,5 +145,5 @@ add_custom_command(TARGET qdb_python_api_egg
 
 # Step 3: Test
 add_test(NAME qdb_python_test
-    COMMAND ${PYTHON_EXECUTABLE} tests.py
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/test)
+    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/testcases/tests.py
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/testcases)
