@@ -13,7 +13,7 @@ import pytz
 import re
 
 
-for root, dirnames, filenames in os.walk(os.path.join(re.search(".*qdb-api-python", os.getcwd()).group(), 'build')):
+for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0], '..', 'build')):
     for p in dirnames:
         if p.startswith('lib'):
             sys.path.append(os.path.join(root, p))
