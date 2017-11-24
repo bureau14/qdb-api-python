@@ -18,129 +18,35 @@ for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0]
             sys.path.append(os.path.join(root, p))
 
 import quasardb  # pylint: disable=C0413,E0401
-from settings import cluster, entry_gen
-
-# class UniqueEntryNameGenerator(object):  # pylint: disable=R0903
-#
-#     def __init__(self):
-#         self.__prefix = "entry_"
-#         self.__counter = 0
-#
-#     def __iter__(self):
-#         return self
-#
-#     def next(self):
-#         self.__counter += 1
-#         return self.__prefix + str(self.__counter)
-#
-# def __cleanupProcess(process):
-#     process.terminate()
-#     process.wait()
-#
-#
-# def setUpModule():
-#
-#     global INSECURE_URI  # pylint: disable=W0601
-#     global SECURE_URI  # pylint: disable=W0601
-#
-#     global cluster  # pylint: disable=W0601
-#     global __CLUSTERD  # pylint: disable=W0601
-#     global __SECURE_CLUSTERD  # pylint: disable=W0601
-#
-#     global entry_gen  # pylint: disable=W0601
-#
-#     entry_gen = UniqueEntryNameGenerator()
-#     root_directory = re.search(".*qdb-api-python", os.getcwd()).group()
-#     qdb_directory = root_directory + "\\qdb\\bin\\"
-#
-#     __current_port = 3000
-#     insecure_endpoint = '127.0.0.1:' + str(__current_port)
-#     __current_port += 1
-#     secure_endpoint = '127.0.0.1:' + str(__current_port)
-#     __current_port += 1
-#
-#     INSECURE_URI = ""
-#     SECURE_URI = ""
-#
-#     # don't save anything to disk
-#     common_parameters = '--transient'
-#
-#
-#
-#     __CLUSTERD = subprocess.Popen(
-#         [os.path.join(qdb_directory , 'qdbd'),
-#          common_parameters, '--address=' + insecure_endpoint, '--security=false'])
-#     if __CLUSTERD.pid == 0:
-#         raise Exception("daemon", "cannot run insecure daemon")
-#
-#     # startup may take a couple of seconds, temporize to make sure the
-#     # connection will be accepted
-#
-#     __SECURE_CLUSTERD = subprocess.Popen(
-#         [os.path.join(qdb_directory , 'qdbd'),
-#          common_parameters, '--address=' + secure_endpoint,
-#          '--cluster-private-file=' +
-#          os.path.join(root_directory  , 'cluster-secret-key.txt'),
-#          '--user-list=' + os.path.join(root_directory , 'users.txt')])
-#     if __SECURE_CLUSTERD.pid == 0:
-#         __cleanupProcess(__CLUSTERD)
-#         raise Exception("daemon", "cannot run secure daemon")
-#
-#     time.sleep(2)
-#     __CLUSTERD.poll()
-#     if __CLUSTERD.returncode != None:
-#         __cleanupProcess(__SECURE_CLUSTERD)
-#         raise Exception("daemon", "error while running insecure daemon (returned {})"
-#                         .format(__CLUSTERD.returncode))
-#
-#     __SECURE_CLUSTERD.poll()
-#     if __SECURE_CLUSTERD.returncode != None:
-#         __cleanupProcess(__CLUSTERD)
-#         raise Exception("daemon", "error while running secure daemon (returned {})"
-#                         .format(__SECURE_CLUSTERD.returncode))
-#
-#     INSECURE_URI = 'qdb://' + insecure_endpoint
-#     SECURE_URI = 'qdb://' + secure_endpoint
-#
-#     try:
-#         cluster = quasardb.Cluster(INSECURE_URI)
-#     except (BaseException, quasardb.Error):
-#         __cleanupProcess(__CLUSTERD)
-#         __cleanupProcess(__SECURE_CLUSTERD)
-#         raise
-#
-#
-# def tearDownModule():
-#     __cleanupProcess(__CLUSTERD)
-#     __cleanupProcess(__SECURE_CLUSTERD)
-#
+import settings
 
 class QuasardbPrefix(unittest.TestCase):
-    global cluster, entry_gen
     def test_empty_prefix(self):
 
-        res = cluster.prefix_get("testazeazeaze", 10)
+        res = settings.cluster.prefix_get("testazeazeaze", 10)
         self.assertEqual(len(res), 0)
 
-        self.assertEqual(0, cluster.prefix_count("testazeazeaze"))
+        self.assertEqual(0, settings.cluster.prefix_count("testazeazeaze"))
 
     def test_find_one(self):
         dat_prefix = "my_dark_prefix"
-        entry_name = dat_prefix + entry_gen.next()
+        entry_name = dat_prefix + settings.entry_gen.next()
         entry_content = "content"
 
-        b = cluster.blob(entry_name)
+        b = settings.cluster.blob(entry_name)
         b.put(entry_content)
 
-        res = cluster.prefix_get(dat_prefix, 10)
+        res = settings.cluster.prefix_get(dat_prefix, 10)
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0], entry_name)
 
-        self.assertEqual(1, cluster.prefix_count(dat_prefix))
-
-# if __name__ == '__main__':
-#     test_report_directory = re.search(".*qdb-api-python", os.getcwd()).group() + "\\build\\test-reports\\"
-#
-#     import xmlrunner
-#     unittest.main(testRunner=xmlrunner.XMLTestRunner(  # pylint: disable=E1102
-#         output=test_report_directory + 'test-reports'))()
+        self.assertEqual(1, settings.cluster.prefix_count(dat_prefix))
+if __name__ == '__main__':
+    if settings.get_lock_status() == False :
+        settings.init()
+        test_directory = os.getcwd()
+        test_report_directory = os.path.join(os.path.split(__file__)[0], '..' + "/build/test/test-reports/")
+        import xmlrunner
+        unittest.main(testRunner=xmlrunner.XMLTestRunner(  # pylint: disable=E1102
+        output=test_report_directory),exit=False)
+        settings.terminate()

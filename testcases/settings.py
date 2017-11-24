@@ -13,6 +13,20 @@ for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0]
 
 import quasardb  # pylint: disable=C0413,E0401
 
+global locked
+locked = False
+
+def set_lock():
+    global locked
+    locked = True
+
+def release_lock():
+    global locked
+    locked = False
+
+def get_lock_status():
+    return locked
+
 class UniqueEntryNameGenerator(object):  # pylint: disable=R0903
 
     def __init__(self):
@@ -117,7 +131,9 @@ def tearDownModule():
 
 
 def init() :
+    set_lock()
     setUpModule()
 
 def terminate() :
     tearDownModule()
+    release_lock()
