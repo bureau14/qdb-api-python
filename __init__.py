@@ -1339,6 +1339,16 @@ class Cluster(object):
         if err != impl.error_ok:
             raise chooseError(err)
 
+    def get_timeout(self):
+        """
+        Gets the timeout value for requests in ms.
+
+        :raises: Error
+        """
+        err = self.handle.get_timeout()
+        if err != impl.error_ok:
+            raise chooseError(err)
+
     def blob(self, alias):
         """
         Returns an object representing a blob with the provided alias.

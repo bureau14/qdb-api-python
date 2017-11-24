@@ -27,7 +27,7 @@ class QuasardbClusterGetTimeout(unittest.TestCase):
             self.assertEqual(str(t), str(300000))
         except:  # pylint: disable=W0702
             self.fail(
-                msg='settings.cluster.get_timeout should not have raised an exception')
+                msg='cluster.get_timeout should not have raised an exception')
 
 if __name__ == '__main__':
     if settings.get_lock_status() == False :
