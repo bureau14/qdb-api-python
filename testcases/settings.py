@@ -53,8 +53,7 @@ def setUpModule():
     entry_gen = UniqueEntryNameGenerator()
 
     root_directory = os.path.join(os.path.split(__file__)[0], '..')
-    qdb_directory = root_directory + "\\qdb\\bin\\"
-
+    qdb_directory = os.path.join(os.path.split(__file__)[0], '..\\qdb\\bin\\' )
     __current_port = 3000
     insecure_endpoint = '127.0.0.1:' + str(__current_port)
     __current_port += 1
