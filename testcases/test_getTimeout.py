@@ -23,8 +23,10 @@ import settings
 class QuasardbClusterGetTimeout(unittest.TestCase):
     def test_get_timeout(self):
         try:
-            t = settings.cluster.get_timeout()
-            self.assertEqual(str(t), str(300000))
+            duration = []
+            settings.cluster.get_timeout(duration)
+            self.assertEqual(len(duration), 1)
+            self.assertEqual(duration[0], str(300000))
         except:  # pylint: disable=W0702
             self.fail(
                 msg='cluster.get_timeout should not have raised an exception')

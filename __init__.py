@@ -1339,13 +1339,13 @@ class Cluster(object):
         if err != impl.error_ok:
             raise chooseError(err)
 
-    def get_timeout(self):
+    def get_timeout(self, duration):
         """
         Gets the timeout value for requests in ms.
 
         :raises: Error
         """
-        err = self.handle.get_timeout()
+        err = self.handle.get_timeout(duration)
         if err != impl.error_ok:
             raise chooseError(err)
 
