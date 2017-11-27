@@ -1339,15 +1339,17 @@ class Cluster(object):
         if err != impl.error_ok:
             raise chooseError(err)
 
-    def get_timeout(self, duration):
+    def get_timeout(self):
         """
         Gets the timeout value for requests in ms.
 
         :raises: Error
         """
-        err = self.handle.get_timeout(duration)
-        if err != impl.error_ok:
-            raise chooseError(err)
+        err = qdb_convert.make_error_carrier()
+        timeout = impl.get_timeout_wrapper(self.handle, err)
+        if err.error != impl.error_ok:
+            raise chooseError(err.error)
+        return timeout
 
     def blob(self, alias):
         """
