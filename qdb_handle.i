@@ -17,7 +17,6 @@ public:
     qdb_error_t connect(const char * uri);
 
     qdb_error_t set_timeout(int timeout_ms);
-    qdb_error_t get_timeout(int *timeout_ms);
     qdb_error_t set_compression(qdb_compression_t comp_level);
     qdb_error_t set_encryption(qdb_encryption_t enc_level);
     qdb_error_t set_max_cardinality(qdb_uint_t max_cardinality);
