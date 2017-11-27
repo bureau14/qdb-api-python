@@ -31,9 +31,9 @@ class QuasardbExamples(unittest.TestCase) :
     def test_insert_example(self):
         import insert
         insert.main(settings.INSECURE_URI, 100)
-    def test_csv_insert_example(self):
-        import csv_insert
-        csv_insert.main(settings.INSECURE_URI, settings.entry_gen.next(), os.path.join(os.path.split(__file__)[0], '..', 'examples/' "fake_currency_minutes.csv"))
+    # def test_csv_insert_example(self):
+    #     import csv_insert
+    #     csv_insert.main(settings.INSECURE_URI, settings.entry_gen.next(), os.path.join(os.path.split(__file__)[0], '..', 'examples/' "fake_currency_minutes.csv"))
     def test_temperature_example(self):
         import temperature
         temperature.main(settings.INSECURE_URI, settings.entry_gen.next(), 100)
