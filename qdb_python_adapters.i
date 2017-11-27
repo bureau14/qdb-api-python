@@ -456,9 +456,9 @@ void qdb_ts_release_local_table(handle_ptr h, qdb_local_table_t table)
 
 int get_timeout_wrapper(handle_ptr h, error_carrier * error)
 {
-	int timeout_ms = 0;
-	error->error = h->get_timeout(&timeout_ms);
-	return timeout_ms;
+    int timeout_ms = 0;
+    error->error = h->get_timeout(&timeout_ms);
+    return timeout_ms;
 }
 
 }
