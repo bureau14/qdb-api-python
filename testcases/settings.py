@@ -64,10 +64,8 @@ def setUpModule():
     SECURE_CLUSTER_PUBLIC_KEY = 'Pb+d1o3HuFtxEb5uTl9peU89ze9BZTK9f8KdKr4k7zGA='
 
     entry_gen = UniqueEntryNameGenerator()
-    print "My current Directory is: " + str(os.getcwd())
     root_directory = os.path.join(os.path.split(__file__)[0], '..')
     qdb_directory = os.path.join(os.path.split(__file__)[0], '../qdb/bin/' )
-    print "Looking for qdbd in dir: " + str(qdb_directory)
     __current_port = 3000
     insecure_endpoint = '127.0.0.1:' + str(__current_port)
     __current_port += 1
