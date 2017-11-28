@@ -36,7 +36,7 @@ class QuasardbExamples(unittest.TestCase) :
             HAS_PANDAS = False
         if HAS_PANDAS :
             import csv_insert
-            csv_insert.main(settings.INSECURE_URI, settings.entry_gen.next(), os.path.join(os.path.split(__file__)[0], '..', 'examples/' "fake_currency_minutes.csv"))
+            csv_insert.main(settings.INSECURE_URI, settings.entry_gen.next(), os.path.join(os.path.split(__file__)[0], '..', 'examples', "fake_currency_minutes.csv"))
         else :
             print ("\nCannot run the example csv_insert as the module pandas is not found.\n")
     def test_temperature_example(self):
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     if settings.get_lock_status() == False :
         settings.init()
         test_directory = os.getcwd()
-        test_report_directory = os.path.join(os.path.split(__file__)[0], '..' + "/build/test/test-reports/")
+        test_report_directory = os.path.join(os.path.split(__file__)[0], '..' , 'build' , 'test' , 'test-reports')
         import xmlrunner
         unittest.main(testRunner=xmlrunner.XMLTestRunner(  # pylint: disable=E1102
         output=test_report_directory),exit=False)

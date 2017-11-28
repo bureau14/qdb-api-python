@@ -10,7 +10,7 @@ class QuasardbTest(unittest.TestCase) :
 if __name__ == '__main__':
     settings.init()
     test_directory = os.getcwd()
-    test_report_directory = os.path.join(os.path.split(__file__)[0], '..' + "/build/test/test-reports/")
+    test_report_directory = os.path.join(os.path.split(__file__)[0], '..' , 'build' , 'test' , 'test-reports')
 
     loader = unittest.TestLoader()
     test_suite = loader.discover(test_directory,'test_*.py')
