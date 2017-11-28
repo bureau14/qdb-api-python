@@ -109,6 +109,7 @@ add_custom_command(
 
 # Step 2: Build
 set(BUILD_DEPENDENCIES
+    ${CMAKE_CURRENT_BINARY_DIR}/src/memcpy_wrap.cxx
     ${CMAKE_CURRENT_BINARY_DIR}/src/qdb_python_wrapper.cxx
     ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}/impl.py
 )

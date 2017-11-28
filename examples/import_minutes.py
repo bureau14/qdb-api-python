@@ -34,7 +34,6 @@ import sys
 import subprocess
 import time
 
-from yahoo_finance import Share
 from zipfile import ZipFile
 
 # you don't need the following, it's just added so it can be run from the git repo
@@ -49,6 +48,12 @@ import quasardb  # pylint: disable=C0413,E0401
 dji_tickers = frozenset(["mmm", "axp", "aapl", "ba", "cat", "cvx", "csco", "ko", "dis", "xom",
                          "ge",  "gs",  "hd",   "ibm","intc","jnj", "jpm",  "mcd","mrk", "msft",
                          "nke", "pfe", "pg",   "trv","utx", "unh", "vz",   "v",  "wmt", "dd"])
+
+nyse_tickers = frozenset(["mmm", "axp", "ba", "cat", "cvx", "ko", "dis", "xom",
+                         "ge",  "gs",  "hd",   "ibm", "jnj", "jpm",  "mcd","mrk",
+                         "nke", "pfe", "pg",   "trv","utx", "unh", "vz",   "v",  "wmt", "dd"])
+
+nasdaq_tickers = frozenset(["aapl", "csco", "intc", "msft"])
 
 def trim_suffix(str, suffix):
     idx = str.find(suffix)
@@ -69,6 +74,43 @@ def clean_name(company_name):
 
     return cleaned
 
+def get_company_name(ticker_name):
+    lookup_table = {"mmm": "3m",
+                    "axp": "american express",
+                    "aapl": "apple",
+                    "ba": "boeing",
+                    "cat": "caterpillar",
+                    "cvx": "chevron",
+                    "csco": "cisco",
+                    "ko": "coca-cola",
+                    "dis": "disney",
+                    "dwdp": "dowdupont inc",
+                    "xom": "exxon mobil",
+                    "ge": "general electric",
+                    "gs": "goldman sachs",
+                    "hd": "home depot",
+                    "ibm": "ibm",
+                    "intc": "intel",
+                    "jnj": "johnson and johnson",
+                    "jpm": "jpmorgan chase",
+                    "mcd": "mcdonald",
+                    "mrk": "merck",
+                    "msft": "microsoft",
+                    "nke": "nike",
+                    "pfe": "pfizer",
+                    "pg": "procter and gamble",
+                    "trv": "travelers companies inc",
+                    "utx": "united technologies",
+                    "unh": "unitedhealth",
+                    "vz": "verizon",
+                    "v": "visa",
+                    "wmt": "walmart"}
+
+    if ticker_name in lookup_table:
+        return lookup_table[ticker_name]
+
+    return ticker_name
+
 def browse_zips(directory):
     for (dirpath, dirnames, filenames) in os.walk(directory):
         for filename in filenames:
@@ -85,12 +127,19 @@ def remove_entry(q, key_name):
     except Exception as e:
         pass
 
-def tag_entry(q, key_name, ticker_name, ticker):
+def tag_entry(q, key_name, ticker_name):
 
-    tickers = [ticker.get_currency().lower(), ticker_name, ticker.get_stock_exchange().lower()]
+    tickers = [ticker_name]
 
     if ticker_name in dji_tickers:
         tickers.append("dji")
+        tickers.append("usd")
+
+    if ticker_name in nyse_tickers:
+        tickers.append("nyse")
+
+    if ticker_name in nasdaq_tickers:
+        tickers.append("nasdaq")
 
     print('Tagging ' + key_name + ' with ' + str(tickers))
 
@@ -101,15 +150,6 @@ def tag_entry(q, key_name, ticker_name, ticker):
 
 def display_elapsed(start_time):
     print("...done in {} seconds".format(time.time() - start_time))
-
-def get_ticker(ticker_name):
-    while True:
-        try:
-            ticker = Share(ticker_name)
-            return ticker
-        except Exception as e:
-            time.sleep(5)
-            pass
 
 def main(quasardb_uri, directory):
 
@@ -124,11 +164,9 @@ def main(quasardb_uri, directory):
                 try:
                     start_time = time.time()
 
-                    ticker = get_ticker(ticker_name)
+                    key_name = 'stocks.' + clean_name(get_company_name(ticker_name))
 
-                    key_name = 'stocks.' + clean_name(ticker.get_name())
-
-                    print('Importing ticker {} ({}) into {}...'.format(ticker_name, ticker.get_name(), key_name))
+                    print('Importing ticker {} ({}) into {}...'.format(ticker_name, get_company_name(ticker_name), key_name))
                     zf.extract(f, work_dir)
 
                     full_path = os.path.join(work_dir, f)
@@ -137,7 +175,7 @@ def main(quasardb_uri, directory):
 
                     insert_via_binary(quasardb_uri, full_path, key_name)
 
-                    tag_entry(q, key_name, ticker_name, ticker)
+                    tag_entry(q, key_name, ticker_name)
 
                     os.remove(full_path)
 
