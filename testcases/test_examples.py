@@ -40,7 +40,7 @@ class QuasardbExamples(unittest.TestCase) :
             import csv_insert
             csv_insert.main(settings.INSECURE_URI, settings.entry_gen.next(), os.path.join(os.path.split(__file__)[0], '..', 'examples/' "fake_currency_minutes.csv"))
         else :
-            print "\nCannot run the example csv_insert as the module pandas is not found.\n"
+            print ("\nCannot run the example csv_insert as the module pandas is not found.\n")
     def test_temperature_example(self):
         import temperature
         temperature.main(settings.INSECURE_URI, settings.entry_gen.next(), 100)
