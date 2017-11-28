@@ -82,10 +82,14 @@ def generate_points(points_count):
 
     time_index = datetime.datetime(2017, 1, 1)
     time_step = datetime.timedelta(microseconds=1)
-
-    for _ in xrange(points_count):
-        result.append((time_index, 1.0 + random.random() * 10.0))
-        time_index += time_step
+    if (sys.version_info >= (3, 0)):
+        for _ in range(points_count):
+            result.append((time_index, 1.0 + random.random() * 10.0))
+            time_index += time_step
+    else : #don't want to use range because it returns a list and make the program slower, hence if and else
+        for _ in xrange(points_count):
+            result.append((time_index, 1.0 + random.random() * 10.0))
+            time_index += time_step
 
     return result
 
@@ -105,15 +109,26 @@ def fast_generate(points_count):
     tv_sec = quasardb.qdb_convert.time_to_unix_timestamp(datetime.datetime(2017, 1, 1))
     tv_nsec = 0
 
-    for i in xrange(points_count):
-        vec[i].timestamp.tv_sec = tv_sec
-        vec[i].timestamp.tv_nsec = tv_nsec
-        vec[i].value = 1.0 + random.random() * 10.0
+    if (sys.version_info >= (3, 0)):
+        for i in range(points_count):
+            vec[i].timestamp.tv_sec = tv_sec
+            vec[i].timestamp.tv_nsec = tv_nsec
+            vec[i].value = 1.0 + random.random() * 10.0
 
-        tv_nsec += 1000
-        if tv_nsec >= 1000000000:
-            tv_sec += 1
-            tv_nsec = 0
+            tv_nsec += 1000
+            if tv_nsec >= 1000000000:
+                tv_sec += 1
+                tv_nsec = 0
+    else : #don't want to use range because it returns a list and make the program slower, hence if and else
+        for i in xrange(points_count):
+            vec[i].timestamp.tv_sec = tv_sec
+            vec[i].timestamp.tv_nsec = tv_nsec
+            vec[i].value = 1.0 + random.random() * 10.0
+
+            tv_nsec += 1000
+            if tv_nsec >= 1000000000:
+                tv_sec += 1
+                tv_nsec = 0
 
     return vec
 
