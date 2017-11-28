@@ -1,7 +1,6 @@
 # pylint: disable=C0103,C0111,C0302,W0212
 import os
 import unittest
-import re
 import sys
 import subprocess
 import time

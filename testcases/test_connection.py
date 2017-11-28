@@ -10,7 +10,7 @@ import time
 import unittest
 import calendar
 import pytz
-import re
+
 
 HAS_NUMPY = True
 try:
