@@ -1347,8 +1347,9 @@ class Cluster(object):
         """
         err = qdb_convert.make_error_carrier()
         timeout = impl.get_timeout_wrapper(self.handle, err)
-        print "TAG_R: " + str(err.error)
+        print "TAG_R: returned: " + str(err.error) + ", expected: " + str(impl.error_ok)
         if err.error != impl.error_ok:
+            print "TAG_R: shouldn't be here."
             raise chooseError(err.error)
         return timeout
 
