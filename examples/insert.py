@@ -81,6 +81,7 @@ def generate_points(points_count):
 
     time_index = datetime.datetime(2017, 1, 1)
     time_step = datetime.timedelta(microseconds=1)
+
     for _ in xrange(points_count):
         result.append((time_index, 1.0 + random.random() * 10.0))
         time_index += time_step
@@ -102,6 +103,7 @@ def fast_generate(points_count):
 
     tv_sec = quasardb.qdb_convert.time_to_unix_timestamp(datetime.datetime(2017, 1, 1))
     tv_nsec = 0
+    
     for i in xrange(points_count):
         vec[i].timestamp.tv_sec = tv_sec
         vec[i].timestamp.tv_nsec = tv_nsec
