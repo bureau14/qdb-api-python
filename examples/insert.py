@@ -26,8 +26,8 @@
 #
 
 from __future__ import print_function
-from builtins import int
-from builtins import range as xrange
+from builtins import range as xrange, int
+
 import os
 from socket import gethostname
 import sys
