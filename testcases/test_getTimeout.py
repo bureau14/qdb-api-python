@@ -1,6 +1,4 @@
 # pylint: disable=C0103,C0111,C0302,W0212
-
-from builtins import range as xrange, int as long  # pylint: disable=W0622
 from functools import reduce  # pylint: disable=W0622
 import datetime
 import os

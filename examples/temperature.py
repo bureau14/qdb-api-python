@@ -27,7 +27,7 @@
 
 from __future__ import print_function
 from builtins import int
-
+from builtins import range as xrange
 import os
 from socket import gethostname
 import sys
@@ -105,31 +105,20 @@ def generate_points(points_count):
 
     tv_sec = quasardb.qdb_convert.time_to_unix_timestamp(datetime.datetime(2017, 1, 1))
     tv_nsec = 0
-    if (sys.version_info >= (3, 0)):
-        for i in range(points_count):
-            vec[i].timestamp.tv_sec = tv_sec
-            vec[i].timestamp.tv_nsec = tv_nsec
-            vec[i].value = 1.0 + random.random() * 10.0
+    for i in xrange(points_count):
+        vec[i].timestamp.tv_sec = tv_sec
+        vec[i].timestamp.tv_nsec = tv_nsec
+        vec[i].value = 1.0 + random.random() * 10.0
 
-            tv_sec += 60
-    else : #don't want to use range because it returns a list and make the program slower, hence if and else
-        for i in xrange(points_count):
-            vec[i].timestamp.tv_sec = tv_sec
-            vec[i].timestamp.tv_nsec = tv_nsec
-            vec[i].value = 1.0 + random.random() * 10.0
-
-            tv_sec += 60
-
+        tv_sec += 60
     return vec
 
 def generate_cities(temp_col):
     vec = quasardb.BlobPointsVector()
     vec.resize(temp_col.size())
-
     for i in xrange(temp_col.size()):
         vec[i].timestamp = temp_col[i].timestamp
         vec[i].data = random.choice(cities)
-
     return vec
 
 def fast_insert(q, ts_name, points_count):
