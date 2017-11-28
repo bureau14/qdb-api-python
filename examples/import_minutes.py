@@ -33,7 +33,6 @@ import traceback
 import sys
 import subprocess
 import time
-import re
 
 from yahoo_finance import Share
 from zipfile import ZipFile

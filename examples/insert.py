@@ -103,7 +103,7 @@ def fast_generate(points_count):
 
     tv_sec = quasardb.qdb_convert.time_to_unix_timestamp(datetime.datetime(2017, 1, 1))
     tv_nsec = 0
-    
+
     for i in xrange(points_count):
         vec[i].timestamp.tv_sec = tv_sec
         vec[i].timestamp.tv_nsec = tv_nsec
