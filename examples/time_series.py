@@ -32,7 +32,6 @@ import os
 import sys
 import traceback
 import datetime
-import re
 
 # you don't need the following, it's just added so it can be run from the git repo
 # without installing the quasardb library

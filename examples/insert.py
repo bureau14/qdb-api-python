@@ -36,7 +36,6 @@ import random
 import time
 import datetime
 import locale
-import re
 
 # you don't need the following, it's just added so it can be run from the git repo
 # without installing the quasardb library

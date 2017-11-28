@@ -36,7 +36,6 @@ import random
 import time
 import datetime
 import locale
-import re
 
 import numpy as np
 import pandas as pd
