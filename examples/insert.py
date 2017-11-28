@@ -26,7 +26,7 @@
 #
 
 from __future__ import print_function
-from builtins import int
+from builtins import range as xrange, int
 
 import os
 from socket import gethostname
@@ -39,7 +39,7 @@ import locale
 
 # you don't need the following, it's just added so it can be run from the git repo
 # without installing the quasardb library
-for root, dirnames, filenames in os.walk(os.path.join('..', 'build')):
+for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0], '..', 'build')):
     for p in dirnames:
         if p.startswith('lib'):
             sys.path.append(os.path.join(root, p))
@@ -101,7 +101,7 @@ def fast_generate(points_count):
     vec = quasardb.DoublePointsVector()
     vec.resize(points_count)
 
-    tv_sec = quasardb._time_to_unix_timestamp(datetime.datetime(2017, 1, 1))
+    tv_sec = quasardb.qdb_convert.time_to_unix_timestamp(datetime.datetime(2017, 1, 1))
     tv_nsec = 0
 
     for i in xrange(points_count):
