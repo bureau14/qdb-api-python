@@ -46,9 +46,10 @@ from quasardb.qdb_enum import Compression, Encryption, ErrorCode, Operation, Opt
 
 tz = qdb_convert.tz
 
-DoublePointsVector = impl.DoublePointVec
-BlobPointsVector = impl.BlobPointVec
-
+DoublePointsVector = quasardb.qdb_convert.DoublePointsVector
+BlobPointsVector = quasardb.qdb_convert.BlobPointsVector
+Int64PointsVector = quasardb.qdb_convert.Int64PointsVector
+TimestampPointsVector = quasardb.qdb_convert.TimestampPointsVector
 
 def make_error_string(error_code):
     """ Returns a meaningful error message corresponding to the quasardb error code.
@@ -808,6 +809,18 @@ class TimeSeries(RemoveableEntry):
             TimeSeries.ColumnInfo.__init__(
                 self, col_name, TimeSeries.ColumnType.double)
 
+    class Int64ColumnInfo(ColumnInfo):
+
+        def __init__(self, col_name):
+            TimeSeries.ColumnInfo.__init__(
+                self, col_name, TimeSeries.ColumnType.int64)
+
+    class TimestampColumnInfo(ColumnInfo):
+
+        def __init__(self, col_name):
+            TimeSeries.ColumnInfo.__init__(
+                self, col_name, TimeSeries.ColumnType.timestamp)
+
     class BlobColumnInfo(ColumnInfo):
 
         def __init__(self, col_name):
@@ -944,6 +957,113 @@ class TimeSeries(RemoveableEntry):
             return super(TimeSeries.DoubleColumn, self).aggregate(
                 impl.ts_double_aggregation, aggregations)
 
+    class Int64Column(Column):
+        """
+        A column whose value are signed 64-bit integers
+        """
+
+        def fast_insert(self, vector):
+            """
+            Inserts value into the time series.
+
+            :param vector: A vector of int64 points
+            :type vector: quasardb.Int64PointsVector
+
+            :raises: Error
+            """
+            err = super(TimeSeries.Int64Column, self).call_ts_fun(
+                impl.ts_int64_insert, vector)
+            if err != impl.error_ok:
+                raise chooseError(err)
+
+        def insert(self, tuples):
+            """
+            Inserts values into the time series.
+
+            :param tuples: The list of couples to insert into the time series
+            :type tuples: A list of (datetime.datetime, float) couples
+
+            :raises: Error
+            """
+            self.fast_insert(
+                qdb_convert.make_qdb_ts_int64_point_vector(tuples))
+
+        def get_ranges(self, intervals):
+            """
+            Returns the ranges matching the provided intervals, left inclusive.
+
+            :param intervals: The intervals for which the ranges should be returned
+            :type intervals: A list of (datetime.datetime, datetime.datetime) couples
+
+            :raises: Error
+            :returns: A flattened list of (datetime.datetime, float) couples
+            """
+            error_carrier = qdb_convert.make_error_carrier()
+
+            res = super(TimeSeries.Int64Column, self).call_ts_fun(
+                impl.ts_int64_get_ranges,
+                qdb_convert.convert_time_couples_to_qdb_filtered_range_t_vector(
+                    intervals),
+                error_carrier)
+            if error_carrier.error != impl.error_ok:
+                raise chooseError(error_carrier.error)
+
+            return [(qdb_convert.convert_qdb_timespec_to_time(x.timestamp), x.value) for x in res]
+
+    class TimestampColumn(Column):
+        """
+        A column whose value are nanosecond-precise timestamps
+        """
+
+        def fast_insert(self, vector):
+            """
+            Inserts value into the time series.
+
+            :param vector: A vector of nanosecond-precise timestamps
+            :type vector: quasardb.TimestampPointsVector
+
+            :raises: Error
+            """
+            err = super(TimeSeries.TimestampColumn, self).call_ts_fun(
+                impl.ts_timestamp_insert, vector)
+            if err != impl.error_ok:
+                raise chooseError(err)
+
+        def insert(self, tuples):
+            """
+            Inserts values into the time series.
+
+            :param tuples: The list of couples to insert into the time series
+            :type tuples: A list of (datetime.datetime, datetime.datetime) couples
+
+            :raises: Error
+            """
+            self.fast_insert(
+                qdb_convert.make_qdb_ts_timestamp_point_vector(tuples))
+
+        def get_ranges(self, intervals):
+            """
+            Returns the ranges matching the provided intervals, left inclusive.
+
+            :param intervals: The intervals for which the ranges should be returned
+            :type intervals: A list of (datetime.datetime, datetime.datetime) couples
+
+            :raises: Error
+            :returns: A flattened list of (datetime.datetime, datetime.datetime) couples
+            """
+            error_carrier = qdb_convert.make_error_carrier()
+
+            res = super(TimeSeries.TimestampColumn, self).call_ts_fun(
+                impl.ts_timestamp_get_ranges,
+                qdb_convert.convert_time_couples_to_qdb_filtered_range_t_vector(
+                    intervals),
+                error_carrier)
+            if error_carrier.error != impl.error_ok:
+                raise chooseError(error_carrier.error)
+
+            return [(qdb_convert.convert_qdb_timespec_to_time(x.timestamp),
+                qdb_convert.convert_qdb_timespec_to_time(x.value)) for x in res]
+
     class BlobColumn(Column):
         """
         A column whose values are blobs
@@ -1056,6 +1176,12 @@ class TimeSeries(RemoveableEntry):
 
         if col_info.type == TimeSeries.ColumnType.double:
             return TimeSeries.DoubleColumn(self, col_info.name)
+
+        if col_info.type == TimeSeries.ColumnType.int64:
+            return TimeSeries.Int64Column(self, col_info.name)
+
+        if col_info.type == TimeSeries.ColumnType.timestamp:
+            return TimeSeries.TimestampColumn(self, col_info.name)
 
         raise chooseError(ErrorCode.invalid_argument)
 

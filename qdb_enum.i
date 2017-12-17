@@ -180,7 +180,9 @@ enum qdb_ts_column_type_t
 {
     qdb_ts_column_uninitialized = -1,
     qdb_ts_column_double = 0,
-    qdb_ts_column_blob = 1
+    qdb_ts_column_blob = 1,
+    qdb_ts_column_int64 = 2,
+    qdb_ts_column_timestamp = 3
 };
 
 enum qdb_ts_filter_type_t

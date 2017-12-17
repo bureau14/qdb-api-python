@@ -40,6 +40,8 @@ from tzlocal import get_localzone
 
 DoublePointsVector = impl.DoublePointVec
 BlobPointsVector = impl.BlobPointVec
+Int64PointsVector = impl.Int64PointVec
+TimestampPointsVector = impl.TimestampPointVec
 
 def duration_to_timeout_ms(duration):
     seconds_in_day = long(24) * long(60) * long(60)
@@ -140,6 +142,35 @@ def make_qdb_ts_double_point_vector(time_points):
         vec[i].timestamp.tv_sec = time_to_unix_timestamp(time_points[i][0])
         vec[i].timestamp.tv_nsec = time_points[i][0].microsecond * long(1000)
         vec[i].value = time_points[i][1]
+
+    return vec
+
+def make_qdb_ts_int64_point_vector(time_points):
+    vec = Int64PointsVector()
+
+    c = len(time_points)
+
+    vec.resize(c)
+
+    for i in xrange(c):
+        vec[i].timestamp.tv_sec = time_to_unix_timestamp(time_points[i][0])
+        vec[i].timestamp.tv_nsec = time_points[i][0].microsecond * long(1000)
+        vec[i].value = time_points[i][1]
+
+    return vec
+
+def make_qdb_ts_timestamp_point_vector(time_points):
+    vec = TimestampPointsVector()
+
+    c = len(time_points)
+
+    vec.resize(c)
+
+    for i in xrange(c):
+        vec[i].timestamp.tv_sec = time_to_unix_timestamp(time_points[i][0])
+        vec[i].timestamp.tv_nsec = time_points[i][0].microsecond * long(1000)
+        vec[i].value.tv_sec = time_to_unix_timestamp(time_points[i][1])
+        vec[i].value.tv_nsec = time_points[i][1].microsecond * long(1000)
 
     return vec
 

@@ -24,8 +24,6 @@ try:
 except ImportError:
     HAS_NUMPY = False
 
-
-
 def _generate_double_ts(start_time, start_val, count):
     result = []
 
@@ -35,6 +33,33 @@ def _generate_double_ts(start_time, start_val, count):
         result.append((start_time, start_val))
         start_time += step
         start_val += 1.0
+
+    return result
+
+def _generate_int64_ts(start_time, start_val, count):
+    result = []
+
+    step = datetime.timedelta(microseconds=1)
+
+    for _ in xrange(count):
+        result.append((start_time, start_val))
+        start_time += step
+        start_val += 1
+
+    return result
+
+timestamp_increase_step = datetime.timedelta(microseconds=7)
+
+def _generate_timestamp_ts(start_time, start_val, count):
+
+    result = []
+
+    step = datetime.timedelta(microseconds=1)
+
+    for _ in xrange(count):
+        result.append((start_time, start_val))
+        start_time += step
+        start_val += timestamp_increase_step
 
     return result
 
@@ -61,12 +86,16 @@ class QuasardbTimeSeries(unittest.TestCase):
     def _create_ts(self):
         cols = self.my_ts.create([
             quasardb.TimeSeries.DoubleColumnInfo(settings.entry_gen.next()),
-            quasardb.TimeSeries.BlobColumnInfo(settings.entry_gen.next())
+            quasardb.TimeSeries.BlobColumnInfo(settings.entry_gen.next()),
+            quasardb.TimeSeries.Int64ColumnInfo(settings.entry_gen.next()),
+            quasardb.TimeSeries.TimestampColumnInfo(settings.entry_gen.next())
         ])
-        self.assertEqual(2, len(cols))
+        self.assertEqual(4, len(cols))
 
-        return (cols[0], cols[1])
+        return (cols[0], cols[1], cols[2], cols[3])
 
+    def create_ts(self):
+        (self.double_col, self.blob_col, self.int64_col, self.timestamp_col) = self._create_ts()
 
 class QuasardbTimeSeriesNonExisting(QuasardbTimeSeries):
 
@@ -139,7 +168,7 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
 
     def setUp(self):
         super(QuasardbTimeSeriesExisting, self).setUp()
-        (self.double_col, self.blob_col) = self._create_ts()
+        self.create_ts()
 
     def __check_double_ts(self, results, start_time, start_val, count):
         self.assertEqual(count, len(results))
@@ -151,6 +180,28 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
             self.assertEqual(results[i][1], start_val)
             start_time += step
             start_val += 1.0
+
+    def __check_int64_ts(self, results, start_time, start_val, count):
+        self.assertEqual(count, len(results))
+
+        step = datetime.timedelta(microseconds=1)
+
+        for i in xrange(count):
+            self.assertEqual(results[i][0], start_time)
+            self.assertEqual(results[i][1], start_val)
+            start_time += step
+            start_val += 1
+
+    def __check_timestamp_ts(self, results, start_time, start_val, count):
+        self.assertEqual(count, len(results))
+
+        step = datetime.timedelta(microseconds=1)
+
+        for i in xrange(count):
+            self.assertEqual(results[i][0], start_time)
+            self.assertEqual(results[i][1], start_val)
+            start_time += step
+            start_val += timestamp_increase_step
 
     def __check_blob_ts(self, results, start_time, count):
         self.assertEqual(count, len(results))
@@ -185,13 +236,18 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
 
     def test_creation_multiple(self):
         col_list = self.my_ts.columns_info()
-        self.assertEqual(2, len(col_list))
+        self.assertEqual(4, len(col_list))
 
         self.assertEqual(col_list[0].name, self.double_col.name())
         self.assertEqual(col_list[0].type,
                          quasardb.TimeSeries.ColumnType.double)
         self.assertEqual(col_list[1].name, self.blob_col.name())
         self.assertEqual(col_list[1].type, quasardb.TimeSeries.ColumnType.blob)
+        self.assertEqual(col_list[2].name, self.int64_col.name())
+        self.assertEqual(col_list[2].type,
+                         quasardb.TimeSeries.ColumnType.int64)
+        self.assertEqual(col_list[3].name, self.timestamp_col.name())
+        self.assertEqual(col_list[3].type, quasardb.TimeSeries.ColumnType.timestamp)
 
         # invalid columinfo
         self.assertRaises(
@@ -275,6 +331,131 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
 
         self.assertEqual(len(results), 0)
 
+    def test_int64_get_ranges__when_timeseries_is_empty(self):
+        results = self.int64_col.get_ranges(self.test_intervals)
+        self.assertEqual(0, len(results))
+
+    @unittest.skip("not yet implemented")
+    def test_int64_erase_ranges__when_timeseries_is_empty(self):
+        erased_count = self.int64_col.erase_ranges(self.test_intervals)
+        self.assertEqual(0, erased_count)
+
+    def test_int64_get_ranges(self):
+        inserted_int64_data = _generate_int64_ts(self.start_time, 1, 1000)
+        self.int64_col.insert(inserted_int64_data)
+
+        results = self.int64_col.get_ranges(
+            [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
+
+        self.__check_int64_ts(results, self.start_time, 1, 10)
+
+        results = self.int64_col.get_ranges(
+            [(self.start_time, self.start_time + datetime.timedelta(microseconds=10)),
+             (self.start_time + datetime.timedelta(microseconds=10),
+              self.start_time + datetime.timedelta(microseconds=20))])
+
+        self.__check_int64_ts(results, self.start_time, 1, 20)
+
+        # empty result
+        out_of_time = self.start_time + datetime.timedelta(hours=10)
+        results = self.int64_col.get_ranges(
+            [(out_of_time, out_of_time + datetime.timedelta(microseconds=10))])
+        self.assertEqual(0, len(results))
+
+        # error: column doesn't exist
+        wrong_col = self.my_ts.column(
+            quasardb.TimeSeries.Int64ColumnInfo("lolilol"))
+
+        self.assertRaises(quasardb.OperationError, wrong_col.get_ranges,
+                          [(self.start_time,
+                            self.start_time + datetime.timedelta(microseconds=10))])
+        self.assertRaises(quasardb.OperationError,
+                          wrong_col.insert, inserted_int64_data)
+
+        # error: column of wrong type
+        wrong_col = self.my_ts.column(
+            quasardb.TimeSeries.Int64ColumnInfo(self.blob_col.name()))
+
+        self.assertRaises(quasardb.OperationError, wrong_col.get_ranges,
+                          [(self.start_time,
+                            self.start_time + datetime.timedelta(microseconds=10))])
+        self.assertRaises(quasardb.OperationError,
+                          wrong_col.insert, inserted_int64_data)
+
+    @unittest.skip("not yet implemented")
+    def test_int64_erase_ranges(self):
+        inserted_int64_data = _generate_int64_ts(self.start_time, 1, 1000)
+        self.int64_col.insert(inserted_int64_data)
+
+        results = self.int64_col.get_ranges(
+            [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
+
+        erased_count = self.int64_col.erase_ranges(
+            [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
+
+        self.assertEqual(erased_count, len(results))
+
+        erased_count = self.int64_col.erase_ranges(
+            [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
+
+        self.assertEqual(erased_count, 0)
+
+        results = self.int64_col.get_ranges(
+            [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
+
+        self.assertEqual(len(results), 0)
+
+    def test_timestamp_get_ranges__when_timeseries_is_empty(self):
+        results = self.timestamp_col.get_ranges(self.test_intervals)
+        self.assertEqual(0, len(results))
+
+    @unittest.skip("not yet implemented")
+    def test_timestamp_erase_ranges__when_timeseries_is_empty(self):
+        erased_count = self.timestamp_col.erase_ranges(self.test_intervals)
+        self.assertEqual(0, erased_count)
+
+    def test_timestamp_get_ranges(self):
+        inserted_timestamp_data = _generate_timestamp_ts(self.start_time, self.start_time + datetime.timedelta(minutes=1), 1000)
+        self.timestamp_col.insert(inserted_timestamp_data)
+
+        results = self.timestamp_col.get_ranges(
+            [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
+
+        self.__check_timestamp_ts(results, self.start_time, self.start_time + datetime.timedelta(minutes=1), 10)
+
+        results = self.timestamp_col.get_ranges(
+            [(self.start_time, self.start_time + datetime.timedelta(microseconds=10)),
+             (self.start_time + datetime.timedelta(microseconds=10),
+              self.start_time + datetime.timedelta(microseconds=20))])
+
+        self.__check_timestamp_ts(results, self.start_time, self.start_time + datetime.timedelta(minutes=1), 20)
+
+        # empty result
+        out_of_time = self.start_time + datetime.timedelta(hours=10)
+        results = self.timestamp_col.get_ranges(
+            [(out_of_time, out_of_time + datetime.timedelta(microseconds=10))])
+        self.assertEqual(0, len(results))
+
+        # error: column doesn't exist
+        wrong_col = self.my_ts.column(
+            quasardb.TimeSeries.TimestampColumnInfo("lolilol"))
+
+        self.assertRaises(quasardb.OperationError, wrong_col.get_ranges,
+                          [(self.start_time,
+                            self.start_time + datetime.timedelta(microseconds=10))])
+        self.assertRaises(quasardb.OperationError,
+                          wrong_col.insert, inserted_timestamp_data)
+
+        # error: column of wrong type
+        wrong_col = self.my_ts.column(
+            quasardb.TimeSeries.TimestampColumnInfo(self.blob_col.name()))
+
+        self.assertRaises(quasardb.OperationError, wrong_col.get_ranges,
+                          [(self.start_time,
+                            self.start_time + datetime.timedelta(microseconds=10))])
+        self.assertRaises(quasardb.OperationError,
+                          wrong_col.insert, inserted_timestamp_data)
+
     def test_blob_get_ranges__when_timeseries_is_empty(self):
         results = self.blob_col.get_ranges(
             [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
@@ -354,7 +535,7 @@ class QuasardbTimeSeriesExistingWithBlobs(QuasardbTimeSeries):
 
     def setUp(self):
         super(QuasardbTimeSeriesExistingWithBlobs, self).setUp()
-        (self.double_col, self.blob_col) = self._create_ts()
+        self.create_ts()
 
         self.inserted_blob_data = _generate_blob_ts(self.start_time, 5)
         self.inserted_blob_col = [x[1] for x in self.inserted_blob_data]
@@ -406,7 +587,7 @@ class QuasardbTimeSeriesExistingWithDoubles(QuasardbTimeSeries):
 
     def setUp(self):
         super(QuasardbTimeSeriesExistingWithDoubles, self).setUp()
-        (self.double_col, self.blob_col) = self._create_ts()
+        self.create_ts()
 
         self.inserted_double_data = _generate_double_ts(
             self.start_time, 1.0, 1000)
@@ -530,7 +711,7 @@ class QuasardbTimeSeriesBulk(QuasardbTimeSeries):
 
     def setUp(self):
         super(QuasardbTimeSeriesBulk, self).setUp()
-        (self.double_col, self.blob_col) = self._create_ts()
+        self.create_ts()
 
     def test_non_existing_bulk_insert(self):
         fake_ts = settings.cluster.ts("this_ts_does_not_exist")

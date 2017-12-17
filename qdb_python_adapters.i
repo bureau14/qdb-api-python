@@ -302,6 +302,16 @@ qdb_error_t ts_double_insert(handle_ptr h, const char * alias, const char * colu
     return qdb_ts_double_insert(*h, alias, column, get_safe_pointer(values), values.size());
 }
 
+qdb_error_t ts_int64_insert(handle_ptr h, const char * alias, const char * column, const std::vector<qdb_ts_int64_point> & values)
+{
+    return qdb_ts_int64_insert(*h, alias, column, get_safe_pointer(values), values.size());
+}
+
+qdb_error_t ts_timestamp_insert(handle_ptr h, const char * alias, const char * column, const std::vector<qdb_ts_timestamp_point> & values)
+{
+    return qdb_ts_timestamp_insert(*h, alias, column, get_safe_pointer(values), values.size());
+}
+
 struct to_qdb_ts_blob_point
 {
     qdb_ts_blob_point operator()(const wrap_ts_blob_point & pt) const
@@ -344,6 +354,47 @@ std::vector<qdb_ts_double_point> ts_double_get_ranges(handle_ptr h, const char *
 
     return res;
 }
+
+std::vector<qdb_ts_int64_point> ts_int64_get_ranges(handle_ptr h, const char * alias, const char * column,
+    const std::vector<qdb_ts_filtered_range_t> & ranges, error_carrier * error)
+{
+    qdb_ts_int64_point * points = NULL;
+    qdb_size_t count = 0;
+
+    std::vector<qdb_ts_int64_point> res;
+
+    error->error = qdb_ts_int64_get_ranges(*h, alias, column, get_safe_pointer(ranges), ranges.size(), &points, &count);
+    if (QDB_SUCCESS(error->error))
+    {
+        res.resize(count);
+        std::copy(points, points + count, res.begin());
+
+        qdb_release(*h, points);
+    }
+
+    return res;
+}
+
+std::vector<qdb_ts_timestamp_point> ts_timestamp_get_ranges(handle_ptr h, const char * alias, const char * column,
+    const std::vector<qdb_ts_filtered_range_t> & ranges, error_carrier * error)
+{
+    qdb_ts_timestamp_point * points = NULL;
+    qdb_size_t count = 0;
+
+    std::vector<qdb_ts_timestamp_point> res;
+
+    error->error = qdb_ts_timestamp_get_ranges(*h, alias, column, get_safe_pointer(ranges), ranges.size(), &points, &count);
+    if (QDB_SUCCESS(error->error))
+    {
+        res.resize(count);
+        std::copy(points, points + count, res.begin());
+
+        qdb_release(*h, points);
+    }
+
+    return res;
+}
+
 
 struct to_ts_blob_point
 {

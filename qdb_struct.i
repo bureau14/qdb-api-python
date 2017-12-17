@@ -57,6 +57,18 @@ typedef struct
 typedef struct
 {
     qdb_timespec_t timestamp;
+    qdb_int_t value;
+} qdb_ts_int64_point;
+
+typedef struct
+{
+    qdb_timespec_t timestamp;
+    qdb_timespec_t value;
+} qdb_ts_timestamp_point;
+
+typedef struct
+{
+    qdb_timespec_t timestamp;
     const void * content;
     qdb_size_t content_length;
 } qdb_ts_blob_point;
@@ -108,3 +120,19 @@ typedef struct qdb_ts_double_aggregation
     qdb_size_t count;
     qdb_ts_double_point result;
 } qdb_ts_double_aggregation_t;
+
+typedef struct qdb_ts_int64_aggregation
+{
+    qdb_ts_aggregation_type_t type;
+    qdb_ts_filtered_range_t filtered_range;
+    qdb_size_t count;
+    qdb_ts_int64_point result;
+} qdb_ts_int64_aggregation_t;
+
+typedef struct qdb_ts_timestamp_aggregation
+{
+    qdb_ts_aggregation_type_t type;
+    qdb_ts_filtered_range_t filtered_range;
+    qdb_size_t count;
+    qdb_ts_timestamp_point result;
+} qdb_ts_timestamp_aggregation_t;
