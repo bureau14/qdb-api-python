@@ -57,22 +57,36 @@ def main(quasardb_uri, ts_name):
     # if the time series already exist it will throw an exception
     # the function returns objects enabling direct insertion to the columns
     # here an array of one
-    cols = ts.create([quasardb.TimeSeries.DoubleColumnInfo("close")])
+    cols = ts.create([quasardb.TimeSeries.DoubleColumnInfo("close"),
+        quasardb.TimeSeries.Int64ColumnInfo("volume"),
+        quasardb.TimeSeries.TimestampColumnInfo("value_date")])
 
     # you can also directly access the column, which is what you want to do
     # if the time series already exist
     # in our example we could have written my_col = cols[0]
-    my_col = ts.column(quasardb.TimeSeries.DoubleColumnInfo("close"))
+    close_col = ts.column(quasardb.TimeSeries.DoubleColumnInfo("close"))
+    # and cols[1]
+    volume_col = ts.column(quasardb.TimeSeries.Int64ColumnInfo("volume"))
+    # and cols[2]
+    value_date = ts.column(quasardb.TimeSeries.TimestampColumnInfo("value_date"))
 
     # once you have a column, you can directly insert data into it
     # here we use the high level Python API which isn't the fastest
     # because of the date time conversions
-    # in the other example we showcase more efficient insertion methods
+    # in another example we showcase more efficient insertion methods
     # it's also possible to insert into multiple columns at once in a line by
     # line fashion with the bulk insert API
-    my_col.insert([(datetime.datetime(2017, 1, 1), 1.0),
+    close_col.insert([(datetime.datetime(2017, 1, 1), 1.0),
                    (datetime.datetime(2017, 1, 2), 2.0),
                    (datetime.datetime(2017, 1, 3), 3.0)])
+
+    volume_col.insert([(datetime.datetime(2017, 1, 1), 10),
+                   (datetime.datetime(2017, 1, 2), 20),
+                   (datetime.datetime(2017, 1, 3), 30)])
+
+    value_date.insert([(datetime.datetime(2017, 1, 1), datetime.datetime(2017, 1, 2)),
+                   (datetime.datetime(2017, 1, 2), datetime.datetime(2017, 1, 3)),
+                   (datetime.datetime(2017, 1, 3), datetime.datetime(2017, 1, 4))])
 
     # note that intervals are left inclusive, right exclusive
     year_2017 = (datetime.datetime(2017, 1, 1), datetime.datetime(2018, 1, 1))
@@ -80,7 +94,11 @@ def main(quasardb_uri, ts_name):
     # from the column you can also get your points back directly
     # you can query multiple ranges at once if needed, in this example we only
     # ask for all the points of the year 2017
-    points = my_col.get_ranges([year_2017])
+    points = close_col.get_ranges([year_2017])
+    print("Inserted values: ", points)
+    points = volume_col.get_ranges([year_2017])
+    print("Inserted values: ", points)
+    points = value_date.get_ranges([year_2017])
     print("Inserted values: ", points)
 
     # and of course you can run aggregations, server-side which is very often several
@@ -90,7 +108,7 @@ def main(quasardb_uri, ts_name):
     agg_request = quasardb.TimeSeries.DoubleAggregations()
     agg_request.append(quasardb.TimeSeries.Aggregation.arithmetic_mean, year_2017)
 
-    my_average = my_col.aggregate(agg_request)
+    my_average = close_col.aggregate(agg_request)
     print("The average value is: ", my_average[0].value)
 
     # this is how we remove the time series
