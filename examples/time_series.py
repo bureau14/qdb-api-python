@@ -42,7 +42,6 @@ for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0]
 
 import quasardb  # pylint: disable=C0413,E0401
 
-
 def main(quasardb_uri, ts_name):
 
     print("Connecting to: ", quasardb_uri)
