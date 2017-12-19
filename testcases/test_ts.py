@@ -335,7 +335,6 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
         results = self.int64_col.get_ranges(self.test_intervals)
         self.assertEqual(0, len(results))
 
-    @unittest.skip("not yet implemented")
     def test_int64_erase_ranges__when_timeseries_is_empty(self):
         erased_count = self.int64_col.erase_ranges(self.test_intervals)
         self.assertEqual(0, erased_count)
@@ -382,7 +381,6 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
         self.assertRaises(quasardb.OperationError,
                           wrong_col.insert, inserted_int64_data)
 
-    @unittest.skip("not yet implemented")
     def test_int64_erase_ranges(self):
         inserted_int64_data = _generate_int64_ts(self.start_time, 1, 1000)
         self.int64_col.insert(inserted_int64_data)
@@ -409,7 +407,6 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
         results = self.timestamp_col.get_ranges(self.test_intervals)
         self.assertEqual(0, len(results))
 
-    @unittest.skip("not yet implemented")
     def test_timestamp_erase_ranges__when_timeseries_is_empty(self):
         erased_count = self.timestamp_col.erase_ranges(self.test_intervals)
         self.assertEqual(0, erased_count)
@@ -455,6 +452,28 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
                             self.start_time + datetime.timedelta(microseconds=10))])
         self.assertRaises(quasardb.OperationError,
                           wrong_col.insert, inserted_timestamp_data)
+
+    def test_timestamp_erase_ranges(self):
+        inserted_timestamp_data = _generate_timestamp_ts(self.start_time, self.start_time + datetime.timedelta(minutes=1), 1000)
+        self.timestamp_col.insert(inserted_timestamp_data)
+
+        results = self.timestamp_col.get_ranges(
+            [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
+
+        erased_count = self.timestamp_col.erase_ranges(
+            [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
+
+        self.assertEqual(erased_count, len(results))
+
+        erased_count = self.timestamp_col.erase_ranges(
+            [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
+
+        self.assertEqual(erased_count, 0)
+
+        results = self.timestamp_col.get_ranges(
+            [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
+
+        self.assertEqual(len(results), 0)
 
     def test_blob_get_ranges__when_timeseries_is_empty(self):
         results = self.blob_col.get_ranges(
