@@ -105,7 +105,7 @@ typedef struct
     qdb_ts_filter_t filter;
 } qdb_ts_filtered_range_t;
 
-typedef struct qdb_ts_blob_aggregation
+typedef struct
 {
     qdb_ts_aggregation_type_t type;
     qdb_ts_filtered_range_t filtered_range;
@@ -113,7 +113,7 @@ typedef struct qdb_ts_blob_aggregation
     qdb_ts_blob_point result;
 } qdb_ts_blob_aggregation_t;
 
-typedef struct qdb_ts_double_aggregation
+typedef struct
 {
     qdb_ts_aggregation_type_t type;
     qdb_ts_filtered_range_t filtered_range;
@@ -121,7 +121,7 @@ typedef struct qdb_ts_double_aggregation
     qdb_ts_double_point result;
 } qdb_ts_double_aggregation_t;
 
-typedef struct qdb_ts_int64_aggregation
+typedef struct
 {
     qdb_ts_aggregation_type_t type;
     qdb_ts_filtered_range_t filtered_range;
@@ -129,7 +129,7 @@ typedef struct qdb_ts_int64_aggregation
     qdb_ts_int64_point result;
 } qdb_ts_int64_aggregation_t;
 
-typedef struct qdb_ts_timestamp_aggregation
+typedef struct
 {
     qdb_ts_aggregation_type_t type;
     qdb_ts_filtered_range_t filtered_range;
