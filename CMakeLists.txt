@@ -16,14 +16,6 @@ endif()
 
 find_package(SWIG 3.0 REQUIRED)
 
-if(POLICY CMP0026)
-    # unable to find a workaround: doc says we should use $<TARGET_FILE> generator expression but
-    # - set() doesn't support generator expression
-    # - configure_file() doesn't support generator expression
-    # - file(GENERATE ) support generator expression bu not variables
-    cmake_policy(SET CMP0026 OLD)
-endif()
-
 set(SWIG_COMMON_FILES
     qdb_enum.i
     qdb_struct.i
