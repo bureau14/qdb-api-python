@@ -1648,7 +1648,7 @@ class Cluster(object):
             raise chooseError(err.error)
         return json.loads(res)
 
-    def query(self, q):
+    def query_find(self, q):
         """
         Retrieves all entries' aliases that match the specified query.
 
@@ -1660,7 +1660,7 @@ class Cluster(object):
         :raises: Error
         """
         err = qdb_convert.make_error_carrier()
-        result = impl.run_query(self.handle, q, err)
+        result = impl.run_query_find(self.handle, q, err)
 
         if err.error != impl.error_ok:
             raise chooseError(err.error)
