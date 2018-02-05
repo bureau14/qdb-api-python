@@ -1666,6 +1666,22 @@ class Cluster(object):
             raise chooseError(err.error)
         return result
 
+    def query_exp(self, q) :
+        """
+        Retrieves all entries' aliases that match the specified query expression.
+        :param q: the query expression to run
+        :type q: str
+
+        :returns: The list of matching aliases. If no match is found, returns an empty list.
+
+        :raises: Error
+        """
+        err = qdb_convert.make_error_carrier()
+        result = impl.run_query_exp(self.handle, q, err)
+        if err.error != impl.error_ok:
+            raise chooseError(err.error)
+        return result
+
     def prefix_get(self, prefix, max_count):
         """
         Retrieves the list of all entries matching the provided prefix.

@@ -211,6 +211,23 @@ std::vector<std::string> run_query(handle_ptr h, const char * q, error_carrier *
     return v;
 }
 
+std::pair < std::vector <qdb_table_result_t> , std::pair < qdb_size_t, qdb_size_t > > run_query_exp(handle_ptr h, const char *q, error_carrier *error)
+{
+	qdb_query_result_t *res=nullptr;
+
+	std::pair < std::vector <qdb_table_result_t> , std::pair < qdb_size_t, qdb_size_t > >  output; 
+
+	error->error = qdb_exp_query(*h, q, &res); 
+	
+	output.second.first = res->tables_count; 
+	output.second.second = res->scanned_rows_count;
+
+	std::copy(res->tables , res->tables + res->tables_count, output.first.begin());
+	
+	qdb_release(*h, res);
+	return output;
+}
+
 std::vector<std::string> prefix_get(handle_ptr h, const char * prefix, qdb_int_t max_count, error_carrier * error)
 {
     error->error = qdb_e_uninitialized;
