@@ -69,6 +69,8 @@ typedef struct qdb_local_table_internal * qdb_local_table_t;
 %template(BlobAggVec) std::vector<qdb_ts_blob_aggregation_t>;
 %template(DoubleAggVec) std::vector<qdb_ts_double_aggregation_t>;
 %template(TSColsVec) std::vector<wrap_ts_column>;
+%template(QueryTableResult) std::vector<wrap_qdb_table_result_t>;
+
 
 %rename(version) qdb_version;
 const char * qdb_version();

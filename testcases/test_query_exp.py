@@ -28,6 +28,7 @@ class QuasardbQueryExp(unittest.TestCase):
         self.test_intervals = [(self.start_time,
                                 self.start_time + datetime.timedelta(microseconds=1))]
 
+
     def _create_ts(self):
         cols = self.my_ts.create([
             quasardb.TimeSeries.DoubleColumnInfo(settings.entry_gen.next()),
@@ -39,13 +40,13 @@ class QuasardbQueryExp(unittest.TestCase):
 
     def create_ts(self):
         (self.double_col, self.blob_col) = self._create_ts()
+        self.double_col.insert([(self.start_time, 1.0)])
 
     def test_return_table(self) :
         self.setUp()
         self.create_ts()
         res = settings.cluster.query_exp("select * from " + self.entry_name + " in range(2018-01-01 , 2018-12-12)")
-        print res
-        self.assertEqual(len(res), 2)
+        self.assertEqual(len(res.tables), 1)
 
 if __name__ == '__main__':
     if settings.get_lock_status() == False :

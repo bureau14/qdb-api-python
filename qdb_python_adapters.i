@@ -211,19 +211,11 @@ std::vector<std::string> run_query(handle_ptr h, const char * q, error_carrier *
     return v;
 }
 
-std::pair < std::vector <qdb_table_result_t> , std::pair < qdb_size_t, qdb_size_t > > run_query_exp(handle_ptr h, const char *q, error_carrier *error)
+wrap_qdb_query_result_t run_query_exp(handle_ptr h, const char *q, error_carrier *error)
 {
-	qdb_query_result_t *res=nullptr;
-
-	std::pair < std::vector <qdb_table_result_t> , std::pair < qdb_size_t, qdb_size_t > >  output; 
-
-	error->error = qdb_exp_query(*h, q, &res); 
-	
-	output.second.first = res->tables_count; 
-	output.second.second = res->scanned_rows_count;
-
-	std::copy(res->tables , res->tables + res->tables_count, output.first.begin());
-	
+    qdb_query_result_t *res=nullptr;
+    error->error = qdb_exp_query(*h, q, &res); 
+    wrap_qdb_query_result_t output = res;
 	qdb_release(*h, res);
 	return output;
 }
