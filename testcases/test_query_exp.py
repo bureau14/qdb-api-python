@@ -46,7 +46,7 @@ class QuasardbQueryExp(unittest.TestCase):
         self.setUp()
         self.create_ts()
         res = settings.cluster.query_exp("select * from " + self.entry_name + " in range(2018-01-01 , 2018-12-12)")
-        self.assertEqual(res.tables[0].rows[0][1].payload.d_value, 100.0)
+        self.assertEqual(res.tables[0].get_payload_double(0,1), 100.0)
 
 if __name__ == '__main__':
     if settings.get_lock_status() == False :
