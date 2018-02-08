@@ -39,45 +39,69 @@ struct wrap_ts_blob_point
     std::string data;
 };
 
-struct wrap_qdb_table_result_t
+//Swig was complaining about struct inside union, had to make it work like this.
+typedef struct Payload
 {
-    wrap_qdb_table_result_t& operator = (qdb_table_result_t& tbl)
+    double d_value;
+    qdb_int_t i_value;
+    std::string b_value;
+    qdb_timespec_t t_value;
+} Payload;
+
+typedef struct wrap_qdb_point_result_t
+{
+    qdb_query_result_value_type_t type;
+    Payload payload;
+
+    wrap_qdb_point_result_t& operator =(const qdb_point_result_t t)
     {
-		rows_count = tbl.rows_count;
+        type = t.type;
+        if(type == qdb_query_result_value_type_t::qdb_query_result_double) payload.d_value = t.payload.double_.value;
+        if(type == qdb_query_result_value_type_t::qdb_query_result_blob) payload.b_value = std::string(static_cast<const char *> (t.payload.blob.content));
+        if(type == qdb_query_result_value_type_t::qdb_query_result_int64) payload.i_value = t.payload.int64_.value;
+        if(type == qdb_query_result_value_type_t::qdb_query_result_timestamp) payload.t_value = t.payload.timestamp.value;
+        return *this;
+    }
+} wrap_qdb_point_result_t; 
+
+typedef struct wrap_qdb_table_result_t
+{
+    wrap_qdb_table_result_t& operator = (const qdb_table_result_t& tbl)
+    {
+        rows_count = tbl.rows_count;
         columns_count = tbl.columns_count;
         table_name = tbl.table_name.data;
 
         std::transform(tbl.columns_names , tbl.columns_names + tbl.columns_count, std::back_inserter(columns_names), [](const auto &str) { return std::string{str.data}; });
-		rows.resize(rows_count);
+        rows.resize(rows_count);
 
-		for (qdb_size_t row = 0; row < rows_count; ++row)
-            std::copy(tbl.rows[row], tbl.rows[row] + tbl.columns_count, std::back_inserter(rows[row]));
-		return *this;
+        for (qdb_size_t row = 0; row < rows_count; ++row)
+        {
+            rows[row].resize(columns_count);
+            std::copy(tbl.rows[row], tbl.rows[row] + tbl.columns_count, std::begin(rows[row]));
+        }
+        return *this;
     }
-
-	~wrap_qdb_table_result_t() = default;
 
     std::string table_name;
     std::vector<std::string> columns_names;
     qdb_size_t columns_count;
-    std::vector < std::vector < qdb_point_result_t > > rows;
+    std::vector < std::vector < wrap_qdb_point_result_t > > rows;
     qdb_size_t rows_count;
-};
+}wrap_qdb_table_result_t;
 
-struct wrap_qdb_query_result_t
+typedef struct wrap_qdb_query_result_t
 {
     wrap_qdb_query_result_t(qdb_query_result_t *res)
     {
         tables_count = res->tables_count; 
         scanned_rows_count = res->scanned_rows_count;
-		tables.resize(tables_count);
+        tables.resize(tables_count);
         std::copy(res->tables , res->tables + res->tables_count, tables.begin());
     }
-
-	~wrap_qdb_query_result_t() = default;
     std::vector <wrap_qdb_table_result_t> tables;
     qdb_size_t tables_count, scanned_rows_count;
-};
+}wrap_qdb_query_result_t;
 
 %}
 

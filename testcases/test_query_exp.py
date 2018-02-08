@@ -40,13 +40,13 @@ class QuasardbQueryExp(unittest.TestCase):
 
     def create_ts(self):
         (self.double_col, self.blob_col) = self._create_ts()
-        self.double_col.insert([(self.start_time, 1.0)])
+        self.double_col.insert([(self.start_time, 100.0)])
 
     def test_return_table(self) :
         self.setUp()
         self.create_ts()
         res = settings.cluster.query_exp("select * from " + self.entry_name + " in range(2018-01-01 , 2018-12-12)")
-        self.assertEqual(len(res.tables), 1)
+        self.assertEqual(res.tables[0].rows[0][1].payload.d_value, 100.0)
 
 if __name__ == '__main__':
     if settings.get_lock_status() == False :
