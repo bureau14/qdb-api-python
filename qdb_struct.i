@@ -57,44 +57,44 @@ struct wrap_qdb_table_result_t
         }
         return *this;
     }
+    
+    qdb_query_result_value_type_t get_type(qdb_size_t r, qdb_size_t c) const
+    {
+        assert(r >= 0 && c >= 0 && r < rows_count && c < columns_count);
+        return rows[r][c].type;
+    }
+
+    std::string get_payload_blob(qdb_size_t r, qdb_size_t c) const
+    {
+        assert(r >= 0 && c >= 0 && r < rows_count && c < columns_count && rows[r][c].type == qdb_query_result_value_type_t::qdb_query_result_blob);
+        return static_cast<const char *> (rows[r][c].payload.blob.content);
+    }
+
+    qdb_int_t get_payload_int64(qdb_size_t r, qdb_size_t c) const
+    {
+        assert(r >= 0 && c >= 0 && r < rows_count && c < columns_count && rows[r][c].type == qdb_query_result_value_type_t::qdb_query_result_int64);
+        return rows[r][c].payload.int64_.value;
+    }
+
+    double get_payload_double(qdb_size_t r, qdb_size_t c) const
+    {
+        assert(r >= 0 && c >= 0 && r < rows_count && c < columns_count && rows[r][c].type == qdb_query_result_value_type_t::qdb_query_result_double);
+        return rows[r][c].payload.double_.value;
+    }
+
+    qdb_timespec_t get_payload_timestamp(qdb_size_t r, qdb_size_t c) const
+    {
+        assert(r >= 0 && c >= 0 && r < rows_count && c < columns_count && rows[r][c].type == qdb_query_result_value_type_t::qdb_query_result_timestamp);
+        return rows[r][c].payload.timestamp.value;
+    }
 
     std::string table_name;
     std::vector<std::string> columns_names;
     qdb_size_t columns_count;
     qdb_size_t rows_count;
-	
-	qdb_query_result_value_type_t get_type(qdb_size_t r, qdb_size_t c) const
-	{
-		assert(r >= 0 && c >= 0 && r < rows_count && c < columns_count);
-		return rows[r][c].type;
-	}
 
-	std::string get_payload_blob(qdb_size_t r, qdb_size_t c) const
-	{
-		assert(r >= 0 && c >= 0 && r < rows_count && c < columns_count && rows[r][c].type == qdb_query_result_value_type_t::qdb_query_result_blob);
-		return static_cast<const char *> (rows[r][c].payload.blob.content);
-	}
-
-	qdb_int_t get_payload_int64(qdb_size_t r, qdb_size_t c) const
-	{
-		assert(r >= 0 && c >= 0 && r < rows_count && c < columns_count && rows[r][c].type == qdb_query_result_value_type_t::qdb_query_result_int64);
-		return rows[r][c].payload.int64_.value;
-	}
-
-	double get_payload_double(qdb_size_t r, qdb_size_t c) const
-	{
-		assert(r >= 0 && c >= 0 && r < rows_count && c < columns_count && rows[r][c].type == qdb_query_result_value_type_t::qdb_query_result_double);
-		return rows[r][c].payload.double_.value;
-	}
-
-	qdb_timespec_t get_payload_timestamp(qdb_size_t r, qdb_size_t c) const
-	{
-		assert(r >= 0 && c >= 0 && r < rows_count && c < columns_count && rows[r][c].type == qdb_query_result_value_type_t::qdb_query_result_timestamp);
-		return rows[r][c].payload.timestamp.value;
-	}
-
-	private:
-		std::vector < std::vector < qdb_point_result_t > > rows;
+    private:
+        std::vector < std::vector < qdb_point_result_t > > rows;
 
 };
 
