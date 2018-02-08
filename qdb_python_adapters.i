@@ -214,7 +214,8 @@ std::vector<std::string> run_query(handle_ptr h, const char * q, error_carrier *
 wrap_qdb_query_result_t run_query_exp(handle_ptr h, const char *q, error_carrier *error)
 {
     qdb_query_result_t *res=nullptr;
-    error->error = qdb_exp_query(*h, q, &res); 
+    error->error = qdb_exp_query(*h, q, &res);
+    if(error->error != qdb_e_ok) return wrap_qdb_query_result_t{};
     wrap_qdb_query_result_t output = res;
     qdb_release(*h, res);
     return output;

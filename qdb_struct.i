@@ -100,6 +100,7 @@ struct wrap_qdb_table_result_t
 
 struct wrap_qdb_query_result_t
 {
+    wrap_qdb_query_result_t() = default;
     wrap_qdb_query_result_t(qdb_query_result_t *res)
     {
         tables_count = res->tables_count; 
