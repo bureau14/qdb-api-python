@@ -216,8 +216,8 @@ wrap_qdb_query_result_t run_query_exp(handle_ptr h, const char *q, error_carrier
     qdb_query_result_t *res=nullptr;
     error->error = qdb_exp_query(*h, q, &res); 
     wrap_qdb_query_result_t output = res;
-	qdb_release(*h, res);
-	return output;
+    qdb_release(*h, res);
+    return output;
 }
 
 std::vector<std::string> prefix_get(handle_ptr h, const char * prefix, qdb_int_t max_count, error_carrier * error)
