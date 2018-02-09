@@ -18,8 +18,8 @@ for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0]
 import quasardb  # pylint: disable=C0413,E0401
 import settings
 
-class QuasardbQuery(unittest.TestCase):
-    
+class QuasardbQueryFind(unittest.TestCase):
+
 
     def test_types(self):
 
@@ -32,17 +32,17 @@ class QuasardbQuery(unittest.TestCase):
         b.put(entry_content)
         b.attach_tag(my_tag)
 
-        res = settings.cluster.query("tag='" + my_tag + "'")
+        res = settings.cluster.query_find("find(tag='" + my_tag + "')")
 
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0], entry_name)
 
-        res = settings.cluster.query("tag='" + my_tag + "' AND type=blob")
+        res = settings.cluster.query_find("find(tag='" + my_tag + "' AND type=blob)")
 
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0], entry_name)
 
-        res = settings.cluster.query("tag='" + my_tag + "' AND type=integer")
+        res = settings.cluster.query_find("find(tag='" + my_tag + "' AND type=integer)")
 
         self.assertEqual(len(res), 0)
 
@@ -59,17 +59,17 @@ class QuasardbQuery(unittest.TestCase):
         b.attach_tag(tag1)
         b.attach_tag(tag2)
 
-        res = settings.cluster.query("tag='" + tag1 + "'")
+        res = settings.cluster.query_find("find(tag='" + tag1 + "')")
 
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0], entry_name)
 
-        res = settings.cluster.query("tag='" + tag2 + "'")
+        res = settings.cluster.query_find("find(tag='" + tag2 + "')")
 
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0], entry_name)
 
-        res = settings.cluster.query("tag='" + tag1 + "' AND tag='" + tag2 + "'")
+        res = settings.cluster.query_find("find(tag='" + tag1 + "' AND tag='" + tag2 + "')")
 
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0], entry_name)

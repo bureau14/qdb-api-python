@@ -195,12 +195,12 @@ struct result_as_string
     }
 };
 
-std::vector<std::string> run_query(handle_ptr h, const char * q, error_carrier * error)
+std::vector<std::string> run_query_find(handle_ptr h, const char * q, error_carrier * error)
 {
     const char ** aliases = NULL;
     size_t count = 0;
 
-    error->error = qdb_query(*h, q, &aliases, &count);
+    error->error = qdb_query_find(*h, q, &aliases, &count);
 
     std::vector<std::string> v(count);
 
