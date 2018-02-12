@@ -79,14 +79,13 @@ class QuasardbQueryExpErrorCodeCheck(unittest.TestCase):
 
 class QuasardbQueryExpWithDoubles(unittest.TestCase):
 
-    def trivial_test(self, helper, inserted_double_data, res, columns_count) :
-        self.assertEqual(res.scanned_rows_count, len(inserted_double_data))
+    def trivial_test(self, helper, scanned_rows_count, res, rows_count, columns_count) :
+        self.assertEqual(res.scanned_rows_count, scanned_rows_count)
         self.assertEqual(res.tables_count, 1)
         self.assertEqual(len(res.tables), 1)
-        self.assertEqual(res.tables[0].rows_count, len(inserted_double_data))
+        self.assertEqual(res.tables[0].rows_count, rows_count)
         self.assertEqual(res.tables[0].columns_count, columns_count)
         self.assertEqual(res.tables[0].columns_names[0], "timestamp")
-        self.assertEqual(res.tables[0].columns_names[1], helper.double_column_name)
  
     def test_returns_empty_result(self) :
         helper = TsHelper()
@@ -100,8 +99,8 @@ class QuasardbQueryExpWithDoubles(unittest.TestCase):
         inserted_double_data = tslib._generate_double_ts(helper.start_time, 1.0, 10)
         helper.double_col.insert(inserted_double_data)
         res = settings.cluster.query_exp("select * from " + helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
-        self.trivial_test(helper, inserted_double_data, res, 5)
-        
+        self.trivial_test(helper, len(inserted_double_data), res, len(inserted_double_data), 5)
+        self.assertEqual(res.tables[0].columns_names[1], helper.double_column_name)
         for rc in range(res.tables[0].rows_count) :
             self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(rc,0)), inserted_double_data[rc][0])
             self.assertEqual(res.tables[0].get_payload_double(rc, 1), inserted_double_data[rc][1])
@@ -113,7 +112,8 @@ class QuasardbQueryExpWithDoubles(unittest.TestCase):
         tag_name = settings.entry_gen.next()
         helper.my_ts.attach_tag(tag_name)
         res = settings.cluster.query_exp("select * from find(tag = " + '"' + tag_name + '")' + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
-        self.trivial_test(helper, inserted_double_data, res, 5)
+        self.trivial_test(helper, len(inserted_double_data), res, len(inserted_double_data), 5)
+        self.assertEqual(res.tables[0].columns_names[1], helper.double_column_name)
         for rc in range(res.tables[0].rows_count) :
             self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(rc,0)), inserted_double_data[rc][0])
             self.assertEqual(res.tables[0].get_payload_double(rc, 1), inserted_double_data[rc][1])
@@ -123,22 +123,41 @@ class QuasardbQueryExpWithDoubles(unittest.TestCase):
         inserted_double_data = tslib._generate_double_ts(helper.start_time, 1.0, 10)
         helper.double_col.insert(inserted_double_data)
         res = settings.cluster.query_exp("select " + helper.double_column_name + " from " + helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
-        self.trivial_test(helper, inserted_double_data, res, 2)
+        self.trivial_test(helper, len(inserted_double_data), res, len(inserted_double_data), 2)
+        self.assertEqual(res.tables[0].columns_names[1], helper.double_column_name)
         for rc in range(res.tables[0].rows_count) :
             self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(rc,0)), inserted_double_data[rc][0])
             self.assertEqual(res.tables[0].get_payload_double(rc, 1), inserted_double_data[rc][1])
-"""
+
     def test_returns_sum_with_sum_select(self) :
         helper = TsHelper()
         inserted_double_data = tslib._generate_double_ts(helper.start_time, 1.0, 10)
         helper.double_col.insert(inserted_double_data)
-        print "select sum(" + helper.double_column_name + ") from " + helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)"
         res = settings.cluster.query_exp("select sum(" + helper.double_column_name + ") from " + helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
-        self.trivial_test(helper, inserted_double_data, res, 2)
+        self.trivial_test(helper, len(inserted_double_data), res, 1, 2)
+        self.assertEqual(res.tables[0].columns_names[1], "sum(" + helper.double_column_name + ")")
         expected_sum = 10.0 * (10.0 + 1.0) / 2.0
         self.assertEqual(expected_sum, res.tables[0].get_payload_double(0,1))
-"""
-        
+
+    def test_returns_sum_with_sum_divided_by_count_select(self) :
+        helper = TsHelper()
+        inserted_double_data = tslib._generate_double_ts(helper.start_time, 1.0, 10)
+        helper.double_col.insert(inserted_double_data)
+        res = settings.cluster.query_exp( "select sum(" + helper.double_column_name + ")/count(" + helper.double_column_name + ") from " + helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
+        self.trivial_test(helper, 2 * len(inserted_double_data), res, 1, 2)
+        self.assertEqual(res.tables[0].columns_names[1],"(sum(" + helper.double_column_name + ")/count(" + helper.double_column_name + "))")
+        expected_avg = (10.0 * (10.0 + 1.0)) / (10.0 * 2.0)
+        self.assertEqual(expected_avg, res.tables[0].get_payload_double(0,1))
+
+    def test_returns_max_minus_min_select(self) :
+        helper = TsHelper()
+        inserted_double_data = tslib._generate_double_ts(helper.start_time, 1.0, 10)
+        helper.double_col.insert(inserted_double_data)
+        res = settings.cluster.query_exp("select max(" + helper.double_column_name + ") - min(" + helper.double_column_name + ") from " + helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
+        self.trivial_test(helper, len(inserted_double_data) * 2.0, res, 1, 2)
+        self.assertEqual(res.tables[0].columns_names[1], "(max(" + helper.double_column_name + ")-min(" + helper.double_column_name + "))")
+        self.assertEqual(10.0 - 1.0, res.tables[0].get_payload_double(0,1))
+    
 if __name__ == '__main__':
     if settings.get_lock_status() == False :
         settings.init()
