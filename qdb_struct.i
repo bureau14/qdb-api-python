@@ -47,7 +47,7 @@ struct wrap_qdb_table_result_t
         columns_count = tbl.columns_count;
         table_name = tbl.table_name.data;
 
-        std::transform(tbl.columns_names , tbl.columns_names + tbl.columns_count, std::back_inserter(columns_names), [](const auto &str) { return std::string{str.data}; });
+        std::transform(tbl.columns_names , tbl.columns_names + tbl.columns_count, std::back_inserter(columns_names), [](const qdb_string_t &str) { return std::string{str.data}; });
         rows.resize(rows_count);
 
         for (qdb_size_t row = 0; row < rows_count; ++row)
