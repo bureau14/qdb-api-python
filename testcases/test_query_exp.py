@@ -104,6 +104,11 @@ class QuasardbQueryExpWithDoubles(unittest.TestCase):
         helper, inserted_double_data = self.generate_ts_with_double_points()
         res = settings.cluster.query_exp("select * from " + helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
         self.trivial_test(helper, len(inserted_double_data), res, len(inserted_double_data), 5) #Column count is 5, because, uninit, int64, blob, timestamp, double
+        
+        print "Output: "
+        for rc in range(res.tables[0].rows_count) :
+            print res.tables[0].get_payload_double(rc, 1)
+
         for rc in range(res.tables[0].rows_count) :
             self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(rc,0)), inserted_double_data[rc][0])
             self.assertEqual(res.tables[0].get_payload_double(rc, 1), inserted_double_data[rc][1])
@@ -114,6 +119,11 @@ class QuasardbQueryExpWithDoubles(unittest.TestCase):
         helper.my_ts.attach_tag(tag_name)
         res = settings.cluster.query_exp("select * from find(tag = " + '"' + tag_name + '")' + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
         self.trivial_test(helper, len(inserted_double_data), res, len(inserted_double_data), 5) #Column count is 5, because, uninit, int64, blob, timestamp, double
+        
+        print "Output: "
+        for rc in range(res.tables[0].rows_count) :
+            print res.tables[0].get_payload_double(rc, 1)
+            
         for rc in range(res.tables[0].rows_count) :
             self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(rc,0)), inserted_double_data[rc][0])
             self.assertEqual(res.tables[0].get_payload_double(rc, 1), inserted_double_data[rc][1])
