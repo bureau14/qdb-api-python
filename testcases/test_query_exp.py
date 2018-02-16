@@ -8,7 +8,7 @@ import time
 import unittest
 import calendar
 import pytz
-
+import math
 
 for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0], '..', 'build')):
     for p in dirnames:
@@ -27,7 +27,7 @@ class TsHelper():
         self.setUp()
         self.create_ts()
         return
-    
+
     def __del__(self) :
         return 
 
@@ -99,31 +99,21 @@ class QuasardbQueryExpWithDoubles(unittest.TestCase):
         self.assertEqual(res.scanned_rows_count, 0)
         self.assertEqual(res.tables_count, 0)
         self.assertEqual(len(res.tables), 0)
-    
+
     def test_returns_inserted_data_with_star_select(self) :
         helper, inserted_double_data = self.generate_ts_with_double_points()
         res = settings.cluster.query_exp("select * from " + helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
         self.trivial_test(helper, len(inserted_double_data), res, len(inserted_double_data), 5) #Column count is 5, because, uninit, int64, blob, timestamp, double
-        
-        print "Output: "
-        for rc in range(res.tables[0].rows_count) :
-            print res.tables[0].get_payload_double(rc, 1)
-
         for rc in range(res.tables[0].rows_count) :
             self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(rc,0)), inserted_double_data[rc][0])
             self.assertEqual(res.tables[0].get_payload_double(rc, 1), inserted_double_data[rc][1])
-                    
+
     def test_returns_inserted_data_with_star_select_and_tag_lookup(self) :
         helper, inserted_double_data = self.generate_ts_with_double_points()
         tag_name = settings.entry_gen.next()
         helper.my_ts.attach_tag(tag_name)
         res = settings.cluster.query_exp("select * from find(tag = " + '"' + tag_name + '")' + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
         self.trivial_test(helper, len(inserted_double_data), res, len(inserted_double_data), 5) #Column count is 5, because, uninit, int64, blob, timestamp, double
-        
-        print "Output: "
-        for rc in range(res.tables[0].rows_count) :
-            print res.tables[0].get_payload_double(rc, 1)
-            
         for rc in range(res.tables[0].rows_count) :
             self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(rc,0)), inserted_double_data[rc][0])
             self.assertEqual(res.tables[0].get_payload_double(rc, 1), inserted_double_data[rc][1])
@@ -136,6 +126,16 @@ class QuasardbQueryExpWithDoubles(unittest.TestCase):
         for rc in range(res.tables[0].rows_count) :
             self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(rc,0)), inserted_double_data[rc][0])
             self.assertEqual(res.tables[0].get_payload_double(rc, 1), inserted_double_data[rc][1])
+
+    def test_returns_inserted_data_twice_with_double_column_select(self) :
+        helper,inserted_double_data = self.generate_ts_with_double_points()
+        res = settings.cluster.query_exp("select " + helper.double_column_name + "," + helper.double_column_name + " from " + helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
+        self.trivial_test(helper, len(inserted_double_data), res, len(inserted_double_data), 3)
+        self.assertEqual(res.tables[0].columns_names[1], helper.double_column_name)
+        for rc in range(res.tables[0].rows_count) :
+            self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(rc,0)), inserted_double_data[rc][0])
+            self.assertEqual(res.tables[0].get_payload_double(rc, 1), inserted_double_data[rc][1])
+            self.assertEqual(res.tables[0].get_payload_double(rc, 2), inserted_double_data[rc][1]) 
 
     def test_returns_sum_with_sum_select(self) :
         helper, inserted_double_data = self.generate_ts_with_double_points()
@@ -159,7 +159,49 @@ class QuasardbQueryExpWithDoubles(unittest.TestCase):
         self.trivial_test(helper, len(inserted_double_data) * 2.0, res, 1, 2)
         self.assertEqual(res.tables[0].columns_names[1], "(max(" + helper.double_column_name + ")-min(" + helper.double_column_name + "))")
         self.assertEqual(10.0 - 1.0, res.tables[0].get_payload_double(0,1))
-    
+
+    def test_returns_max_minus_1_select(self) :
+        helper , inserted_double_data = self.generate_ts_with_double_points()
+        res = settings.cluster.query_exp("select max(" + helper.double_column_name + ") - 1 from " + helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
+        self.trivial_test(helper, len(inserted_double_data), res, 1, 2)
+        self.assertEqual(res.tables[0].columns_names[1], "(max(" + helper.double_column_name + ")-1)")
+        self.assertEqual(10.0 - 1.0, res.tables[0].get_payload_double(0,1))
+
+    def test_returns_max_and_scalar_1_select(self) :
+        helper , inserted_double_data = self.generate_ts_with_double_points()
+        res = settings.cluster.query_exp("select max(" + helper.double_column_name + "), 1 from " + helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
+        self.trivial_test(helper, len(inserted_double_data), res, 2, 3)
+        self.assertEqual(res.tables[0].columns_names[1], "max(" + helper.double_column_name + ")")
+        self.assertEqual(res.tables[0].columns_names[2], "1")
+
+        self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(0,0)), datetime.datetime(1970, 1, 1, 0, 0,  tzinfo=pytz.UTC))
+        self.assertTrue(math.isnan(res.tables[0].get_payload_double(0, 1)))
+        self.assertEqual(res.tables[0].get_payload_int64(0, 2), 1)
+        self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(1,0)), inserted_double_data[len(inserted_double_data) - 1][0])
+        self.assertEqual(res.tables[0].get_payload_double(1,1), inserted_double_data[len(inserted_double_data) - 1][1])
+        self.assertEqual(res.tables[0].get_payload_int64(1, 2), 0)
+
+    def test_returns_inserted_multi_data_with_star_select(self) :
+        helper , inserted_double_data = self.generate_ts_with_double_points()
+        inserted_blob_data = tslib._generate_blob_ts(helper.start_time, 10)
+        inserted_int64_data = tslib._generate_int64_ts(helper.start_time, 10000000000, 10)
+        inserted_timestamp_data = tslib._generate_timestamp_ts(helper.start_time, helper.start_time + datetime.timedelta(minutes=1), 10)
+        
+        helper.blob_col.insert(inserted_blob_data)
+        helper.int64_col.insert(inserted_int64_data)
+        helper.timestamp_col.insert(inserted_timestamp_data)
+        
+        res = settings.cluster.query_exp("select * from " + helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
+        self.trivial_test(helper, 4 * len(inserted_double_data), res, len(inserted_double_data), 5) #Column count is 5, because, uninit, int64, blob, timestamp, double
+       
+        for rc in range(res.tables[0].rows_count) :
+            self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(rc,0)), inserted_double_data[rc][0])
+            self.assertEqual(res.tables[0].get_payload_double(rc, 1), inserted_double_data[rc][1])
+            self.assertEqual(res.tables[0].get_payload_blob(rc, 2), inserted_blob_data[rc][1])
+            self.assertEqual(res.tables[0].get_payload_int64(rc, 3), inserted_int64_data[rc][1])
+            self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(rc,4)), inserted_timestamp_data[rc][1])
+        
+        
 if __name__ == '__main__':
     if settings.get_lock_status() == False :
         settings.init()
