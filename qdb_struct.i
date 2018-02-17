@@ -50,14 +50,26 @@ struct wrap_qdb_table_result_t
         std::transform(tbl.columns_names , tbl.columns_names + tbl.columns_count, std::back_inserter(columns_names), [](const qdb_string_t &str) { return std::string{str.data}; });
         rows.resize(rows_count);
 
-        for (qdb_size_t row = 0; row < rows_count; ++row)
+        for (qdb_size_t row = 0; row < rows_count; ++row) 
         {
             rows[row].resize(columns_count);
-            std::copy(tbl.rows[row], tbl.rows[row] + tbl.columns_count, std::begin(rows[row]));
+            for(qdb_size_t col = 0 ; col < columns_count; ++col)
+            {
+                rows[row][col] = tbl.rows[row][col];
+                // Copy assignment does a shallow copy of the const void pointer present in blob.
+                // We must deep copy the blob, because we call qdb_release after the query_exp.
+                if(rows[row][col].type == qdb_query_result_value_type_t::qdb_query_result_blob)
+                {
+                    qdb_size_t len =  rows[row][col].payload.blob.content_length;
+                    char *content = new char[len];
+                    std::memcpy(static_cast<void*> (content), rows[row][col].payload.blob.content, len);
+                    rows[row][col].payload.blob.content = static_cast<const char*>(content);
+                }
+            }
         }
         return *this;
     }
-    
+
     qdb_query_result_value_type_t get_type(qdb_size_t r, qdb_size_t c) const
     {
         assert(r >= 0 && c >= 0 && r < rows_count && c < columns_count);
@@ -67,7 +79,7 @@ struct wrap_qdb_table_result_t
     std::string get_payload_blob(qdb_size_t r, qdb_size_t c) const
     {
         assert(r >= 0 && c >= 0 && r < rows_count && c < columns_count && rows[r][c].type == qdb_query_result_value_type_t::qdb_query_result_blob);
-        return static_cast<const char *> (rows[r][c].payload.blob.content);
+        return std::string {static_cast<const char *> (rows[r][c].payload.blob.content), rows[r][c].payload.blob.content_length};
     }
 
     qdb_int_t get_payload_int64(qdb_size_t r, qdb_size_t c) const
@@ -86,6 +98,21 @@ struct wrap_qdb_table_result_t
     {
         assert(r >= 0 && c >= 0 && r < rows_count && c < columns_count && rows[r][c].type == qdb_query_result_value_type_t::qdb_query_result_timestamp);
         return rows[r][c].payload.timestamp.value;
+    }
+
+
+    ~wrap_qdb_table_result_t()
+    {
+         for (qdb_size_t row = 0; row < rows_count; ++row) 
+         {
+            for(qdb_size_t col = 0 ; col < columns_count; ++col)
+            {
+                if(rows[row][col].type == qdb_query_result_value_type_t::qdb_query_result_blob)
+                delete [] rows[row][col].payload.blob.content;
+            }
+            rows[row].clear();
+        }
+        rows.clear();
     }
 
     std::string table_name;

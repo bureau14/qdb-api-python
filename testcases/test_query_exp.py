@@ -186,22 +186,21 @@ class QuasardbQueryExpWithDoubles(unittest.TestCase):
         inserted_blob_data = tslib._generate_blob_ts(helper.start_time, 10)
         inserted_int64_data = tslib._generate_int64_ts(helper.start_time, 10000000000, 10)
         inserted_timestamp_data = tslib._generate_timestamp_ts(helper.start_time, helper.start_time + datetime.timedelta(minutes=1), 10)
-        
+
         helper.blob_col.insert(inserted_blob_data)
         helper.int64_col.insert(inserted_int64_data)
         helper.timestamp_col.insert(inserted_timestamp_data)
-        
+
         res = settings.cluster.query_exp("select * from " + helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
         self.trivial_test(helper, 4 * len(inserted_double_data), res, len(inserted_double_data), 5) #Column count is 5, because, uninit, int64, blob, timestamp, double
-       
+
         for rc in range(res.tables[0].rows_count) :
             self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(rc,0)), inserted_double_data[rc][0])
             self.assertEqual(res.tables[0].get_payload_double(rc, 1), inserted_double_data[rc][1])
             self.assertEqual(res.tables[0].get_payload_blob(rc, 2), inserted_blob_data[rc][1])
             self.assertEqual(res.tables[0].get_payload_int64(rc, 3), inserted_int64_data[rc][1])
             self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(rc,4)), inserted_timestamp_data[rc][1])
-        
-        
+
 if __name__ == '__main__':
     if settings.get_lock_status() == False :
         settings.init()
