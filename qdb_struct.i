@@ -58,9 +58,9 @@ struct wrap_qdb_table_result_t
                 rows[row][col] = tbl.rows[row][col];
                 // Copy assignment does a shallow copy of the const void pointer present in blob.
                 // We must deep copy the blob, because we call qdb_release after the query_exp.
-				if(rows[row][col].type == qdb_query_result_value_type_t::qdb_query_result_blob)
+                if(rows[row][col].type == qdb_query_result_value_type_t::qdb_query_result_blob)
                 {
-					qdb_size_t len =  rows[row][col].payload.blob.content_length;
+                    qdb_size_t len =  rows[row][col].payload.blob.content_length;
                     char *content = new char[len];
                     std::memcpy(static_cast<void*> (content), rows[row][col].payload.blob.content, len);
                     rows[row][col].payload.blob.content = static_cast<const void*>(content);
