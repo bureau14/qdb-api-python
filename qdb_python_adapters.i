@@ -216,7 +216,8 @@ wrap_qdb_query_result_t run_query_exp(handle_ptr h, const char *q, error_carrier
     qdb_query_result_t *res=nullptr;
     error->error = qdb_exp_query(*h, q, &res);
     if(error->error != qdb_e_ok) return wrap_qdb_query_result_t{};
-    wrap_qdb_query_result_t output = res;
+    wrap_qdb_query_result_t output;
+	output = res;
     qdb_release(*h, res);
     return output;
 }

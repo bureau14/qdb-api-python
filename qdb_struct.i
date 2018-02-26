@@ -113,12 +113,13 @@ struct wrap_qdb_table_result_t
 struct wrap_qdb_query_result_t
 {
     wrap_qdb_query_result_t() = default;
-    wrap_qdb_query_result_t(qdb_query_result_t *res)
+    wrap_qdb_query_result_t operator =(qdb_query_result_t *res)
     {
         tables_count = res->tables_count; 
         scanned_rows_count = res->scanned_rows_count;
         tables.resize(tables_count);
         std::copy(res->tables , res->tables + res->tables_count, tables.begin());
+		return *this;
     }
     std::vector <wrap_qdb_table_result_t> tables;
     qdb_size_t tables_count, scanned_rows_count;
