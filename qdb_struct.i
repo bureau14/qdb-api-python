@@ -70,34 +70,49 @@ struct wrap_qdb_table_result_t
         return *this;
     }
 
-    qdb_query_result_value_type_t get_type(qdb_size_t r, qdb_size_t c) const
+    qdb_error_t check_out_of_bounds(qdb_size_t r, qdb_size_t c) const
     {
-        assert(r >= 0 && c >= 0 && r < rows_count && c < columns_count);
-        return rows[r][c].type;
+        if(r >= 0 && c >= 0 && r < rows_count && c < columns_count) return qdb_e_ok;
+        return qdb_e_out_of_bounds;
     }
 
-    std::string get_payload_blob(qdb_size_t r, qdb_size_t c) const
+    std::pair<qdb_error_t, qdb_query_result_value_type_t> get_type(qdb_size_t r, qdb_size_t c) const
     {
-        assert(r >= 0 && c >= 0 && r < rows_count && c < columns_count && rows[r][c].type == qdb_query_result_value_type_t::qdb_query_result_blob);
-        return std::string {static_cast<const char *> (rows[r][c].payload.blob.content), rows[r][c].payload.blob.content_length};
+        qdb_error_t err = check_out_of_bounds(r,c);
+        if(err != qdb_e_ok) return std::make_pair(err, qdb_query_result_none);
+        return std::make_pair(err, rows[r][c].type);
     }
 
-    qdb_int_t get_payload_int64(qdb_size_t r, qdb_size_t c) const
+    std::pair<qdb_error_t, std::string> get_payload_blob(qdb_size_t r, qdb_size_t c) const
     {
-        assert(r >= 0 && c >= 0 && r < rows_count && c < columns_count && rows[r][c].type == qdb_query_result_value_type_t::qdb_query_result_int64);
-        return rows[r][c].payload.int64_.value;
+        qdb_error_t err = check_out_of_bounds(r,c);
+        if(err != qdb_e_ok) return std::make_pair(err, "");
+        if(rows[r][c].type != qdb_query_result_value_type_t::qdb_query_result_blob) return std::make_pair(qdb_e_incompatible_type, "");
+        return std::make_pair(err, std::string {static_cast<const char *> (rows[r][c].payload.blob.content), rows[r][c].payload.blob.content_length});
     }
 
-    double get_payload_double(qdb_size_t r, qdb_size_t c) const
+    std::pair<qdb_error_t, qdb_int_t> get_payload_int64(qdb_size_t r, qdb_size_t c) const
     {
-        assert(r >= 0 && c >= 0 && r < rows_count && c < columns_count && rows[r][c].type == qdb_query_result_value_type_t::qdb_query_result_double);
-        return rows[r][c].payload.double_.value;
+        qdb_error_t err = check_out_of_bounds(r,c);
+        if(err != qdb_e_ok) return std::make_pair(err, 0);
+        if(rows[r][c].type != qdb_query_result_value_type_t::qdb_query_result_int64) return std::make_pair(qdb_e_incompatible_type, -1);
+        return std::make_pair(err, rows[r][c].payload.int64_.value);
     }
 
-    qdb_timespec_t get_payload_timestamp(qdb_size_t r, qdb_size_t c) const
+    std::pair<qdb_error_t, double> get_payload_double(qdb_size_t r, qdb_size_t c) const
     {
-        assert(r >= 0 && c >= 0 && r < rows_count && c < columns_count && rows[r][c].type == qdb_query_result_value_type_t::qdb_query_result_timestamp);
-        return rows[r][c].payload.timestamp.value;
+        qdb_error_t err = check_out_of_bounds(r,c);
+        if(err != qdb_e_ok) return std::make_pair(err, 0.0);
+        if(rows[r][c].type != qdb_query_result_value_type_t::qdb_query_result_double) return std::make_pair(qdb_e_incompatible_type, 0.0);
+        return std::make_pair(err, rows[r][c].payload.double_.value);
+    }
+
+    std::pair<qdb_error_t, qdb_timespec_t> get_payload_timestamp(qdb_size_t r, qdb_size_t c) const
+    {
+        qdb_error_t err = check_out_of_bounds(r,c);
+        if(err != qdb_e_ok) return std::make_pair(err, qdb_timespec_t{0,0});
+        if(rows[r][c].type != qdb_query_result_value_type_t::qdb_query_result_timestamp) return std::make_pair(qdb_e_incompatible_type, qdb_timespec_t{0,0});
+        return std::make_pair(err, rows[r][c].payload.timestamp.value);
     }
 
     std::string table_name;
@@ -119,7 +134,7 @@ struct wrap_qdb_query_result_t
         scanned_rows_count = res->scanned_rows_count;
         tables.resize(tables_count);
         std::copy(res->tables , res->tables + res->tables_count, tables.begin());
-		return *this;
+        return *this;
     }
     std::vector <wrap_qdb_table_result_t> tables;
     qdb_size_t tables_count, scanned_rows_count;
