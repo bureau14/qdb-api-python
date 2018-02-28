@@ -1672,7 +1672,7 @@ class Cluster(object):
         :param q: the query expression to run
         :type q: str
 
-        :returns: The list of matching aliases. If no match is found, returns an empty list.
+        :returns: A list of tables which matched the query expression. If no match is found, returns an empty list.
 
         :raises: Error
         """

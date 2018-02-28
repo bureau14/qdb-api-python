@@ -105,3 +105,31 @@ namespace qdb
 {
 std::string make_error_string(qdb_error_t error);
 }
+
+typedef struct
+{
+    qdb_query_result_value_type_t type;
+
+    union {
+        struct
+        {
+            double value;
+        } double_;
+
+        struct
+        {
+            qdb_int_t value;
+        } int64_;
+
+        struct
+        {
+            const void * content;
+            qdb_size_t content_length;
+        } blob;
+
+        struct
+        {
+            qdb_timespec_t value;
+        } timestamp;
+    } payload;
+} qdb_point_result_t;
