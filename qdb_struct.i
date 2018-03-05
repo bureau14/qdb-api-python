@@ -118,6 +118,27 @@ struct copy_point
 
         return this_point;
     }
+
+    ~copy_point()
+    {
+        if(this_point.type == qdb_query_result_blob)
+        {
+            delete[] static_cast<const char*>(this_point.payload.blob.content);
+        }
+        else if(this_point.type == qdb_query_result_int64)
+        {
+            delete &this_point.payload.int64_.value;
+        }
+        else if (this_point.type == qdb_query_result_double)
+        {
+            delete &this_point.payload.double_.value;
+        }
+        else
+        {
+            delete &this_point.payload.timestamp.value;
+        }
+        delete &this_point.type;
+    }
 };
 
 struct copy_column_names
