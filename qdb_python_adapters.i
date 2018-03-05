@@ -213,14 +213,14 @@ std::vector<std::string> run_query_find(handle_ptr h, const char * q, error_carr
 
 wrap_qdb_query_result_t run_query_exp(handle_ptr h, const char *q, error_carrier *error)
 {
-    qdb_query_result_t *res=nullptr;
-    error->error = qdb_exp_query(*h, q, &res);
-    if(error->error != qdb_e_ok) return wrap_qdb_query_result_t{};
+    qdb_query_result_t *res= NULL;
     wrap_qdb_query_result_t output;
+    error->error = qdb_exp_query(*h, q, &res);
+    if(error->error != qdb_e_ok) return output;
     output.tables_count = res->tables_count;
     output.scanned_rows_count = res->scanned_rows_count;
     output.tables.resize(output.tables_count);
-    std::transform(res->tables, res->tables + res->tables_count, std::begin(output.tables), copy_table);
+    std::transform(res->tables, res->tables + res->tables_count, output.tables.begin(), copy_table());
 
     qdb_release(*h, res);
     return output;
