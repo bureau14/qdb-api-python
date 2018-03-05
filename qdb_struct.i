@@ -101,11 +101,9 @@ public:
 
 struct copy_point 
 {
-    qdb_point_result_t this_point;
-
-    qdb_point_result_t& operator()(const qdb_point_result_t &that_point)
+    qdb_point_result_t operator()(const qdb_point_result_t &that_point)
     {
-
+        qdb_point_result_t this_point;
         this_point = that_point;
 
         if (that_point.type == qdb_query_result_blob)
@@ -115,29 +113,7 @@ struct copy_point
             std::memcpy(static_cast<void*> (new_copy), that_point.payload.blob.content, len);
             this_point.payload.blob.content = static_cast<const void*>(new_copy);
         }
-
         return this_point;
-    }
-
-    ~copy_point()
-    {
-        if(this_point.type == qdb_query_result_blob)
-        {
-            delete[] static_cast<const char*>(this_point.payload.blob.content);
-        }
-        else if(this_point.type == qdb_query_result_int64)
-        {
-            delete &this_point.payload.int64_.value;
-        }
-        else if (this_point.type == qdb_query_result_double)
-        {
-            delete &this_point.payload.double_.value;
-        }
-        else
-        {
-            delete &this_point.payload.timestamp.value;
-        }
-        delete &this_point.type;
     }
 };
 
@@ -151,10 +127,9 @@ struct copy_column_names
 
 struct copy_table 
 {
-    wrap_qdb_table_result_t _tbl;
-
-    wrap_qdb_table_result_t& operator () (const qdb_table_result_t &that_table)
+    wrap_qdb_table_result_t operator () (const qdb_table_result_t &that_table)
     {
+        wrap_qdb_table_result_t _tbl;
         _tbl.rows_count = that_table.rows_count;
         _tbl.columns_count = that_table.columns_count;
         _tbl.table_name = that_table.table_name.data;
@@ -184,34 +159,6 @@ public:
 %}
 
 // we need these structures defined and accessible in Python
-
-typedef struct
-{
-    qdb_query_result_value_type_t type;
-
-    union {
-        struct
-        {
-            double value;
-        } double_;
-
-        struct
-        {
-            qdb_int_t value;
-        } int64_;
-
-        struct
-        {
-            const void * content;
-            qdb_size_t content_length;
-        } blob;
-
-        struct
-        {
-            qdb_timespec_t value;
-        } timestamp;
-    } payload;
-} qdb_point_result_t;
 
 typedef struct
 {

@@ -206,11 +206,4 @@ enum qdb_duration_t
     qdb_d_default_shard_size = qdb_d_day
 };
 
-typedef enum qdb_query_result_value_type_t
-{
-    qdb_query_result_none = -1,
-    qdb_query_result_double = 0,
-    qdb_query_result_blob = 1,
-    qdb_query_result_int64 = 2,
-    qdb_query_result_timestamp = 3
-} qdb_query_result_value_type_t;
+
