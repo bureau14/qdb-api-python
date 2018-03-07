@@ -1350,6 +1350,18 @@ class Blob(ExpirableEntry):
         if err != impl.error_ok:
             raise chooseError(err)
 
+class QueryExpPythonWrapper() :
+
+    def __init__(self, handle, cpp_object) :
+        self.handle = handle
+        self.py_obj = cpp_object
+        self.scanned_rows_count = cpp_object.scanned_rows_count
+        self.tables_count = cpp_object.tables_count
+        self.tables = cpp_object.tables
+
+    def __del__(self) :
+        type(self.py_obj)
+        impl.release_query_exp(self.handle, self.py_obj)
 
 class Cluster(object):
 
@@ -1677,10 +1689,11 @@ class Cluster(object):
         :raises: Error
         """
         err = qdb_convert.make_error_carrier()
-        result = impl.run_query_exp(self.handle, q, err)
+        cpp_object = impl.run_query_exp(self.handle, q, err)
+        py_wrapper = QueryExpPythonWrapper(self.handle, cpp_object)
         if err.error != impl.error_ok:
             raise chooseError(err.error)
-        return result
+        return py_wrapper
 
     def prefix_get(self, prefix, max_count):
         """

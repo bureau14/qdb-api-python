@@ -221,7 +221,6 @@ wrap_qdb_query_result_t run_query_exp(handle_ptr h, const char *q, error_carrier
     output.scanned_rows_count = res->scanned_rows_count;
     output.tables.resize(output.tables_count);
     std::transform(res->tables, res->tables + res->tables_count, output.tables.begin(), copy_table());
-    qdb_release(*h, res);
     return output;
 }
 
@@ -512,6 +511,11 @@ qdb_size_t qdb_ts_table_row_append(qdb_local_table_t table, const qdb_timespec_t
     qdb_size_t res = 0;
     error->error = qdb_ts_table_row_append(table, timestamp, &res);
     return res;
+}
+
+void qdb_release_query_exp(handle_ptr h, PyObject *res)
+{
+    qdb_release(*h, res);
 }
 
 void qdb_ts_release_local_table(handle_ptr h, qdb_local_table_t table)

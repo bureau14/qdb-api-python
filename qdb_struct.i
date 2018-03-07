@@ -39,25 +39,6 @@ struct wrap_ts_blob_point
     std::string data;
 };
 
-// Avoid Unions below, as it opens a pandora box
-// Repercussions: 
-//      1> In the copy_point functor, we would need to copy payload.blob.content in a heap first, otherwise '=' will do a shallow copy. 
-//         Shallow copy is not prefered here because we call qdb_release after each call to run_query_exp().
-//      2> Since, we just created a memory in heap, we would need custom destructor.
-//      3> Okay, so what? Well, Good luck, telling the compiler how to destroy the Union. 
-// Note: See https://stackoverflow.com/a/3521998/1032917 for a possible (but ugly) solution with union.
-struct wrap_qdb_point_result_t
-{
-    qdb_query_result_value_type_t type;
-    struct 
-    {
-        std::string blob_value;
-        qdb_int_t int_value;
-        double double_value;
-        qdb_timespec_t timestamp_value;
-    } payload;
-};
-
 class wrap_qdb_table_result_t
 {
 public:
@@ -79,7 +60,7 @@ public:
         qdb_error_t err = check_out_of_bounds(r, c);
         if (err != qdb_e_ok) return std::make_pair(err, "");
         if (rows[r][c].type != qdb_query_result_blob) return std::make_pair(qdb_e_incompatible_type, "");
-        return std::make_pair(err, rows[r][c].payload.blob_value);
+        return std::make_pair(err, std::string(static_cast<const char*>(rows[r][c].payload.blob.content), rows[r][c].payload.blob.content_length));
     }
 
     std::pair<qdb_error_t, qdb_int_t> get_payload_int64(qdb_size_t r, qdb_size_t c) const
@@ -87,7 +68,7 @@ public:
         qdb_error_t err = check_out_of_bounds(r, c);
         if (err != qdb_e_ok) return std::make_pair(err, 0);
         if (rows[r][c].type != qdb_query_result_int64) return std::make_pair(qdb_e_incompatible_type, 0);
-        return std::make_pair(err, rows[r][c].payload.int_value);
+        return std::make_pair(err, rows[r][c].payload.int64_.value);
     }
 
     std::pair<qdb_error_t, double> get_payload_double(qdb_size_t r, qdb_size_t c) const
@@ -95,7 +76,7 @@ public:
         qdb_error_t err = check_out_of_bounds(r, c);
         if (err != qdb_e_ok) return std::make_pair(err, 0.0);
         if (rows[r][c].type != qdb_query_result_double) return std::make_pair(qdb_e_incompatible_type, 0.0);
-        return std::make_pair(err, rows[r][c].payload.double_value);
+        return std::make_pair(err, rows[r][c].payload.double_.value);
     }
 
     std::pair<qdb_error_t, qdb_timespec_t> get_payload_timestamp(qdb_size_t r, qdb_size_t c) const
@@ -106,10 +87,10 @@ public:
         zero_ts.tv_nsec = 0;
 
         if (err != qdb_e_ok) return std::make_pair(err, zero_ts);
-        if (rows[r][c].type != qdb_query_result_value_type_t::qdb_query_result_timestamp) return std::make_pair(qdb_e_incompatible_type, zero_ts);
-        return std::make_pair(err, rows[r][c].payload.timestamp_value);
+        if (rows[r][c].type != qdb_query_result_timestamp) return std::make_pair(qdb_e_incompatible_type, zero_ts);
+        return std::make_pair(err, rows[r][c].payload.timestamp.value);
     }
-    
+
     std::string table_name;
     std::vector<std::string> columns_names;
     qdb_size_t columns_count;
@@ -117,31 +98,7 @@ public:
     friend class copy_table;
 
 private:
-    std::vector < std::vector < wrap_qdb_point_result_t > > rows;
-};
-
-struct copy_point 
-{
-    wrap_qdb_point_result_t operator()(const qdb_point_result_t &that_point)
-    {
-        wrap_qdb_point_result_t this_point;
-        this_point.type = that_point.type;
-        switch (this_point.type)
-        {
-            case qdb_query_result_blob:       this_point.payload.blob_value = std::string(static_cast<const char*> (that_point.payload.blob.content),                                                                                                 that_point.payload.blob.content_length);
-                                              break;
-
-            case qdb_query_result_int64 :     this_point.payload.int_value = that_point.payload.int64_.value;
-                                              break;
-
-            case qdb_query_result_double :    this_point.payload.double_value = that_point.payload.double_.value;
-                                              break;
-
-            case qdb_query_result_timestamp : this_point.payload.timestamp_value = that_point.payload.timestamp.value;
-                                              break;
-        }
-        return this_point;
-    }
+    std::vector < std::vector < qdb_point_result_t > > rows;
 };
 
 struct convert_qdb_string_to_std_string
@@ -169,8 +126,7 @@ struct copy_table
         for (qdb_size_t i = 0; i < _tbl.rows_count; ++i)
         {
             _tbl.rows[i].resize(_tbl.columns_count);
-            std::transform(that_table.rows[i], that_table.rows[i] + that_table.columns_count, _tbl.rows[i].begin(),
-                copy_point());
+            std::copy(that_table.rows[i], that_table.rows[i] + that_table.columns_count, _tbl.rows[i].begin());
         }
         return _tbl;
     }
@@ -282,3 +238,14 @@ typedef struct
     qdb_size_t count;
     qdb_ts_timestamp_point result;
 } qdb_ts_timestamp_aggregation_t;
+
+/*
+typedef enum qdb_query_result_value_type_t
+{
+    qdb_query_result_none = -1,
+    qdb_query_result_double = 0,
+    qdb_query_result_blob = 1,
+    qdb_query_result_int64 = 2,
+    qdb_query_result_timestamp = 3
+} qdb_query_result_value_type_t;
+*/
