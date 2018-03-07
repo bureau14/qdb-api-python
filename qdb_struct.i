@@ -45,7 +45,6 @@ struct wrap_ts_blob_point
 struct wrap_qdb_point_result_t
 {
     qdb_query_result_value_type_t type;
-
     struct 
     {
         std::string blob_value;
@@ -53,8 +52,6 @@ struct wrap_qdb_point_result_t
         double double_value;
         qdb_timespec_t timestamp_value;
     } payload;
-
-
 };
 
 class wrap_qdb_table_result_t
@@ -127,27 +124,17 @@ struct copy_point
         this_point.type = that_point.type;
         switch (this_point.type)
         {
-            case qdb_query_result_blob : 
-            {
-                this_point.payload.blob_value = std::string(static_cast<const char*> (that_point.payload.blob.content) ,  that_point.payload.blob.content_length);
-                break;
-            }
-            case qdb_query_result_int64 :
-            {
-                this_point.payload.int_value = that_point.payload.int64_.value;
-                break;
+            case qdb_query_result_blob:       this_point.payload.blob_value = std::string(static_cast<const char*> (that_point.payload.blob.content),                                                                                                 that_point.payload.blob.content_length);
+                                              break;
 
-            }
-            case qdb_query_result_double :
-            {
-                this_point.payload.double_value = that_point.payload.double_.value;
-                break;
-            }
-            case qdb_query_result_timestamp :
-            {
-                this_point.payload.timestamp_value = that_point.payload.timestamp.value;
-                break;
-            }
+            case qdb_query_result_int64 :     this_point.payload.int_value = that_point.payload.int64_.value;
+                                              break;
+
+            case qdb_query_result_double :    this_point.payload.double_value = that_point.payload.double_.value;
+                                              break;
+
+            case qdb_query_result_timestamp : this_point.payload.timestamp_value = that_point.payload.timestamp.value;
+                                              break;
         }
         return this_point;
     }
