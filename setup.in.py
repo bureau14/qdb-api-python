@@ -60,7 +60,9 @@ if is_freebsd:
 else:
     qdb_libraries = ['qdb_api']
 
-package_modules = glob.glob(os.path.join('qdb', '@QDB_PYTHON_LIBRARY_GLOB@'))
+package_modules = glob.glob(os.path.join('@CMAKE_SOURCE_DIR@', 'qdb', '@QDB_PYTHON_LIBRARY_GLOB@'))
+if is_osx:
+    package_modules.extend(glob.glob(os.path.join('@CMAKE_SOURCE_DIR@', 'qdb', 'lib', '@SHARED_LIBRARY_EXTENSIONS@')))
 
 package_name = 'quasardb'
 
@@ -137,7 +139,9 @@ setup(name=package_name,
           os.path.basename(mod) for mod in package_modules]},
       include_package_data=True,
       ext_modules=[Extension(
-          'quasardb._qdb', [os.path.join('src', 'qdb_python_wrapper.cxx'), os.path.join('src', 'memcpy_wrap.cxx')],
+          'quasardb._qdb', [
+              os.path.join('src', 'qdb_python_wrapper.cxx'),
+              os.path.join('src', 'memcpy_wrap.cxx')],
           include_dirs=['include'],
           library_dirs=[package_name],
           libraries=qdb_libraries,
