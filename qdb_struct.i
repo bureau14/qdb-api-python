@@ -39,9 +39,13 @@ struct wrap_ts_blob_point
     std::string data;
 };
 
-//Space unoptimized as using union was creating problem while copying payload.blob.content
-//Had to copy the blob.content in a heap which was fine until the time came to destruct the heap allocated
-//memory in destructor. For some reasons the destructor was called twice and the program crashed.
+// Avoid Unions below, as it opens a pandora box
+// Repercussions: 
+//      1> In the copy_point functor, we would need to copy payload.blob.content in a heap first, otherwise '=' will do a shallow copy. 
+//         Shallow copy is not prefered here because we call qdb_release after each call to run_query_exp().
+//      2> Since, we just created a memory in heap, we would need custom destructor.
+//      3> Okay, so what? Well, Good luck, telling the compiler how to destroy the Union. 
+// Note: See https://stackoverflow.com/a/3521998/1032917 for a possible (but ugly) solution with union.
 struct wrap_qdb_point_result_t
 {
     qdb_query_result_value_type_t type;
@@ -142,7 +146,7 @@ struct copy_point
 
 struct convert_qdb_string_to_std_string
 {
-    std::string operator() (const qdb_string_t &str)
+    std::string operator()(const qdb_string_t &str)
     {
         return std::string(str.data);
     }
@@ -150,7 +154,7 @@ struct convert_qdb_string_to_std_string
 
 struct copy_table 
 {
-    wrap_qdb_table_result_t operator () (const qdb_table_result_t &that_table)
+    wrap_qdb_table_result_t operator()(const qdb_table_result_t &that_table)
     {
         wrap_qdb_table_result_t _tbl;
         _tbl.rows_count = that_table.rows_count;
