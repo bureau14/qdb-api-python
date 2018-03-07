@@ -221,7 +221,6 @@ wrap_qdb_query_result_t run_query_exp(handle_ptr h, const char *q, error_carrier
     output.scanned_rows_count = res->scanned_rows_count;
     output.tables.resize(output.tables_count);
     std::transform(res->tables, res->tables + res->tables_count, output.tables.begin(), copy_table());
-
     qdb_release(*h, res);
     return output;
 }

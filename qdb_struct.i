@@ -39,10 +39,27 @@ struct wrap_ts_blob_point
     std::string data;
 };
 
+//Space unoptimized as using union was creating problem while copying payload.blob.content
+//Had to copy the blob.content in a heap which was fine until the time came to destruct the heap allocated
+//memory in destructor. For some reasons the destructor was called twice and the program crashed.
+struct wrap_qdb_point_result_t
+{
+    qdb_query_result_value_type_t type;
+
+    struct 
+    {
+        std::string blob_value;
+        qdb_int_t int_value;
+        double double_value;
+        qdb_timespec_t timestamp_value;
+    } payload;
+
+
+};
+
 class wrap_qdb_table_result_t
 {
 public:
-
     qdb_error_t check_out_of_bounds(qdb_size_t r, qdb_size_t c) const
     {
         if (r >= 0 && c >= 0 && r < rows_count && c < columns_count) return qdb_e_ok;
@@ -59,25 +76,25 @@ public:
     std::pair<qdb_error_t, std::string> get_payload_blob(qdb_size_t r, qdb_size_t c) const
     {
         qdb_error_t err = check_out_of_bounds(r, c);
-        if(err != qdb_e_ok) return std::make_pair(err, "");
-        if(rows[r][c].type != qdb_query_result_blob) return std::make_pair(qdb_e_incompatible_type, "");
-        return std::make_pair(err, std::string(static_cast<const char *> (rows[r][c].payload.blob.content), rows[r][c].payload.blob.content_length));
+        if (err != qdb_e_ok) return std::make_pair(err, "");
+        if (rows[r][c].type != qdb_query_result_blob) return std::make_pair(qdb_e_incompatible_type, "");
+        return std::make_pair(err, rows[r][c].payload.blob_value);
     }
 
     std::pair<qdb_error_t, qdb_int_t> get_payload_int64(qdb_size_t r, qdb_size_t c) const
     {
         qdb_error_t err = check_out_of_bounds(r, c);
-        if(err != qdb_e_ok) return std::make_pair(err, 0);
-        if(rows[r][c].type != qdb_query_result_int64) return std::make_pair(qdb_e_incompatible_type, 0);
-        return std::make_pair(err, rows[r][c].payload.int64_.value);
+        if (err != qdb_e_ok) return std::make_pair(err, 0);
+        if (rows[r][c].type != qdb_query_result_int64) return std::make_pair(qdb_e_incompatible_type, 0);
+        return std::make_pair(err, rows[r][c].payload.int_value);
     }
 
     std::pair<qdb_error_t, double> get_payload_double(qdb_size_t r, qdb_size_t c) const
     {
         qdb_error_t err = check_out_of_bounds(r, c);
-        if(err != qdb_e_ok) return std::make_pair(err, 0.0);
-        if(rows[r][c].type != qdb_query_result_double) return std::make_pair(qdb_e_incompatible_type, 0.0);
-        return std::make_pair(err, rows[r][c].payload.double_.value);
+        if (err != qdb_e_ok) return std::make_pair(err, 0.0);
+        if (rows[r][c].type != qdb_query_result_double) return std::make_pair(qdb_e_incompatible_type, 0.0);
+        return std::make_pair(err, rows[r][c].payload.double_value);
     }
 
     std::pair<qdb_error_t, qdb_timespec_t> get_payload_timestamp(qdb_size_t r, qdb_size_t c) const
@@ -87,37 +104,56 @@ public:
         zero_ts.tv_sec = 0;
         zero_ts.tv_nsec = 0;
 
-        if(err != qdb_e_ok) return std::make_pair(err, zero_ts);
-        if(rows[r][c].type != qdb_query_result_value_type_t::qdb_query_result_timestamp) return std::make_pair(qdb_e_incompatible_type, zero_ts);
-        return std::make_pair(err, rows[r][c].payload.timestamp.value);
+        if (err != qdb_e_ok) return std::make_pair(err, zero_ts);
+        if (rows[r][c].type != qdb_query_result_value_type_t::qdb_query_result_timestamp) return std::make_pair(qdb_e_incompatible_type, zero_ts);
+        return std::make_pair(err, rows[r][c].payload.timestamp_value);
     }
-
+    
     std::string table_name;
     std::vector<std::string> columns_names;
     qdb_size_t columns_count;
     qdb_size_t rows_count;
-    std::vector < std::vector < qdb_point_result_t > > rows;
+    friend class copy_table;
+
+private:
+    std::vector < std::vector < wrap_qdb_point_result_t > > rows;
 };
 
 struct copy_point 
 {
-    qdb_point_result_t operator()(const qdb_point_result_t &that_point)
+    wrap_qdb_point_result_t operator()(const qdb_point_result_t &that_point)
     {
-        qdb_point_result_t this_point;
-        this_point = that_point;
-
-        if (that_point.type == qdb_query_result_blob)
+        wrap_qdb_point_result_t this_point;
+        this_point.type = that_point.type;
+        switch (this_point.type)
         {
-            qdb_size_t len = that_point.payload.blob.content_length;
-            char *new_copy = new char[len];
-            std::memcpy(static_cast<void*> (new_copy), that_point.payload.blob.content, len);
-            this_point.payload.blob.content = static_cast<const void*>(new_copy);
+            case qdb_query_result_blob : 
+            {
+                this_point.payload.blob_value = std::string(static_cast<const char*> (that_point.payload.blob.content) ,  that_point.payload.blob.content_length);
+                break;
+            }
+            case qdb_query_result_int64 :
+            {
+                this_point.payload.int_value = that_point.payload.int64_.value;
+                break;
+
+            }
+            case qdb_query_result_double :
+            {
+                this_point.payload.double_value = that_point.payload.double_.value;
+                break;
+            }
+            case qdb_query_result_timestamp :
+            {
+                this_point.payload.timestamp_value = that_point.payload.timestamp.value;
+                break;
+            }
         }
         return this_point;
     }
 };
 
-struct copy_column_names
+struct convert_qdb_string_to_std_string
 {
     std::string operator() (const qdb_string_t &str)
     {
@@ -135,7 +171,7 @@ struct copy_table
         _tbl.table_name = that_table.table_name.data;
         _tbl.columns_names.resize(_tbl.columns_count);
 
-        std::transform(that_table.columns_names, that_table.columns_names + that_table.columns_count, _tbl.columns_names.begin(), copy_column_names());
+        std::transform(that_table.columns_names, that_table.columns_names + that_table.columns_count, _tbl.columns_names.begin(), convert_qdb_string_to_std_string());
 
         _tbl.rows.resize(_tbl.rows_count);
 
@@ -152,6 +188,7 @@ struct copy_table
 class wrap_qdb_query_result_t
 {
 public:
+    wrap_qdb_query_result_t() {}
     std::vector <wrap_qdb_table_result_t> tables;
     qdb_size_t tables_count, scanned_rows_count;
 };

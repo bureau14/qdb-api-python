@@ -205,5 +205,3 @@ enum qdb_duration_t
 
     qdb_d_default_shard_size = qdb_d_day
 };
-
-
