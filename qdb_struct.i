@@ -239,7 +239,7 @@ typedef struct
     qdb_ts_timestamp_point result;
 } qdb_ts_timestamp_aggregation_t;
 
-/*
+
 typedef enum qdb_query_result_value_type_t
 {
     qdb_query_result_none = -1,
@@ -248,4 +248,4 @@ typedef enum qdb_query_result_value_type_t
     qdb_query_result_int64 = 2,
     qdb_query_result_timestamp = 3
 } qdb_query_result_value_type_t;
-*/
+

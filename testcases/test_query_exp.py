@@ -105,8 +105,8 @@ class QuasardbQueryExpWithDoubles(unittest.TestCase):
         res = settings.cluster.query_exp("select * from " + helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
         self.trivial_test(helper, len(inserted_double_data), res, len(inserted_double_data), 5) #Column count is 5, because, uninit, int64, blob, timestamp, double
         for rc in range(res.tables[0].rows_count) :
-            self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(rc,0)[1]), inserted_double_data[rc][0])
-            self.assertEqual(res.tables[0].get_payload_double(rc, 1)[1], inserted_double_data[rc][1])
+            self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload(rc,0)[1]), inserted_double_data[rc][0])
+            self.assertEqual(res.tables[0].get_payload(rc, 1)[1], inserted_double_data[rc][1])
 
     def test_returns_inserted_data_with_star_select_and_tag_lookup(self) :
         helper, inserted_double_data = self.generate_ts_with_double_points()
@@ -115,8 +115,8 @@ class QuasardbQueryExpWithDoubles(unittest.TestCase):
         res = settings.cluster.query_exp("select * from find(tag = " + '"' + tag_name + '")' + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
         self.trivial_test(helper, len(inserted_double_data), res, len(inserted_double_data), 5) #Column count is 5, because, uninit, int64, blob, timestamp, double
         for rc in range(res.tables[0].rows_count) :
-            self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(rc,0)[1]), inserted_double_data[rc][0])
-            self.assertEqual(res.tables[0].get_payload_double(rc, 1)[1], inserted_double_data[rc][1])
+            self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload(rc,0)[1]), inserted_double_data[rc][0])
+            self.assertEqual(res.tables[0].get_payload(rc, 1)[1], inserted_double_data[rc][1])
 
     def test_returns_inserted_data_with_column_select(self) :
         helper,inserted_double_data = self.generate_ts_with_double_points()
@@ -124,8 +124,8 @@ class QuasardbQueryExpWithDoubles(unittest.TestCase):
         self.trivial_test(helper, len(inserted_double_data), res, len(inserted_double_data), 2)
         self.assertEqual(res.tables[0].columns_names[1], helper.double_column_name)
         for rc in range(res.tables[0].rows_count) :
-            self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(rc,0)[1]), inserted_double_data[rc][0])
-            self.assertEqual(res.tables[0].get_payload_double(rc, 1)[1], inserted_double_data[rc][1])
+            self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload(rc,0)[1]), inserted_double_data[rc][0])
+            self.assertEqual(res.tables[0].get_payload(rc, 1)[1], inserted_double_data[rc][1])
 
     def test_returns_inserted_data_twice_with_double_column_select(self) :
         helper,inserted_double_data = self.generate_ts_with_double_points()
@@ -133,9 +133,9 @@ class QuasardbQueryExpWithDoubles(unittest.TestCase):
         self.trivial_test(helper, len(inserted_double_data), res, len(inserted_double_data), 3)
         self.assertEqual(res.tables[0].columns_names[1], helper.double_column_name)
         for rc in range(res.tables[0].rows_count) :
-            self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(rc,0)[1]), inserted_double_data[rc][0])
-            self.assertEqual(res.tables[0].get_payload_double(rc, 1)[1], inserted_double_data[rc][1])
-            self.assertEqual(res.tables[0].get_payload_double(rc, 2)[1], inserted_double_data[rc][1]) 
+            self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload(rc,0)[1]), inserted_double_data[rc][0])
+            self.assertEqual(res.tables[0].get_payload(rc, 1)[1], inserted_double_data[rc][1])
+            self.assertEqual(res.tables[0].get_payload(rc, 2)[1], inserted_double_data[rc][1]) 
 
     def test_returns_sum_with_sum_select(self) :
         helper, inserted_double_data = self.generate_ts_with_double_points()
@@ -143,7 +143,7 @@ class QuasardbQueryExpWithDoubles(unittest.TestCase):
         self.trivial_test(helper, len(inserted_double_data), res, 1, 2)
         self.assertEqual(res.tables[0].columns_names[1], "sum(" + helper.double_column_name + ")")
         expected_sum = 10.0 * (10.0 + 1.0) / 2.0
-        self.assertEqual(expected_sum, res.tables[0].get_payload_double(0,1)[1])
+        self.assertEqual(expected_sum, res.tables[0].get_payload(0,1)[1])
 
     def test_returns_sum_with_sum_divided_by_count_select(self) :
         helper,inserted_double_data = self.generate_ts_with_double_points()
@@ -151,21 +151,21 @@ class QuasardbQueryExpWithDoubles(unittest.TestCase):
         self.trivial_test(helper, 2 * len(inserted_double_data), res, 1, 2)
         self.assertEqual(res.tables[0].columns_names[1],"(sum(" + helper.double_column_name + ")/count(" + helper.double_column_name + "))")
         expected_avg = (10.0 * (10.0 + 1.0)) / (10.0 * 2.0)
-        self.assertEqual(expected_avg, res.tables[0].get_payload_double(0,1)[1])
+        self.assertEqual(expected_avg, res.tables[0].get_payload(0,1)[1])
 
     def test_returns_max_minus_min_select(self) :
         helper , inserted_double_data = self.generate_ts_with_double_points()
         res = settings.cluster.query_exp("select max(" + helper.double_column_name + ") - min(" + helper.double_column_name + ") from " + helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
         self.trivial_test(helper, len(inserted_double_data) * 2.0, res, 1, 2)
         self.assertEqual(res.tables[0].columns_names[1], "(max(" + helper.double_column_name + ")-min(" + helper.double_column_name + "))")
-        self.assertEqual(10.0 - 1.0, res.tables[0].get_payload_double(0,1)[1])
+        self.assertEqual(10.0 - 1.0, res.tables[0].get_payload(0,1)[1])
 
     def test_returns_max_minus_1_select(self) :
         helper , inserted_double_data = self.generate_ts_with_double_points()
         res = settings.cluster.query_exp("select max(" + helper.double_column_name + ") - 1 from " + helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
         self.trivial_test(helper, len(inserted_double_data), res, 1, 2)
         self.assertEqual(res.tables[0].columns_names[1], "(max(" + helper.double_column_name + ")-1)")
-        self.assertEqual(10.0 - 1.0, res.tables[0].get_payload_double(0,1)[1])
+        self.assertEqual(10.0 - 1.0, res.tables[0].get_payload(0,1)[1])
 
     def test_returns_max_and_scalar_1_select(self) :
         helper , inserted_double_data = self.generate_ts_with_double_points()
@@ -174,12 +174,12 @@ class QuasardbQueryExpWithDoubles(unittest.TestCase):
         self.assertEqual(res.tables[0].columns_names[1], "max(" + helper.double_column_name + ")")
         self.assertEqual(res.tables[0].columns_names[2], "1")
 
-        self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(0,0)[1]), datetime.datetime(1970, 1, 1, 0, 0,  tzinfo=pytz.UTC))
-        self.assertTrue(math.isnan(res.tables[0].get_payload_double(0, 1)[1]))
-        self.assertEqual(res.tables[0].get_payload_int64(0, 2)[1], 1)
-        self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(1,0)[1]), inserted_double_data[len(inserted_double_data) - 1][0])
-        self.assertEqual(res.tables[0].get_payload_double(1,1)[1], inserted_double_data[len(inserted_double_data) - 1][1])
-        self.assertEqual(res.tables[0].get_payload_int64(1, 2)[1], 0)
+        self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload(0,0)[1]), datetime.datetime(1970, 1, 1, 0, 0,  tzinfo=pytz.UTC))
+        self.assertTrue(math.isnan(res.tables[0].get_payload(0, 1)[1]))
+        self.assertEqual(res.tables[0].get_payload(0, 2)[1], 1)
+        self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload(1,0)[1]), inserted_double_data[len(inserted_double_data) - 1][0])
+        self.assertEqual(res.tables[0].get_payload(1,1)[1], inserted_double_data[len(inserted_double_data) - 1][1])
+        self.assertEqual(res.tables[0].get_payload(1, 2)[1], 0)
 
     def test_returns_inserted_multi_data_with_star_select(self) :
         helper , inserted_double_data = self.generate_ts_with_double_points()
@@ -195,11 +195,11 @@ class QuasardbQueryExpWithDoubles(unittest.TestCase):
         self.trivial_test(helper, 4 * len(inserted_double_data), res, len(inserted_double_data), 5) #Column count is 5, because, uninit, int64, blob, timestamp, double
 
         for rc in range(res.tables[0].rows_count) :
-            self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(rc,0)[1]), inserted_double_data[rc][0])
-            self.assertEqual(res.tables[0].get_payload_double(rc, 1)[1], inserted_double_data[rc][1])
-            self.assertEqual(res.tables[0].get_payload_blob(rc, 2)[1], inserted_blob_data[rc][1])
-            self.assertEqual(res.tables[0].get_payload_int64(rc, 3)[1], inserted_int64_data[rc][1])
-            self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload_timestamp(rc,4)[1]), inserted_timestamp_data[rc][1])
+            self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload(rc,0)[1]), inserted_double_data[rc][0])
+            self.assertEqual(res.tables[0].get_payload(rc, 1)[1], inserted_double_data[rc][1])
+            self.assertEqual(res.tables[0].get_payload(rc, 2)[1], inserted_blob_data[rc][1])
+            self.assertEqual(res.tables[0].get_payload(rc, 3)[1], inserted_int64_data[rc][1])
+            self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload(rc,4)[1]), inserted_timestamp_data[rc][1])
 
 if __name__ == '__main__':
     if settings.get_lock_status() == False :

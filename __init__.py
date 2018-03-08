@@ -1350,18 +1350,52 @@ class Blob(ExpirableEntry):
         if err != impl.error_ok:
             raise chooseError(err)
 
+"""
+    This class works as a wrapper to a returned cpp_object in query_exp. 
+    It was needed primarily to reuse the union data type of the qdb_point_result_t.
+"""
 class QueryExpPythonWrapper() :
+
+    """
+        This class is needed to combine all different get_payload methods into one 
+        single get_payload method
+    """
+    class QueryExpTable() :
+        def __init__ (self, table) :
+            self.captured_cpp_table_object = table
+            self.table_name = table.table_name
+            self.columns_names = table.columns_names
+            self.rows_count = table.rows_count
+            self.columns_count = table.columns_count
+
+        def get_payload(self, row_index, col_index) :
+            result = self.captured_cpp_table_object.get_type(row_index, col_index)
+            err = result[0]
+            payload_type = result[1]
+            if err != impl.error_ok :
+                return [err, payload_type]
+            if payload_type == impl.qdb_query_result_double :
+                return self.captured_cpp_table_object.get_payload_double(row_index, col_index)
+            if payload_type == impl.qdb_query_result_blob :
+                return self.captured_cpp_table_object.get_payload_blob(row_index, col_index)
+            if payload_type == impl.qdb_query_result_int64 :
+                return self.captured_cpp_table_object.get_payload_int64(row_index, col_index)
+            if payload_type == impl.qdb_query_result_timestamp :
+                return self.captured_cpp_table_object.get_payload_timestamp(row_index, col_index)
+
 
     def __init__(self, handle, cpp_object) :
         self.handle = handle
-        self.py_obj = cpp_object
+        self.captured_cpp_query_result_object = cpp_object
         self.scanned_rows_count = cpp_object.scanned_rows_count
         self.tables_count = cpp_object.tables_count
-        self.tables = cpp_object.tables
+        self.tables = [self.QueryExpTable(table) for table in cpp_object.tables]
 
+    """
+        Here we do a qdb_release of the captured cpp_object resource.
+    """
     def __del__(self) :
-        type(self.py_obj)
-        impl.release_query_exp(self.handle, self.py_obj)
+        impl.release_query_exp(self.handle, self.captured_cpp_query_result_object)
 
 class Cluster(object):
 
