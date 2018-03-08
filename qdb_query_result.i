@@ -139,7 +139,7 @@ private:
 
 
 
-    typedef wrap_qdb_query_result_t * wrap_qdb_query_result_ptr;
+typedef wrap_qdb_query_result_t * wrap_qdb_query_result_ptr;
 
 %}
 
