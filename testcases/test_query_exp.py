@@ -77,11 +77,11 @@ class QuasardbQueryExpErrorCodeCheck(unittest.TestCase):
         helper = TsHelper()
         self.assertRaises(quasardb.OperationError, settings.cluster.query_exp, "select " +non_existing_column+  " from " + helper.entry_name + " in range(2017, +10d)")
 
-class QuasardbQueryExpWithDoubles(unittest.TestCase):
+class QuasardbQueryExp(unittest.TestCase):
 
-    def generate_ts_with_double_points(self) :
+    def generate_ts_with_double_points(self, points = 10) :
         helper = TsHelper()
-        inserted_double_data = tslib._generate_double_ts(helper.start_time, 1.0, 10)
+        inserted_double_data = tslib._generate_double_ts(helper.start_time, 1.0, points)
         helper.double_col.insert(inserted_double_data)
         return helper , inserted_double_data
 

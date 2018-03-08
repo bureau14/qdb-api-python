@@ -1354,7 +1354,7 @@ class Blob(ExpirableEntry):
     This class works as a wrapper to a returned cpp_object in query_exp. 
     It was needed primarily to reuse the union data type of the qdb_point_result_t.
 """
-class QueryExpPythonWrapper() :
+class QueryExpResult() :
 
     """
         This class is needed to combine all different get_payload methods into one 
@@ -1384,18 +1384,14 @@ class QueryExpPythonWrapper() :
                 return self.captured_cpp_table_object.get_payload_timestamp(row_index, col_index)
 
 
-    def __init__(self, handle, cpp_object) :
-        self.handle = handle
+    def __init__(self, cpp_object) :
         self.captured_cpp_query_result_object = cpp_object
         self.scanned_rows_count = cpp_object.scanned_rows_count
         self.tables_count = cpp_object.tables_count
         self.tables = [self.QueryExpTable(table) for table in cpp_object.tables]
 
-    """
-        Here we do a qdb_release of the captured cpp_object resource.
-    """
-    def __del__(self) :
-        impl.release_query_exp(self.handle, self.captured_cpp_query_result_object)
+    def __del__(self):
+        impl.delete_wrap_qdb_query_result(self.captured_cpp_query_result_object)
 
 class Cluster(object):
 
@@ -1724,10 +1720,9 @@ class Cluster(object):
         """
         err = qdb_convert.make_error_carrier()
         cpp_object = impl.run_query_exp(self.handle, q, err)
-        py_wrapper = QueryExpPythonWrapper(self.handle, cpp_object)
         if err.error != impl.error_ok:
             raise chooseError(err.error)
-        return py_wrapper
+        return QueryExpResult(cpp_object)
 
     def prefix_get(self, prefix, max_count):
         """

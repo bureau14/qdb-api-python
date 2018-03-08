@@ -56,6 +56,7 @@ typedef struct qdb_local_table_internal * qdb_local_table_t;
 
 %include "qdb_enum.i"
 %include "qdb_struct.i"
+%include "qdb_query_result.i"
 
 %template(StringVec) std::vector<std::string>;
 %template(RangeVec) std::vector<qdb_ts_range_t>;
