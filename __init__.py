@@ -1350,6 +1350,48 @@ class Blob(ExpirableEntry):
         if err != impl.error_ok:
             raise chooseError(err)
 
+"""
+    This class works as a wrapper to a returned cpp_object in query_exp. 
+    It was needed primarily to reuse the union data type of the qdb_point_result_t.
+"""
+class QueryExpResult() :
+
+    """
+        This class is needed to combine all different get_payload methods into one 
+        single get_payload method
+    """
+    class QueryExpTable() :
+        def __init__ (self, table) :
+            self.captured_cpp_table_object = table
+            self.table_name = table.table_name
+            self.columns_names = table.columns_names
+            self.rows_count = table.rows_count
+            self.columns_count = table.columns_count
+
+        def get_payload(self, row_index, col_index) :
+            result = self.captured_cpp_table_object.get_type(row_index, col_index)
+            err = result[0]
+            payload_type = result[1]
+            if err != impl.error_ok :
+                return [err, payload_type]
+            if payload_type == impl.qdb_query_result_double :
+                return self.captured_cpp_table_object.get_payload_double(row_index, col_index)
+            if payload_type == impl.qdb_query_result_blob :
+                return self.captured_cpp_table_object.get_payload_blob(row_index, col_index)
+            if payload_type == impl.qdb_query_result_int64 :
+                return self.captured_cpp_table_object.get_payload_int64(row_index, col_index)
+            if payload_type == impl.qdb_query_result_timestamp :
+                return self.captured_cpp_table_object.get_payload_timestamp(row_index, col_index)
+
+
+    def __init__(self, cpp_object) :
+        self.captured_cpp_query_result_object = cpp_object
+        self.scanned_rows_count = cpp_object.scanned_rows_count
+        self.tables_count = cpp_object.tables_count
+        self.tables = [self.QueryExpTable(table) for table in cpp_object.tables]
+
+    def __del__(self):
+        impl.delete_wrap_qdb_query_result(self.captured_cpp_query_result_object)
 
 class Cluster(object):
 
@@ -1665,6 +1707,22 @@ class Cluster(object):
         if err.error != impl.error_ok:
             raise chooseError(err.error)
         return result
+
+    def query_exp(self, q) :
+        """
+        Retrieves all entries' aliases that match the specified query expression.
+        :param q: the query expression to run
+        :type q: str
+
+        :returns: A list of tables which matched the query expression. If no match is found, returns an empty list.
+
+        :raises: Error
+        """
+        err = qdb_convert.make_error_carrier()
+        cpp_object = impl.run_query_exp(self.handle, q, err)
+        if err.error != impl.error_ok:
+            raise chooseError(err.error)
+        return QueryExpResult(cpp_object)
 
     def prefix_get(self, prefix, max_count):
         """

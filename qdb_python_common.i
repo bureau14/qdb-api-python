@@ -17,7 +17,7 @@
 
 %include "std_string.i"
 %include "std_vector.i"
-
+%include "std_pair.i"
 %include <std_shared_ptr.i>
 
 %shared_ptr(qdb::api_buffer)
@@ -56,6 +56,7 @@ typedef struct qdb_local_table_internal * qdb_local_table_t;
 
 %include "qdb_enum.i"
 %include "qdb_struct.i"
+%include "qdb_query_result.i"
 
 %template(StringVec) std::vector<std::string>;
 %template(RangeVec) std::vector<qdb_ts_range_t>;
@@ -69,6 +70,14 @@ typedef struct qdb_local_table_internal * qdb_local_table_t;
 %template(BlobAggVec) std::vector<qdb_ts_blob_aggregation_t>;
 %template(DoubleAggVec) std::vector<qdb_ts_double_aggregation_t>;
 %template(TSColsVec) std::vector<wrap_ts_column>;
+%template(TableResultVec) std::vector<wrap_qdb_table_result_t>;
+%template(QueryPointResultVec) std::vector<qdb_point_result_t>;
+%template(QueryPointResultVecofVec) std::vector< std::vector<qdb_point_result_t> >;
+%template(PairErrorResultType) std::pair<qdb_error_t, qdb_query_result_value_type_t>;
+%template(PairErrorString) std::pair<qdb_error_t, std::string>;
+%template(PairErrorInt64) std::pair<qdb_error_t, qdb_int_t>;
+%template(PairErrorDouble) std::pair<qdb_error_t, double>;
+%template(PairErrorTimespec) std::pair<qdb_error_t, qdb_timespec_t>;
 
 %rename(version) qdb_version;
 const char * qdb_version();

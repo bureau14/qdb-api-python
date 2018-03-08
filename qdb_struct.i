@@ -42,6 +42,7 @@ struct wrap_ts_blob_point
 %}
 
 // we need these structures defined and accessible in Python
+
 typedef struct
 {
     qdb_time_t tv_sec;
@@ -136,3 +137,14 @@ typedef struct
     qdb_size_t count;
     qdb_ts_timestamp_point result;
 } qdb_ts_timestamp_aggregation_t;
+
+
+typedef enum qdb_query_result_value_type_t
+{
+    qdb_query_result_none = -1,
+    qdb_query_result_double = 0,
+    qdb_query_result_blob = 1,
+    qdb_query_result_int64 = 2,
+    qdb_query_result_timestamp = 3
+} qdb_query_result_value_type_t;
+
