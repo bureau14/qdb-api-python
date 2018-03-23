@@ -63,6 +63,13 @@ Using *quasardb* starts with a Cluster:
 
         c = quasardb.Cluster('qdb://127.0.0.1:2836')
 
+You can also establish a secure connection in case your cluster is set up for that:
+
+.. code:: python
+        c = quasardb.Cluster(uri='qdb://127.0.0.1:2836',
+                             user_name='qdbuser',
+                             user_private_key='/var/lib/qdb/user_private.key')
+
 Now that we have a connection to the cluster, let's store some binary
 data:
 
