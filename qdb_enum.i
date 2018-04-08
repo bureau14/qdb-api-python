@@ -29,69 +29,131 @@ typedef enum
 
 #define QDB_FAILURE(x)              (!QDB_SUCCESS(x))
 
-typedef enum
+typedef enum qdb_error_t
 {
+    //! Success.
     qdb_e_ok = 0,
 
     // ------------------------------------------------------------------------------------------------------
     //  error name                      = origin                     | severity                     | code
     // ------------------------------------------------------------------------------------------------------
+    //! Uninitialized error.
     qdb_e_uninitialized                 = qdb_e_origin_input         | qdb_e_severity_unrecoverable | 0xFFFF,
+    //! Entry alias/key was not found.
     qdb_e_alias_not_found               = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0008,
+    //! Entry alias/key already exists.
     qdb_e_alias_already_exists          = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0009,
+    //! Index out of bounds.
     qdb_e_out_of_bounds                 = qdb_e_origin_input         | qdb_e_severity_warning       | 0x0019,
+    //! Skipped operation. Used in batches and transactions.
     qdb_e_skipped                       = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0021,
+    //! Entry or column is incompatible with the operation.
     qdb_e_incompatible_type             = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0022,
+    //! Container is empty.
     qdb_e_container_empty               = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0023,
+    //! Container is full.
     qdb_e_container_full                = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0024,
+    //! Element was not found.
     qdb_e_element_not_found             = qdb_e_origin_operation     | qdb_e_severity_info          | 0x0025,
+    //! Element already exists.
     qdb_e_element_already_exists        = qdb_e_origin_operation     | qdb_e_severity_info          | 0x0026,
+    //! Arithmetic operation overflows.
     qdb_e_overflow                      = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0027,
+    //! Arithmetic operation underflows.
     qdb_e_underflow                     = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0028,
+    //! Tag is already set.
     qdb_e_tag_already_set               = qdb_e_origin_operation     | qdb_e_severity_info          | 0x0029,
+    //! Tag is not set.
     qdb_e_tag_not_set                   = qdb_e_origin_operation     | qdb_e_severity_info          | 0x002a,
+    //! Operation timed out.
     qdb_e_timeout                       = qdb_e_origin_connection    | qdb_e_severity_error         | 0x000a,
+    //! Connection was refused.
     qdb_e_connection_refused            = qdb_e_origin_connection    | qdb_e_severity_unrecoverable | 0x000e,
+    //! Connection was reset.
     qdb_e_connection_reset              = qdb_e_origin_connection    | qdb_e_severity_error         | 0x000f,
+    //! Cluster is unstable.
     qdb_e_unstable_cluster              = qdb_e_origin_connection    | qdb_e_severity_error         | 0x0012,
+    //! Please retry.
     qdb_e_try_again                     = qdb_e_origin_connection    | qdb_e_severity_error         | 0x0017,
+    //! There is another ongoing conflicting operation.
     qdb_e_conflict                      = qdb_e_origin_operation     | qdb_e_severity_error         | 0x001a,
+    //! Handle is not connected.
     qdb_e_not_connected                 = qdb_e_origin_connection    | qdb_e_severity_error         | 0x001b,
+    //! Resource is locked.
     qdb_e_resource_locked               = qdb_e_origin_operation     | qdb_e_severity_error         | 0x002d,
-    // check errno or GetLastError() for actual error
+    //! System error on remote node (server-side).
+    //! Please check `errno` or `GetLastError()` for actual error.
     qdb_e_system_remote                 = qdb_e_origin_system_remote | qdb_e_severity_unrecoverable | 0x0001,
+    //! System error on local system (client-side).
+    //! Please check `errno` or `GetLastError()` for actual error.
     qdb_e_system_local                  = qdb_e_origin_system_local  | qdb_e_severity_unrecoverable | 0x0001,
-
+    //! Internal error on remote node (server-side).
     qdb_e_internal_remote               = qdb_e_origin_system_remote | qdb_e_severity_unrecoverable | 0x0002,
+    //! Internal error on local system (client-side).
     qdb_e_internal_local                = qdb_e_origin_system_local  | qdb_e_severity_unrecoverable | 0x0002,
+    //! No memory on remote node (server-side).
     qdb_e_no_memory_remote              = qdb_e_origin_system_remote | qdb_e_severity_unrecoverable | 0x0003,
+    //! No memory on local system (client-side).
     qdb_e_no_memory_local               = qdb_e_origin_system_local  | qdb_e_severity_unrecoverable | 0x0003,
+    //! Protocol is invalid.
     qdb_e_invalid_protocol              = qdb_e_origin_protocol      | qdb_e_severity_unrecoverable | 0x0004,
+    //! Host was not found.
     qdb_e_host_not_found                = qdb_e_origin_connection    | qdb_e_severity_error         | 0x0005,
+    //! Buffer is too small.
     qdb_e_buffer_too_small              = qdb_e_origin_input         | qdb_e_severity_warning       | 0x000b,
+    //! Operation is not implemented.
     qdb_e_not_implemented               = qdb_e_origin_system_remote | qdb_e_severity_unrecoverable | 0x0011,
+    //! Version is invalid.
     qdb_e_invalid_version               = qdb_e_origin_protocol      | qdb_e_severity_unrecoverable | 0x0016,
+    //! Argument is invalid.
     qdb_e_invalid_argument              = qdb_e_origin_input         | qdb_e_severity_error         | 0x0018,
+    //! Handle is invalid.
     qdb_e_invalid_handle                = qdb_e_origin_input         | qdb_e_severity_error         | 0x001c,
+    //! Alias/key is reserved.
     qdb_e_reserved_alias                = qdb_e_origin_input         | qdb_e_severity_error         | 0x001d,
+    //! Content did not match.
     qdb_e_unmatched_content             = qdb_e_origin_operation     | qdb_e_severity_info          | 0x001e,
+    //! Iterator is invalid.
     qdb_e_invalid_iterator              = qdb_e_origin_input         | qdb_e_severity_error         | 0x001f,
+    //! Entry is too large.
     qdb_e_entry_too_large               = qdb_e_origin_input         | qdb_e_severity_error         | 0x002b,
+    //! Transaction failed partially.
+    //! \warning This may provoke failures until the transaction has not been rolled back.
+    //! \see Cluster configuration parameter `global/cluster/max_transaction_duration`.
     qdb_e_transaction_partial_failure   = qdb_e_origin_operation     | qdb_e_severity_error         | 0x002c,
+    //! Operation has not been enabled in cluster configuration.
     qdb_e_operation_disabled            = qdb_e_origin_operation     | qdb_e_severity_error         | 0x002e,
+    //! Operation is not permitted.
     qdb_e_operation_not_permitted       = qdb_e_origin_operation     | qdb_e_severity_error         | 0x002f,
+    //! Iterator reached the end.
     qdb_e_iterator_end                  = qdb_e_origin_operation     | qdb_e_severity_info          | 0x0030,
+    //! Cluster sent an invalid reply.
     qdb_e_invalid_reply                 = qdb_e_origin_protocol      | qdb_e_severity_unrecoverable | 0x0031,
+    //! Success. A new entry has been created.
     qdb_e_ok_created                    = qdb_e_origin_operation     | qdb_e_severity_info          | 0x0032,
+    //! No more space on disk.
     qdb_e_no_space_left                 = qdb_e_origin_system_remote | qdb_e_severity_unrecoverable | 0x0033,
-    qdb_e_quota_exceeded                = qdb_e_origin_system_remote | qdb_e_severity_error         | 0x0034,
+    //! Disk space quota has been reached.
+    qdb_e_quota_exceeded                = qdb_e_origin_system_remote | qdb_e_severity_unrecoverable | 0x0034,
+    //! Alias is too long.
+    //! \see \ref qdb_l_max_alias_length
     qdb_e_alias_too_long                = qdb_e_origin_input         | qdb_e_severity_error         | 0x0035,
+    //! Cluster nodes have important clock differences.
     qdb_e_clock_skew                    = qdb_e_origin_system_remote | qdb_e_severity_error         | 0x0036,
+    //! Access is denied.
     qdb_e_access_denied                 = qdb_e_origin_operation     | qdb_e_severity_error         | 0x0037,
+    //! Login failed.
     qdb_e_login_failed                  = qdb_e_origin_system_remote | qdb_e_severity_error         | 0x0038,
+    //! Column was not found.
     qdb_e_column_not_found              = qdb_e_origin_operation     | qdb_e_severity_warning       | 0x0039,
+    //! Query is too complex.
     qdb_e_query_too_complex             = qdb_e_origin_operation     | qdb_e_severity_error         | 0x0040,
-    qdb_e_invalid_crypto_key            = qdb_e_origin_input         | qdb_e_severity_error         | 0x0041
+    //! Security key is invalid.
+    qdb_e_invalid_crypto_key            = qdb_e_origin_input         | qdb_e_severity_error         | 0x0041,
+    //! Malformed query
+    qdb_e_invalid_query                 = qdb_e_origin_input         | qdb_e_severity_error         | 0x0042,
+    //! Malformed regex
+    qdb_e_invalid_regex                 = qdb_e_origin_input         | qdb_e_severity_error         | 0x0043
 } qdb_error_t;
 
 typedef qdb_error_t qdb_status_t;
