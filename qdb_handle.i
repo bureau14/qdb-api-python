@@ -77,11 +77,6 @@ public:
     api_buffer_ptr deque_back(const char * alias, qdb_error_t & error);
     qdb_error_t deque_size(const char * alias, qdb_size_t * size);
 
-    // hset
-    qdb_error_t hset_insert(const char * alias, const char * content, size_t content_length);
-    qdb_error_t hset_erase(const char * alias, const char * content, size_t content_length);
-    qdb_error_t hset_contains(const char * alias, const char * content, size_t content_length);
-
     std::vector<std::string> blob_scan(const void * pattern,
                                    qdb_size_t pattern_length,
                                    qdb_int_t max_count,

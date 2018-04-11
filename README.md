@@ -71,16 +71,6 @@ i.add(7)  # i is equal to 10
 i.add(-5) # is equal to 5
 ```
 
-We also provide distributed hash sets:
-
-```python
-hset = c.hset('the_set')
-
-hset.insert('boom')
-
-hset.contains('boom') # True
-```
-
 What about time series you say?
 
 You can create a time series as such:

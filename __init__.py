@@ -494,65 +494,6 @@ class Deque(RemoveableEntry):
             raise chooseError(err.error)
         return res
 
-
-class HSet(RemoveableEntry):
-    """
-    An unlimited, distributed, concurrent hash set.
-    """
-
-    def __init__(self, handle, alias, *args, **kwargs):
-        super(HSet, self).__init__(handle, alias)
-
-    def insert(self, data):
-        """
-        Inserts a new Entry into the hash set.
-        If the hash set does not exist, it will be created.
-
-        :raises: Error
-        """
-        err = self.handle.hset_insert(super(HSet, self).alias(), data)
-        if err != impl.error_ok:
-            raise chooseError(err)
-
-    def erase(self, data):
-        """
-        Erases an existing an Entry from an existing hash set.
-
-        :raises: Error
-        """
-        err = self.handle.hset_erase(super(HSet, self).alias(), data)
-        if err != impl.error_ok:
-            raise chooseError(err)
-
-    def contains(self, data):
-        """
-        Tests if the Entry exists in the hash set.
-        The hash set must exist.
-
-        :raises: Error
-        :returns: True if the Entry exists, false otherwise
-        """
-        err = self.handle.hset_contains(super(HSet, self).alias(), data)
-
-        if err == impl.error_element_not_found:
-            return False
-
-        if err != impl.error_ok:
-            raise chooseError(err)
-
-        return True
-
-    def size(self):  # pylint: disable=R0201
-        """
-        Returns the current size of the hash set.
-
-        :raises: Error
-        :returns: The current size of the hash set.
-        """
-        # TODO(marek): Implement.
-        raise chooseError(impl.error_not_implemented)
-
-
 class TimeSeries(RemoveableEntry):
     """
     An unlimited, distributed, time series with nanosecond granularity
@@ -1554,18 +1495,6 @@ class Cluster(object):
         :returns: The deque named alias
         """
         return Deque(self.handle, alias)
-
-    def hset(self, alias):
-        """
-        Returns an object representing a hash set with the provided alias.
-        The hash set may or may not exist yet.
-
-        :param alias: The alias of the hash set to work on
-        :type alias: str
-
-        :returns: The hash set named alias
-        """
-        return HSet(self.handle, alias)
 
     def ts(self, alias):
         """

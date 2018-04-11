@@ -100,13 +100,3 @@ quasardb comes out of the box with server-side atomic integers:
         i.put(3)  # i is equal to 3
         i.add(7)  # i is equal to 10
         i.add(-5) # is equal to 5
-
-We also provide distributed hash sets:
-
-.. code:: python
-
-        hset = c.hset('the_set')
-
-        hset.insert('boom')
-
-        hset.contains('boom') # True
