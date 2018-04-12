@@ -29,13 +29,13 @@ class TsHelper():
         return
 
     def __del__(self) :
-        return 
+        return
 
     def setUp(self):
         self.entry_name = settings.entry_gen.next()
         self.my_ts = settings.cluster.ts(self.entry_name)
 
-        self.start_time = datetime.datetime.now(quasardb.tz)
+        self.start_time = datetime.datetime(2017, 1, 1, tzinfo=pytz.UTC)
         self.test_intervals = [(self.start_time,
                                 self.start_time + datetime.timedelta(microseconds=1))]
     def _create_ts(self):
@@ -135,7 +135,7 @@ class QuasardbQueryExp(unittest.TestCase):
         for rc in range(res.tables[0].rows_count) :
             self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(res.tables[0].get_payload(rc,0)[1]), inserted_double_data[rc][0])
             self.assertEqual(res.tables[0].get_payload(rc, 1)[1], inserted_double_data[rc][1])
-            self.assertEqual(res.tables[0].get_payload(rc, 2)[1], inserted_double_data[rc][1]) 
+            self.assertEqual(res.tables[0].get_payload(rc, 2)[1], inserted_double_data[rc][1])
 
     def test_returns_sum_with_sum_select(self) :
         helper, inserted_double_data = self.generate_ts_with_double_points()
