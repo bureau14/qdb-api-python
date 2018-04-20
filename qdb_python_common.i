@@ -100,6 +100,15 @@ qdb_error_t qdb_ts_row_set_blob(qdb_local_table_t table,
                                 const void * content,
                                 qdb_size_t content_length);
 
+qdb_error_t qdb_ts_row_set_int64(qdb_local_table_t table,
+                                 qdb_size_t col_index,
+                                 qdb_int_t value);
+
+qdb_error_t qdb_ts_row_set_timestamp(qdb_local_table_t table,
+                                     qdb_size_t col_index,
+                                     const qdb_timespec_t * value);
+
+
 qdb_error_t qdb_ts_push(qdb_local_table_t table);
 
 namespace qdb
