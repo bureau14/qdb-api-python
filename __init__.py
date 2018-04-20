@@ -42,7 +42,8 @@ import numbers
 import quasardb.impl as impl  # pylint: disable=C0413,E0401
 import quasardb.qdb_convert
 
-from quasardb.qdb_enum import Compression, Encryption, ErrorCode, Operation, Options, Protocol, TSAggregation, TSColumnType, TSFilter
+from quasardb.qdb_enum import Compression, Encryption, ErrorCode, Operation, Options, Protocol, \
+    TSAggregation, TSColumnType, TSFilter
 
 tz = qdb_convert.tz
 
@@ -50,6 +51,7 @@ DoublePointsVector = quasardb.qdb_convert.DoublePointsVector
 BlobPointsVector = quasardb.qdb_convert.BlobPointsVector
 Int64PointsVector = quasardb.qdb_convert.Int64PointsVector
 TimestampPointsVector = quasardb.qdb_convert.TimestampPointsVector
+
 
 def make_error_string(error_code):
     """ Returns a meaningful error message corresponding to the quasardb error code.
@@ -494,6 +496,7 @@ class Deque(RemoveableEntry):
             raise chooseError(err.error)
         return res
 
+
 class TimeSeries(RemoveableEntry):
     """
     An unlimited, distributed, time series with nanosecond granularity
@@ -525,18 +528,20 @@ class TimeSeries(RemoveableEntry):
 
             error_carrier = qdb_convert.make_error_carrier()
 
-            if columns == None:
-                self.__table_handle = impl.ts_make_local_table(self.__ts.handle,
-                                                               super(
-                                                                   TimeSeries, self.__ts).alias(),
-                                                               error_carrier)
+            if columns is None:
+                self.__table_handle = impl.ts_make_local_table(
+                    self.__ts.handle,
+                    super(
+                        TimeSeries, self.__ts).alias(),
+                    error_carrier)
             else:
-                self.__table_handle = impl.ts_make_local_table_with_columns(self.__ts.handle,
-                                                                            super(
-                                                                                TimeSeries, self.__ts).alias(),
-                                                                            [impl.wrap_ts_column(
-                                                                                x.name, x.type) for x in columns],
-                                                                            error_carrier)
+                self.__table_handle = impl.ts_make_local_table_with_columns(
+                    self.__ts.handle,
+                    super(
+                        TimeSeries, self.__ts).alias(),
+                    [impl.wrap_ts_column(
+                        x.name, x.type) for x in columns],
+                    error_carrier)
 
             if error_carrier.error != impl.error_ok:
                 raise chooseError(error_carrier.error)
@@ -550,7 +555,8 @@ class TimeSeries(RemoveableEntry):
 
         def fast_append_row(self, timestamp, *args):
             """
-            Appends a row to the local table. The content will not be sent to the cluster until push is called
+            Appends a row to the local table.
+            The content will not be sent to the cluster until push is called
 
             :param timestamp: The timestamp at which to add the row
             :type timestamp: qdb_timespec_t
@@ -565,9 +571,16 @@ class TimeSeries(RemoveableEntry):
 
             for arg in args:
                 if arg != None:
-                    if isinstance(arg, numbers.Real):
+                    if isinstance(arg, numbers.Integral):
+                        err = impl.ts_row_set_int64(
+                            self.__table_handle, col_index, long(arg))
+                    elif isinstance(arg, numbers.Real):
                         err = impl.ts_row_set_double(
                             self.__table_handle, col_index, float(arg))
+                    elif isinstance(arg, datetime.datetime):
+                        err = impl.ts_row_set_timestamp(
+                            self.__table_handle, col_index,
+                            qdb_convert.convert_time_to_qdb_timespec(arg))
                     else:
                         err = impl.ts_row_set_blob(
                             self.__table_handle, col_index, str(arg))
@@ -587,7 +600,8 @@ class TimeSeries(RemoveableEntry):
 
         def append_row(self, timestamp, *args):
             """
-            Appens a row to the local table. The content will not be sent to the cluster until push is called
+            Appends a row to the local table.
+            The content will not be sent to the cluster until push is called
 
             :param timestamp: The timestamp at which to add the row
             :type timestamp: datetime.datetime
@@ -1003,7 +1017,7 @@ class TimeSeries(RemoveableEntry):
                 raise chooseError(error_carrier.error)
 
             return [(qdb_convert.convert_qdb_timespec_to_time(x.timestamp),
-                qdb_convert.convert_qdb_timespec_to_time(x.value)) for x in res]
+                     qdb_convert.convert_qdb_timespec_to_time(x.value)) for x in res]
 
     class BlobColumn(Column):
         """
@@ -1291,48 +1305,54 @@ class Blob(ExpirableEntry):
         if err != impl.error_ok:
             raise chooseError(err)
 
+
 """
-    This class works as a wrapper to a returned cpp_object in query_exp. 
+    This class works as a wrapper to a returned cpp_object in query_exp.
     It was needed primarily to reuse the union data type of the qdb_point_result_t.
 """
-class QueryExpResult() :
+
+
+class QueryExpResult(object):
 
     """
-        This class is needed to combine all different get_payload methods into one 
+        This class is needed to combine all different get_payload methods into one
         single get_payload method
     """
-    class QueryExpTable() :
-        def __init__ (self, table) :
+    class QueryExpTable(object):
+        def __init__(self, table):
             self.captured_cpp_table_object = table
             self.table_name = table.table_name
             self.columns_names = table.columns_names
             self.rows_count = table.rows_count
             self.columns_count = table.columns_count
 
-        def get_payload(self, row_index, col_index) :
-            result = self.captured_cpp_table_object.get_type(row_index, col_index)
+        def get_payload(self, row_index, col_index):
+            result = self.captured_cpp_table_object.get_type(
+                row_index, col_index)
             err = result[0]
             payload_type = result[1]
-            if err != impl.error_ok :
+            if err != impl.error_ok:
                 return [err, payload_type]
-            if payload_type == impl.qdb_query_result_double :
+            if payload_type == impl.qdb_query_result_double:
                 return self.captured_cpp_table_object.get_payload_double(row_index, col_index)
-            if payload_type == impl.qdb_query_result_blob :
+            if payload_type == impl.qdb_query_result_blob:
                 return self.captured_cpp_table_object.get_payload_blob(row_index, col_index)
-            if payload_type == impl.qdb_query_result_int64 :
+            if payload_type == impl.qdb_query_result_int64:
                 return self.captured_cpp_table_object.get_payload_int64(row_index, col_index)
-            if payload_type == impl.qdb_query_result_timestamp :
+            if payload_type == impl.qdb_query_result_timestamp:
                 return self.captured_cpp_table_object.get_payload_timestamp(row_index, col_index)
 
-
-    def __init__(self, cpp_object) :
+    def __init__(self, cpp_object):
         self.captured_cpp_query_result_object = cpp_object
         self.scanned_rows_count = cpp_object.scanned_rows_count
         self.tables_count = cpp_object.tables_count
-        self.tables = [self.QueryExpTable(table) for table in cpp_object.tables]
+        self.tables = [self.QueryExpTable(table)
+                       for table in cpp_object.tables]
 
     def __del__(self):
-        impl.delete_wrap_qdb_query_result(self.captured_cpp_query_result_object)
+        impl.delete_wrap_qdb_query_result(
+            self.captured_cpp_query_result_object)
+
 
 class Cluster(object):
 
@@ -1637,13 +1657,14 @@ class Cluster(object):
             raise chooseError(err.error)
         return result
 
-    def query_exp(self, q) :
+    def query_exp(self, q):
         """
         Retrieves all entries' aliases that match the specified query expression.
         :param q: the query expression to run
         :type q: str
 
-        :returns: A list of tables which matched the query expression. If no match is found, returns an empty list.
+        :returns: A list of tables which matched the query expression.
+        If no match is found, returns an empty list.
 
         :raises: Error
         """
