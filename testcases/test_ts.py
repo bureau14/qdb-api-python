@@ -3,26 +3,22 @@ from builtins import range as xrange, int as long  # pylint: disable=W0622
 from functools import reduce  # pylint: disable=W0622
 import datetime
 import os
-import subprocess
 import sys
-import time
 import unittest
-import calendar
-import pytz
-
+import settings
 
 for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0], '..', 'build')):
     for p in dirnames:
         if p.startswith('lib'):
             sys.path.append(os.path.join(root, p))
 import quasardb  # pylint: disable=C0413,E0401
-import settings
 
 HAS_NUMPY = True
 try:
     import numpy
 except ImportError:
     HAS_NUMPY = False
+
 
 def _generate_double_ts(start_time, start_val, count):
     result = []
@@ -36,6 +32,7 @@ def _generate_double_ts(start_time, start_val, count):
 
     return result
 
+
 def _generate_int64_ts(start_time, start_val, count):
     result = []
 
@@ -48,7 +45,9 @@ def _generate_int64_ts(start_time, start_val, count):
 
     return result
 
+
 timestamp_increase_step = datetime.timedelta(microseconds=7)
+
 
 def _generate_timestamp_ts(start_time, start_val, count):
 
@@ -63,6 +62,7 @@ def _generate_timestamp_ts(start_time, start_val, count):
 
     return result
 
+
 def _generate_blob_ts(start_time, count):
     result = []
 
@@ -73,6 +73,7 @@ def _generate_blob_ts(start_time, count):
         start_time += step
 
     return result
+
 
 class QuasardbTimeSeries(unittest.TestCase):
     def setUp(self):
@@ -88,7 +89,7 @@ class QuasardbTimeSeries(unittest.TestCase):
             quasardb.TimeSeries.DoubleColumnInfo(settings.entry_gen.next()),
             quasardb.TimeSeries.BlobColumnInfo(settings.entry_gen.next()),
             quasardb.TimeSeries.Int64ColumnInfo(settings.entry_gen.next()),
-            quasardb.TimeSeries.TimestampColumnInfo(settings.entry_gen.next())
+            quasardb.TimeSeries.TimestampColumnInfo(settings.entry_gen.next()),
         ])
         self.assertEqual(4, len(cols))
 
@@ -96,6 +97,7 @@ class QuasardbTimeSeries(unittest.TestCase):
 
     def create_ts(self):
         (self.double_col, self.blob_col, self.int64_col, self.timestamp_col) = self._create_ts()
+
 
 class QuasardbTimeSeriesNonExisting(QuasardbTimeSeries):
 
@@ -247,7 +249,8 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
         self.assertEqual(col_list[2].type,
                          quasardb.TimeSeries.ColumnType.int64)
         self.assertEqual(col_list[3].name, self.timestamp_col.name())
-        self.assertEqual(col_list[3].type, quasardb.TimeSeries.ColumnType.timestamp)
+        self.assertEqual(col_list[3].type,
+                         quasardb.TimeSeries.ColumnType.timestamp)
 
         # invalid columinfo
         self.assertRaises(
@@ -412,20 +415,23 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
         self.assertEqual(0, erased_count)
 
     def test_timestamp_get_ranges(self):
-        inserted_timestamp_data = _generate_timestamp_ts(self.start_time, self.start_time + datetime.timedelta(minutes=1), 1000)
+        inserted_timestamp_data = _generate_timestamp_ts(
+            self.start_time, self.start_time + datetime.timedelta(minutes=1), 1000)
         self.timestamp_col.insert(inserted_timestamp_data)
 
         results = self.timestamp_col.get_ranges(
             [(self.start_time, self.start_time + datetime.timedelta(microseconds=10))])
 
-        self.__check_timestamp_ts(results, self.start_time, self.start_time + datetime.timedelta(minutes=1), 10)
+        self.__check_timestamp_ts(
+            results, self.start_time, self.start_time + datetime.timedelta(minutes=1), 10)
 
         results = self.timestamp_col.get_ranges(
             [(self.start_time, self.start_time + datetime.timedelta(microseconds=10)),
              (self.start_time + datetime.timedelta(microseconds=10),
               self.start_time + datetime.timedelta(microseconds=20))])
 
-        self.__check_timestamp_ts(results, self.start_time, self.start_time + datetime.timedelta(minutes=1), 20)
+        self.__check_timestamp_ts(
+            results, self.start_time, self.start_time + datetime.timedelta(minutes=1), 20)
 
         # empty result
         out_of_time = self.start_time + datetime.timedelta(hours=10)
@@ -454,7 +460,8 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
                           wrong_col.insert, inserted_timestamp_data)
 
     def test_timestamp_erase_ranges(self):
-        inserted_timestamp_data = _generate_timestamp_ts(self.start_time, self.start_time + datetime.timedelta(minutes=1), 1000)
+        inserted_timestamp_data = _generate_timestamp_ts(
+            self.start_time, self.start_time + datetime.timedelta(minutes=1), 1000)
         self.timestamp_col.insert(inserted_timestamp_data)
 
         results = self.timestamp_col.get_ranges(
@@ -648,19 +655,23 @@ class QuasardbTimeSeriesExistingWithDoubles(QuasardbTimeSeries):
 
     def test_double_aggregation_min(self):
         self._test_aggregation_of_doubles(
-            quasardb.TimeSeries.Aggregation.min, min(self.inserted_double_data), len(self.inserted_double_data))
+            quasardb.TimeSeries.Aggregation.min,
+            min(self.inserted_double_data), len(self.inserted_double_data))
 
     def test_double_aggregation_max(self):
         self._test_aggregation_of_doubles(
-            quasardb.TimeSeries.Aggregation.max, max(self.inserted_double_data), len(self.inserted_double_data))
+            quasardb.TimeSeries.Aggregation.max,
+            max(self.inserted_double_data), len(self.inserted_double_data))
 
     def test_double_aggregation_abs_min(self):
         self._test_aggregation_of_doubles(
-            quasardb.TimeSeries.Aggregation.abs_min, min(self.inserted_double_data), len(self.inserted_double_data))
+            quasardb.TimeSeries.Aggregation.abs_min,
+            min(self.inserted_double_data), len(self.inserted_double_data))
 
     def test_double_aggregation_abs_max(self):
         self._test_aggregation_of_doubles(
-            quasardb.TimeSeries.Aggregation.abs_max, max(self.inserted_double_data), len(self.inserted_double_data))
+            quasardb.TimeSeries.Aggregation.abs_max,
+            max(self.inserted_double_data), len(self.inserted_double_data))
 
     def test_double_aggregation_spread(self):
         self._test_aggregation_of_doubles(
@@ -738,16 +749,20 @@ class QuasardbTimeSeriesBulk(QuasardbTimeSeries):
         self.assertRaises(quasardb.OperationError, fake_ts.local_table)
 
     def _test_with_table(self, local_table):
-        val = 1.0
-
-        start_time = datetime.datetime.now()
+        start_time = datetime.datetime.now(quasardb.tz)
         current_time = start_time
+        tsval = start_time
+
+        val = 1.0
+        ival = 0
 
         for i in xrange(0, 10):
             self.assertEqual(i, local_table.append_row(
-                current_time, val, "content"))
+                current_time, val, "content", ival, tsval))
             val += 1.0
+            ival += 2
             current_time += datetime.timedelta(seconds=1)
+            tsval += datetime.timedelta(seconds=5)
 
         the_ranges = [(start_time - datetime.timedelta(hours=1),
                        start_time + datetime.timedelta(hours=1))]
@@ -760,6 +775,7 @@ class QuasardbTimeSeriesBulk(QuasardbTimeSeries):
 
         local_table.push()
 
+        #################################
         results = self.double_col.get_ranges(the_ranges)
         self.assertEqual(len(results), 10)
 
@@ -769,11 +785,31 @@ class QuasardbTimeSeriesBulk(QuasardbTimeSeries):
             self.assertEqual(r[1], val)
             val += 1.0
 
+        #################################
         results = self.blob_col.get_ranges(the_ranges)
         self.assertEqual(len(results), 10)
 
         for r in results:
             self.assertEqual(r[1], "content")
+
+        #################################
+        results = self.int64_col.get_ranges(the_ranges)
+        self.assertEqual(len(results), 10)
+
+        ival = 0
+
+        for r in results:
+            self.assertEqual(r[1], ival)
+            ival += 2
+
+        #################################
+        results = self.timestamp_col.get_ranges(the_ranges)
+        self.assertEqual(len(results), 10)
+
+        tsval = start_time
+        for r in results:
+            self.assertEqual(r[1], tsval)
+            tsval += datetime.timedelta(seconds=5)
 
     def test_successful_bulk_insert(self):
         local_table = self.my_ts.local_table()
@@ -787,17 +823,23 @@ class QuasardbTimeSeriesBulk(QuasardbTimeSeries):
 
     def test_successful_bulk_insert_specified_columns(self):
         columns = [quasardb.TimeSeries.DoubleColumnInfo(self.double_col.name()),
-                   quasardb.TimeSeries.BlobColumnInfo(self.blob_col.name())]
+                   quasardb.TimeSeries.BlobColumnInfo(self.blob_col.name()),
+                   quasardb.TimeSeries.Int64ColumnInfo(self.int64_col.name()),
+                   quasardb.TimeSeries.TimestampColumnInfo(
+                       self.timestamp_col.name()),
+                   ]
 
         local_table = self.my_ts.local_table(columns)
         self._test_with_table(local_table)
 
+
 if __name__ == '__main__':
-    if settings.get_lock_status() == False :
+    if settings.get_lock_status() is False:
         settings.init()
         test_directory = os.getcwd()
-        test_report_directory = os.path.join(os.path.split(__file__)[0], '..' , 'build' , 'test' , 'test-reports')
+        test_report_directory = os.path.join(os.path.split(
+            __file__)[0], '..', 'build', 'test', 'test-reports')
         import xmlrunner
         unittest.main(testRunner=xmlrunner.XMLTestRunner(  # pylint: disable=E1102
-        output=test_report_directory),exit=False)
+            output=test_report_directory), exit=False)
         settings.terminate()
