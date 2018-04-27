@@ -247,15 +247,6 @@ enum qdb_ts_column_type_t
     qdb_ts_column_timestamp = 3
 };
 
-enum qdb_ts_filter_type_t
-{
-    qdb_ts_filter_none = 0,
-    qdb_ts_filter_unique = 1,
-    qdb_ts_filter_sample = 2,
-    qdb_ts_filter_double_inside_range = 3,
-    qdb_ts_filter_double_outside_range = 4
-};
-
 enum qdb_duration_t
 {
     qdb_d_millisecond = 1,

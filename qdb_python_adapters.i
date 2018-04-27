@@ -350,7 +350,7 @@ qdb_error_t ts_blob_insert(handle_ptr h, const char * alias, const char * column
 }
 
 std::vector<qdb_ts_double_point> ts_double_get_ranges(handle_ptr h, const char * alias, const char * column,
-    const std::vector<qdb_ts_filtered_range_t> & ranges, error_carrier * error)
+    const std::vector<qdb_ts_range_t> & ranges, error_carrier * error)
 {
     qdb_ts_double_point * points = NULL;
     qdb_size_t count = 0;
@@ -370,7 +370,7 @@ std::vector<qdb_ts_double_point> ts_double_get_ranges(handle_ptr h, const char *
 }
 
 std::vector<qdb_ts_int64_point> ts_int64_get_ranges(handle_ptr h, const char * alias, const char * column,
-    const std::vector<qdb_ts_filtered_range_t> & ranges, error_carrier * error)
+    const std::vector<qdb_ts_range_t> & ranges, error_carrier * error)
 {
     qdb_ts_int64_point * points = NULL;
     qdb_size_t count = 0;
@@ -390,7 +390,7 @@ std::vector<qdb_ts_int64_point> ts_int64_get_ranges(handle_ptr h, const char * a
 }
 
 std::vector<qdb_ts_timestamp_point> ts_timestamp_get_ranges(handle_ptr h, const char * alias, const char * column,
-    const std::vector<qdb_ts_filtered_range_t> & ranges, error_carrier * error)
+    const std::vector<qdb_ts_range_t> & ranges, error_carrier * error)
 {
     qdb_ts_timestamp_point * points = NULL;
     qdb_size_t count = 0;
@@ -419,7 +419,7 @@ struct to_ts_blob_point
 };
 
 std::vector<wrap_ts_blob_point> ts_blob_get_ranges(handle_ptr h, const char * alias, const char * column,
-    const std::vector<qdb_ts_filtered_range_t> & ranges, error_carrier * error)
+    const std::vector<qdb_ts_range_t> & ranges, error_carrier * error)
 {
     qdb_ts_blob_point * points = NULL;
     qdb_size_t count = 0;
@@ -440,20 +440,20 @@ std::vector<wrap_ts_blob_point> ts_blob_get_ranges(handle_ptr h, const char * al
 
 struct range_to_blob_agg
 {
-    qdb_ts_blob_aggregation_t operator()(const qdb_ts_filtered_range_t & t) const
+    qdb_ts_blob_aggregation_t operator()(const qdb_ts_range_t & t) const
     {
         qdb_ts_blob_aggregation_t res;
-        res.filtered_range = t;
+        res.range = t;
         return res;
     }
 };
 
 struct range_to_double_agg
 {
-    qdb_ts_double_aggregation_t operator()(const qdb_ts_filtered_range_t & t) const
+    qdb_ts_double_aggregation_t operator()(const qdb_ts_range_t & t) const
     {
         qdb_ts_double_aggregation_t res;
-        res.filtered_range = t;
+        res.range = t;
         return res;
     }
 };
@@ -470,7 +470,7 @@ void ts_double_aggregation(handle_ptr h, const char * alias, const char * column
     error->error = qdb_ts_double_aggregate(*h, alias, column, get_safe_pointer(ranges), ranges.size());
 }
 
-qdb_uint_t ts_erase_ranges(handle_ptr h, const char * alias, const char * column, const std::vector<qdb_ts_filtered_range_t> & ranges, error_carrier * error)
+qdb_uint_t ts_erase_ranges(handle_ptr h, const char * alias, const char * column, const std::vector<qdb_ts_range_t> & ranges, error_carrier * error)
 {
     qdb_uint_t res = 0;
     error->error = qdb_ts_erase_ranges(*h, alias, column, get_safe_pointer(ranges), ranges.size(), &res);

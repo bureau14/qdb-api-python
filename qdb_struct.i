@@ -82,34 +82,8 @@ typedef struct
 
 typedef struct
 {
-    qdb_ts_filter_type_t type;
-
-    union {
-
-        struct
-        {
-            qdb_size_t size;
-        } sample;
-
-        struct
-        {
-            double min;
-            double max;
-        } double_range;
-
-    } params;
-} qdb_ts_filter_t;
-
-typedef struct
-{
-    qdb_ts_range_t range;
-    qdb_ts_filter_t filter;
-} qdb_ts_filtered_range_t;
-
-typedef struct
-{
     qdb_ts_aggregation_type_t type;
-    qdb_ts_filtered_range_t filtered_range;
+    qdb_ts_range_t range;
     qdb_size_t count;
     qdb_ts_blob_point result;
 } qdb_ts_blob_aggregation_t;
@@ -117,7 +91,7 @@ typedef struct
 typedef struct
 {
     qdb_ts_aggregation_type_t type;
-    qdb_ts_filtered_range_t filtered_range;
+    qdb_ts_range_t range;
     qdb_size_t count;
     qdb_ts_double_point result;
 } qdb_ts_double_aggregation_t;
@@ -125,19 +99,19 @@ typedef struct
 typedef struct
 {
     qdb_ts_aggregation_type_t type;
-    qdb_ts_filtered_range_t filtered_range;
+    qdb_ts_range_t range;
     qdb_size_t count;
     qdb_ts_int64_point result;
+    double exact_result;
 } qdb_ts_int64_aggregation_t;
 
 typedef struct
 {
     qdb_ts_aggregation_type_t type;
-    qdb_ts_filtered_range_t filtered_range;
+    qdb_ts_range_t range;
     qdb_size_t count;
     qdb_ts_timestamp_point result;
 } qdb_ts_timestamp_aggregation_t;
-
 
 typedef enum qdb_query_result_value_type_t
 {

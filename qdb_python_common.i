@@ -60,7 +60,6 @@ typedef struct qdb_local_table_internal * qdb_local_table_t;
 
 %template(StringVec) std::vector<std::string>;
 %template(RangeVec) std::vector<qdb_ts_range_t>;
-%template(FilteredRangeVec) std::vector<qdb_ts_filtered_range_t>;
 %template(DoublePointVec) std::vector<qdb_ts_double_point>;
 %template(Int64PointVec) std::vector<qdb_ts_int64_point>;
 %template(TimestampPointVec) std::vector<qdb_ts_timestamp_point>;

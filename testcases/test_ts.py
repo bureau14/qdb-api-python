@@ -224,7 +224,7 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
         self.assertEqual(agg[0].count, 0)
         self.assertEqual(agg[0].content, None)
         self.assertEqual(agg[0].content_length, long(0))
-        self.assertEqual(agg[0].filtered_range, self.test_intervals[0])
+        self.assertEqual(agg[0].range, self.test_intervals[0])
 
     def test_double_aggregations_default_values(self):
         agg = quasardb.TimeSeries.DoubleAggregations()
@@ -234,7 +234,7 @@ class QuasardbTimeSeriesExisting(QuasardbTimeSeries):
         self.assertEqual(agg[0].type, quasardb.TimeSeries.Aggregation.sum)
         self.assertEqual(agg[0].count, long(0))
         self.assertEqual(agg[0].value, 0.0)
-        self.assertEqual(agg[0].filtered_range, self.test_intervals[0])
+        self.assertEqual(agg[0].range, self.test_intervals[0])
 
     def test_creation_multiple(self):
         col_list = self.my_ts.columns_info()
@@ -584,7 +584,7 @@ class QuasardbTimeSeriesExistingWithBlobs(QuasardbTimeSeries):
         agg_res = self.blob_col.aggregate(agg)
 
         self.assertEqual(1, len(agg_res))
-        self.assertEqual(agg_res[0].filtered_range, self.test_intervals[0])
+        self.assertEqual(agg_res[0].range, self.test_intervals[0])
         timestamp = expected[0]
         if timestamp is None:
             timestamp = datetime.datetime.fromtimestamp(0, quasardb.tz)
@@ -637,7 +637,7 @@ class QuasardbTimeSeriesExistingWithDoubles(QuasardbTimeSeries):
         agg_res = self.double_col.aggregate(agg)
 
         self.assertEqual(1, len(agg_res))
-        self.assertEqual(agg_res[0].filtered_range, self.test_intervals[0])
+        self.assertEqual(agg_res[0].range, self.test_intervals[0])
         timestamp = expected[0]
         if timestamp is None:
             timestamp = datetime.datetime.fromtimestamp(0, quasardb.tz)

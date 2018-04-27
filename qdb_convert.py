@@ -34,7 +34,6 @@ import datetime
 import calendar
 import pytz
 import pytz
-from quasardb.qdb_enum import TSFilter
 
 from tzlocal import get_localzone
 
@@ -83,18 +82,17 @@ def convert_qdb_timespec_to_time(qdb_timespec):
     return datetime.datetime.fromtimestamp(qdb_timespec.tv_sec, tz) \
         + datetime.timedelta(microseconds=qdb_timespec.tv_nsec / 1000)
 
-def convert_qdb_filtered_range_t_to_time_couple(qdb_range):
-    return (convert_qdb_timespec_to_time(qdb_range.range.begin),
-            convert_qdb_timespec_to_time(qdb_range.range.end))
+def convert_qdb_ts_range_t_to_time_couple(qdb_range):
+    return (convert_qdb_timespec_to_time(qdb_range.begin),
+            convert_qdb_timespec_to_time(qdb_range.end))
 
-def convert_time_couple_to_qdb_filtered_range_t(time_couple):
-    rng = impl.qdb_ts_filtered_range_t()
+def convert_time_couple_to_qdb_ts_range_t(time_couple):
+    rng = impl.qdb_ts_range_t()
 
-    rng.range.begin.tv_sec = time_to_unix_timestamp(time_couple[0])
-    rng.range.begin.tv_nsec = time_couple[0].microsecond * long(1000)
-    rng.range.end.tv_sec = time_to_unix_timestamp(time_couple[1])
-    rng.range.end.tv_nsec = time_couple[1].microsecond * long(1000)
-    rng.filter.type = TSFilter.none
+    rng.begin.tv_sec = time_to_unix_timestamp(time_couple[0])
+    rng.begin.tv_nsec = time_couple[0].microsecond * long(1000)
+    rng.end.tv_sec = time_to_unix_timestamp(time_couple[1])
+    rng.end.tv_nsec = time_couple[1].microsecond * long(1000)
 
     return rng
 
@@ -106,14 +104,17 @@ def convert_time_to_qdb_timespec(python_time):
 
     return res
 
-def convert_time_couples_to_qdb_filtered_range_t_vector(time_couples):
-    vec = impl.FilteredRangeVec()
+def convert_time_couples_to_qdb_ts_range_t_vector(time_couples):
+    vec = impl.RangeVec()
 
     c = len(time_couples)
 
     vec.resize(c)
     for i in xrange(c):
-        vec[i] = convert_time_couple_to_qdb_filtered_range_t(time_couples[i])
+        vec[i].begin.tv_sec = time_to_unix_timestamp(time_couples[i][0])
+        vec[i].begin.tv_nsec = time_couples[i][0].microsecond * long(1000)
+        vec[i].end.tv_sec = time_to_unix_timestamp(time_couples[i][1])
+        vec[i].end.tv_nsec = time_couples[i][1].microsecond * long(1000)
 
     return vec
 

@@ -62,10 +62,10 @@ class QuasardbTimeUtils(unittest.TestCase):
     def test_ts_convert(self):
         orig_couple = [(datetime.datetime.now(quasardb.tz),
                         datetime.datetime.now(quasardb.tz))]
-        converted_couple = quasardb.qdb_convert.convert_time_couples_to_qdb_filtered_range_t_vector(
+        converted_couple = quasardb.qdb_convert.convert_time_couples_to_qdb_ts_range_t_vector(
             orig_couple)
         self.assertEqual(len(converted_couple), 1)
-        self.assertEqual(orig_couple[0], quasardb.qdb_convert.convert_qdb_filtered_range_t_to_time_couple(
+        self.assertEqual(orig_couple[0], quasardb.qdb_convert.convert_qdb_ts_range_t_to_time_couple(
             converted_couple[0]))
 
 if __name__ == '__main__':
