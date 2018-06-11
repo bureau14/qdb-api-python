@@ -18,14 +18,14 @@ for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0]
 import quasardb  # pylint: disable=C0413,E0401
 import settings
 
-class QuasardbQueryFind(unittest.TestCase):
 
+class QuasardbQueryFind(unittest.TestCase):
 
     def test_types(self):
 
         my_tag = "my_tag" + settings.entry_gen.next()
 
-        entry_name =settings.entry_gen.next()
+        entry_name = settings.entry_gen.next()
         entry_content = "content"
 
         b = settings.cluster.blob(entry_name)
@@ -37,12 +37,14 @@ class QuasardbQueryFind(unittest.TestCase):
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0], entry_name)
 
-        res = settings.cluster.query_find("find(tag='" + my_tag + "' AND type=blob)")
+        res = settings.cluster.query_find(
+            "find(tag='" + my_tag + "' AND type=blob)")
 
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0], entry_name)
 
-        res = settings.cluster.query_find("find(tag='" + my_tag + "' AND type=integer)")
+        res = settings.cluster.query_find(
+            "find(tag='" + my_tag + "' AND type=integer)")
 
         self.assertEqual(len(res), 0)
 
@@ -69,17 +71,20 @@ class QuasardbQueryFind(unittest.TestCase):
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0], entry_name)
 
-        res = settings.cluster.query_find("find(tag='" + tag1 + "' AND tag='" + tag2 + "')")
+        res = settings.cluster.query_find(
+            "find(tag='" + tag1 + "' AND tag='" + tag2 + "')")
 
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0], entry_name)
 
+
 if __name__ == '__main__':
-    if settings.get_lock_status() == False :
+    if settings.get_lock_status() == False:
         settings.init()
         test_directory = os.getcwd()
-        test_report_directory = os.path.join(os.path.split(__file__)[0], '..' , 'build' , 'test' , 'test-reports')
+        test_report_directory = os.path.join(os.path.split(
+            __file__)[0], '..', 'build', 'test', 'test-reports')
         import xmlrunner
         unittest.main(testRunner=xmlrunner.XMLTestRunner(  # pylint: disable=E1102
-        output=test_report_directory),exit=False)
+            output=test_report_directory), exit=False)
         settings.terminate()

@@ -21,7 +21,7 @@ import settings
 
 
 class QuasardbBlob(unittest.TestCase):
-    
+
     def setUp(self):
         self.entry_name = settings.entry_gen.next()
         self.entry_content = "content"
@@ -139,12 +139,14 @@ class QuasardbBlob(unittest.TestCase):
 
         self.b.remove()
 
+
 if __name__ == '__main__':
-    if settings.get_lock_status() == False :
+    if settings.get_lock_status() == False:
         settings.init()
         test_directory = os.getcwd()
-        test_report_directory = os.path.join(os.path.split(__file__)[0], '..' , 'build' , 'test' , 'test-reports')
+        test_report_directory = os.path.join(os.path.split(
+            __file__)[0], '..', 'build', 'test', 'test-reports')
         import xmlrunner
         unittest.main(testRunner=xmlrunner.XMLTestRunner(  # pylint: disable=E1102
-        output=test_report_directory), exit=False)
+            output=test_report_directory), exit=False)
         settings.terminate()

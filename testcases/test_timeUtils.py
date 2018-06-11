@@ -17,6 +17,7 @@ for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0]
 import quasardb  # pylint: disable=C0413,E0401
 import settings
 
+
 class QuasardbTimeUtils(unittest.TestCase):
 
     def time_zone_nightmare(self):
@@ -68,12 +69,14 @@ class QuasardbTimeUtils(unittest.TestCase):
         self.assertEqual(orig_couple[0], quasardb.qdb_convert.convert_qdb_ts_range_t_to_time_couple(
             converted_couple[0]))
 
+
 if __name__ == '__main__':
-    if settings.get_lock_status() == False :
+    if settings.get_lock_status() == False:
         settings.init()
         test_directory = os.getcwd()
-        test_report_directory = os.path.join(os.path.split(__file__)[0], '..' , 'build' , 'test' , 'test-reports')
+        test_report_directory = os.path.join(os.path.split(
+            __file__)[0], '..', 'build', 'test', 'test-reports')
         import xmlrunner
         unittest.main(testRunner=xmlrunner.XMLTestRunner(  # pylint: disable=E1102
-        output=test_report_directory),exit=False)
+            output=test_report_directory), exit=False)
         settings.terminate()

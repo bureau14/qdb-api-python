@@ -15,16 +15,20 @@ import quasardb  # pylint: disable=C0413,E0401
 global locked
 locked = False
 
+
 def set_lock():
     global locked
     locked = True
+
 
 def release_lock():
     global locked
     locked = False
 
+
 def get_lock_status():
     return locked
+
 
 class UniqueEntryNameGenerator(object):  # pylint: disable=R0903
 
@@ -65,7 +69,8 @@ def setUpModule():
 
     entry_gen = UniqueEntryNameGenerator()
     root_directory = os.path.join(os.path.split(__file__)[0], '..')
-    qdb_directory = os.path.join(os.path.split(__file__)[0], '..' , 'qdb' , 'bin' )
+    qdb_directory = os.path.join(os.path.split(__file__)[
+                                 0], '..', 'qdb', 'bin')
     __current_port = 3000
     insecure_endpoint = '127.0.0.1:' + str(__current_port)
     __current_port += 1
@@ -127,10 +132,11 @@ def tearDownModule():
     __cleanupProcess(__SECURE_CLUSTERD)
 
 
-def init() :
+def init():
     set_lock()
     setUpModule()
 
-def terminate() :
+
+def terminate():
     tearDownModule()
     release_lock()

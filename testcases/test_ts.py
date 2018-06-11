@@ -96,7 +96,8 @@ class QuasardbTimeSeries(unittest.TestCase):
         return (cols[0], cols[1], cols[2], cols[3])
 
     def create_ts(self):
-        (self.double_col, self.blob_col, self.int64_col, self.timestamp_col) = self._create_ts()
+        (self.double_col, self.blob_col, self.int64_col,
+         self.timestamp_col) = self._create_ts()
 
 
 class QuasardbTimeSeriesNonExisting(QuasardbTimeSeries):
