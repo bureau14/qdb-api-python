@@ -1,13 +1,8 @@
 # pylint: disable=C0103,C0111,C0302,W0212
-from functools import reduce  # pylint: disable=W0622
-import datetime
 import os
-import subprocess
 import sys
-import time
 import unittest
-import calendar
-import pytz
+import settings
 
 
 for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0], '..', 'build')):
@@ -16,7 +11,6 @@ for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0]
             sys.path.append(os.path.join(root, p))
 
 import quasardb  # pylint: disable=C0413,E0401
-import settings
 
 
 class QuasardbInteger(unittest.TestCase):
@@ -77,7 +71,7 @@ class QuasardbInteger(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    if settings.get_lock_status() == False:
+    if settings.get_lock_status() is False:
         settings.init()
         test_directory = os.getcwd()
         test_report_directory = os.path.join(os.path.split(

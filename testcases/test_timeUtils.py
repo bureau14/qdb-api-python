@@ -1,13 +1,10 @@
 # pylint: disable=C0103,C0111,C0302,W0212
-from functools import reduce  # pylint: disable=W0622
 import datetime
 import os
-import subprocess
 import sys
-import time
 import unittest
-import calendar
 import pytz
+import settings
 
 
 for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0], '..', 'build')):
@@ -15,7 +12,6 @@ for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0]
         if p.startswith('lib'):
             sys.path.append(os.path.join(root, p))
 import quasardb  # pylint: disable=C0413,E0401
-import settings
 
 
 class QuasardbTimeUtils(unittest.TestCase):
@@ -25,18 +21,18 @@ class QuasardbTimeUtils(unittest.TestCase):
         moscow_tz = pytz.timezone('Europe/Moscow')
 
         record_dates = [
-            datetime(1971, 1, 1, 0, 0, 0, 0, moscow_tz),
-            datetime(1971, 1, 1, 0, 0, 0, 0, pytz.UTC),
-            datetime(1971, 1, 1, 0, 0, 0, 0),
-            datetime(2011, 1, 1, 0, 0, 0, 0, moscow_tz),
-            datetime(2012, 1, 1, 0, 0, 0, 0, moscow_tz),
-            datetime(2012, 1, 1, 0, 0, 0, 0, pytz.UTC),
-            datetime(2012, 1, 1, 0, 0, 0, 0),
-            datetime(2013, 1, 1, 0, 0, 0, 0, moscow_tz),
-            datetime(2014, 1, 1, 0, 0, 0, 0, moscow_tz),
-            datetime(2014, 1, 1, 0, 0, 0, 0),
-            datetime(2015, 1, 1, 0, 0, 0, 0, moscow_tz),
-            datetime(2016, 1, 1, 0, 0, 0, 0, moscow_tz)]
+            datetime.datetime(1971, 1, 1, 0, 0, 0, 0, moscow_tz),
+            datetime.datetime(1971, 1, 1, 0, 0, 0, 0, pytz.UTC),
+            datetime.datetime(1971, 1, 1, 0, 0, 0, 0),
+            datetime.datetime(2011, 1, 1, 0, 0, 0, 0, moscow_tz),
+            datetime.datetime(2012, 1, 1, 0, 0, 0, 0, moscow_tz),
+            datetime.datetime(2012, 1, 1, 0, 0, 0, 0, pytz.UTC),
+            datetime.datetime(2012, 1, 1, 0, 0, 0, 0),
+            datetime.datetime(2013, 1, 1, 0, 0, 0, 0, moscow_tz),
+            datetime.datetime(2014, 1, 1, 0, 0, 0, 0, moscow_tz),
+            datetime.datetime(2014, 1, 1, 0, 0, 0, 0),
+            datetime.datetime(2015, 1, 1, 0, 0, 0, 0, moscow_tz),
+            datetime.datetime(2016, 1, 1, 0, 0, 0, 0, moscow_tz)]
 
         for r in record_dates:
             self.assertEqual(datetime.datetime.fromtimestamp(
@@ -47,8 +43,10 @@ class QuasardbTimeUtils(unittest.TestCase):
         Test conversion of time durations.
         '''
 
+        seconds_in_day = 24 * 3600
         self.assertEqual(
-            24 * 3600 * 1000, quasardb.qdb_convert.duration_to_timeout_ms(datetime.timedelta(days=1)))
+            seconds_in_day * 1000,
+            quasardb.qdb_convert.duration_to_timeout_ms(datetime.timedelta(days=1)))
         self.assertEqual(
             3600 * 1000, quasardb.qdb_convert.duration_to_timeout_ms(datetime.timedelta(hours=1)))
         self.assertEqual(
@@ -71,7 +69,7 @@ class QuasardbTimeUtils(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    if settings.get_lock_status() == False:
+    if settings.get_lock_status() is False:
         settings.init()
         test_directory = os.getcwd()
         test_report_directory = os.path.join(os.path.split(

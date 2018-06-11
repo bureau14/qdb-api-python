@@ -1,14 +1,12 @@
 # pylint: disable=C0103,C0111,C0302,W0212
-from functools import reduce  # pylint: disable=W0622
 import datetime
-import os
-import subprocess
-import sys
-import time
-import unittest
-import calendar
-import pytz
 import math
+import os
+import sys
+import unittest
+import pytz
+import settings
+import test_ts as tslib
 
 for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0], '..', 'build')):
     for p in dirnames:
@@ -16,12 +14,9 @@ for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0]
             sys.path.append(os.path.join(root, p))
 
 import quasardb  # pylint: disable=C0413,E0401
-import settings
-import test_ts as tslib
-from quasardb import impl
 
 
-class TsHelper():
+class TsHelper(object):
 
     def __init__(self):
         self.setUp()
@@ -82,8 +77,10 @@ class QuasardbQueryExpErrorCodeCheck(unittest.TestCase):
     def test_returns_columns_not_found(self):
         non_existing_column = settings.entry_gen.next()
         helper = TsHelper()
-        self.assertRaises(quasardb.OperationError, settings.cluster.query_exp, "select " +
-                          non_existing_column + " from " + helper.entry_name + " in range(2017, +10d)")
+        query = "select " + non_existing_column + " from " + \
+            helper.entry_name + " in range(2017, +10d)"
+        self.assertRaises(quasardb.OperationError,
+                          settings.cluster.query_exp, query)
 
 
 class QuasardbQueryExp(unittest.TestCase):
@@ -95,7 +92,7 @@ class QuasardbQueryExp(unittest.TestCase):
         helper.double_col.insert(inserted_double_data)
         return helper, inserted_double_data
 
-    def trivial_test(self, helper, scanned_rows_count, res, rows_count, columns_count):
+    def trivial_test(self, scanned_rows_count, res, rows_count, columns_count):
         self.assertEqual(res.scanned_rows_count, scanned_rows_count)
         self.assertEqual(res.tables_count, 1)
         self.assertEqual(len(res.tables), 1)
@@ -113,10 +110,11 @@ class QuasardbQueryExp(unittest.TestCase):
 
     def test_returns_inserted_data_with_star_select(self):
         helper, inserted_double_data = self.generate_ts_with_double_points()
-        res = settings.cluster.query_exp(
-            "select * from " + helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
+        query = "select * from " + helper.entry_name + \
+            " in range(" + str(inserted_double_data[0][0].year) + ", +100d)"
+        res = settings.cluster.query_exp(query)
         # Column count is 5, because, uninit, int64, blob, timestamp, double
-        self.trivial_test(helper, len(inserted_double_data),
+        self.trivial_test(len(inserted_double_data),
                           res, len(inserted_double_data), 5)
         for rc in range(res.tables[0].rows_count):
             self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(
@@ -128,10 +126,11 @@ class QuasardbQueryExp(unittest.TestCase):
         helper, inserted_double_data = self.generate_ts_with_double_points()
         tag_name = settings.entry_gen.next()
         helper.my_ts.attach_tag(tag_name)
-        res = settings.cluster.query_exp("select * from find(tag = " + '"' + tag_name + '")' +
-                                         " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
+        query = "select * from find(tag = " + '"' + tag_name + '")' + \
+            " in range(" + str(inserted_double_data[0][0].year) + ", +100d)"
+        res = settings.cluster.query_exp(query)
         # Column count is 5, because, uninit, int64, blob, timestamp, double
-        self.trivial_test(helper, len(inserted_double_data),
+        self.trivial_test(len(inserted_double_data),
                           res, len(inserted_double_data), 5)
         for rc in range(res.tables[0].rows_count):
             self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(
@@ -141,9 +140,10 @@ class QuasardbQueryExp(unittest.TestCase):
 
     def test_returns_inserted_data_with_column_select(self):
         helper, inserted_double_data = self.generate_ts_with_double_points()
-        res = settings.cluster.query_exp("select " + helper.double_column_name + " from " +
-                                         helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
-        self.trivial_test(helper, len(inserted_double_data),
+        query = "select " + helper.double_column_name + " from " + helper.entry_name + \
+            " in range(" + str(inserted_double_data[0][0].year) + ", +100d)"
+        res = settings.cluster.query_exp(query)
+        self.trivial_test(len(inserted_double_data),
                           res, len(inserted_double_data), 2)
         self.assertEqual(
             res.tables[0].columns_names[1], helper.double_column_name)
@@ -155,9 +155,12 @@ class QuasardbQueryExp(unittest.TestCase):
 
     def test_returns_inserted_data_twice_with_double_column_select(self):
         helper, inserted_double_data = self.generate_ts_with_double_points()
-        res = settings.cluster.query_exp("select " + helper.double_column_name + "," + helper.double_column_name +
-                                         " from " + helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
-        self.trivial_test(helper, len(inserted_double_data),
+        query = "select " + helper.double_column_name + "," + helper.double_column_name + \
+            " from " + helper.entry_name + \
+                " in range(" + \
+            str(inserted_double_data[0][0].year) + ", +100d)"
+        res = settings.cluster.query_exp(query)
+        self.trivial_test(len(inserted_double_data),
                           res, len(inserted_double_data), 3)
         self.assertEqual(
             res.tables[0].columns_names[1], helper.double_column_name)
@@ -171,9 +174,11 @@ class QuasardbQueryExp(unittest.TestCase):
 
     def test_returns_sum_with_sum_select(self):
         helper, inserted_double_data = self.generate_ts_with_double_points()
-        res = settings.cluster.query_exp("select sum(" + helper.double_column_name + ") from " +
-                                         helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
-        self.trivial_test(helper, len(inserted_double_data), res, 1, 2)
+        query = "select sum(" + helper.double_column_name + ") from " + helper.entry_name + \
+                " in range(" + \
+                str(inserted_double_data[0][0].year) + ", +100d)"
+        res = settings.cluster.query_exp(query)
+        self.trivial_test(len(inserted_double_data), res, 1, 2)
         self.assertEqual(res.tables[0].columns_names[1],
                          "sum(" + helper.double_column_name + ")")
         expected_sum = 10.0 * (10.0 + 1.0) / 2.0
@@ -181,9 +186,12 @@ class QuasardbQueryExp(unittest.TestCase):
 
     def test_returns_sum_with_sum_divided_by_count_select(self):
         helper, inserted_double_data = self.generate_ts_with_double_points()
-        res = settings.cluster.query_exp("select sum(" + helper.double_column_name + ")/count(" + helper.double_column_name +
-                                         ") from " + helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
-        self.trivial_test(helper, 2 * len(inserted_double_data), res, 1, 2)
+        query = "select sum(" + helper.double_column_name + ")/count(" + \
+            helper.double_column_name + ") from " + helper.entry_name + \
+                " in range(" + \
+            str(inserted_double_data[0][0].year) + ", +100d)"
+        res = settings.cluster.query_exp(query)
+        self.trivial_test(2 * len(inserted_double_data), res, 1, 2)
         self.assertEqual(res.tables[0].columns_names[1], "(sum(" +
                          helper.double_column_name + ")/count(" + helper.double_column_name + "))")
         expected_avg = (10.0 * (10.0 + 1.0)) / (10.0 * 2.0)
@@ -191,39 +199,53 @@ class QuasardbQueryExp(unittest.TestCase):
 
     def test_returns_max_minus_min_select(self):
         helper, inserted_double_data = self.generate_ts_with_double_points()
-        res = settings.cluster.query_exp("select max(" + helper.double_column_name + ") - min(" + helper.double_column_name +
-                                         ") from " + helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
-        self.trivial_test(helper, len(inserted_double_data) * 2.0, res, 1, 2)
+        query = "select max(" + helper.double_column_name + ") - min(" + \
+            helper.double_column_name + ") from " + helper.entry_name + \
+            " in range(" + \
+            str(inserted_double_data[0][0].year) + ", +100d)"
+        res = settings.cluster.query_exp(query)
+        self.trivial_test(len(inserted_double_data) * 2.0, res, 1, 2)
         self.assertEqual(res.tables[0].columns_names[1], "(max(" +
                          helper.double_column_name + ")-min(" + helper.double_column_name + "))")
         self.assertEqual(10.0 - 1.0, res.tables[0].get_payload(0, 1)[1])
 
     def test_returns_max_minus_1_select(self):
         helper, inserted_double_data = self.generate_ts_with_double_points()
-        res = settings.cluster.query_exp("select max(" + helper.double_column_name + ") - 1 from " +
-                                         helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
-        self.trivial_test(helper, len(inserted_double_data), res, 1, 2)
+        query = "select max(" + helper.double_column_name + ") - 1 from " + \
+            helper.entry_name + \
+                " in range(" + \
+                str(inserted_double_data[0][0].year) + ", +100d)"
+        res = settings.cluster.query_exp(query)
+        self.trivial_test(len(inserted_double_data), res, 1, 2)
         self.assertEqual(res.tables[0].columns_names[1],
                          "(max(" + helper.double_column_name + ")-1)")
         self.assertEqual(10.0 - 1.0, res.tables[0].get_payload(0, 1)[1])
 
     def test_returns_max_and_scalar_1_select(self):
         helper, inserted_double_data = self.generate_ts_with_double_points()
-        res = settings.cluster.query_exp("select max(" + helper.double_column_name + "), 1 from " +
-                                         helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
-        self.trivial_test(helper, len(inserted_double_data), res, 2, 3)
+        query = "select max(" + helper.double_column_name + "), 1 from " + \
+            helper.entry_name + \
+                " in range(" + \
+                str(inserted_double_data[0][0].year) + ", +100d)"
+        res = settings.cluster.query_exp(query)
+        self.trivial_test(len(inserted_double_data), res, 2, 3)
         self.assertEqual(res.tables[0].columns_names[1],
                          "max(" + helper.double_column_name + ")")
         self.assertEqual(res.tables[0].columns_names[2], "1")
 
-        self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(
-            res.tables[0].get_payload(0, 0)[1]), datetime.datetime(1970, 1, 1, 0, 0,  tzinfo=pytz.UTC))
+        self.assertEqual(
+            quasardb.qdb_convert.convert_qdb_timespec_to_time(
+                res.tables[0].get_payload(0, 0)[1]),
+            datetime.datetime(1970, 1, 1, 0, 0, tzinfo=pytz.UTC))
         self.assertTrue(math.isnan(res.tables[0].get_payload(0, 1)[1]))
         self.assertEqual(res.tables[0].get_payload(0, 2)[1], 1)
-        self.assertEqual(quasardb.qdb_convert.convert_qdb_timespec_to_time(
-            res.tables[0].get_payload(1, 0)[1]), inserted_double_data[len(inserted_double_data) - 1][0])
-        self.assertEqual(res.tables[0].get_payload(
-            1, 1)[1], inserted_double_data[len(inserted_double_data) - 1][1])
+        self.assertEqual(
+            quasardb.qdb_convert.convert_qdb_timespec_to_time(
+                res.tables[0].get_payload(1, 0)[1]),
+            inserted_double_data[len(inserted_double_data) - 1][0])
+        self.assertEqual(
+            res.tables[0].get_payload(1, 1)[1],
+            inserted_double_data[len(inserted_double_data) - 1][1])
         self.assertEqual(res.tables[0].get_payload(1, 2)[1], 0)
 
     def test_returns_inserted_multi_data_with_star_select(self):
@@ -238,10 +260,11 @@ class QuasardbQueryExp(unittest.TestCase):
         helper.int64_col.insert(inserted_int64_data)
         helper.timestamp_col.insert(inserted_timestamp_data)
 
-        res = settings.cluster.query_exp(
-            "select * from " + helper.entry_name + " in range(" + str(inserted_double_data[0][0].year) + ", +100d)")
+        query = "select * from " + helper.entry_name + \
+            " in range(" + str(inserted_double_data[0][0].year) + ", +100d)"
+        res = settings.cluster.query_exp(query)
         # Column count is 5, because, uninit, int64, blob, timestamp, double
-        self.trivial_test(helper, 4 * len(inserted_double_data),
+        self.trivial_test(4 * len(inserted_double_data),
                           res, len(inserted_double_data), 5)
 
         for rc in range(res.tables[0].rows_count):
@@ -258,7 +281,7 @@ class QuasardbQueryExp(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    if settings.get_lock_status() == False:
+    if settings.get_lock_status() is False:
         settings.init()
         test_directory = os.getcwd()
         test_report_directory = os.path.join(os.path.split(

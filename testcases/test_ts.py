@@ -827,8 +827,7 @@ class QuasardbTimeSeriesBulk(QuasardbTimeSeries):
                    quasardb.TimeSeries.BlobColumnInfo(self.blob_col.name()),
                    quasardb.TimeSeries.Int64ColumnInfo(self.int64_col.name()),
                    quasardb.TimeSeries.TimestampColumnInfo(
-                       self.timestamp_col.name()),
-                   ]
+                       self.timestamp_col.name())]
 
         local_table = self.my_ts.local_table(columns)
         self._test_with_table(local_table)

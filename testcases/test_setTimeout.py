@@ -1,13 +1,9 @@
 # pylint: disable=C0103,C0111,C0302,W0212
-from functools import reduce  # pylint: disable=W0622
 import datetime
 import os
-import subprocess
 import sys
-import time
 import unittest
-import calendar
-import pytz
+import settings
 
 
 for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0], '..', 'build')):
@@ -16,7 +12,6 @@ for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0]
             sys.path.append(os.path.join(root, p))
 
 import quasardb  # pylint: disable=C0413,E0401
-import settings
 
 
 class QuasardbClusterSetTimeout(unittest.TestCase):

@@ -1,6 +1,5 @@
 # pylint: disable=C0103,C0111,C0302,W0212
 import os
-import unittest
 import sys
 import subprocess
 import time
@@ -69,8 +68,7 @@ def setUpModule():
 
     entry_gen = UniqueEntryNameGenerator()
     root_directory = os.path.join(os.path.split(__file__)[0], '..')
-    qdb_directory = os.path.join(os.path.split(__file__)[
-                                 0], '..', 'qdb', 'bin')
+    qdb_directory = os.path.join(root_directory, 'qdb', 'bin')
     __current_port = 3000
     insecure_endpoint = '127.0.0.1:' + str(__current_port)
     __current_port += 1
@@ -86,7 +84,10 @@ def setUpModule():
 
     __CLUSTERD = subprocess.Popen(
         [os.path.join(qdb_directory, 'qdbd'),
-         common_parameters, '--address=' + insecure_endpoint, '--security=false'], stdout=FNULL, stderr=FNULL)
+         common_parameters,
+         '--address=' + insecure_endpoint,
+         '--security=false'],
+        stdout=FNULL, stderr=FNULL)
     if __CLUSTERD.pid == 0:
         raise Exception("daemon", "cannot run insecure daemon")
 
