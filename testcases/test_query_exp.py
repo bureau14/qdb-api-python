@@ -1,6 +1,5 @@
 # pylint: disable=C0103,C0111,C0302,W0212
 import datetime
-import math
 import os
 import sys
 import unittest
@@ -233,20 +232,23 @@ class QuasardbQueryExp(unittest.TestCase):
                          "max(" + helper.double_column_name + ")")
         self.assertEqual(res.tables[0].columns_names[2], "1")
 
+        # Row 0
         self.assertEqual(
             quasardb.qdb_convert.convert_qdb_timespec_to_time(
                 res.tables[0].get_payload(0, 0)[1]),
             datetime.datetime(1970, 1, 1, 0, 0, tzinfo=pytz.UTC))
-        self.assertTrue(math.isnan(res.tables[0].get_payload(0, 1)[1]))
+        self.assertIsNone(res.tables[0].get_payload(0, 1))
         self.assertEqual(res.tables[0].get_payload(0, 2)[1], 1)
+
+        # Row 1
         self.assertEqual(
             quasardb.qdb_convert.convert_qdb_timespec_to_time(
                 res.tables[0].get_payload(1, 0)[1]),
-            inserted_double_data[len(inserted_double_data) - 1][0])
+            inserted_double_data[-1][0])
         self.assertEqual(
             res.tables[0].get_payload(1, 1)[1],
-            inserted_double_data[len(inserted_double_data) - 1][1])
-        self.assertEqual(res.tables[0].get_payload(1, 2)[1], 0)
+            inserted_double_data[-1][1])
+        self.assertIsNone(res.tables[0].get_payload(1, 2))
 
     def test_returns_inserted_multi_data_with_star_select(self):
         helper, inserted_double_data = self.generate_ts_with_double_points()
