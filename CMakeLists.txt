@@ -23,7 +23,7 @@ set(SWIG_COMMON_FILES
     qdb_python_common.i
 )
 
-set(QDB_PY_VERSION "2.7.0.dev0")
+set(QDB_PY_VERSION "2.8.0.dev0")
 set(QDB_PY_WRAPPER "${CMAKE_CURRENT_BINARY_DIR}/qdb_python_wrapper.cxx")
 
 set(QDB_API_DIR "${CMAKE_SOURCE_DIR}/qdb")
