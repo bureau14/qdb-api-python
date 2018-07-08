@@ -1,4 +1,0 @@
-include ez_setup.py
-recursive-include src *.cxx *.c
-recursive-include include *.h *.hpp
-recursive-include @PACKAGE_NAME@ @SHARED_LIBRARY_EXTENSIONS@

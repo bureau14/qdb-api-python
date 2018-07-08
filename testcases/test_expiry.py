@@ -5,18 +5,14 @@ import sys
 import unittest
 import settings
 
-
-for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0], '..', 'build')):
-    for p in dirnames:
-        if p.startswith('lib'):
-            sys.path.append(os.path.join(root, p))
-
+sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'Release'))
+sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'release'))
 import quasardb  # pylint: disable=C0413,E0401
 
 
 def _make_expiry_time(td):
     # expires in one minute
-    now = datetime.datetime.now(quasardb.tz)
+    now = datetime.datetime.now()
     # get rid of the microsecond for the testcases
     return now + td - datetime.timedelta(microseconds=now.microsecond)
 
@@ -35,23 +31,19 @@ class QuasardbExpiry(unittest.TestCase):
         b = settings.cluster.blob(entry_name)
 
         # entry does not exist yet
-        self.assertRaises(quasardb.OperationError, b.get_expiry_time)
+        self.assertRaises(quasardb.Error, b.get_expiry_time)
 
         b.put(entry_content)
 
         exp = b.get_expiry_time()
         self.assertIsInstance(exp, datetime.datetime)
-        self.assertNotEqual(exp.tzinfo, None)
-        self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
-        self.assertEqual(exp, datetime.datetime.fromtimestamp(0, quasardb.tz))
+        self.assertEqual(exp.year, 1970)
 
         future_exp = _make_expiry_time(datetime.timedelta(minutes=1))
         b.expires_at(future_exp)
 
         exp = b.get_expiry_time()
         self.assertIsInstance(exp, datetime.datetime)
-        self.assertNotEqual(exp.tzinfo, None)
-        self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
         self.assertEqual(exp, future_exp)
 
     def test_expires_from_now(self):
@@ -64,29 +56,20 @@ class QuasardbExpiry(unittest.TestCase):
 
         exp = b.get_expiry_time()
         self.assertIsInstance(exp, datetime.datetime)
-        self.assertNotEqual(exp.tzinfo, None)
-        self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
-        self.assertEqual(exp, datetime.datetime.fromtimestamp(0, quasardb.tz))
-
-        b.expires_at(None)
+        self.assertEqual(exp.year, 1970)
 
         # expires in one minute from now
-        future_exp = 60
-        future_exp_ms = future_exp * 1000
-        b.expires_from_now(future_exp_ms)
+        b.expires_from_now(datetime.timedelta(minutes=1))
 
         # We use a wide 10s interval for the check, because we have no idea at which speed
         # these testcases may run in debug. This will be enough however to check that
         # the interval has properly been converted and the time zone is
         # correct.
-        future_exp_lower_bound = datetime.datetime.now(
-            quasardb.tz) + datetime.timedelta(seconds=future_exp - 10)
+        future_exp_lower_bound = datetime.datetime.now() + datetime.timedelta(seconds=50)
         future_exp_higher_bound = future_exp_lower_bound + \
-            datetime.timedelta(seconds=future_exp + 10)
+            datetime.timedelta(seconds=80)
 
         exp = b.get_expiry_time()
-        self.assertNotEqual(exp.tzinfo, None)
-        self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
         self.assertIsInstance(exp, datetime.datetime)
         self.assertLess(future_exp_lower_bound, exp)
         self.assertLess(exp, future_exp_higher_bound)
@@ -106,8 +89,6 @@ class QuasardbExpiry(unittest.TestCase):
         exp = b.get_expiry_time()
 
         self.assertIsInstance(exp, datetime.datetime)
-        self.assertNotEqual(exp.tzinfo, None)
-        self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
         self.assertEqual(exp, future_exp)
 
         future_exp = _make_expiry_time(datetime.timedelta(minutes=2))
@@ -117,8 +98,6 @@ class QuasardbExpiry(unittest.TestCase):
         exp = b.get_expiry_time()
 
         self.assertIsInstance(exp, datetime.datetime)
-        self.assertNotEqual(exp.tzinfo, None)
-        self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
         self.assertEqual(exp, future_exp)
 
         future_exp = _make_expiry_time(datetime.timedelta(minutes=3))
@@ -128,8 +107,6 @@ class QuasardbExpiry(unittest.TestCase):
         exp = b.get_expiry_time()
 
         self.assertIsInstance(exp, datetime.datetime)
-        self.assertNotEqual(exp.tzinfo, None)
-        self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
         self.assertEqual(exp, future_exp)
 
         future_exp = _make_expiry_time(datetime.timedelta(minutes=4))
@@ -139,8 +116,6 @@ class QuasardbExpiry(unittest.TestCase):
         exp = b.get_expiry_time()
 
         self.assertIsInstance(exp, datetime.datetime)
-        self.assertNotEqual(exp.tzinfo, None)
-        self.assertEqual(exp.utcoffset(), datetime.timedelta(0))
         self.assertEqual(exp, future_exp)
 
         b.remove()

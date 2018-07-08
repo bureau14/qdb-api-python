@@ -4,19 +4,12 @@ import sys
 import unittest
 import settings
 
-
 sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'examples'))
-
 
 class QuasardbExamples(unittest.TestCase):
 
-    def test_time_series_example(self):
-        import time_series
-        time_series.main(settings.INSECURE_URI, settings.entry_gen.next())
-
-    def test_insert_example(self):
-        import insert
-        insert.main(settings.INSECURE_URI, 100)
+    def test_batch_ts_insert_example(self):
+        pass
 
     def test_csv_insert_example(self):
         HAS_PANDAS = True
@@ -31,6 +24,18 @@ class QuasardbExamples(unittest.TestCase):
         else:
             print (
                 "\nCannot run the example csv_insert as the module pandas is not found.\n")
+
+    def test_expiry_example(self):
+        import expiry
+        expiry.main(settings.INSECURE_URI, settings.entry_gen.next())
+
+    def test_query_tags_example(self):
+        import query_tags
+        query_tags.main(settings.INSECURE_URI)
+
+    def test_time_series_example(self):
+        import time_series
+        time_series.main(settings.INSECURE_URI, settings.entry_gen.next())
 
     def test_temperature_example(self):
         import temperature

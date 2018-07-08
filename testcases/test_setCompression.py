@@ -4,33 +4,29 @@ import sys
 import unittest
 import settings
 
-
-for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0], '..', 'build')):
-    for p in dirnames:
-        if p.startswith('lib'):
-            sys.path.append(os.path.join(root, p))
-
+sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'Release'))
+sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'release'))
 import quasardb  # pylint: disable=C0413,E0401
 
 
 class QuasardbClusterSetCompression(unittest.TestCase):
     def test_compression_none(self):
         try:
-            settings.cluster.set_compression(quasardb.Compression.none)
+            settings.cluster.options().set_compression(quasardb.Options.Compression.Disabled)
         except:
             self.fail(
                 msg='cluster.set_compression should not have raised an exception')
 
     def test_compression_fast(self):
         try:
-            settings.cluster.set_compression(quasardb.Compression.fast)
+            settings.cluster.options().set_compression(quasardb.Options.Compression.Fast)
         except:
             self.fail(
                 msg='cluster.set_compression should not have raised an exception')
 
     def test_compression_invalid(self):
-        self.assertRaises(quasardb.InputError,
-                          settings.cluster.set_compression, 123)
+        self.assertRaises(TypeError,
+                          settings.cluster.options().set_compression, 123)
 
 
 if __name__ == '__main__':

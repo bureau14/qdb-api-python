@@ -5,12 +5,8 @@ import sys
 import unittest
 import settings
 
-
-for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0], '..', 'build')):
-    for p in dirnames:
-        if p.startswith('lib'):
-            sys.path.append(os.path.join(root, p))
-
+sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'Release'))
+sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'release'))
 import quasardb  # pylint: disable=C0413,E0401
 
 
@@ -24,7 +20,7 @@ class QuasardbBasic(unittest.TestCase):
         self.assertGreater(len(version), 0)
 
     def test_purge_all_throws_exception__when_disabled_by_default(self):
-        self.assertRaises(quasardb.OperationError,
+        self.assertRaises(quasardb.Error,
                           settings.cluster.purge_all, datetime.timedelta(minutes=1))
 
 

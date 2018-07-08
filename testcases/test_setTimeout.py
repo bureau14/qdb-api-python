@@ -6,36 +6,33 @@ import unittest
 import settings
 
 
-for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0], '..', 'build')):
-    for p in dirnames:
-        if p.startswith('lib'):
-            sys.path.append(os.path.join(root, p))
-
+sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'Release'))
+sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'release'))
 import quasardb  # pylint: disable=C0413,E0401
 
 
 class QuasardbClusterSetTimeout(unittest.TestCase):
     def test_set_timeout_1_day(self):
         try:
-            settings.cluster.set_timeout(datetime.timedelta(days=1))
+            settings.cluster.options().set_timeout(datetime.timedelta(days=1))
         except:  # pylint: disable=W0702
             self.fail(
                 msg='cluster.set_timeout should not have raised an exception')
 
     def test_set_timeout_1_second(self):
         try:
-            settings.cluster.set_timeout(datetime.timedelta(seconds=1))
+            settings.cluster.options().set_timeout(datetime.timedelta(seconds=1))
         except:  # pylint: disable=W0702
             self.fail(
                 msg='cluster.set_timeout should not have raised an exception')
 
     def test_set_timeout_throws__when_timeout_is_1_microsecond(self):
         # timeout must be in milliseconds
-        self.assertRaises(quasardb.InputError,
-                          settings.cluster.set_timeout, datetime.timedelta(microseconds=1))
+        self.assertRaises(quasardb.Error,
+                          settings.cluster.options().set_timeout, datetime.timedelta(microseconds=1))
 
     def test_cluster_with_timeout_throws__when_timeout_is_less_than_1_millisecond(self):
-        self.assertRaises(quasardb.InputError,
+        self.assertRaises(quasardb.Error,
                           quasardb.Cluster, uri=settings.INSECURE_URI,
                           timeout=datetime.timedelta(microseconds=1))
 

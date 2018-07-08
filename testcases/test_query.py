@@ -17,19 +17,19 @@ class QuasardbQueryFind(unittest.TestCase):
         b.put(entry_content)
         b.attach_tag(my_tag)
 
-        res = settings.cluster.query_find("find(tag='" + my_tag + "')")
+        res = settings.cluster.find("find(tag='" + my_tag + "')").run()
 
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0], entry_name)
 
-        res = settings.cluster.query_find(
-            "find(tag='" + my_tag + "' AND type=blob)")
+        res = settings.cluster.find(
+            "find(tag='" + my_tag + "' AND type=blob)").run()
 
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0], entry_name)
 
-        res = settings.cluster.query_find(
-            "find(tag='" + my_tag + "' AND type=integer)")
+        res = settings.cluster.find(
+            "find(tag='" + my_tag + "' AND type=integer)").run()
 
         self.assertEqual(len(res), 0)
 
@@ -46,18 +46,18 @@ class QuasardbQueryFind(unittest.TestCase):
         b.attach_tag(tag1)
         b.attach_tag(tag2)
 
-        res = settings.cluster.query_find("find(tag='" + tag1 + "')")
+        res = settings.cluster.find("find(tag='" + tag1 + "')").run()
 
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0], entry_name)
 
-        res = settings.cluster.query_find("find(tag='" + tag2 + "')")
+        res = settings.cluster.find("find(tag='" + tag2 + "')").run()
 
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0], entry_name)
 
-        res = settings.cluster.query_find(
-            "find(tag='" + tag1 + "' AND tag='" + tag2 + "')")
+        res = settings.cluster.find(
+            "find(tag='" + tag1 + "' AND tag='" + tag2 + "')").run()
 
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0], entry_name)

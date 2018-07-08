@@ -4,13 +4,15 @@
 
 You can download a precompiled egg directly from our site, or you can build from the sources.
 
+The QuasarDB Python API requires [numpy](http://www.numpy.org/).
+
 ### quasardb C API
 
 To build the Python API, you will need the C API. It can either be installed on the machine (e.g. on unix in `/usr/lib` or `/usr/local/lib`) or you can unpack the C API archive in qdb.
 
 ### Building the extension
 
-You will need [CMake](http://www.cmake.org/), [SWIG](http://www.swig.org/) and the Python dist tools installed. You can also download a pre-compiled package from our download site.
+You will need [CMake](http://www.cmake.org/) and the Python dist tools installed. You can also download a pre-compiled package from our download site.
 
 First, run cmake to create a project directory, for example:
 
@@ -41,6 +43,8 @@ import quasardb
 c = quasardb.Cluster('qdb://127.0.0.1:2836')
 ```
 
+### Blob API
+
 Now that we have a connection to the cluster, let's store some binary data:
 
 ```python
@@ -50,62 +54,42 @@ b.put('boom')
 v = b.get() # returns 'boom'
 ```
 
-Want a queue? We have distributed queues.
-
-```python
-q = c.deque('q2')
-
-q.push_back('boom')
-v = q.pop_front() # returns 'boom'
-
-q.push_front('bang')
-```
-
-quasardb comes out of the box with server-side atomic integers:
-
-```python
-i = c.integer('some_int')
-
-i.put(3)  # i is equal to 3
-i.add(7)  # i is equal to 10
-i.add(-5) # is equal to 5
-```
+### Timeseries API
 
 What about time series you say?
 
-You can create a time series as such:
+You get an object in the same fashion than for a blob:
 
 ```python
 ts = c.ts("dat_ts")
 
-cols = ts.create([quasardb.TimeSeries.DoubleColumnInfo("col1"), quasardb.TimeSeries.BlobColumnInfo("col2")])
+ts.create([quasardb.ColumnInfo(quasardb.ColumnType.Double, "doubles"), quasardb.ColumnInfo(quasardb.ColumnType.Blob, "blobs")])
 ```
 
-Then you can operate on columns:
+Then you can directly insert numpy arrays:
 
 ```python
-col1 = ts.column(quasardb.TimeSeries.DoubleColumnInfo("col1"))
+import numpy as np
 
-# you can insert as many points as you want
-col1.insert([(datetime.datetime.now(quasardb.tz), 1.0)])
+dates = np.arange(np.datetime64('2015-07-01'), np.datetime64('2015-07-11')).astype('datetime64[ns]')
+values = np.arange(0.0, 10.0, 1.0)
 
-# get the average for multiple intervals
-# assuming start_time1, end_time1 are datetime.datetime objects
-agg = quasardb.TimeSeries.Aggregations()
-agg.append(quasardb.TimeSeries.Aggregation.arithmetic_mean, (start_time1, end_time1))
-agg.append(quasardb.TimeSeries.Aggregation.arithmetic_mean, (start_time2, end_time2))
-
-avg = col1.aggregate(agg)
-
-# avg[0].value has the average for the first interval
-# avg[1].value has the average for the second interval
+ts.double_insert("doubles", dates, values)
 ```
 
 It's also possible to get the raw values:
 
 ```python
-# results contains the points, in a flattened list
-results = col1.get_ranges([(start_time1, end_time1), (start_time2, end_time2)])
+# results will contain the timestamps and the values in a couple of numpy arrays
+results = ts.double_get_ranges("doubles", [(np.datetime64('2015-07-01', 'ns'), np.datetime64('2015-07-11', 'ns'))])
+```
+
+And last but not least, run queries:
+
+```python
+q = c.query("select blobs from dat_ts in range(2015-07-01, +10d)")
+# results.tables will contain a dictionary mapped to every table
+results = q.run()
 ```
 
 ## Compilation Issues

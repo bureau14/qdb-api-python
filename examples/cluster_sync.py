@@ -29,9 +29,13 @@ from __future__ import print_function
 
 import sys
 import traceback
-import time
-import datetime
+import os
+import numpy as np
 
+# you don't need the following, it's just added so it can be run from the git repo
+# without installing the quasardb library
+sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'Release'))
+sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'release'))
 import quasardb  # pylint: disable=C0413,E0401
 
 def main(uri_src, uri_dst, ts_name):
@@ -50,23 +54,19 @@ def main(uri_src, uri_dst, ts_name):
         pass
 
     # create the time series on the destination cluster.
-    cols_dst = ts_dst.create([quasardb.TimeSeries.Int64ColumnInfo("bid"),
-                              quasardb.TimeSeries.Int64ColumnInfo("last")])
+    ts_dst.create([quasardb.ColumnInfo(quasardb.ColumnType.Int64, "bid"),
+                   quasardb.ColumnInfo(quasardb.ColumnType.Int64, "last")])
 
-    # acquire references to the columns from the source cluster.
-    cols_src = [ts_src.column(quasardb.TimeSeries.Int64ColumnInfo("bid")),
-                ts_src.column(quasardb.TimeSeries.Int64ColumnInfo("last"))]
+    # Note that we are loading all data points of this entire column in
+    # memory here. A more scalable solution would split the ranges into
+    # smaller ranges, or use the streaming bulk reader and bulk inserter.
+    everything = [(np.datetime64('1970-01-01', 'ns'), np.datetime64('2035-01-01', 'ns'))]
 
+    data = ts_src.int64_get_ranges("bid", everything)
+    ts_dst.int64_insert("bid", data[0], data[1])
 
-    for col_src, col_dst in zip(cols_src, cols_dst):
-        print("copying column from src to dst..")
-
-        # Note that we are loading all data points of this entire column in
-        # memory here. A more scalable solution would split the ranges into
-        # smaller ranges, or use the streaming bulk reader and bulk inserter.
-        col_dst.insert(
-            col_src.get_ranges([(datetime.datetime.utcfromtimestamp(0),
-                                      datetime.datetime.utcnow())]))
+    data = ts_src.int64_get_ranges("last", everything)
+    ts_dst.int64_insert("last", data[0], data[1])
 
 if __name__ == "__main__":
 

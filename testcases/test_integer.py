@@ -4,15 +4,11 @@ import sys
 import unittest
 import settings
 
-
-for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0], '..', 'build')):
-    for p in dirnames:
-        if p.startswith('lib'):
-            sys.path.append(os.path.join(root, p))
-
+sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'Release'))
+sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'release'))
 import quasardb  # pylint: disable=C0413,E0401
 
-
+@unittest.skip("Not implemented")
 class QuasardbInteger(unittest.TestCase):
 
     def __init__(self, methodName="runTest"):

@@ -29,10 +29,14 @@ from __future__ import print_function
 
 import sys
 import traceback
-import time
-import datetime
-import random
+import os
 
+import numpy as np
+
+# you don't need the following, it's just added so it can be run from the git repo
+# without installing the quasardb library
+sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'Release'))
+sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'release'))
 import quasardb  # pylint: disable=C0413,E0401
 
 def seed_ts(c, name):
@@ -42,28 +46,17 @@ def seed_ts(c, name):
     except:
         pass
 
-    cols = ts.create([quasardb.TimeSeries.Int64ColumnInfo("bid"),
-                      quasardb.TimeSeries.Int64ColumnInfo("last")])
-    table = ts.local_table()
-
-    # QuasarDB uses a high-performance, high-precision timestamp
-    # structure because using datetime directly would be too
-    # inefficient.
-    #
-    # Note that we are using the same timestamp for all data points
-    # here.
-    qdb_timestamp = quasardb.impl.qdb_timespec_t()
-    qdb_timestamp.tv_sec = int(round(time.time()))
-    qdb_timestamp.tv_usec = 0
+    ts.create([quasardb.ColumnInfo(quasardb.ColumnType.Int64, "bid"),
+                      quasardb.ColumnInfo(quasardb.ColumnType.Int64, "last")])
 
     # Generate 20 random data points
-    for values in zip(random.sample(range(0, 100), 20),
-                      random.sample(range(0, 1000), 20)):
-        table.fast_append_row(qdb_timestamp, *values)
+    date = np.arange(np.datetime64('2018-01-01'), np.datetime64('2018-01-21')).astype('datetime64[ns]')
+    values = np.random.random_integers(0, 100, len(date))
 
-    table.push()
+    ts.int64_insert("bid", date, np.random.random_integers(0, 100, len(date)))
+    ts.int64_insert("last", date, np.random.random_integers(0, 100, len(date)))
 
-    return ts, cols
+    return ts
 
 def main(uri):
 
@@ -73,22 +66,20 @@ def main(uri):
     ts_name1 = "stocks.apple"
     ts_name2 = "stocks.google"
 
-    ts1, cols1 = seed_ts(c, ts_name1)
-    ts2, cols2 = seed_ts(c, ts_name2)
+    ts1 = seed_ts(c, ts_name1)
+    ts2 = seed_ts(c, ts_name2)
 
     # Attach a tag to both of them:
     ts1.attach_tag("nasdaq")
     ts2.attach_tag("nasdaq")
 
-    res = c.query_exp("select sum(bid), count(bid) from find(tag='nasdaq') in range(2018, 2019)")
-    for t in res.tables:
-        # We expect two columns, one for sum(bid), other for count(bid)
-        assert t.columns_count == 3
-        assert t.rows_count == 1
+    q = c.query("select sum(bid), count(bid) from find(tag='nasdaq') in range(2018, 2019)")
+    res = q.run()
 
-        print(t.table_name, " sum =", t.get_payload(0, 1)[1],  ", count =", t.get_payload(0, 2)[1])
-
-
+    for k, table_result in res.tables.items():
+        print("table:", k)
+        for col in table_result:
+            print(col.name, ":", col.data)
 
 if __name__ == "__main__":
 

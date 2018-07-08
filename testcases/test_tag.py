@@ -36,6 +36,28 @@ class QuasardbTag(unittest.TestCase):
         tags = b.get_tags()
         self.assertEqual(0, len(tags))
 
+    def test_tag_multiple(self):
+        entry_name = settings.entry_gen.next()
+        entry_content = "content"
+
+        tags_to_add = sorted([settings.entry_gen.next() for i in range(0, 10)])
+
+        b = settings.cluster.blob(entry_name)
+
+        b.put(entry_content)
+
+        tags = b.get_tags()
+        self.assertEqual(0, len(tags))
+
+        b.attach_tags(tags_to_add)
+
+        self.assertEqual(tags_to_add, sorted(b.get_tags()))
+
+        b.detach_tags(tags_to_add)
+
+        tags = b.get_tags()
+        self.assertEqual(0, len(tags))
+
     def test_tag_sequence(self):
         entry_name = settings.entry_gen.next()
         entry_content = "content"

@@ -8,16 +8,11 @@ import settings
 
 class QuasardbClusterGetTimeout(unittest.TestCase):
     def test_get_timeout(self):
-        try:
-            settings.cluster.set_timeout(datetime.timedelta(
-                seconds=1))  # First setting the timeout
-            duration = settings.cluster.get_timeout()
-            # Checking, with the set timoeout argument
-            self.assertEqual(duration, 1000)
-        except:  # pylint: disable=W0702
-            self.fail(
-                msg='cluster.get_timeout should not have raised an exception')
-
+        settings.cluster.options().set_timeout(datetime.timedelta(
+            seconds=1))  # First setting the timeout
+        duration = settings.cluster.options().get_timeout()
+        # Checking, with the set timeout argument
+        self.assertEqual(duration, datetime.timedelta(seconds=1))
 
 if __name__ == '__main__':
     if settings.get_lock_status() is False:

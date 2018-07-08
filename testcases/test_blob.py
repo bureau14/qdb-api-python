@@ -6,12 +6,8 @@ import sys
 import unittest
 import settings
 
-
-for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0], '..', 'build')):
-    for p in dirnames:
-        if p.startswith('lib'):
-            sys.path.append(os.path.join(root, p))
-
+sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'Release'))
+sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'release'))
 import quasardb  # pylint: disable=C0413,E0401
 
 
@@ -19,7 +15,7 @@ class QuasardbBlob(unittest.TestCase):
 
     def setUp(self):
         self.entry_name = settings.entry_gen.next()
-        self.entry_content = "content"
+        self.entry_content = b"content"
 
         self.b = settings.cluster.blob(self.entry_name)
 
@@ -35,7 +31,7 @@ class QuasardbBlob(unittest.TestCase):
     def test_put_throws_exception__when_called_twice(self):
         self.b.put(self.entry_content)
 
-        self.assertRaises(quasardb.OperationError,
+        self.assertRaises(quasardb.Error,
                           self.b.put, self.entry_content)
 
     def test_get(self):
@@ -50,7 +46,7 @@ class QuasardbBlob(unittest.TestCase):
 
         self.b.remove()
 
-        self.assertRaises(quasardb.OperationError, self.b.get)
+        self.assertRaises(quasardb.Error, self.b.get)
 
     def test_put_after_remove(self):
         self.b.put(self.entry_content)
@@ -66,20 +62,19 @@ class QuasardbBlob(unittest.TestCase):
         self.b.put(self.entry_content)
         self.b.remove()
 
-        self.assertRaises(quasardb.OperationError, self.b.remove)
+        self.assertRaises(quasardb.Error, self.b.remove)
 
     def test_update(self):
         self.b.update(self.entry_content)
         got = self.b.get()
         self.assertEqual(self.entry_content, got)
-        new_entry_content = "it's a new style"
+        new_entry_content = b"It's the new style"
         self.b.update(new_entry_content)
         got = self.b.get()
         self.assertEqual(new_entry_content, got)
         self.b.remove()
 
-        new_entry_content = ''.join('%c' % x for x in xrange(256))
-        self.assertEqual(len(new_entry_content), 256)
+        new_entry_content = b"I'm never in training, my voice is not straining"
 
         self.b.update(new_entry_content)
         got = self.b.get()
@@ -90,7 +85,7 @@ class QuasardbBlob(unittest.TestCase):
         got = self.b.get()
         self.assertEqual(self.entry_content, got)
 
-        entry_new_content = "new stuff"
+        entry_new_content = b"new stuff"
         got = self.b.get_and_update(entry_new_content)
         self.assertEqual(self.entry_content, got)
         got = self.b.get()
@@ -103,31 +98,31 @@ class QuasardbBlob(unittest.TestCase):
 
         got = self.b.get_and_remove()
         self.assertEqual(self.entry_content, got)
-        self.assertRaises(quasardb.OperationError, self.b.get)
+        self.assertRaises(quasardb.Error, self.b.get)
 
     def test_remove_if(self):
         self.b.put(self.entry_content)
         got = self.b.get()
         self.assertEqual(self.entry_content, got)
-        self.assertRaises(quasardb.OperationError,
-                          self.b.remove_if, self.entry_content + 'a')
+        self.assertRaises(quasardb.Error,
+                          self.b.remove_if, self.entry_content + b'a')
         got = self.b.get()
         self.assertEqual(self.entry_content, got)
         self.b.remove_if(self.entry_content)
-        self.assertRaises(quasardb.OperationError, self.b.get)
+        self.assertRaises(quasardb.Error, self.b.get)
 
     def test_compare_and_swap(self):
         self.b.put(self.entry_content)
         got = self.b.get()
         self.assertEqual(self.entry_content, got)
-        entry_new_content = "new stuff"
+        entry_new_content = b"new stuff"
         got = self.b.compare_and_swap(entry_new_content, entry_new_content)
         self.assertEqual(self.entry_content, got)
         # unchanged because unmatched
         got = self.b.get()
         self.assertEqual(self.entry_content, got)
         got = self.b.compare_and_swap(entry_new_content, self.entry_content)
-        self.assertEqual(None, got)
+        self.assertEqual(0, len(got))
         # changed because matched
         got = self.b.get()
         self.assertEqual(entry_new_content, got)

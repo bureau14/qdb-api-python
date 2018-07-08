@@ -16,27 +16,27 @@ import quasardb  # pylint: disable=C0413,E0401
 class QuasardbConnection(unittest.TestCase):
 
     def test_connect_throws_input_error__when_uri_is_invalid(self):
-        self.assertRaises(quasardb.InputError,
+        self.assertRaises(quasardb.Error,
                           quasardb.Cluster, uri='invalid_uri')
 
     def test_connect_throws_connection_error__when_no_cluster_on_given_uri(self):
-        self.assertRaises(quasardb.ConnectionError,
+        self.assertRaises(quasardb.Error,
                           quasardb.Cluster, uri='qdb://127.0.0.1:1')
 
     def test_connect_throws_connection_error__when_no_cluster_public_key(self):
-        self.assertRaises(quasardb.InputError,
+        self.assertRaises(quasardb.Error,
                           quasardb.Cluster, uri=settings.SECURE_URI,
                           user_name=settings.SECURE_USER_NAME,
                           user_private_key=settings.SECURE_USER_PRIVATE_KEY)
 
     def test_connect_throws_connection_error__when_no_user_private_key(self):
-        self.assertRaises(quasardb.InputError,
+        self.assertRaises(quasardb.Error,
                           quasardb.Cluster, uri=settings.SECURE_URI,
                           user_name=settings.SECURE_USER_NAME,
                           cluster_public_key=settings.SECURE_CLUSTER_PUBLIC_KEY)
 
     def test_connect_throws_connection_error__when_no_user_name(self):
-        self.assertRaises(quasardb.RemoteSystemError,
+        self.assertRaises(quasardb.Error,
                           quasardb.Cluster, uri=settings.SECURE_URI,
                           user_private_key=settings.SECURE_USER_PRIVATE_KEY,
                           cluster_public_key=settings.SECURE_CLUSTER_PUBLIC_KEY)

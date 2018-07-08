@@ -4,11 +4,10 @@ import sys
 import subprocess
 import time
 
-for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0], '..', 'build')):
-    for p in dirnames:
-        if p.startswith('lib'):
-            sys.path.append(os.path.join(root, p))
-
+# you don't need the following, it's just added so it can be run from the git repo
+# without installing the quasardb library
+sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'Release'))
+sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'release'))
 import quasardb  # pylint: disable=C0413,E0401
 
 global locked
@@ -67,6 +66,7 @@ def setUpModule():
     SECURE_CLUSTER_PUBLIC_KEY = 'Pb+d1o3HuFtxEb5uTl9peU89ze9BZTK9f8KdKr4k7zGA='
 
     entry_gen = UniqueEntryNameGenerator()
+    test_data_directory = os.path.join(os.path.split(__file__)[0], 'data')
     root_directory = os.path.join(os.path.split(__file__)[0], '..')
     qdb_directory = os.path.join(root_directory, 'qdb', 'bin')
     __current_port = 3000
@@ -98,8 +98,8 @@ def setUpModule():
         [os.path.join(qdb_directory, 'qdbd'),
          common_parameters, '--address=' + secure_endpoint,
          '--cluster-private-file=' +
-         os.path.join(root_directory, 'cluster-secret-key.txt'),
-         '--user-list=' + os.path.join(root_directory, 'users.txt')], stdout=FNULL, stderr=FNULL)
+         os.path.join(test_data_directory, 'cluster-secret-key.txt'),
+         '--user-list=' + os.path.join(test_data_directory, 'users.txt')], stdout=FNULL, stderr=FNULL)
     if __SECURE_CLUSTERD.pid == 0:
         __cleanupProcess(__CLUSTERD)
         raise Exception("daemon", "cannot run secure daemon")

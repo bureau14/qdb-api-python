@@ -5,7 +5,7 @@ import sys
 import unittest
 import settings
 
-
+@unittest.skip("Not implemented")
 class QuasardbScan(unittest.TestCase):
 
     def test_blob_scan_nothing(self):
