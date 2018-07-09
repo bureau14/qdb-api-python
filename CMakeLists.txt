@@ -24,10 +24,12 @@ if(MSVC)
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${QDB_BIN_DIR}")
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${QDB_BIN_DIR}")
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${QDB_BIN_DIR}")
+    set(QDB_PYD_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Release")
 else()
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${QDB_BIN_DIR}/${CMAKE_BUILD_TYPE}")
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${QDB_BIN_DIR}/${CMAKE_BUILD_TYPE}")
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${QDB_BIN_DIR}/${CMAKE_BUILD_TYPE}")
+    set(QDB_PYD_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 endif()
 
 if(CLANG OR CMAKE_COMPILER_IS_GNUCXX)
@@ -43,7 +45,7 @@ endif()
 
 add_subdirectory(pybind11)
 
-set(QDB_PYD "${QDB_BIN_DIR}/Release/quasardb.pyd")
+
 set(QDB_API_DIR "${CMAKE_SOURCE_DIR}/qdb")
 if(NOT IS_DIRECTORY "${QDB_API_DIR}/include")
     message(WARNING "Please unzip qdb c-api into ${QDB_API_DIR}")
@@ -57,14 +59,13 @@ find_library(QDB_API_LIB NAMES qdb_api PATHS ${QDB_API_DIR}/lib NO_DEFAULT_PATH)
 
 add_subdirectory(src)
 
-
-
 set(QDB_PY_VERSION "3.0.0.dev0")
 
 set(QDB_DAEMON "${QDB_API_DIR}/bin/qdbd")
 
 # get the full path of qdb_api.dll
 if(WIN32)
+
     set(QDB_PYTHON_LIBRARY_GLOB "qdb_api.*")
 else()
     set(QDB_PYTHON_LIBRARY_GLOB "lib*")
@@ -76,10 +77,13 @@ set(PACKAGE_NAME quasardb)
 
 set(SHARED_LIBRARY_EXTENSIONS "")
 if(WIN32)
+    set(QDB_PYD_EXT "*.pyd")
     set(SHARED_LIBRARY_EXTENSIONS "*.lib *.dll")
 elseif(APPLE)
+    set(QDB_PYD_EXT "*.dylib")
     set(SHARED_LIBRARY_EXTENSIONS "*.dylib")
 else()
+    set(QDB_PYD_EXT "*.so")
     set(SHARED_LIBRARY_EXTENSIONS "*.so")
 endif()
 
@@ -93,12 +97,13 @@ configure_file(packaging/ez_setup.py ez_setup.py COPYONLY)
 
 configure_file(packaging/MANIFEST.in MANIFEST.in @ONLY)
 
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/src/nothing.c" DESTINATION "${CMAKE_BINARY_DIR}")
+
 # copy include dir
 # file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/include/qdb" DESTINATION "include")
 
 # copy the libraries
 if (WIN32)
-  #  file(COPY "${QDB_API_DIR}/lib/qdb_api.lib" DESTINATION "${PACKAGE_NAME}")
     file(COPY "${QDB_API_DIR}/bin/qdb_api.dll" DESTINATION "${PACKAGE_NAME}")
     file(COPY "${QDB_API_DIR}/bin/qdb_api.dll" DESTINATION "${QDB_BIN_DIR}/Debug")
     file(COPY "${QDB_API_DIR}/bin/qdb_api.dll" DESTINATION "${QDB_BIN_DIR}/Release")
