@@ -26,11 +26,15 @@ is_osx = sys.platform == 'darwin'
 is_64_bits = sys.maxsize > 2**32
 arch = "x64" if is_64_bits else "x86"
 
-pyd_file = glob.glob(os.path.join('@QDB_PYD_DIR@', '@QDB_PYD_EXT@'))
+# move the compiled file around so it works on all platforms
+source_pyd_file = glob.glob(os.path.join('@QDB_PYD_DIR@', '@QDB_PYD_EXT@'))
 
-for pyd in pyd_file:
+for pyd in source_pyd_file:
   shutil.copy(pyd, 'quasardb')
 
+pyd_file = glob.glob(os.path.join('quasardb', '@QDB_PYD_EXT@'))
+
+# get the additional libraries for the package
 package_modules = glob.glob(os.path.join('quasardb', '@QDB_PYTHON_LIBRARY_GLOB@'))
 if is_osx:
     package_modules.extend(glob.glob(os.path.join('quasardb', '@SHARED_LIBRARY_EXTENSIONS@')))

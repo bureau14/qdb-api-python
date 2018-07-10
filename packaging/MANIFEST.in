@@ -1,2 +1,2 @@
 include ez_setup.py
-recursive-include @PACKAGE_NAME@ *.pyd @SHARED_LIBRARY_EXTENSIONS@
+recursive-include @PACKAGE_NAME@ @SHARED_LIBRARY_EXTENSIONS@
