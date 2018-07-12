@@ -35,4 +35,4 @@
 .. moduleauthor: quasardb SAS. All rights reserved
 """
 
-from quasardb import *
+from quasardb.quasardb import *
