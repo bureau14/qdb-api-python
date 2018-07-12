@@ -3,7 +3,6 @@ import os
 import unittest
 import settings
 
-
 class QuasardbQueryFind(unittest.TestCase):
 
     def test_types(self):

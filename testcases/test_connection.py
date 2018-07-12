@@ -4,14 +4,7 @@ import sys
 import unittest
 import settings
 
-
-for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0], '..', 'build')):
-    for p in dirnames:
-        if p.startswith('lib'):
-            sys.path.append(os.path.join(root, p))
-
-import quasardb  # pylint: disable=C0413,E0401
-
+from settings import quasardb
 
 class QuasardbConnection(unittest.TestCase):
 

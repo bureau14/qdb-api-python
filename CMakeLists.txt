@@ -1,3 +1,8 @@
+# We have a two stages build process
+# This CMakeLists.txt will create the structure that will enable setuptools to build the extension
+# the quasardb_module directory contains the actual source code of the module and is built by setuptools
+# this enables us to create a source distribution of the quasardb API
+
 cmake_minimum_required(VERSION 2.8.12)
 project(qdb-api-python)
 enable_testing()
@@ -20,35 +25,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(CLANG TRUE)
 endif()
 
-if(MSVC)
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${QDB_BIN_DIR}")
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${QDB_BIN_DIR}")
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${QDB_BIN_DIR}")
-    set(QDB_PYD_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Release")
-else()
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${QDB_BIN_DIR}/${CMAKE_BUILD_TYPE}")
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${QDB_BIN_DIR}/${CMAKE_BUILD_TYPE}")
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${QDB_BIN_DIR}/${CMAKE_BUILD_TYPE}")
-    set(QDB_PYD_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
-endif()
-
-if(CLANG OR CMAKE_COMPILER_IS_GNUCXX)
-    set(PYBIND11_CPP_STANDARD -std=c++1z)
-else()
-    add_definitions(/DSTATIC_LINKED)
-    add_definitions(/D_CRT_SECURE_NO_WARNINGS=1)
-    add_compile_options(/wd5033) # register is no longer a supported storage class
-    add_compile_options(/EHa)
-    add_compile_options(/MT)
-    set(PYBIND11_CPP_STANDARD /std:c++17)
-endif()
-
-add_subdirectory(pybind11)
-
-
 set(QDB_API_DIR "${CMAKE_SOURCE_DIR}/qdb")
 if(NOT IS_DIRECTORY "${QDB_API_DIR}/include")
-    message(WARNING "Please unzip qdb c-api into ${QDB_API_DIR}")
+    message(FATAL_ERROR "Please unzip qdb c-api into ${QDB_API_DIR}")
 endif()
 
 include_directories(SYSTEM
@@ -57,7 +36,10 @@ include_directories(SYSTEM
 
 find_library(QDB_API_LIB NAMES qdb_api PATHS ${QDB_API_DIR}/lib NO_DEFAULT_PATH)
 
-add_subdirectory(src)
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/quasardb_module" DESTINATION "${CMAKE_BINARY_DIR}")
+file(COPY "${QDB_API_DIR}/include" DESTINATION "${CMAKE_BINARY_DIR}/quasardb_module/qdb")
+
+# add_subdirectory(src)
 
 set(QDB_PY_VERSION "3.0.0.dev0")
 
@@ -65,7 +47,6 @@ set(QDB_DAEMON "${QDB_API_DIR}/bin/qdbd")
 
 # get the full path of qdb_api.dll
 if(WIN32)
-
     set(QDB_PYTHON_LIBRARY_GLOB "qdb_api.*")
 else()
     set(QDB_PYTHON_LIBRARY_GLOB "lib*")
@@ -97,31 +78,22 @@ configure_file(packaging/ez_setup.py ez_setup.py COPYONLY)
 
 configure_file(packaging/MANIFEST.in MANIFEST.in @ONLY)
 
-file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/src/nothing.c" DESTINATION "${CMAKE_BINARY_DIR}")
-
-# copy include dir
-# file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/include/qdb" DESTINATION "include")
-
 # copy the libraries
 if (WIN32)
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/qdb_api.lib" DESTINATION "${CMAKE_BINARY_DIR}/quasardb_module/qdb/lib")
     file(COPY "${QDB_API_DIR}/bin/qdb_api.dll" DESTINATION "${PACKAGE_NAME}")
-    file(COPY "${QDB_API_DIR}/bin/qdb_api.dll" DESTINATION "${QDB_BIN_DIR}/Debug")
-    file(COPY "${QDB_API_DIR}/bin/qdb_api.dll" DESTINATION "${QDB_BIN_DIR}/Release")
 elseif(APPLE)
-    file(COPY "${QDB_API_DIR}/lib/libqdb_api.dylib" DESTINATION "${QDB_BIN_DIR}/debug")
-    file(COPY "${QDB_API_DIR}/lib/libqdb_api.dylib" DESTINATION "${QDB_BIN_DIR}/release")
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/libqdb_api.dylib" DESTINATION "${CMAKE_BINARY_DIR}/quasardb_module/qdb/lib")
     file(COPY "${QDB_API_DIR}/lib/libqdb_api.dylib"  DESTINATION "${PACKAGE_NAME}")
     file(COPY "${QDB_API_DIR}/lib/libc++.1.dylib"    DESTINATION "${PACKAGE_NAME}")
     file(COPY "${QDB_API_DIR}/lib/libc++abi.1.dylib" DESTINATION "${PACKAGE_NAME}")
 elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "FreeBSD")
-    file(COPY "${QDB_API_DIR}/lib/libqdb_api.so" DESTINATION "${QDB_BIN_DIR}/debug")
-    file(COPY "${QDB_API_DIR}/lib/libqdb_api.so" DESTINATION "${QDB_BIN_DIR}/release")
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/libqdb_api.so" DESTINATION "${CMAKE_BINARY_DIR}/quasardb_module/qdb/lib")
     file(COPY "${QDB_API_DIR}/lib/libqdb_api.so" DESTINATION "${PACKAGE_NAME}")
     file(COPY "${QDB_API_DIR}/lib/libc++.so" DESTINATION "${PACKAGE_NAME}")
     file(COPY "${QDB_API_DIR}/lib/libc++abi.so" DESTINATION "${PACKAGE_NAME}")
 else()
-    file(COPY "${QDB_API_DIR}/lib/libqdb_api.so" DESTINATION "${QDB_BIN_DIR}/debug")
-    file(COPY "${QDB_API_DIR}/lib/libqdb_api.so" DESTINATION "${QDB_BIN_DIR}/release")
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/libqdb_api.so" DESTINATION "${CMAKE_BINARY_DIR}/quasardb_module/qdb/lib")
     file(COPY "${QDB_API_DIR}/lib/libqdb_api.so" DESTINATION "${PACKAGE_NAME}")
 endif()
 
@@ -131,32 +103,24 @@ if (APPLE)
 endif()
 
 # Step 2: Build
-
 add_custom_target(qdb_python_api_egg ALL
-    COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_egg
-    DEPENDS quasardb
+    COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_egg sdist
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 add_custom_target(qdb_python_api_wheel ALL
     COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_wheel
-    DEPENDS quasardb qdb_python_api_egg
+    DEPENDS qdb_python_api_egg
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 if(WIN32)
     add_custom_target(qdb_python_api_installer ALL
         COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_wininst
-        DEPENDS quasardb qdb_python_api_wheel
+        DEPENDS qdb_python_api_wheel
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     )
 endif()
-
-# add_custom_command(TARGET qdb_python_api_egg
-#     PRE_BUILD
-#     COMMAND pip install pytz tzlocal
-#     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-# )
 
 # Step 3: Test
 add_test(NAME qdb_python_test

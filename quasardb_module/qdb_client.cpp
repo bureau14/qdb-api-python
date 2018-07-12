@@ -35,15 +35,6 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(quasardb, m)
 {
-    try
-    {
-        py::module::import("numpy");
-    }
-    catch (...)
-    {
-        return;
-    }
-
     py::register_exception<qdb::exception>(m, "Error");
 
     m.doc() = "QuasarDB Official Python API";

@@ -4,29 +4,26 @@ import sys
 import subprocess
 import time
 
-# you don't need the following, it's just added so it can be run from the git repo
-# without installing the quasardb library
-sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'Release'))
-sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'release'))
+import glob
+
+# make it possible to run the test directly from the build without installing quasardb
+sys.path.append(glob.glob(os.path.join(os.path.split(__file__)[0], '..', 'build', 'build', 'lib.*', 'quasardb'))[0])
+
 import quasardb  # pylint: disable=C0413,E0401
 
 global locked
 locked = False
 
-
 def set_lock():
     global locked
     locked = True
-
 
 def release_lock():
     global locked
     locked = False
 
-
 def get_lock_status():
     return locked
-
 
 class UniqueEntryNameGenerator(object):  # pylint: disable=R0903
 
@@ -41,11 +38,9 @@ class UniqueEntryNameGenerator(object):  # pylint: disable=R0903
         self.__counter += 1
         return self.__prefix + str(self.__counter)
 
-
 def __cleanupProcess(process):
-    process.terminate()
+    process.kill()
     process.wait()
-
 
 def setUpModule():
     global INSECURE_URI  # pylint: disable=W0601
@@ -122,21 +117,18 @@ def setUpModule():
 
     try:
         cluster = quasardb.Cluster(INSECURE_URI)
-    except (BaseException, quasardb.Error):
+    except:
         __cleanupProcess(__CLUSTERD)
         __cleanupProcess(__SECURE_CLUSTERD)
         raise
-
 
 def tearDownModule():
     __cleanupProcess(__CLUSTERD)
     __cleanupProcess(__SECURE_CLUSTERD)
 
-
 def init():
     set_lock()
     setUpModule()
-
 
 def terminate():
     tearDownModule()

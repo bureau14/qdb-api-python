@@ -3,7 +3,6 @@ import os
 import unittest
 import settings
 
-
 class QuasardbPrefix(unittest.TestCase):
     def test_empty_prefix(self):
 

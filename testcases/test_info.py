@@ -3,7 +3,6 @@ import os
 import unittest
 import settings
 
-
 class QuasardbInfo(unittest.TestCase):
     def test_node_status(self):
         status = settings.cluster.node_status(settings.INSECURE_URI)

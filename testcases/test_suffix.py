@@ -3,7 +3,6 @@ import os
 import unittest
 import settings
 
-
 class QuasardbSuffix(unittest.TestCase):
     def test_empty_suffix(self):
 

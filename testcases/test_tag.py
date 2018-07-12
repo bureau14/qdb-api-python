@@ -3,7 +3,6 @@ import os
 import unittest
 import settings
 
-
 class QuasardbTag(unittest.TestCase):
 
     def test_get_entries(self):

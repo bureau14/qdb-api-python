@@ -5,7 +5,6 @@ import sys
 import unittest
 import settings
 
-
 class QuasardbClusterGetTimeout(unittest.TestCase):
     def test_get_timeout(self):
         settings.cluster.options().set_timeout(datetime.timedelta(

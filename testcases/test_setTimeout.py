@@ -5,11 +5,7 @@ import sys
 import unittest
 import settings
 
-
-sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'Release'))
-sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'bin', 'release'))
-import quasardb  # pylint: disable=C0413,E0401
-
+from settings import quasardb
 
 class QuasardbClusterSetTimeout(unittest.TestCase):
     def test_set_timeout_1_day(self):

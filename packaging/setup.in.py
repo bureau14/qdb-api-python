@@ -5,10 +5,19 @@
 # pylint: disable=C0103,C0111,C0326,W0201
 
 from builtins import range as xrange  # pylint: disable=W0622
-import glob
+
 import os
+import re
 import sys
+import platform
+import subprocess
+
+import glob
 import shutil
+
+from setuptools.command.build_ext import build_ext
+from distutils.version import LooseVersion
+
 from setuptools import setup, Extension
 from setuptools.command.bdist_egg import bdist_egg as old_bdist_egg  # pylint: disable=C0412
 from pkg_resources import get_build_platform
@@ -26,14 +35,6 @@ is_osx = sys.platform == 'darwin'
 is_64_bits = sys.maxsize > 2**32
 arch = "x64" if is_64_bits else "x86"
 
-# move the compiled file around so it works on all platforms
-source_pyd_file = glob.glob(os.path.join('@QDB_PYD_DIR@', '@QDB_PYD_EXT@'))
-
-for pyd in source_pyd_file:
-  shutil.copy(pyd, 'quasardb')
-
-pyd_file = glob.glob(os.path.join('quasardb', '@QDB_PYD_EXT@'))
-
 # get the additional libraries for the package
 package_modules = glob.glob(os.path.join('quasardb', '@QDB_PYTHON_LIBRARY_GLOB@'))
 if is_osx:
@@ -41,9 +42,51 @@ if is_osx:
 
 package_name = 'quasardb'
 
-# we need to add this useless void module to force setup.py to tag this packaging
-# as platform specific
-nothing_module = Extension('quasardb.nothing', sources = [ 'nothing.c'])
+class CMakeExtension(Extension):
+    def __init__(self, name, sourcedir=''):
+        Extension.__init__(self, name, sources=[])
+        self.sourcedir = os.path.abspath(sourcedir)
+
+class CMakeBuild(build_ext):
+    def run(self):
+        try:
+            out = subprocess.check_output(['cmake', '--version'])
+        except OSError:
+            raise RuntimeError("CMake must be installed to build the following extensions: " +
+                               ", ".join(e.name for e in self.extensions))
+
+        if platform.system() == "Windows":
+            cmake_version = LooseVersion(re.search(r'version\s*([\d.]+)', out.decode()).group(1))
+            if cmake_version < '3.1.0':
+                raise RuntimeError("CMake >= 3.1.0 is required on Windows")
+
+        for ext in self.extensions:
+            self.build_extension(ext)
+
+    def build_extension(self, ext):
+        extdir = os.path.join(os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name))), 'quasardb')
+        cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
+                      '-DPYTHON_EXECUTABLE=' + sys.executable]
+
+        cfg = 'Debug' if self.debug else 'Release'
+        build_args = ['--config', cfg]
+
+        if platform.system() == "Windows":
+            cmake_args += ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(), extdir)]
+            if sys.maxsize > 2**32:
+                cmake_args += ['-A', 'x64']
+        #    build_args += ['--', '/m']
+        else:
+            cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
+       #     build_args += ['--', '-j2']
+
+        env = os.environ.copy()
+        env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(env.get('CXXFLAGS', ''),
+                                                              self.distribution.get_version())
+        if not os.path.exists(self.build_temp):
+            os.makedirs(self.build_temp)
+        subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
+        subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
 
 class EggRetagger(old_bdist_egg):
     def finalize_options(self):
@@ -82,6 +125,7 @@ class WheelRetagger(old_bdist_wheel):
         return tag
 
 cmdclass = {
+    'build_ext': CMakeBuild,
     'bdist_egg': EggRetagger,
     'bdist_wheel': WheelRetagger,
 }
@@ -112,8 +156,8 @@ setup(name=package_name,
       setup_requires=["setuptools_git >= 0.3", "xmlrunner", "future", "numpy", "wheel"],
       install_requires=["xmlrunner", "future", "numpy", "wheel"],
       packages=[package_name],
-      package_data={package_name: pyd_file + package_modules},
-      ext_modules= [nothing_module],
+      package_data={package_name: package_modules},
+      ext_modules= [CMakeExtension('quasardb', 'quasardb_module')],
       include_package_data=True,
       cmdclass=cmdclass,
       zip_safe=False,

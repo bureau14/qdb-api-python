@@ -8,29 +8,36 @@ The QuasarDB Python API requires [numpy](http://www.numpy.org/).
 
 ### quasardb C API
 
-To build the Python API, you will need the C API. It can either be installed on the machine (e.g. on unix in `/usr/lib` or `/usr/local/lib`) or you can unpack the C API archive in qdb.
+To build the Python API, you will need the C API. It can either be installed on the machine (e.g. on unix in `/usr/lib` or `/usr/local/lib`) or you can unpack the C API archive in qdb. You will also need the daemon to run the tests.
 
 ### Building the extension
 
-You will need [CMake](http://www.cmake.org/) and the Python dist tools installed. You can also download a pre-compiled package from our download site.
+You will need [CMake](http://www.cmake.org/) and the Python dist tools installed.
 
-First, run cmake to create a project directory, for example:
-
-```
-mkdir build
-cd build
-cmake -G "your generator" ..
-```
-
-Depending on the generator you chose, you will then either have to run make or open the solution with your editor (e.g. Visual Studio).
-
-For example on UNIX:
+First, run cmake to create a project directory:
 
 ```
 mkdir build
 cd build
-cmake -G "Unix Makefiles" ..
-make
+cmake -G "your generator" -DCMAKE_BUILD_TYPE=Release ..
+```
+
+Then run the build
+
+```
+cmake --build . --config Release
+```
+
+This will compile the modules and create in ```build/dist``` the different packages for your specific platform.
+
+## Running the tests
+
+To run the tests, you will need to have installed in ```qdb``` the daemon (download it from our web site). You will also need the ```xmlrunner``` extension.
+
+Then you run the test from ```build``` with:
+
+```
+ctest -C Release . --verbose
 ```
 
 ## Usage
