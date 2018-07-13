@@ -89,64 +89,31 @@ public:
     }
 
 public:
-    void set_blob_column(
-        const std::string & alias, const std::string & column, const pybind11::array & timestamps, const pybind11::array & values)
-    {
-        const auto points = convert_values<qdb_ts_blob_point, const char *>{}(timestamps, values);
-        QDB_THROW_IF_ERROR(qdb_ts_batch_add_blob(_batch_table, alias.c_str(), column.c_str(), points.data(), points.size()));
-    }
-
-    void set_double_column(
-        const std::string & alias, const std::string & column, const pybind11::array & timestamps, const pybind11::array_t<double> & values)
-    {
-        const auto points = convert_values<qdb_ts_double_point, double>{}(timestamps, values);
-        QDB_THROW_IF_ERROR(qdb_ts_batch_add_double(_batch_table, alias.c_str(), column.c_str(), points.data(), points.size()));
-    }
-
-    void set_int64_column(const std::string & alias,
-        const std::string & column,
-        const pybind11::array & timestamps,
-        const pybind11::array_t<std::int64_t> & values)
-    {
-        const auto points = convert_values<qdb_ts_int64_point, std::int64_t>{}(timestamps, values);
-        QDB_THROW_IF_ERROR(qdb_ts_batch_add_int64(_batch_table, alias.c_str(), column.c_str(), points.data(), points.size()));
-    }
-
-    void set_timestamp_column(const std::string & alias,
-        const std::string & column,
-        const pybind11::array & timestamps,
-        const pybind11::array_t<std::int64_t> & values)
-    {
-        const auto points = convert_values<qdb_ts_timestamp_point, std::int64_t>{}(timestamps, values);
-        QDB_THROW_IF_ERROR(qdb_ts_batch_add_timestamp(_batch_table, alias.c_str(), column.c_str(), points.data(), points.size()));
-    }
-
-public:
-    void append_blob(const std::string & blob)
-    {
-        QDB_THROW_IF_ERROR(qdb_ts_batch_row_set_blob(_batch_table, blob.data(), blob.size()));
-    }
-
-    void append_double(double v)
-    {
-        QDB_THROW_IF_ERROR(qdb_ts_batch_row_set_double(_batch_table, v));
-    }
-
-    void append_int64(std::int64_t v)
-    {
-        QDB_THROW_IF_ERROR(qdb_ts_batch_row_set_int64(_batch_table, v));
-    }
-
-    void append_timestamp(std::int64_t v)
-    {
-        const qdb_timespec_t converted = convert_timestamp(v);
-        QDB_THROW_IF_ERROR(qdb_ts_batch_row_set_timestamp(_batch_table, &converted));
-    }
-
-    void finalize_row(std::int64_t ts)
+    void next_row(std::int64_t ts)
     {
         const qdb_timespec_t converted = convert_timestamp(ts);
-        QDB_THROW_IF_ERROR(qdb_ts_batch_row_finalize(_batch_table, &converted));
+        QDB_THROW_IF_ERROR(qdb_ts_batch_next_row(_batch_table, &converted));
+    }
+
+    void set_blob(std::size_t index, const std::string & blob)
+    {
+        QDB_THROW_IF_ERROR(qdb_ts_batch_row_set_blob(_batch_table, index, blob.data(), blob.size()));
+    }
+
+    void set_double(std::size_t index, double v)
+    {
+        QDB_THROW_IF_ERROR(qdb_ts_batch_row_set_double(_batch_table, index, v));
+    }
+
+    void set_int64(std::size_t index, std::int64_t v)
+    {
+        QDB_THROW_IF_ERROR(qdb_ts_batch_row_set_int64(_batch_table, index, v));
+    }
+
+    void set_timestamp(std::size_t index, std::int64_t v)
+    {
+        const qdb_timespec_t converted = convert_timestamp(v);
+        QDB_THROW_IF_ERROR(qdb_ts_batch_row_set_timestamp(_batch_table, index, &converted));
     }
 
     void push()
@@ -178,15 +145,11 @@ static inline void register_ts_batch(Module & m)
 
     py::class_<qdb::ts_batch>{m, "TimeSeriesBatch"}                               //
         .def(py::init<qdb::handle_ptr, const std::vector<batch_column_info> &>()) //
-        .def("set_blob_column", &qdb::ts_batch::set_blob_column)                  //
-        .def("set_double_column", &qdb::ts_batch::set_double_column)              //
-        .def("set_int64_column", &qdb::ts_batch::set_int64_column)                //
-        .def("set_timestamp_column", &qdb::ts_batch::set_timestamp_column)        //
-        .def("append_blob", &qdb::ts_batch::append_blob)                          //
-        .def("append_double", &qdb::ts_batch::append_double)                      //
-        .def("append_int64", &qdb::ts_batch::append_int64)                        //
-        .def("append_timestamp", &qdb::ts_batch::append_timestamp)                //
-        .def("finalize_row", &qdb::ts_batch::finalize_row)                        //
+        .def("next_row", &qdb::ts_batch::next_row)                                //
+        .def("set_blob", &qdb::ts_batch::set_blob)                                //
+        .def("set_double", &qdb::ts_batch::set_double)                            //
+        .def("set_int64", &qdb::ts_batch::set_int64)                              //
+        .def("set_timestamp", &qdb::ts_batch::set_timestamp)                      //
         .def("push", &qdb::ts_batch::push);                                       //
 }
 

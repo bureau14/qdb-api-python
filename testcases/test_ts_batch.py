@@ -14,18 +14,11 @@ import numpy as np
 
 def _row_insertion_method(tester, batch_inserter, dates, doubles, blobs, integers, timestamps):
      for i in range(len(dates)):
-        batch_inserter.append_double(doubles[i])
-        batch_inserter.append_blob(blobs[i])
-        batch_inserter.append_int64(integers[i])
-        batch_inserter.append_timestamp(timestamps[i])
-        batch_inserter.finalize_row(dates[i])
-
-def _column_insertion_method(tester, batch_inserter, dates, doubles, blobs, integers, timestamps):
-
-    batch_inserter.set_double_column(tester.entry_name, tester.double_col.name, dates, doubles)
-    batch_inserter.set_blob_column(tester.entry_name, tester.blob_col.name, dates, blobs)
-    batch_inserter.set_int64_column(tester.entry_name, tester.int64_col.name, dates, integers)
-    batch_inserter.set_timestamp_column(tester.entry_name, tester.ts_col.name, dates, timestamps)
+        batch_inserter.next_row(dates[i])
+        batch_inserter.set_double(0, doubles[i])
+        batch_inserter.set_blob(1, blobs[i])
+        batch_inserter.set_int64(2, integers[i])
+        batch_inserter.set_timestamp(3, timestamps[i])
 
 class QuasardbTimeSeriesBulk(tslib.QuasardbTimeSeries):
 
@@ -96,10 +89,6 @@ class QuasardbTimeSeriesBulk(tslib.QuasardbTimeSeries):
     def test_successful_bulk_row_insert(self):
         batch_inserter = settings.cluster.ts_batch(self._make_ts_batch_info())
         self._test_with_table(batch_inserter, _row_insertion_method)
-
-    def test_successful_bulk_column_insert(self):
-        batch_inserter = settings.cluster.ts_batch(self._make_ts_batch_info())
-        self._test_with_table(batch_inserter, _column_insertion_method)
 
     def test_failed_local_table_with_wrong_columns(self):
         columns = [quasardb.BatchColumnInfo(self.entry_name, "1000flavorsofwrong", 10)]
