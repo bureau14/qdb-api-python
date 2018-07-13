@@ -63,6 +63,9 @@ def create_ts(q, name):
 
     return ts
 
+def create_many_ts(q, names):
+    return [create_ts(q, x) for x in names]
+
 def generate_points(points_count):
     start_time = np.datetime64('2017-01-01', 'ns')
 
@@ -71,24 +74,25 @@ def generate_points(points_count):
 
     return (dates, doubles)
 
-def bulk_insert(q, ts_name, dates, values):
-    columns = [quasardb.BatchColumnInfo(ts_name, COLUMN_NAME, len(dates))]
+def bulk_insert(q, ts_names, dates, values):
+    columns = [(quasardb.BatchColumnInfo(ts_name, COLUMN_NAME, len(dates))) for ts_name in ts_names]
+
     batch_inserter = q.ts_batch(columns)
 
     # we could insert the whole column directly, but let's see how the row API works
     for i in range(len(values)):
-        batch_inserter.append_double(values[i])
+        [batch_inserter.append_double(values[i]) for j in range(len(ts_names))]
         batch_inserter.finalize_row(dates[i])
 
     batch_inserter.push()
 
 def make_it_so(q, points_count):
-    ts_name = gen_ts_name()
+    ts_names = [gen_ts_name(), gen_ts_name()]
 
-    ts = time_execution("Creating a time series of name {}".format(ts_name), create_ts, q, ts_name)
+    ts = time_execution("Creating a time series with names {}".format(ts_names), create_many_ts, q, ts_names)
     (dates, values) = time_execution("Generating {:,} points".format(points_count), generate_points, points_count)
-    time_execution("Inserting {:,} points into {}".format(points_count, ts_name), bulk_insert, q, ts_name, dates, values)
-    time_execution("Removing time series {}".format(ts_name), ts.remove)
+    time_execution("Inserting {:,} points into timeseries with names {}".format(points_count, ts_names), bulk_insert, q, ts_names, dates, values)
+
 
 def main(quasardb_uri, points_count):
     print("Connecting to: ", quasardb_uri)
