@@ -89,10 +89,10 @@ public:
     }
 
 public:
-    void next_row(std::int64_t ts)
+    void start_row(std::int64_t ts)
     {
         const qdb_timespec_t converted = convert_timestamp(ts);
-        QDB_THROW_IF_ERROR(qdb_ts_batch_next_row(_batch_table, &converted));
+        QDB_THROW_IF_ERROR(qdb_ts_batch_start_row(_batch_table, &converted));
     }
 
     void set_blob(std::size_t index, const std::string & blob)
@@ -145,7 +145,7 @@ static inline void register_ts_batch(Module & m)
 
     py::class_<qdb::ts_batch>{m, "TimeSeriesBatch"}                               //
         .def(py::init<qdb::handle_ptr, const std::vector<batch_column_info> &>()) //
-        .def("next_row", &qdb::ts_batch::next_row)                                //
+        .def("start_row", &qdb::ts_batch::start_row)                                //
         .def("set_blob", &qdb::ts_batch::set_blob)                                //
         .def("set_double", &qdb::ts_batch::set_double)                            //
         .def("set_int64", &qdb::ts_batch::set_int64)                              //

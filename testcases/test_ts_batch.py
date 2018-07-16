@@ -14,7 +14,7 @@ import numpy as np
 
 def _row_insertion_method(tester, batch_inserter, dates, doubles, blobs, integers, timestamps):
      for i in range(len(dates)):
-        batch_inserter.next_row(dates[i])
+        batch_inserter.start_row(dates[i])
         batch_inserter.set_double(0, doubles[i])
         batch_inserter.set_blob(1, blobs[i])
         batch_inserter.set_int64(2, integers[i])

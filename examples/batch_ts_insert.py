@@ -81,7 +81,7 @@ def bulk_insert(q, ts_names, dates, values):
 
     # we could insert the whole column directly, but let's see how the row API works
     for i in range(len(values)):
-        batch_inserter.next_row(dates[i])
+        batch_inserter.start_row(dates[i])
         [batch_inserter.set_double(j, values[i]) for j in range(len(ts_names))]
 
     batch_inserter.push()
