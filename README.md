@@ -12,9 +12,11 @@ To build the Python API, you will need the C API. It can either be installed on 
 
 ### Building the extension
 
+The QuasarDB API module is written in C++ 17 using [pybind11](https://github.com/pybind/pybind11).
+
 You will need [CMake](http://www.cmake.org/) and the Python dist tools installed.
 
-First, run cmake to create a project directory:
+First, run cmake in a project directory (here ```build```):
 
 ```
 mkdir build
@@ -22,7 +24,7 @@ cd build
 cmake -G "your generator" -DCMAKE_BUILD_TYPE=Release ..
 ```
 
-Then run the build
+Then compile via CMake:
 
 ```
 cmake --build . --config Release
