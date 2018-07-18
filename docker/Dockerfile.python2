@@ -1,0 +1,26 @@
+FROM python:2.7
+
+ARG QDB_C_API="https://download.quasardb.net/quasardb/nightly/api/c/qdb-2.8.0master-linux-64bit-c-api.tar.gz"
+
+# Prepare dependencies
+RUN apt update && \
+    apt install -y cmake && \
+    pip install future
+
+# Clone qdb-api-python git into /qdb/qdb-api-python
+RUN mkdir /qdb && \
+    cd /qdb && \
+    git clone https://github.com/bureau14/qdb-api-python.git && \
+    mkdir qdb-api-python/build && \
+    mkdir qdb-api-python/qdb
+
+# Install qdb C api in correct place
+RUN cd /qdb/qdb-api-python/qdb && \
+    curl -s ${QDB_C_API} | tar -xz && \
+    cd ..
+
+# Compile
+RUN cd /qdb/qdb-api-python/build && \
+    cmake .. && \
+    make -j8 && \
+    pip install dist/*.whl
