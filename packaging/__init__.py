@@ -35,4 +35,7 @@
 .. moduleauthor: quasardb SAS. All rights reserved
 """
 
-from quasardb.quasardb import *
+try:
+    from quasardb.quasardb import *
+except:
+    from quasardb import *
