@@ -221,7 +221,6 @@ class QuasardbQueryExp(unittest.TestCase):
         self.assertEqual(res.tables["$none"][0].name, "timestamp")
         self.assertEqual(res.tables["$none"][0].data[0], np.datetime64('1970-01-01', 'ns'))
         self.assertEqual(res.tables["$none"][1].name,  "max(" + helper.double_col.name + ")")
-        self.assertAlmostEqual(res.tables["$none"][1].data[0], 0.0)
         self.assertEqual(res.tables["$none"][2].name,  "1")
         self.assertEqual(res.tables["$none"][2].data[0], 1)
 
@@ -230,8 +229,6 @@ class QuasardbQueryExp(unittest.TestCase):
         self.assertEqual(res.tables[helper.entry_name][1].name,  "max(" + helper.double_col.name + ")")
         self.assertAlmostEqual(res.tables[helper.entry_name][1].data[0], np.max(inserted_double_data[1]))
         self.assertEqual(res.tables[helper.entry_name][2].name,  "1")
-        self.assertAlmostEqual(res.tables[helper.entry_name][2].data[0], 0.0)
-
 
     def test_returns_inserted_multi_data_with_star_select(self):
         helper, inserted_double_data = self.generate_ts_with_double_points()
