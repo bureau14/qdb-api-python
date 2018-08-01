@@ -141,14 +141,12 @@ class QuasardbQueryExp(unittest.TestCase):
             str(helper.start_year) + ", +100d)"
         res = settings.cluster.query(query).run()
         self.trivial_test(helper.entry_name, len(inserted_double_data[0]),
-                          res, len(inserted_double_data[0]), 3)
+                          res, len(inserted_double_data[0]), 2)
 
         self.assertEqual(res.tables[helper.entry_name][0].name, "timestamp")
         np.testing.assert_array_equal(res.tables[helper.entry_name][0].data, inserted_double_data[0])
         self.assertEqual(res.tables[helper.entry_name][1].name, helper.double_col.name)
         np.testing.assert_array_equal(res.tables[helper.entry_name][1].data, inserted_double_data[1])
-        self.assertEqual(res.tables[helper.entry_name][2].name, helper.double_col.name)
-        np.testing.assert_array_equal(res.tables[helper.entry_name][2].data, inserted_double_data[1])
 
     def test_returns_sum_with_sum_select(self):
         helper, inserted_double_data = self.generate_ts_with_double_points()
@@ -218,15 +216,22 @@ class QuasardbQueryExp(unittest.TestCase):
                 str(helper.start_year) + ", +100d)"
         res = settings.cluster.query(query).run()
 
-        self.trivial_test(helper.entry_name, len(inserted_double_data[0]), res, 2, 3)
+        self.assertEqual(len(res.tables), 2)
+
+        self.assertEqual(res.tables["$none"][0].name, "timestamp")
+        self.assertEqual(res.tables["$none"][0].data[0], np.datetime64('1970-01-01', 'ns'))
+        self.assertEqual(res.tables["$none"][1].name,  "max(" + helper.double_col.name + ")")
+        self.assertAlmostEqual(res.tables["$none"][1].data[0], 0.0)
+        self.assertEqual(res.tables["$none"][2].name,  "1")
+        self.assertEqual(res.tables["$none"][2].data[0], 1)
 
         self.assertEqual(res.tables[helper.entry_name][0].name, "timestamp")
-        self.assertEqual(res.tables[helper.entry_name][0].data[0], np.datetime64('1970-01-01', 'ns'))
-        self.assertGreaterEqual(res.tables[helper.entry_name][0].data[1], helper.start_time)
+        self.assertGreaterEqual(res.tables[helper.entry_name][0].data[0], helper.start_time)
         self.assertEqual(res.tables[helper.entry_name][1].name,  "max(" + helper.double_col.name + ")")
-        self.assertAlmostEqual(res.tables[helper.entry_name][1].data[1], np.max(inserted_double_data[1]))
+        self.assertAlmostEqual(res.tables[helper.entry_name][1].data[0], np.max(inserted_double_data[1]))
         self.assertEqual(res.tables[helper.entry_name][2].name,  "1")
-        self.assertEqual(res.tables[helper.entry_name][2].data[0], 1)
+        self.assertAlmostEqual(res.tables[helper.entry_name][2].data[0], 0.0)
+
 
     def test_returns_inserted_multi_data_with_star_select(self):
         helper, inserted_double_data = self.generate_ts_with_double_points()
