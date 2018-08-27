@@ -157,7 +157,7 @@ class QuasardbQueryExp(unittest.TestCase):
         self.trivial_test(helper.entry_name, len(inserted_double_data[0]), res, 1, 2)
 
         self.assertEqual(res.tables[helper.entry_name][0].name, "timestamp")
-        self.assertEqual(res.tables[helper.entry_name][0].data[0], helper.start_time)
+        self.assertEqual(res.tables[helper.entry_name][0].data[0], np.datetime64('NaT'))
         self.assertEqual(res.tables[helper.entry_name][1].name,  "sum(" + helper.double_col.name + ")")
         self.assertAlmostEqual(res.tables[helper.entry_name][1].data[0], np.sum(inserted_double_data[1]))
 
@@ -171,7 +171,7 @@ class QuasardbQueryExp(unittest.TestCase):
         self.trivial_test(helper.entry_name, len(inserted_double_data[0]) * 2, res, 1, 2)
 
         self.assertEqual(res.tables[helper.entry_name][0].name, "timestamp")
-        self.assertEqual(res.tables[helper.entry_name][0].data[0], helper.start_time)
+        self.assertEqual(res.tables[helper.entry_name][0].data[0], np.datetime64('NaT'))
         self.assertEqual(res.tables[helper.entry_name][1].name,  "(sum(" +
                          helper.double_col.name + ")/count(" + helper.double_col.name + "))")
         self.assertAlmostEqual(res.tables[helper.entry_name][1].data[0], np.average(inserted_double_data[1]))
@@ -187,7 +187,7 @@ class QuasardbQueryExp(unittest.TestCase):
         self.trivial_test(helper.entry_name, len(inserted_double_data[0]) * 2, res, 1, 2)
 
         self.assertEqual(res.tables[helper.entry_name][0].name, "timestamp")
-        self.assertEqual(res.tables[helper.entry_name][0].data[0], np.datetime64('1970-01-01', 'ns'))
+        self.assertEqual(res.tables[helper.entry_name][0].data[0], np.datetime64('NaT'))
         self.assertEqual(res.tables[helper.entry_name][1].name,  "(max(" +
                          helper.double_col.name + ")-min(" + helper.double_col.name + "))")
         self.assertAlmostEqual(res.tables[helper.entry_name][1].data[0], np.max(inserted_double_data[1]) - np.min(inserted_double_data[1]))
@@ -219,7 +219,7 @@ class QuasardbQueryExp(unittest.TestCase):
         self.assertEqual(len(res.tables), 2)
 
         self.assertEqual(res.tables["$none"][0].name, "timestamp")
-        self.assertEqual(res.tables["$none"][0].data[0], np.datetime64('1970-01-01', 'ns'))
+        self.assertEqual(res.tables["$none"][0].data[0], np.datetime64('NaT'))
         self.assertEqual(res.tables["$none"][1].name,  "max(" + helper.double_col.name + ")")
         self.assertEqual(res.tables["$none"][2].name,  "1")
         self.assertEqual(res.tables["$none"][2].data[0], 1)
