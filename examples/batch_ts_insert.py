@@ -41,7 +41,8 @@ import numpy as np
 
 import quasardb  # pylint: disable=C0413,E0401
 
-COLUMN_NAME = "values"
+STOCK_COLUMN = "stock_id"
+PRICE_COLUMN = "price"
 
 def time_execution(str, f, *args):
     print("     - ", str, end='')
@@ -59,7 +60,8 @@ def gen_ts_name():
 
 def create_ts(q, name):
     ts = q.ts(name)
-    ts.create([quasardb.ColumnInfo(quasardb.ColumnType.Double, COLUMN_NAME)])
+    ts.create([quasardb.ColumnInfo(quasardb.ColumnType.Int64, STOCK_COLUMN),
+               quasardb.ColumnInfo(quasardb.ColumnType.Double, PRICE_COLUMN)])
 
     return ts
 
@@ -70,19 +72,32 @@ def generate_points(points_count):
     start_time = np.datetime64('2017-01-01', 'ns')
 
     dates = np.array([(start_time + np.timedelta64(i, 's')) for i in range(points_count)]).astype('datetime64[ns]')
-    doubles = np.random.uniform(-100.0, 100.0, points_count)
+    stock_ids = np.random.randint(1, 5, size=points_count)
+    prices = np.random.uniform(-100.0, 100.0, points_count)
 
-    return (dates, doubles)
+    return (dates, stock_ids, prices)
 
-def bulk_insert(q, ts_names, dates, values):
-    columns = [(quasardb.BatchColumnInfo(ts_name, COLUMN_NAME, len(dates))) for ts_name in ts_names]
+
+def batch_ts_columns(ts_name, prealloc_size):
+    return (quasardb.BatchColumnInfo(ts_name, STOCK_COLUMN, prealloc_size),
+            quasardb.BatchColumnInfo(ts_name, PRICE_COLUMN, prealloc_size))
+
+def bulk_insert(q, ts_names, dates, stock_ids, prices):
+    # We generate a flattened list of columns for each timeseries; for example,
+    # for 2 columns for 4 timeseries each, we have 8 columns.
+    columns = [column for nested in (batch_ts_columns(ts_name, len(dates))
+                                     for ts_name in ts_names)
+               for column in nested]
 
     batch_inserter = q.ts_batch(columns)
-
-    # we could insert the whole column directly, but let's see how the row API works
-    for i in range(len(values)):
-        batch_inserter.start_row(dates[i])
-        [batch_inserter.set_double(j, values[i]) for j in range(len(ts_names))]
+    for i in range(len(stock_ids)):
+        # We use the known layout of column (2 for each timeseries, alternating with
+        # STOCK_COLUMN and PRICE_COLUMN) to set the values.
+        for j in range(0, len(ts_names) * 2, 2):
+            stock_id = stock_ids[i]
+            batch_inserter.start_row(dates[i])
+            batch_inserter.set_int64(j, stock_id) # set stock_id
+            batch_inserter.set_double(j + 1, prices[i]) # set price
 
     batch_inserter.push()
 
@@ -90,8 +105,8 @@ def make_it_so(q, points_count):
     ts_names = [gen_ts_name(), gen_ts_name()]
 
     ts = time_execution("Creating a time series with names {}".format(ts_names), create_many_ts, q, ts_names)
-    (dates, values) = time_execution("Generating {:,} points".format(points_count), generate_points, points_count)
-    time_execution("Inserting {:,} points into timeseries with names {}".format(points_count, ts_names), bulk_insert, q, ts_names, dates, values)
+    (dates, stock_ids, prices) = time_execution("Generating {:,} points".format(points_count), generate_points, points_count)
+    time_execution("Inserting {:,} points into timeseries with names {}".format(points_count, ts_names), bulk_insert, q, ts_names, dates, stock_ids, prices)
 
 
 def main(quasardb_uri, points_count):
