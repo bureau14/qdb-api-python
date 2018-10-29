@@ -95,7 +95,7 @@ def bulk_insert(q, ts_names, dates, stock_ids, prices):
         # STOCK_COLUMN and PRICE_COLUMN) to set the values.
         for j in range(0, len(ts_names) * 2, 2):
             batch_inserter.start_row(dates[i])
-            batch_inserter.set_int64(j,      stock_ids[i]) # set stock_id
+            batch_inserter.set_int64(j, stock_ids[i]) # set stock_id
             batch_inserter.set_double(j + 1, prices[i]) # set price
 
     batch_inserter.push()
