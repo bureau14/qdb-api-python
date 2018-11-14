@@ -4,6 +4,7 @@
 # this enables us to create a source distribution of the quasardb API
 
 cmake_minimum_required(VERSION 2.8.12)
+set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 project(qdb-api-python)
 enable_testing()
 
