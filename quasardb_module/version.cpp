@@ -22,7 +22,7 @@ static std::pair<int, int> get_version_pair(const char * version)
 namespace version
 {
 
-const char * qdb_version = QDB_PY_VERSION;
+const char * const qdb_version = QDB_PY_VERSION;
 
 void check_version(const char * candidate)
 {
