@@ -41,8 +41,11 @@ pybind11_add_module(quasardb
     ts_convert.hpp
     tag.hpp
     utils.hpp
+    version.hpp
+    version.cpp
     )
 
+target_compile_definitions(quasardb PUBLIC QDB_PY_VERSION="${QDB_PY_VERSION}")
 target_link_libraries(quasardb PUBLIC ${QDB_API_LIB})
 
 set_target_properties(quasardb PROPERTIES BUILD_WITH_INSTALL_RPATH 1)

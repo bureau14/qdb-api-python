@@ -28,30 +28,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "cluster.hpp"
-#include "version.hpp"
-#include <pybind11/pybind11.h>
-
-namespace py = pybind11;
-
-PYBIND11_MODULE(quasardb, m)
+namespace qdb
 {
-    py::register_exception<qdb::exception>(m, "Error");
 
-    m.doc() = "QuasarDB Official Python API";
+extern const char * const qdb_c_api_version;
 
-    m.def("version", &qdb_version, "Return version number");
-    qdb::check_qdb_c_api_version(qdb_version());
-    m.def("build", &qdb_build, "Return build number");
+// Checks that the host QDB C API version matches the QDB C API version used for the build.
+// The check only compares `major` and `minor` version numbers and throws when there is a mismatch
+// or when fed with an invalid version string.
+// This simple tests allows to simply rule out a commonly met faulty config when troubleshooting Python API issues
+void check_qdb_c_api_version(const char * candidate);
 
-    m.attr("never_expires") = std::chrono::system_clock::time_point{};
-
-    qdb::register_cluster(m);
-    qdb::register_options(m);
-    qdb::register_entry(m);
-    qdb::register_blob(m);
-    qdb::register_tag(m);
-    qdb::register_query(m);
-    qdb::register_ts(m);
-    qdb::register_ts_batch(m);
-}
+} // namespace qdb

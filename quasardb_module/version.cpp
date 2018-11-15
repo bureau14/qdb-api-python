@@ -28,30 +28,42 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "cluster.hpp"
 #include "version.hpp"
-#include <pybind11/pybind11.h>
+#include <regex>
+#include <sstream>
+#include <stdexcept>
 
-namespace py = pybind11;
-
-PYBIND11_MODULE(quasardb, m)
+static std::pair<int, int> get_version_pair(const char * version)
 {
-    py::register_exception<qdb::exception>(m, "Error");
-
-    m.doc() = "QuasarDB Official Python API";
-
-    m.def("version", &qdb_version, "Return version number");
-    qdb::check_qdb_c_api_version(qdb_version());
-    m.def("build", &qdb_build, "Return build number");
-
-    m.attr("never_expires") = std::chrono::system_clock::time_point{};
-
-    qdb::register_cluster(m);
-    qdb::register_options(m);
-    qdb::register_entry(m);
-    qdb::register_blob(m);
-    qdb::register_tag(m);
-    qdb::register_query(m);
-    qdb::register_ts(m);
-    qdb::register_ts_batch(m);
+    std::regex re(u8"([0-9]+)\\.([0-9]+)\\..*");
+    std::cmatch m;
+    if (!std::regex_match(version, m, re))
+    {
+        std::ostringstream sstr;
+        sstr << "Got an invalid QuasarDB C API version string (" << version << ").";
+        throw std::invalid_argument(sstr.str());
+    }
+    const auto major = std::stoi(m[1].str());
+    const auto minor = std::stoi(m[2].str());
+    return std::make_pair(major, minor);
 }
+
+namespace qdb
+{
+
+const char * const qdb_c_api_version = QDB_PY_VERSION;
+
+void check_qdb_c_api_version(const char * candidate)
+{
+    const auto ver_c   = get_version_pair(candidate);
+    const auto ver_ref = get_version_pair(qdb_c_api_version);
+    if (ver_c != ver_ref)
+    {
+        std::ostringstream sstr;
+        sstr << "QuasarDB C API version mismatch. Expected " << ver_ref.first << '.' << ver_ref.second << " but got " << ver_c.first << '.' << ver_c.second
+             << " instead.";
+        throw std::runtime_error(sstr.str());
+    }
+}
+
+} // namespace qdb
