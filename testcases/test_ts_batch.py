@@ -7,6 +7,7 @@ import sys
 import unittest
 import settings
 import test_ts as tslib
+from time import sleep
 
 from settings import quasardb
 
@@ -19,6 +20,16 @@ def _row_insertion_method(tester, batch_inserter, dates, doubles, blobs, integer
         batch_inserter.set_blob(1, blobs[i])
         batch_inserter.set_int64(2, integers[i])
         batch_inserter.set_timestamp(3, timestamps[i])
+
+def _regular_push(batch_inserter):
+    batch_inserter.push()
+
+
+def _async_push(batch_inserter):
+    batch_inserter.push_async()
+    # Wait for push_async to complete
+    # Ideally we could be able to get the proper flush interval
+    sleep(8)
 
 class QuasardbTimeSeriesBulk(tslib.QuasardbTimeSeries):
 
@@ -37,7 +48,7 @@ class QuasardbTimeSeriesBulk(tslib.QuasardbTimeSeries):
                 quasardb.BatchColumnInfo(self.entry_name, self.int64_col.name, 100),
                 quasardb.BatchColumnInfo(self.entry_name, self.ts_col.name, 100)]
 
-    def _test_with_table(self, batch_inserter, insertion_method):
+    def _test_with_table(self, batch_inserter, insertion_method, push_method = _regular_push):
         start_time = np.datetime64('2017-01-01', 'ns')
 
         count = 10
@@ -68,7 +79,7 @@ class QuasardbTimeSeriesBulk(tslib.QuasardbTimeSeries):
         self.assertEqual(0, len(results[0]))
 
         # after push, there is everything
-        batch_inserter.push()
+        push_method(batch_inserter)
 
         results = self.my_ts.double_get_ranges(self.double_col.name, [whole_range])
         np.testing.assert_array_equal(results[0], dates)
@@ -88,7 +99,13 @@ class QuasardbTimeSeriesBulk(tslib.QuasardbTimeSeries):
 
     def test_successful_bulk_row_insert(self):
         batch_inserter = settings.cluster.ts_batch(self._make_ts_batch_info())
-        self._test_with_table(batch_inserter, _row_insertion_method)
+        self._test_with_table(batch_inserter, _row_insertion_method, _regular_push)
+
+    # Same test as `test_successful_bulk_row_insert` but using `push_async` to push the entries
+    # This allows us to test the `push_async` feature
+    def test_successful_bulk_row_insert_with_push_async(self):
+        batch_inserter = settings.cluster.ts_batch(self._make_ts_batch_info())
+        self._test_with_table(batch_inserter, _row_insertion_method, _async_push)
 
     def test_failed_local_table_with_wrong_columns(self):
         columns = [quasardb.BatchColumnInfo(self.entry_name, "1000flavorsofwrong", 10)]
