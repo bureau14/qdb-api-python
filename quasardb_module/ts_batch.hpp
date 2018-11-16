@@ -121,6 +121,11 @@ public:
         QDB_THROW_IF_ERROR(qdb_ts_batch_push(_batch_table));
     }
 
+    void push_async()
+    {
+        QDB_THROW_IF_ERROR(qdb_ts_batch_push_async(_batch_table));
+    }
+
 private:
     qdb::handle_ptr _handle;
     qdb_batch_table_t _batch_table{nullptr};
@@ -150,7 +155,8 @@ static inline void register_ts_batch(Module & m)
         .def("set_double", &qdb::ts_batch::set_double)                            //
         .def("set_int64", &qdb::ts_batch::set_int64)                              //
         .def("set_timestamp", &qdb::ts_batch::set_timestamp)                      //
-        .def("push", &qdb::ts_batch::push);                                       //
+        .def("push", &qdb::ts_batch::push)                                        //
+        .def("push_async", &qdb::ts_batch::push_async);                           //
 }
 
 } // namespace qdb
