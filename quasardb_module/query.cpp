@@ -263,7 +263,7 @@ query::query_result query::run()
 {
     qdb_query_result_t * result = nullptr;
 
-    QDB_THROW_IF_ERROR(qdb_exp_query(*_handle, _query_string.c_str(), &result));
+    qdb::qdb_throw_if_error(qdb_exp_query(*_handle, _query_string.c_str(), &result), [&]() noexcept { qdb_release(*_handle, result); });
 
     query::query_result converted_result{};
     if (nullptr != result)

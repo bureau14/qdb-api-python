@@ -88,7 +88,7 @@ public:
 
         std::transform(tags.cbegin(), tags.cend(), tag_pointers.begin(), [](const std::string & s) { return s.c_str(); });
 
-        QDB_THROW_IF_ERROR(qdb_attach_tags(*_handle, _alias.c_str(), tag_pointers.data(), tag_pointers.size()));
+        qdb::qdb_throw_if_error(qdb_attach_tags(*_handle, _alias.c_str(), tag_pointers.data(), tag_pointers.size()));
     }
 
     bool detach_tag(const std::string & tag)
@@ -105,7 +105,7 @@ public:
 
         std::transform(tags.cbegin(), tags.cend(), tag_pointers.begin(), [](const std::string & s) { return s.c_str(); });
 
-        QDB_THROW_IF_ERROR(qdb_detach_tags(*_handle, _alias.c_str(), tag_pointers.data(), tag_pointers.size()));
+        qdb::qdb_throw_if_error(qdb_detach_tags(*_handle, _alias.c_str(), tag_pointers.data(), tag_pointers.size()));
     }
 
     bool has_tag(const std::string & tag)
@@ -118,7 +118,7 @@ public:
         const char ** tags = nullptr;
         size_t tag_count   = 0;
 
-        QDB_THROW_IF_ERROR(qdb_get_tags(*_handle, _alias.c_str(), &tags, &tag_count));
+        qdb::qdb_throw_if_error(qdb_get_tags(*_handle, _alias.c_str(), &tags, &tag_count));
 
         return convert_strings_and_release(_handle, tags, tag_count);
     }
@@ -126,14 +126,14 @@ public:
 public:
     void remove()
     {
-        QDB_THROW_IF_ERROR(qdb_remove(*_handle, _alias.c_str()));
+        qdb::qdb_throw_if_error(qdb_remove(*_handle, _alias.c_str()));
     }
 
     qdb::hostname get_location()
     {
         qdb_remote_node_t rn;
 
-        QDB_THROW_IF_ERROR(qdb_get_location(*_handle, _alias.c_str(), &rn));
+        qdb::qdb_throw_if_error(qdb_get_location(*_handle, _alias.c_str(), &rn));
 
         qdb::hostname res{rn.address, rn.port};
 
@@ -146,7 +146,7 @@ public:
     {
         qdb_entry_metadata_t md;
 
-        QDB_THROW_IF_ERROR(qdb_get_metadata(*_handle, _alias.c_str(), &md));
+        qdb::qdb_throw_if_error(qdb_get_metadata(*_handle, _alias.c_str(), &md));
 
         return metadata{md};
     }
@@ -180,12 +180,12 @@ public:
 public:
     void expires_at(const std::chrono::system_clock::time_point & expiry_time)
     {
-        QDB_THROW_IF_ERROR(qdb_expires_at(*_handle, _alias.c_str(), from_time_point(expiry_time)));
+        qdb::qdb_throw_if_error(qdb_expires_at(*_handle, _alias.c_str(), from_time_point(expiry_time)));
     }
 
     void expires_from_now(std::chrono::milliseconds expiry_delta)
     {
-        QDB_THROW_IF_ERROR(qdb_expires_from_now(*_handle, _alias.c_str(), expiry_delta.count()));
+        qdb::qdb_throw_if_error(qdb_expires_from_now(*_handle, _alias.c_str(), expiry_delta.count()));
     }
 
     std::chrono::system_clock::time_point get_expiry_time()
