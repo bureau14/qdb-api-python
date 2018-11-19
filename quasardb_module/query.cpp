@@ -265,18 +265,19 @@ query::query_result query::run()
 
     QDB_THROW_IF_ERROR(qdb_exp_query(*_handle, _query_string.c_str(), &result));
 
-    query::query_result converted_result;
-
-    converted_result.scanned_rows_count = result->scanned_rows_count;
-    converted_result.tables.reserve(result->tables_count);
-
-    for (size_t t = 0; t < result->tables_count; ++t)
+    query::query_result converted_result{};
+    if (nullptr != result)
     {
-        insert_table_result(converted_result, result->tables[t]);
+        converted_result.scanned_rows_count = result->scanned_rows_count;
+        converted_result.tables.reserve(result->tables_count);
+
+        for (size_t t = 0; t < result->tables_count; ++t)
+        {
+            insert_table_result(converted_result, result->tables[t]);
+        }
+
+        qdb_release(*_handle, result);
     }
-
-    qdb_release(*_handle, result);
-
     return converted_result;
 }
 
