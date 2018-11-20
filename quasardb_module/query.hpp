@@ -91,7 +91,7 @@ public:
 
     struct query_result
     {
-        qdb_size_t scanned_rows_count{0};
+        qdb_size_t scanned_point_count{0};
         std::unordered_map<std::string, table_result> tables;
     };
 
@@ -118,8 +118,8 @@ static inline void register_query(Module & m)
         .def_readonly("name", &qdb::query::column_result::name) //
         .def_readonly("data", &qdb::query::column_result::data);
 
-    py::class_<qdb::query::query_result>{q, "QueryResult"}                                 //
-        .def_readonly("scanned_rows_count", &qdb::query::query_result::scanned_rows_count) //
+    py::class_<qdb::query::query_result>{q, "QueryResult"}                                   //
+        .def_readonly("scanned_point_count", &qdb::query::query_result::scanned_point_count) //
         .def_readonly("tables", &qdb::query::query_result::tables);
 
     q.def(py::init<qdb::handle_ptr, const std::string &>()) //
