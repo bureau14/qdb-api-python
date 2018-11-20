@@ -47,55 +47,55 @@ public:
 public:
     void set_timeout(std::chrono::milliseconds ms)
     {
-        QDB_THROW_IF_ERROR(qdb_option_set_timeout(*_handle, static_cast<int>(ms.count())));
+        qdb::qdb_throw_if_error(qdb_option_set_timeout(*_handle, static_cast<int>(ms.count())));
     }
 
     std::chrono::milliseconds get_timeout()
     {
         int ms = 0;
 
-        QDB_THROW_IF_ERROR(qdb_option_get_timeout(*_handle, &ms));
+        qdb::qdb_throw_if_error(qdb_option_get_timeout(*_handle, &ms));
 
         return std::chrono::milliseconds{ms};
     }
 
     void set_stabilization_max_wait(std::chrono::milliseconds ms)
     {
-        QDB_THROW_IF_ERROR(qdb_option_set_stabilization_max_wait(*_handle, static_cast<int>(ms.count())));
+        qdb::qdb_throw_if_error(qdb_option_set_stabilization_max_wait(*_handle, static_cast<int>(ms.count())));
     }
 
     std::chrono::milliseconds get_stabilization_max_wait()
     {
         int ms = 0;
 
-        QDB_THROW_IF_ERROR(qdb_option_get_stabilization_max_wait(*_handle, &ms));
+        qdb::qdb_throw_if_error(qdb_option_get_stabilization_max_wait(*_handle, &ms));
 
         return std::chrono::milliseconds{ms};
     }
 
     void set_max_cardinality(qdb_uint_t cardinality)
     {
-        QDB_THROW_IF_ERROR(qdb_option_set_max_cardinality(*_handle, cardinality));
+        qdb::qdb_throw_if_error(qdb_option_set_max_cardinality(*_handle, cardinality));
     }
 
     void set_compression(qdb_compression_t level)
     {
-        QDB_THROW_IF_ERROR(qdb_option_set_compression(*_handle, level));
+        qdb::qdb_throw_if_error(qdb_option_set_compression(*_handle, level));
     }
 
     void set_encryption(qdb_encryption_t algo)
     {
-        QDB_THROW_IF_ERROR(qdb_option_set_encryption(*_handle, algo));
+        qdb::qdb_throw_if_error(qdb_option_set_encryption(*_handle, algo));
     }
 
     void set_cluster_public_key(const std::string & key)
     {
-        QDB_THROW_IF_ERROR(qdb_option_set_cluster_public_key(*_handle, key.c_str()));
+        qdb::qdb_throw_if_error(qdb_option_set_cluster_public_key(*_handle, key.c_str()));
     }
 
     void set_user_credentials(const std::string & user, const std::string & private_key)
     {
-        QDB_THROW_IF_ERROR(qdb_option_set_user_credentials(*_handle, user.c_str(), private_key.c_str()));
+        qdb::qdb_throw_if_error(qdb_option_set_user_credentials(*_handle, user.c_str(), private_key.c_str()));
     }
 
 private:

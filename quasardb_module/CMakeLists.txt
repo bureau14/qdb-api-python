@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 2.8.12)
 project(quasardb-module)
+set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(CLANG TRUE)

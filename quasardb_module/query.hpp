@@ -67,7 +67,7 @@ public:
         const char ** aliases = nullptr;
         size_t count          = 0;
 
-        QDB_THROW_IF_ERROR(qdb_query_find(*_handle, _query_string.c_str(), &aliases, &count));
+        qdb::qdb_throw_if_error(qdb_query_find(*_handle, _query_string.c_str(), &aliases, &count));
 
         return convert_strings_and_release(_handle, aliases, count);
     }

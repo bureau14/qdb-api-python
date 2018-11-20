@@ -31,6 +31,7 @@
 #pragma once
 
 #include <qdb/error.h>
+#include <utility>
 
 namespace qdb
 {
@@ -54,10 +55,28 @@ private:
     qdb_error_t _error{qdb_e_ok};
 };
 
-#define QDB_THROW_IF_ERROR(x)                                                          \
-    {                                                                                  \
-        auto err = x;                                                                  \
-        if ((err != qdb_e_ok) && (err != qdb_e_ok_created)) throw qdb::exception{err}; \
+namespace detail
+{
+
+struct no_op
+{
+    void operator()() const noexcept {}
+};
+
+} // namespace detail
+
+// Allow a callable to be run just before the throw, thus making nice clean-up possible
+// (such as calls to `qdb_release`)
+// `pre_throw` defaults to a `no_op` functor that does nothing.
+template <typename PreThrowFtor = detail::no_op>
+void qdb_throw_if_error(qdb_error_t err, PreThrowFtor&& pre_throw = detail::no_op {})
+{
+    static_assert(noexcept(std::forward<PreThrowFtor&&>(pre_throw)()), "`pre_throw` argument must be noexcept");
+    if ((qdb_e_ok != err) && (qdb_e_ok_created != err))
+    {
+        pre_throw();
+        throw qdb::exception{err};
     }
+}
 
 } // namespace qdb
