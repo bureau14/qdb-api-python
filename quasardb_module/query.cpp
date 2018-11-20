@@ -263,12 +263,12 @@ query::query_result query::run()
 {
     qdb_query_result_t * result = nullptr;
 
-    qdb::qdb_throw_if_error(qdb_exp_query(*_handle, _query_string.c_str(), &result), [&]() noexcept { qdb_release(*_handle, result); });
+    qdb::qdb_throw_if_error(qdb_query(*_handle, _query_string.c_str(), &result), [&]() noexcept { qdb_release(*_handle, result); });
 
     query::query_result converted_result{};
     if (nullptr != result)
     {
-        converted_result.scanned_rows_count = result->scanned_rows_count;
+        converted_result.scanned_point_count = result->scanned_point_count;
         converted_result.tables.reserve(result->tables_count);
 
         for (size_t t = 0; t < result->tables_count; ++t)

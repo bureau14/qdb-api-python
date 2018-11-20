@@ -76,8 +76,8 @@ class QuasardbQueryExp(unittest.TestCase):
         helper.my_ts.double_insert(helper.double_col.name, inserted_double_data[0], inserted_double_data[1])
         return helper, inserted_double_data
 
-    def trivial_test(self, ts_name, scanned_rows_count, res, rows_count, columns_count):
-        self.assertEqual(res.scanned_rows_count, scanned_rows_count)
+    def trivial_test(self, ts_name, scanned_point_count, res, rows_count, columns_count):
+        self.assertEqual(res.scanned_point_count, scanned_point_count)
         self.assertEqual(len(res.tables), 1)
         self.assertEqual(len(res.tables[ts_name][0].data), rows_count)
         self.assertEqual(len(res.tables[ts_name]), columns_count)
@@ -87,7 +87,7 @@ class QuasardbQueryExp(unittest.TestCase):
         helper = TsHelper()
         res = settings.cluster.query(
             "select * from " + helper.entry_name + " in range(2016-01-01 , 2016-12-12)").run()
-        self.assertEqual(res.scanned_rows_count, 0)
+        self.assertEqual(res.scanned_point_count, 0)
         self.assertEqual(len(res.tables), 0)
 
     def test_returns_inserted_data_with_star_select(self):
