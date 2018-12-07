@@ -39,6 +39,7 @@
 #include "ts.hpp"
 #include "ts_batch.hpp"
 #include "utils.hpp"
+#include "version.hpp"
 #include <qdb/node.h>
 #include <qdb/prefix.h>
 #include <qdb/suffix.h>
@@ -60,6 +61,9 @@ public:
         , _handle{make_handle_ptr()}
         , _json_loads{pybind11::module::import("json").attr("loads")}
     {
+        // Check that the C API version installed on the target system matches
+        // the one used during the build
+        check_qdb_c_api_version(qdb_version());
         // must specify everything or nothing
         if (user_name.empty() != user_private_key.empty()) throw qdb::exception{qdb_e_invalid_argument};
         if (user_name.empty() != cluster_public_key.empty()) throw qdb::exception{qdb_e_invalid_argument};

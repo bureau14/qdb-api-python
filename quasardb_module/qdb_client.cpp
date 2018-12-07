@@ -29,7 +29,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "cluster.hpp"
-#include "version.hpp"
 #include <pybind11/pybind11.h>
 
 namespace py = pybind11;
@@ -41,7 +40,6 @@ PYBIND11_MODULE(quasardb, m)
     m.doc() = "QuasarDB Official Python API";
 
     m.def("version", &qdb_version, "Return version number");
-    qdb::check_qdb_c_api_version(qdb_version());
     m.def("build", &qdb_build, "Return build number");
 
     m.attr("never_expires") = std::chrono::system_clock::time_point{};
