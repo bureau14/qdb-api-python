@@ -16,6 +16,7 @@ WITHOUT_MINOR_VERSION=${INPUT_VERSION#${MAJOR_VERSION}.${MINOR_VERSION}.}
 PATCH_VERSION=${WITHOUT_MINOR_VERSION%%.*}
 
 XYZ_VERSION="${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}"
+CURRENT_YEAR=`date +%Y`
 
 if [[ "${INPUT_VERSION}" == *-* ]] ; then
     TAGS_VERSION=${INPUT_VERSION#*-}
@@ -36,3 +37,12 @@ cd ${PWD}/../..
 
 # set(QDB_PY_VERSION "2.1.0b3")
 sed -i -e 's/set(QDB_PY_VERSION *"[^"]*")/set(QDB_PY_VERSION "'"${FULL_XYZ_VERSION}"'")/' CMakeLists.txt
+
+# # Copyright (c) 2009-2019, quasardb SAS
+sed -i -e 's/^\(# Copyright (c) [0-9]\+-\)[0-9]\+\(, quasardb SAS\)$/\1'"${CURRENT_YEAR}"'\2/' examples/*.py packaging/*.py
+
+# Copyright (c) 2009-2019, quasardb SAS All rights reserved.
+sed -i -e 's/^\(Copyright (c) [0-9]\+-\)[0-9]\+\(, quasardb SAS\)/\1'"${CURRENT_YEAR}"'\2/' LICENSE.md
+
+#  * Copyright (c) 2009-2019, quasardb SAS
+sed -i -e 's/^\( \* Copyright (c) [0-9]\+-\)[0-9]\+\(, quasardb SAS\)$/\1'"${CURRENT_YEAR}"'\2/' quasardb_module/*.{cpp,hpp}
