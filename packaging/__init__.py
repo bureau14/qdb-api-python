@@ -1,6 +1,6 @@
 # pylint: disable=C0103,C0111,C0302,R0903
 
-# Copyright (c) 2009-2018, quasardb SAS
+# Copyright (c) 2009-2019, quasardb SAS
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
