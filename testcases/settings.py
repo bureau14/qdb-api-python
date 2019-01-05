@@ -74,7 +74,7 @@ def setUpModule():
     SECURE_URI = ""
 
     # don't save anything to disk
-    common_parameters = '--transient'
+    common_parameters = '--storage-engine=transient'
     FNULL = open(os.devnull, 'w')
 
     __CLUSTERD = subprocess.Popen(
@@ -92,6 +92,7 @@ def setUpModule():
     __SECURE_CLUSTERD = subprocess.Popen(
         [os.path.join(qdb_directory, 'qdbd'),
          common_parameters, '--address=' + secure_endpoint,
+         '--security=true',
          '--cluster-private-file=' +
          os.path.join(test_data_directory, 'cluster-secret-key.txt'),
          '--user-list=' + os.path.join(test_data_directory, 'users.txt')], stdout=FNULL, stderr=FNULL)
