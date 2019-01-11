@@ -42,7 +42,7 @@ file(COPY "${QDB_API_DIR}/include" DESTINATION "${CMAKE_BINARY_DIR}/quasardb_mod
 
 # add_subdirectory(src)
 
-set(QDB_PY_VERSION "3.1.0.dev0")
+set(QDB_PY_VERSION "3.2.0.dev0")
 
 set(QDB_DAEMON "${QDB_API_DIR}/bin/qdbd")
 
