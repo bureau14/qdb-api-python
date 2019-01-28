@@ -156,10 +156,11 @@ class QuasardbQueryExp(unittest.TestCase):
         res = settings.cluster.query(query).run()
         self.trivial_test(helper.entry_name, len(inserted_double_data[0]), res, 1, 2)
 
-        self.assertEqual(res.tables[helper.entry_name][0].name, "timestamp")
-        self.assertEqual(res.tables[helper.entry_name][0].data[0], np.datetime64('NaT'))
-        self.assertEqual(res.tables[helper.entry_name][1].name,  "sum(" + helper.double_col.name + ")")
-        self.assertAlmostEqual(res.tables[helper.entry_name][1].data[0], np.sum(inserted_double_data[1]))
+        table = res.tables[helper.entry_name]
+        self.assertEqual(table[0].name, "timestamp")
+        self.assertTrue(np.isnat(table[0].data[0]), msg="Expected NaT. Got: " + str(table[0].data[0]))
+        self.assertEqual(table[1].name, "sum(" + helper.double_col.name + ")")
+        self.assertAlmostEqual(table[1].data[0], np.sum(inserted_double_data[1]))
 
     def test_returns_sum_with_sum_divided_by_count_select(self):
         helper, inserted_double_data = self.generate_ts_with_double_points()
@@ -170,11 +171,12 @@ class QuasardbQueryExp(unittest.TestCase):
         res = settings.cluster.query(query).run()
         self.trivial_test(helper.entry_name, len(inserted_double_data[0]) * 2, res, 1, 2)
 
-        self.assertEqual(res.tables[helper.entry_name][0].name, "timestamp")
-        self.assertEqual(res.tables[helper.entry_name][0].data[0], np.datetime64('NaT'))
-        self.assertEqual(res.tables[helper.entry_name][1].name,  "(sum(" +
+        table = res.tables[helper.entry_name]
+        self.assertEqual(table[0].name, "timestamp")
+        self.assertTrue(np.isnat(table[0].data[0]), msg="Expected NaT. Got: " + str(table[0].data[0]))
+        self.assertEqual(table[1].name,  "(sum(" +
                          helper.double_col.name + ")/count(" + helper.double_col.name + "))")
-        self.assertAlmostEqual(res.tables[helper.entry_name][1].data[0], np.average(inserted_double_data[1]))
+        self.assertAlmostEqual(table[1].data[0], np.average(inserted_double_data[1]))
 
     def test_returns_max_minus_min_select(self):
         helper, inserted_double_data = self.generate_ts_with_double_points()
@@ -186,11 +188,12 @@ class QuasardbQueryExp(unittest.TestCase):
 
         self.trivial_test(helper.entry_name, len(inserted_double_data[0]) * 2, res, 1, 2)
 
-        self.assertEqual(res.tables[helper.entry_name][0].name, "timestamp")
-        self.assertEqual(res.tables[helper.entry_name][0].data[0], np.datetime64('NaT'))
-        self.assertEqual(res.tables[helper.entry_name][1].name,  "(max(" +
+        table = res.tables[helper.entry_name]
+        self.assertEqual(table[0].name, "timestamp")
+        self.assertTrue(np.isnat(table[0].data[0]), msg="Expected NaT. Got: " + str(table[0].data[0]))
+        self.assertEqual(table[1].name,  "(max(" +
                          helper.double_col.name + ")-min(" + helper.double_col.name + "))")
-        self.assertAlmostEqual(res.tables[helper.entry_name][1].data[0], np.max(inserted_double_data[1]) - np.min(inserted_double_data[1]))
+        self.assertAlmostEqual(table[1].data[0], np.max(inserted_double_data[1]) - np.min(inserted_double_data[1]))
 
     def test_returns_max_minus_1_select(self):
         helper, inserted_double_data = self.generate_ts_with_double_points()
@@ -202,11 +205,12 @@ class QuasardbQueryExp(unittest.TestCase):
 
         self.trivial_test(helper.entry_name, len(inserted_double_data[0]), res, 1, 2)
 
-        self.assertEqual(res.tables[helper.entry_name][0].name, "timestamp")
-        self.assertGreaterEqual(res.tables[helper.entry_name][0].data[0], helper.start_time)
-        self.assertEqual(res.tables[helper.entry_name][1].name,  "(max(" +
+        table = res.tables[helper.entry_name]
+        self.assertEqual(table[0].name, "timestamp")
+        self.assertGreaterEqual(table[0].data[0], helper.start_time)
+        self.assertEqual(table[1].name,  "(max(" +
                          helper.double_col.name + ")-1)")
-        self.assertAlmostEqual(res.tables[helper.entry_name][1].data[0], np.max(inserted_double_data[1]) -1)
+        self.assertAlmostEqual(table[1].data[0], np.max(inserted_double_data[1]) -1)
 
     def test_returns_max_and_scalar_1_select(self):
         helper, inserted_double_data = self.generate_ts_with_double_points()
@@ -218,17 +222,19 @@ class QuasardbQueryExp(unittest.TestCase):
 
         self.assertEqual(len(res.tables), 2)
 
-        self.assertEqual(res.tables["$none"][0].name, "timestamp")
-        self.assertEqual(res.tables["$none"][0].data[0], np.datetime64('NaT'))
-        self.assertEqual(res.tables["$none"][1].name,  "max(" + helper.double_col.name + ")")
-        self.assertEqual(res.tables["$none"][2].name,  "1")
-        self.assertEqual(res.tables["$none"][2].data[0], 1)
+        table = res.tables["$none"]
+        self.assertEqual(table[0].name, "timestamp")
+        self.assertTrue(np.isnat(table[0].data[0]), msg="Expected NaT. Got: " + str(table[0].data[0]))
+        self.assertEqual(table[1].name,  "max(" + helper.double_col.name + ")")
+        self.assertEqual(table[2].name,  "1")
+        self.assertEqual(table[2].data[0], 1)
 
-        self.assertEqual(res.tables[helper.entry_name][0].name, "timestamp")
-        self.assertGreaterEqual(res.tables[helper.entry_name][0].data[0], helper.start_time)
-        self.assertEqual(res.tables[helper.entry_name][1].name,  "max(" + helper.double_col.name + ")")
-        self.assertAlmostEqual(res.tables[helper.entry_name][1].data[0], np.max(inserted_double_data[1]))
-        self.assertEqual(res.tables[helper.entry_name][2].name,  "1")
+        table = res.tables[helper.entry_name]
+        self.assertEqual(table[0].name, "timestamp")
+        self.assertGreaterEqual(table[0].data[0], helper.start_time)
+        self.assertEqual(table[1].name,  "max(" + helper.double_col.name + ")")
+        self.assertAlmostEqual(table[1].data[0], np.max(inserted_double_data[1]))
+        self.assertEqual(table[2].name,  "1")
 
     def test_returns_inserted_multi_data_with_star_select(self):
         helper, inserted_double_data = self.generate_ts_with_double_points()
