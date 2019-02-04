@@ -24,4 +24,4 @@ RUN apt-get update \
         && make -j32  \
         && make install \
         && /opt/python/bin/pip3 install --upgrade pip \
-        && /opt/python/bin/pip3 install wheel xmlrunner numpy
+        && /opt/python/bin/pip3 install wheel xmlrunner numpy pytz
