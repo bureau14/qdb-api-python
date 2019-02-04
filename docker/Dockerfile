@@ -1,26 +1,27 @@
 FROM ubuntu:18.04
 
-RUN apt-get update
-RUN apt-get install wget gcc g++ make cmake libssl-dev zlib1g-dev less -y
-
 ARG PYTHON_VERSION
 ARG PYTHON_SHA
 
-RUN wget -q https://s3.eu-central-1.amazonaws.com/qdbbuilddeps/linux/python/Python-${PYTHON_VERSION}.tgz
-RUN echo "${PYTHON_SHA} Python-${PYTHON_VERSION}.tgz" | sha256sum -c -
-
-RUN mkdir -p /opt/python/src/ \
-        && tar -xzf Python-${PYTHON_VERSION}.tgz -C /opt/python/src/ --strip-components 1
-
-
-RUN mkdir /opt/python/build \
+RUN apt-get update \
+        && apt-get upgrade -y \
+        && apt-get install -y wget gcc g++ make cmake libssl-dev zlib1g-dev less \
+        && wget -q https://s3.eu-central-1.amazonaws.com/qdbbuilddeps/linux/python/Python-${PYTHON_VERSION}.tgz \
+        && echo "${PYTHON_SHA} Python-${PYTHON_VERSION}.tgz" | sha256sum -c - \
+        \
+        && mkdir -p /opt/python/src/ \
+        && tar -xzf Python-${PYTHON_VERSION}.tgz -C /opt/python/src/ --strip-components 1 \
+        \
+        && mkdir /opt/python/build \
         && cd /opt/python/build \
         && ../src/configure --srcdir=../src \
                             --prefix=/opt/python \
                             --enable-ipv6  \
                             --with-system-ffi \
-                            --with-computed-gotos
-RUN cd /opt/python/build && make -j32
-RUN cd /opt/python/build && make install
-RUN /opt/python/bin/pip3 install --upgrade pip
-RUN /opt/python/bin/pip3 install wheel
+                            --with-computed-gotos \
+        \
+        && cd /opt/python/build \
+        && make -j32  \
+        && make install \
+        && /opt/python/bin/pip3 install --upgrade pip \
+        && /opt/python/bin/pip3 install wheel
