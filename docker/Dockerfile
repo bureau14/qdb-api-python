@@ -5,7 +5,7 @@ ARG PYTHON_SHA
 
 RUN apt-get update \
         && apt-get upgrade -y \
-        && apt-get install -y wget gcc g++ make cmake libssl-dev zlib1g-dev less \
+        && apt-get install -y wget gcc g++ make cmake libffi-dev libssl-dev zlib1g-dev less \
         && wget -q https://s3.eu-central-1.amazonaws.com/qdbbuilddeps/linux/python/Python-${PYTHON_VERSION}.tgz \
         && echo "${PYTHON_SHA} Python-${PYTHON_VERSION}.tgz" | sha256sum -c - \
         \
