@@ -13,7 +13,6 @@ import platform
 import subprocess
 
 import glob
-import shutil
 
 from setuptools.command.build_ext import build_ext
 from distutils.version import LooseVersion
@@ -21,9 +20,6 @@ from distutils.version import LooseVersion
 from setuptools import setup, Extension
 from setuptools.command.bdist_egg import bdist_egg as old_bdist_egg  # pylint: disable=C0412
 from pkg_resources import get_build_platform
-
-import ez_setup
-ez_setup.use_setuptools()
 
 qdb_version = "3.2.0.dev0".lower()
 
@@ -129,7 +125,6 @@ cmdclass = {
     'bdist_egg': EggRetagger,
     'bdist_wheel': WheelRetagger,
 }
-
 
 setup(name=package_name,
       version=qdb_version,
