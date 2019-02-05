@@ -70,14 +70,14 @@ else()
 endif()
 
 # generate setup script by replacing CMake variables
-configure_file(packaging/setup.in.py setup.py @ONLY)
-configure_file(packaging/setup.in.cfg setup.cfg @ONLY)
+configure_file(package/setup.in.py setup.py @ONLY)
+configure_file(package/setup.in.cfg setup.cfg @ONLY)
 
 configure_file(README.md README.txt COPYONLY)
-configure_file(packaging/__init__.py ${PACKAGE_NAME}/__init__.py COPYONLY)
-configure_file(packaging/ez_setup.py ez_setup.py COPYONLY)
+configure_file(package/__init__.py ${PACKAGE_NAME}/__init__.py COPYONLY)
+configure_file(package/ez_setup.py ez_setup.py COPYONLY)
 
-configure_file(packaging/MANIFEST.in MANIFEST.in @ONLY)
+configure_file(package/MANIFEST.in MANIFEST.in @ONLY)
 
 # copy the libraries
 if (WIN32)
