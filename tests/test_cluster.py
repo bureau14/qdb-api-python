@@ -1,7 +1,6 @@
-
 import re
 import unittest
-from settings import quasardb
+import quasardb
 
 class QuasardbCluster(unittest.TestCase):
     def test_capi_version_check(self):
@@ -9,5 +8,5 @@ class QuasardbCluster(unittest.TestCase):
         # The version check is the most critical step so it is done first.
         # We thus just have to check that the error we get is related to
         # this check to figure how it went.
-        self.assertRaisesRegexp(quasardb.Error, "^((?!C API version).)*$",
+        self.assertRaisesRegex(quasardb.Error, "^((?!C API version).)*$",
             quasardb.Cluster, "_qdb_://invaliduri")
