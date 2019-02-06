@@ -70,6 +70,15 @@ def random_string():
     return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(16))
 
 @pytest.fixture
+def tag_name():
+    return ''.join(random.choice(string.ascii_lowercase) for _ in range(16))
+
+@pytest.fixture
+def tag_names():
+    return sorted([''.join(random.choice(string.ascii_lowercase) for _ in range(16))
+                   for _ in range(10)])
+
+@pytest.fixture
 def entry_name(random_string):
     return random_string
 
