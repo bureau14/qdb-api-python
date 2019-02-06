@@ -4,8 +4,9 @@ import sys
 import subprocess
 import time
 import pytest
-
+import random
 import glob
+import string
 
 import quasardb
 
@@ -48,11 +49,28 @@ def config():
             {"insecure": "qdb://127.0.0.1:28360",
              "secure": "qdb://127.0.0.1:28361"}}
 
+entry_gen = UniqueEntryNameGenerator()
+
 @pytest.fixture
 def qdbd_connection(scope="module"):
-    print("quasardb = ", quasardb)
     return connect("qdb://127.0.0.1:28360")
 
+
+@pytest.fixture
+def random_string():
+    return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(16))
+
+@pytest.fixture
+def entry_name(random_string):
+    return random_string
+
+@pytest.fixture
+def random_blob(random_string):
+    return random_string.encode('UTF-8')
+
+@pytest.fixture
+def blob_entry(qdbd_connection, entry_name):
+    return qdbd_connection.blob(entry_name)
 
 def setUpModule():
     global INSECURE_URI  # pylint: disable=W0601
