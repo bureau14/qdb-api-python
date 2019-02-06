@@ -3,16 +3,19 @@ project(quasardb)
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 
 set(QDB_API_DIR "${CMAKE_SOURCE_DIR}/../qdb")
-if(NOT IS_DIRECTORY "${QDB_API_DIR}/include")
-    message(FATAL_ERROR "Please unzip qdb c-api into ${QDB_API_DIR}")
-endif()
-
-include_directories(SYSTEM
-    ${QDB_API_DIR}/include
-)
-
 
 find_library(QDB_API_LIB NAMES qdb_api PATHS ${QDB_API_DIR}/lib NO_DEFAULT_PATH)
+
+if (QDB_API_LIB)
+    if(NOT IS_DIRECTORY "${QDB_API_DIR}/include")
+        message(FATAL_ERROR "Please unzip qdb c-api into ${QDB_API_DIR}")
+    endif()
+    include_directories(SYSTEM
+        ${QDB_API_DIR}/include
+    )
+else()
+    find_library(QDB_API_LIB NAMES qdb_api)
+  endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(CLANG TRUE)
