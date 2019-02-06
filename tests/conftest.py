@@ -3,13 +3,11 @@ import os
 import sys
 import subprocess
 import time
+import pytest
 
 import glob
 
-# make it possible to run the test directly from the build without installing quasardb
-sys.path.append(glob.glob(os.path.join(os.path.split(__file__)[0], '..', 'build', 'lib.*', 'quasardb'))[0])
-
-import quasardb  # pylint: disable=C0413,E0401
+import quasardb
 
 global locked
 locked = False
@@ -42,6 +40,20 @@ def __cleanupProcess(process):
     process.kill()
     process.wait()
 
+def connect(uri):
+    return quasardb.Cluster(uri)
+
+def config():
+    return {"uri":
+            {"insecure": "qdb://127.0.0.1:28360",
+             "secure": "qdb://127.0.0.1:28361"}}
+
+@pytest.fixture
+def qdbd_connection(scope="module"):
+    print("quasardb = ", quasardb)
+    return connect("qdb://127.0.0.1:28360")
+
+
 def setUpModule():
     global INSECURE_URI  # pylint: disable=W0601
     global SECURE_URI  # pylint: disable=W0601
@@ -65,7 +77,6 @@ def setUpModule():
     root_directory = os.path.join(os.path.split(__file__)[0], '..')
     qdb_directory = os.path.join(root_directory, 'qdb', 'bin')
     __current_port = 3000
-    insecure_endpoint = '127.0.0.1:' + str(__current_port)
     __current_port += 1
     secure_endpoint = '127.0.0.1:' + str(__current_port)
     __current_port += 1
