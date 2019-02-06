@@ -156,4 +156,5 @@ setup(name=package_name,
       include_package_data=True,
       cmdclass=cmdclass,
       zip_safe=False,
+      test_suite="tests",
      )

@@ -7,7 +7,7 @@ import time
 import glob
 
 # make it possible to run the test directly from the build without installing quasardb
-sys.path.append(glob.glob(os.path.join(os.path.split(__file__)[0], '..', 'build', 'build', 'lib.*', 'quasardb'))[0])
+sys.path.append(glob.glob(os.path.join(os.path.split(__file__)[0], '..', 'build', 'lib.*', 'quasardb'))[0])
 
 import quasardb  # pylint: disable=C0413,E0401
 

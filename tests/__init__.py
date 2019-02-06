@@ -1,7 +1,7 @@
 # pylint: disable=C0103,C0111,C0302,W0212
 import os
 import unittest
-import settings
+import tests.settings
 
 class QuasardbTest(unittest.TestCase):
     pass
