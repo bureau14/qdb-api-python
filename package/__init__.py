@@ -38,7 +38,4 @@
 try:
     from quasardb.quasardb import *
 except:
-    try:
-        from quasardb import *
-    except:
-        None
+    from quasardb import *
