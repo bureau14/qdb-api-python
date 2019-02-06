@@ -1,11 +1,7 @@
 # pylint: disable=C0103,C0111,C0302,W0212
 import datetime
-import os
-import sys
-import unittest
-import settings
-
-from settings import quasardb
+import pytest
+import quasardb
 
 def _make_expiry_time(td):
     # expires in one minute
@@ -14,123 +10,91 @@ def _make_expiry_time(td):
     return now + td - datetime.timedelta(microseconds=now.microsecond)
 
 
-class QuasardbExpiry(unittest.TestCase):
-    def test_expires_at(self):
-        """
-        Test for expiry.
-        We want to make sure, in particular, that the conversion from Python datetime is right.
-        """
+def test_expires_at(blob_entry, random_blob):
+    """
+    Test for expiry.
+    We want to make sure, in particular, that the conversion from Python datetime is right.
+    """
 
-        # add one entry
-        entry_name = settings.entry_gen.next()
-        entry_content = "content"
+    # entry does not exist yet
+    with pytest.raises(quasardb.Error):
+        blob_entry.get_expiry_time()
 
-        b = settings.cluster.blob(entry_name)
+    blob_entry.put(random_blob)
 
-        # entry does not exist yet
-        self.assertRaises(quasardb.Error, b.get_expiry_time)
+    exp = blob_entry.get_expiry_time()
+    assert isinstance(exp, datetime.datetime)
+    assert exp.year == 1970
 
-        b.put(entry_content)
+    future_exp = _make_expiry_time(datetime.timedelta(minutes=1))
+    blob_entry.expires_at(future_exp)
 
-        exp = b.get_expiry_time()
-        self.assertIsInstance(exp, datetime.datetime)
-        self.assertEqual(exp.year, 1970)
+    exp = blob_entry.get_expiry_time()
+    assert isinstance(exp, datetime.datetime)
+    assert exp == future_exp
 
-        future_exp = _make_expiry_time(datetime.timedelta(minutes=1))
-        b.expires_at(future_exp)
+def test_expires_from_now(blob_entry, random_blob):
+    # entry does not exist yet
+    with pytest.raises(quasardb.Error):
+        blob_entry.get_expiry_time()
 
-        exp = b.get_expiry_time()
-        self.assertIsInstance(exp, datetime.datetime)
-        self.assertEqual(exp, future_exp)
+    blob_entry.put(random_blob)
 
-    def test_expires_from_now(self):
-        # add one entry
-        entry_name = settings.entry_gen.next()
-        entry_content = "content"
+    exp = blob_entry.get_expiry_time()
+    assert isinstance(exp, datetime.datetime)
+    assert exp.year == 1970
 
-        b = settings.cluster.blob(entry_name)
-        b.put(entry_content)
+    # expires in one minute from now
+    blob_entry.expires_from_now(datetime.timedelta(minutes=1))
 
-        exp = b.get_expiry_time()
-        self.assertIsInstance(exp, datetime.datetime)
-        self.assertEqual(exp.year, 1970)
+    # We use a wide 10s interval for the check, because we have no idea at which speed
+    # these testcases may run in debug. This will be enough however to check that
+    # the interval has properly been converted and the time zone is
+    # correct.
+    future_exp_lower_bound = datetime.datetime.now() + datetime.timedelta(seconds=50)
+    future_exp_higher_bound = future_exp_lower_bound + \
+        datetime.timedelta(seconds=80)
 
-        # expires in one minute from now
-        b.expires_from_now(datetime.timedelta(minutes=1))
+    exp = blob_entry.get_expiry_time()
+    assert isinstance(exp, datetime.datetime)
+    assert future_exp_lower_bound < exp
+    assert future_exp_higher_bound > exp
 
-        # We use a wide 10s interval for the check, because we have no idea at which speed
-        # these testcases may run in debug. This will be enough however to check that
-        # the interval has properly been converted and the time zone is
-        # correct.
-        future_exp_lower_bound = datetime.datetime.now() + datetime.timedelta(seconds=50)
-        future_exp_higher_bound = future_exp_lower_bound + \
-            datetime.timedelta(seconds=80)
+def test_methods(blob_entry, random_blob):
 
-        exp = b.get_expiry_time()
-        self.assertIsInstance(exp, datetime.datetime)
-        self.assertLess(future_exp_lower_bound, exp)
-        self.assertLess(exp, future_exp_higher_bound)
+    future_exp = _make_expiry_time(datetime.timedelta(minutes=1))
 
-    def test_methods(self):
-        """
-        Test that methods that accept an expiry date properly forward the value
-        """
-        entry_name = settings.entry_gen.next()
-        entry_content = "content"
+    blob_entry.put(random_blob, future_exp)
 
-        future_exp = _make_expiry_time(datetime.timedelta(minutes=1))
+    exp = blob_entry.get_expiry_time()
 
-        b = settings.cluster.blob(entry_name)
-        b.put(entry_content, future_exp)
+    assert isinstance(exp, datetime.datetime)
+    assert exp == future_exp
 
-        exp = b.get_expiry_time()
+    future_exp = _make_expiry_time(datetime.timedelta(minutes=2))
 
-        self.assertIsInstance(exp, datetime.datetime)
-        self.assertEqual(exp, future_exp)
+    blob_entry.update(random_blob, future_exp)
 
-        future_exp = _make_expiry_time(datetime.timedelta(minutes=2))
+    exp = blob_entry.get_expiry_time()
 
-        b.update(entry_content, future_exp)
+    assert isinstance(exp, datetime.datetime)
+    assert exp == future_exp
 
-        exp = b.get_expiry_time()
+    future_exp = _make_expiry_time(datetime.timedelta(minutes=3))
 
-        self.assertIsInstance(exp, datetime.datetime)
-        self.assertEqual(exp, future_exp)
+    blob_entry.get_and_update(random_blob, future_exp)
 
-        future_exp = _make_expiry_time(datetime.timedelta(minutes=3))
+    exp = blob_entry.get_expiry_time()
 
-        b.get_and_update(entry_content, future_exp)
-
-        exp = b.get_expiry_time()
-
-        self.assertIsInstance(exp, datetime.datetime)
-        self.assertEqual(exp, future_exp)
-
-        future_exp = _make_expiry_time(datetime.timedelta(minutes=4))
-
-        b.compare_and_swap(entry_content, entry_content, future_exp)
-
-        exp = b.get_expiry_time()
-
-        self.assertIsInstance(exp, datetime.datetime)
-        self.assertEqual(exp, future_exp)
-
-        b.remove()
-
-    def test_trim_all_at_end(self):
-        try:
-            settings.cluster.trim_all(datetime.timedelta(minutes=1))
-        except:  # pylint: disable=W0702
-            self.fail('settings.cluster.trim_all raised an unexpected exception')
+    assert isinstance(exp, datetime.datetime)
+    assert exp == future_exp
 
 
-if __name__ == '__main__':
-    if settings.get_lock_status() is False:
-        settings.init()
-        test_directory = os.getcwd()
-        test_report_directory = os.path.join(os.path.split(
-            __file__)[0], '..', 'build', 'test', 'test-reports')
-        import xmlrunner
-        unittest.main(testRunner=xmlrunner.XMLTestRunner(  # pylint: disable=E1102
-            output=test_report_directory), exit=False)
-        settings.terminate()
+    future_exp = _make_expiry_time(datetime.timedelta(minutes=4))
+
+    blob_entry.compare_and_swap(random_blob, random_blob, future_exp)
+
+    exp = blob_entry.get_expiry_time()
+
+    assert isinstance(exp, datetime.datetime)
+    assert exp == future_exp
