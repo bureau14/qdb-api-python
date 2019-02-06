@@ -2,8 +2,10 @@ cmake_minimum_required(VERSION 2.8.12)
 project(quasardb)
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 
-set(QDB_API_DIR "${CMAKE_SOURCE_DIR}/../qdb")
+set(PACKAGE_NAME quasardb)
 
+# step 1: discover libraries
+set(QDB_API_DIR "${CMAKE_SOURCE_DIR}/../qdb")
 find_library(QDB_API_LIB NAMES qdb_api PATHS ${QDB_API_DIR}/lib NO_DEFAULT_PATH)
 
 if (QDB_API_LIB)
@@ -41,6 +43,32 @@ include_directories(SYSTEM
     qdb/include
 )
 
+# step 2: copy the libraries
+
+if (WIN32)
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/../qdb/lib/qdb_api.lib" DESTINATION "${CMAKE_BINARY_DIR}/quasardb/qdb/lib")
+    file(COPY "${QDB_API_DIR}/bin/qdb_api.dll" DESTINATION "${PACKAGE_NAME}")
+elseif(APPLE)
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/../qdb/lib/libqdb_api.dylib" DESTINATION "${CMAKE_BINARY_DIR}/quasardb/qdb/lib")
+    file(COPY "${QDB_API_DIR}/lib/libqdb_api.dylib"  DESTINATION "${PACKAGE_NAME}")
+    file(COPY "${QDB_API_DIR}/lib/libc++.1.dylib"    DESTINATION "${PACKAGE_NAME}")
+    file(COPY "${QDB_API_DIR}/lib/libc++abi.1.dylib" DESTINATION "${PACKAGE_NAME}")
+elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "FreeBSD")
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/qdb/lib/libqdb_api.so" DESTINATION "${CMAKE_BINARY_DIR}/quasardb/qdb/lib")
+    file(COPY "${QDB_API_DIR}/lib/libqdb_api.so" DESTINATION "${PACKAGE_NAME}")
+    file(COPY "${QDB_API_DIR}/lib/libc++.so" DESTINATION "${PACKAGE_NAME}")
+    file(COPY "${QDB_API_DIR}/lib/libc++abi.so" DESTINATION "${PACKAGE_NAME}")
+else()
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/../qdb/lib/libqdb_api.so" DESTINATION "${CMAKE_BINARY_DIR}/quasardb/qdb/lib")
+    file(COPY "${QDB_API_DIR}/lib/libqdb_api.so" DESTINATION "${PACKAGE_NAME}")
+endif()
+
+# for Apple we need to change the id otherwise we won't be able to load the extension
+if (APPLE)
+    execute_process(COMMAND install_name_tool -id "@loader_path/libqdb_api.dylib" ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}/libqdb_api.dylib)
+endif()
+
+# step 3: build
 pybind11_add_module(quasardb
     cluster.hpp
     error.hpp
