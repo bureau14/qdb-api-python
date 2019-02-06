@@ -52,9 +52,18 @@ def config():
 entry_gen = UniqueEntryNameGenerator()
 
 @pytest.fixture
-def qdbd_connection(scope="module"):
-    return connect("qdb://127.0.0.1:28360")
+def qdbd_settings(scope="module"):
+    return {"uri":
+            {"insecure": "qdb://127.0.0.1:28360",
+             "secure": "qdb://127.0.0.1:28361"},
+            "security":
+            {"user_name": 'qdb-api-python',
+             "user_private_key": 'SoHHpH26NtZvfq5pqm/8BXKbVIkf+yYiVZ5fQbq1nbcI=',
+             "cluster_public_key": 'Pb+d1o3HuFtxEb5uTl9peU89ze9BZTK9f8KdKr4k7zGA='}}
 
+@pytest.fixture
+def qdbd_connection(qdbd_settings):
+    return connect(qdbd_settings.get("uri").get("insecure"))
 
 @pytest.fixture
 def random_string():
