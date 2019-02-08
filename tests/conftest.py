@@ -68,3 +68,10 @@ def table(qdbd_connection, entry_name):
 def intervals():
     start_time = np.datetime64('2017-01-01', 'ns')
     return [(start_time, start_time + np.timedelta64(1, 's'))]
+
+
+@pytest.fixture
+def many_intervals():
+    start_time = np.datetime64('2017-01-01', 'ns')
+    return np.array([(start_time + np.timedelta64(i, 's'))
+                     for i in range(10)]).astype('datetime64[ns]')
