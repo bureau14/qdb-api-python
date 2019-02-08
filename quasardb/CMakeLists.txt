@@ -53,8 +53,11 @@ include_directories(SYSTEM
     qdb/include
 )
 
+##
 # step 2: copy the libraries
-
+#
+# Based on the OS, we copy the relevant files into our output directory. This matches the
+# `extdir` as defined in setup.py's CMakeBuild.build_extension().
 if (WIN32)
     file(COPY "${QDB_API_DIR}/bin/qdb_api.dll" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 elseif(APPLE)
