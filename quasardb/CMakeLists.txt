@@ -19,6 +19,18 @@ else()
     find_library(QDB_API_LIB NAMES qdb_api)
 endif()
 
+if (NOT QDB_API_LIB)
+  message(FATAL_ERROR "\n\
+                      ************************************************************************** \n\
+                      \n\
+                      Unable to locate QuasarDB library: please install the QuasarDB API library. \n\
+                      \n\
+                      For more information, please consult the manual: \n\
+                        https://doc.quasardb.net/master/api/c.html. \n\
+                      \n\
+                      **************************************************************************")
+endif()
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(CLANG TRUE)
 endif()
