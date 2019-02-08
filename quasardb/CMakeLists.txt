@@ -17,7 +17,7 @@ if (QDB_API_LIB)
     )
 else()
     find_library(QDB_API_LIB NAMES qdb_api)
-  endif()
+endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(CLANG TRUE)
@@ -36,8 +36,6 @@ else()
 endif()
 
 add_subdirectory(pybind11)
-
-find_library(QDB_API_LIB NAMES qdb_api PATHS qdb/lib NO_DEFAULT_PATH)
 
 include_directories(SYSTEM
     qdb/include
