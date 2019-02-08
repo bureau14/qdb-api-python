@@ -156,6 +156,11 @@ public:
         return get_metadata().type;
     }
 
+    std::string get_name()
+    {
+        return _alias;
+    }
+
 protected:
     handle_ptr _handle;
     std::string _alias;

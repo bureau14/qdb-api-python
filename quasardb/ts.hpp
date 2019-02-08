@@ -244,6 +244,7 @@ static inline void register_ts(Module & m)
     py::class_<qdb::ts, qdb::entry>{m, "TimeSeries"}                                                         //
         .def(py::init<qdb::handle_ptr, std::string>())                                                       //
         .def("create", &qdb::ts::create, py::arg("columns"), py::arg("shard_size") = std::chrono::hours{24}) //
+        .def("get_name", &qdb::ts::get_name) //
         .def("insert_columns", &qdb::ts::insert_columns)                                                     //
         .def("list_columns", &qdb::ts::list_columns)                                                         //
         .def("erase_ranges", &qdb::ts::erase_ranges)                                                         //
