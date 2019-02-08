@@ -23,6 +23,9 @@ from pkg_resources import get_build_platform
 
 qdb_version = "3.2.0.dev0".lower()
 
+# package_modules are our 'extra' files. Our cmake configuration copies our QDB_API_LIB
+# into our source directory, and by adding this to `package_modules` we tell setuptools to
+# package this.
 package_modules = glob.glob(os.path.join('quasardb', 'lib*'))
 package_name = 'quasardb'
 
@@ -49,8 +52,13 @@ class CMakeBuild(build_ext):
 
     def build_extension(self, ext):
         extdir = os.path.join(os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name))), 'quasardb')
+
+        # We provide CMAKE_LIBRARY_OUTPUT_DIRECTORY to cmake, where it will copy libqdb_api.so (or
+        # whatever the OS uses). It is important that this path matches `package_modules`, so that
+        # setuptools knows it needs to package this.
         cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
-                      '-DPYTHON_EXECUTABLE=' + sys.executable, '-DQDB_PY_VERSION=' + qdb_version]
+                      '-DPYTHON_EXECUTABLE=' + sys.executable,
+                      '-DQDB_PY_VERSION=' + qdb_version]
 
         cfg = 'Debug' if self.debug else 'Release'
         build_args = ['--config', cfg]
