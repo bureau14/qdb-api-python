@@ -59,7 +59,7 @@ elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "FreeBSD")
     file(COPY "${QDB_API_DIR}/lib/libc++.so" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
     file(COPY "${QDB_API_DIR}/lib/libc++abi.so" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 else()
-    file(COPY "${QDB_API_DIR_DIR}/lib/libqdb_api.so" DESTINATION "${CMAKE_BINARY_DIR}/quasardb/qdb/lib")
+    file(COPY "${QDB_API_DIR}/lib/libqdb_api.so" DESTINATION "${CMAKE_BINARY_DIR}/quasardb/qdb/lib")
     file(COPY "${QDB_API_DIR}/lib/libqdb_api.so" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 endif()
 
