@@ -23,7 +23,7 @@ from pkg_resources import get_build_platform
 
 qdb_version = "3.2.0.dev0".lower()
 
-is_clang = 'Clang' in 'GNU'
+is_clang = 'Clang' in @CMAKE_CXX_COMPILER_ID@
 is_windows = os.name == 'nt'
 is_freebsd = sys.platform.startswith('freebsd')
 is_linux = sys.platform.startswith('linux')
