@@ -36,18 +36,3 @@ def test_connect_ok_to_secure_cluster(qdbd_settings):
                      user_name=qdbd_settings.get("security").get("user_name"),
                      user_private_key=qdbd_settings.get("security").get("user_private_key"),
                      cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"))
-
-    # def test_connect_throws_connection_error__when_no_user_name(self):
-    #     self.assertRaises(quasardb.Error,
-    #                       quasardb.Cluster, uri=settings.SECURE_URI,
-    #                       user_private_key=settings.SECURE_USER_PRIVATE_KEY,
-    #                       cluster_public_key=settings.SECURE_CLUSTER_PUBLIC_KEY)
-
-    # def test_connect_ok__secure_cluster(self):
-    #     try:
-    #         quasardb.Cluster(uri=settings.SECURE_URI,
-    #                          user_name=settings.SECURE_USER_NAME,
-    #                          user_private_key=settings.SECURE_USER_PRIVATE_KEY,
-    #                          cluster_public_key=settings.SECURE_CLUSTER_PUBLIC_KEY)
-    #     except Exception as ex:  # pylint: disable=W0703
-    #         self.fail(msg='Cannot connect to secure settings.cluster: ' + str(ex))
