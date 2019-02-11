@@ -61,13 +61,15 @@ include_directories(SYSTEM
 if (WIN32)
     file(COPY "${QDB_API_DIR}/bin/qdb_api.dll" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 elseif(APPLE)
-    file(COPY "${QDB_API_DIR}/lib/libqdb_api.dylib"  DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-    file(COPY "${QDB_API_DIR}/lib/libc++.1.dylib"    DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-    file(COPY "${QDB_API_DIR}/lib/libc++abi.1.dylib" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+    file(COPY "${QDB_API_DIR}/lib/libqdb_api.dylib"
+              "${QDB_API_DIR}/lib/libc++.1.dylib"
+              "${QDB_API_DIR}/lib/libc++abi.1.dylib"
+         DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "FreeBSD")
-    file(COPY "${QDB_API_DIR}/lib/libqdb_api.so" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-    file(COPY "${QDB_API_DIR}/lib/libc++.so" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-    file(COPY "${QDB_API_DIR}/lib/libc++abi.so" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+  file(COPY "${QDB_API_DIR}/lib/libqdb_api.so"
+            "${QDB_API_DIR}/lib/libc++.so"
+            "${QDB_API_DIR}/lib/libc++abi.so"
+       DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 else()
     file(COPY "${QDB_API_DIR}/lib/libqdb_api.so" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 endif()
