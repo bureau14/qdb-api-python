@@ -72,7 +72,7 @@ elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "FreeBSD")
             "${QDB_API_DIR}/lib/libc++abi.so"
        DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 else()
-    file(COPY "${QDB_API_DIR}/lib/libqdb_api.so" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+    file(COPY "${QDB_API_LIB}" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 endif()
 
 # for Apple we need to change the id otherwise we won't be able to load the extension
