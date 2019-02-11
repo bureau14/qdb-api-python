@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8.12)
 project(quasardb)
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 
 set(PACKAGE_NAME quasardb)
 
@@ -104,11 +105,3 @@ pybind11_add_module(quasardb
 
 target_compile_definitions(quasardb PUBLIC QDB_PY_VERSION="${QDB_PY_VERSION}")
 target_link_libraries(quasardb PUBLIC ${QDB_API_LIB})
-
-set_target_properties(quasardb PROPERTIES BUILD_WITH_INSTALL_RPATH 1)
-
-if (APPLE)
-    set_target_properties(quasardb PROPERTIES INSTALL_RPATH "@loader_path")
-else()
-    set_target_properties(quasardb PROPERTIES INSTALL_RPATH "$ORIGIN/")
-endif()
