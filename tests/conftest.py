@@ -29,12 +29,20 @@ def qdbd_connection(qdbd_settings):
     return connect(qdbd_settings.get("uri").get("insecure"))
 
 @pytest.fixture
+def random_identifier():
+    return ''.join(random.choice(string.ascii_lowercase) for _ in range(16))
+
+@pytest.fixture
 def random_string():
     return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(16))
 
 @pytest.fixture
-def tag_name():
-    return ''.join(random.choice(string.ascii_lowercase) for _ in range(16))
+def column_name(random_identifier):
+    return random_identifier
+
+@pytest.fixture
+def tag_name(random_identifier):
+    return random_identifier
 
 @pytest.fixture
 def tag_names():

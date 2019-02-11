@@ -123,6 +123,9 @@ def _ts_col_name(table):
 def _start_time(intervals):
     return intervals[0][0]
 
+def _start_year(intervals):
+    return intervals[0][0]
+
 
 ###
 # Double tests

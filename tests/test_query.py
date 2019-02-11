@@ -1,277 +1,273 @@
 # # pylint: disable=C0103,C0111,C0302,W0212
-# import datetime
-# import os
-# import sys
-# import unittest
-# import pytz
-# import settings
-# import test_ts as tslib
+import pytest
+import quasardb
+import numpy as np
 
-# from settings import quasardb
-# import numpy as np
+import test_ts as tslib
 
-# class TsHelper(object):
+def _insert_double_points(table, start_time, points=10):
+    inserted_double_data = tslib._generate_double_ts(start_time, points)
+    table.double_insert(tslib._double_col_name(table),
+                        inserted_double_data[0],
+                        inserted_double_data[1])
+    return inserted_double_data
 
-#     def __init__(self):
-#         self.setUp()
-#         self.create_ts()
-#         return
+def _insert_blob_points(table, start_time, points=10):
+    inserted_blob_data = tslib._generate_blob_ts(start_time, points)
+    table.blob_insert(tslib._blob_col_name(table),
+                      inserted_blob_data[0],
+                      inserted_blob_data[1])
+    return inserted_blob_data
 
-#     def __del__(self):
-#         return
-
-#     def setUp(self):
-#         self.entry_name = settings.entry_gen.next()
-#         self.my_ts = settings.cluster.ts(self.entry_name)
-
-#         self.start_time = np.datetime64('2017-01-01', 'ns')
-#         self.start_year = self.start_time.astype('datetime64[Y]').astype(int) + 1970
-
-#     def _create_ts(self):
-#         self.double_col = quasardb.ColumnInfo(quasardb.ColumnType.Double, settings.entry_gen.next())
-#         self.blob_col = quasardb.ColumnInfo(quasardb.ColumnType.Blob, settings.entry_gen.next())
-#         self.int64_col = quasardb.ColumnInfo(quasardb.ColumnType.Int64, settings.entry_gen.next())
-#         self.ts_col = quasardb.ColumnInfo(quasardb.ColumnType.Timestamp, settings.entry_gen.next())
-
-#         self.my_ts.create([self.double_col, self.blob_col, self.int64_col, self.ts_col])
-
-#     def create_ts(self):
-#         self._create_ts()
-
-# class QuasardbQueryExpErrorCodeCheck(unittest.TestCase):
-
-#     def test_returns_invalid_argument_for_null_query(self):
-#         self.assertRaises(TypeError,
-#                           settings.cluster.query, None)
-
-#     def test_returns_invalid_argument_for_empty_query(self):
-#         q = settings.cluster.query('')
-#         self.assertRaises(quasardb.Error, q.run)
-
-#     def test_returns_invalid_argument_with_invalid_query(self):
-#         q = settings.cluster.query('select * from')
-#         self.assertRaises(quasardb.Error, q.run)
-
-#     def test_returns_alias_not_found_when_ts_doesnt_exist(self):
-#         q = settings.cluster.query('select * from ' + 'this_ts_doesnt_exist' + ' in range(2017, +10d)')
-#         self.assertRaises(quasardb.Error, q.run)
-
-#     def test_returns_alias_not_found_when_untagged(self):
-#         non_existing_tag = settings.entry_gen.next()
-#         q = settings.cluster.query("select * from find(tag='" + non_existing_tag + "') in range(2017, +10d)")
-#         self.assertRaises(quasardb.Error, q.run)
-
-#     def test_returns_columns_not_found(self):
-#         non_existing_column = settings.entry_gen.next()
-#         helper = TsHelper()
-#         q = settings.cluster.query("select " + non_existing_column + " from " + helper.entry_name + " in range(2017, +10d)")
-#         self.assertRaises(quasardb.Error, q.run)
+def _insert_int64_points(table, start_time, points=10):
+    inserted_int64_data = tslib._generate_int64_ts(start_time, points)
+    table.int64_insert(tslib._int64_col_name(table),
+                      inserted_int64_data[0],
+                      inserted_int64_data[1])
+    return inserted_int64_data
 
 
-# class QuasardbQueryExp(unittest.TestCase):
+def _insert_timestamp_points(table, start_time, points=10):
+    inserted_timestamp_data = tslib._generate_timestamp_ts(start_time, start_time, points)
+    table.timestamp_insert(tslib._ts_col_name(table),
+                      inserted_timestamp_data[0],
+                      inserted_timestamp_data[1])
+    return inserted_timestamp_data
 
-#     def generate_ts_with_double_points(self, points=10):
-#         helper = TsHelper()
-#         inserted_double_data = tslib._generate_double_ts(helper.start_time, points)
-#         helper.my_ts.double_insert(helper.double_col.name, inserted_double_data[0], inserted_double_data[1])
-#         return helper, inserted_double_data
+##
+# Query failure tests
 
-#     def trivial_test(self, ts_name, scanned_point_count, res, rows_count, columns_count):
-#         self.assertEqual(res.scanned_point_count, scanned_point_count)
-#         self.assertEqual(len(res.tables), 1)
-#         self.assertEqual(len(res.tables[ts_name][0].data), rows_count)
-#         self.assertEqual(len(res.tables[ts_name]), columns_count)
-#         self.assertEqual(res.tables[ts_name][0].name, "timestamp")
+def test_returns_invalid_argument_for_null_query(qdbd_connection):
+    with pytest.raises(TypeError):
+        qdbd_connection.query()
 
-#     def test_returns_empty_result(self):
-#         helper = TsHelper()
-#         res = settings.cluster.query(
-#             "select * from " + helper.entry_name + " in range(2016-01-01 , 2016-12-12)").run()
-#         self.assertEqual(res.scanned_point_count, 0)
-#         self.assertEqual(len(res.tables), 0)
+def test_returns_invalid_argument_for_empty_query(qdbd_connection):
+    q = qdbd_connection.query('')
+    with pytest.raises(quasardb.Error):
+        q.run()
 
-#     def test_returns_inserted_data_with_star_select(self):
-#         helper, inserted_double_data = self.generate_ts_with_double_points()
-#         query = "select * from " + helper.entry_name + \
-#             " in range(" + str(helper.start_year) + ", +100d)"
-#         res = settings.cluster.query(query).run()
-#         # Column count is 5, because, uninit, int64, blob, timestamp, double
-#         self.trivial_test(helper.entry_name, len(inserted_double_data[0]),
-#                           res, len(inserted_double_data[0]), 5)
+def test_returns_invalid_argument_with_invalid_query(qdbd_connection):
+    q = qdbd_connection.query('select * from')
+    with pytest.raises(quasardb.Error):
+        q.run()
 
-#         self.assertEqual(res.tables[helper.entry_name][0].name, "timestamp")
-#         np.testing.assert_array_equal(res.tables[helper.entry_name][0].data, inserted_double_data[0])
-#         self.assertEqual(res.tables[helper.entry_name][1].name, helper.double_col.name)
-#         np.testing.assert_array_equal(res.tables[helper.entry_name][1].data, inserted_double_data[1])
+def test_returns_alias_not_found_when_ts_doesnt_exist(qdbd_connection):
+    q = qdbd_connection.query('select * from ' + 'this_ts_doesnt_exist' + ' in range(2017, +10d)')
+    with pytest.raises(quasardb.Error):
+        q.run()
 
-#     def test_returns_inserted_data_with_star_select_and_tag_lookup(self):
-#         helper, inserted_double_data = self.generate_ts_with_double_points()
-#         tag_name = settings.entry_gen.next()
-#         helper.my_ts.attach_tag(tag_name)
-#         query = "select * from find(tag = " + '"' + tag_name + '")' + \
-#             " in range(" + str(helper.start_year) + ", +100d)"
-#         res = settings.cluster.query(query).run()
-#         # Column count is 5, because, uninit, int64, blob, timestamp, double
-#         self.trivial_test(helper.entry_name, len(inserted_double_data[0]),
-#                           res, len(inserted_double_data[0]), 5)
+def test_returns_alias_not_found_when_untagged(qdbd_connection, tag_name):
+    q = qdbd_connection.query("select * from find(tag='" + tag_name + "') in range(2017, +10d)")
+    with pytest.raises(quasardb.Error):
+        q.run()
 
-#         self.assertEqual(res.tables[helper.entry_name][0].name, "timestamp")
-#         np.testing.assert_array_equal(res.tables[helper.entry_name][0].data, inserted_double_data[0])
-#         self.assertEqual(res.tables[helper.entry_name][1].name, helper.double_col.name)
-#         np.testing.assert_array_equal(res.tables[helper.entry_name][1].data, inserted_double_data[1])
+def test_returns_columns_not_found(qdbd_connection, table, column_name):
+    q = qdbd_connection.query("select " + column_name + " from " + table.get_name() + " in range(2017, +10d)")
+    with pytest.raises(quasardb.Error):
+        q.run()
 
-#     def test_returns_inserted_data_with_column_select(self):
-#         helper, inserted_double_data = self.generate_ts_with_double_points()
-#         query = "select " + helper.double_col.name + " from " + helper.entry_name + \
-#             " in range(" + str(helper.start_year) + ", +100d)"
-#         res = settings.cluster.query(query).run()
-#         self.trivial_test(helper.entry_name, len(inserted_double_data[0]),
-#                           res, len(inserted_double_data[0]), 2)
 
-#         self.assertEqual(res.tables[helper.entry_name][0].name, "timestamp")
-#         np.testing.assert_array_equal(res.tables[helper.entry_name][0].data, inserted_double_data[0])
-#         self.assertEqual(res.tables[helper.entry_name][1].name, helper.double_col.name)
-#         np.testing.assert_array_equal(res.tables[helper.entry_name][1].data, inserted_double_data[1])
+##
+# Double data tests
 
-#     def test_returns_inserted_data_twice_with_double_column_select(self):
-#         helper, inserted_double_data = self.generate_ts_with_double_points()
-#         query = "select " + helper.double_col.name + "," + helper.double_col.name + \
-#             " from " + helper.entry_name + \
-#                 " in range(" + \
-#             str(helper.start_year) + ", +100d)"
-#         res = settings.cluster.query(query).run()
-#         self.trivial_test(helper.entry_name, len(inserted_double_data[0]),
-#                           res, len(inserted_double_data[0]), 2)
+def sanity_check(ts_name, scanned_point_count, res, rows_count, columns_count):
+    assert res.scanned_point_count == scanned_point_count
+    assert len(res.tables) == 1
+    assert len(res.tables[ts_name][0].data) == rows_count
+    assert len(res.tables[ts_name]) == columns_count
+    assert res.tables[ts_name][0].name == "timestamp"
 
-#         self.assertEqual(res.tables[helper.entry_name][0].name, "timestamp")
-#         np.testing.assert_array_equal(res.tables[helper.entry_name][0].data, inserted_double_data[0])
-#         self.assertEqual(res.tables[helper.entry_name][1].name, helper.double_col.name)
-#         np.testing.assert_array_equal(res.tables[helper.entry_name][1].data, inserted_double_data[1])
+def test_returns_empty_result(qdbd_connection, table):
+    res = qdbd_connection.query(
+        "select * from " + table.get_name() + " in range(2016-01-01 , 2016-12-12)").run()
+    assert res.scanned_point_count == 0
+    assert len(res.tables) == 0
 
-#     def test_returns_sum_with_sum_select(self):
-#         helper, inserted_double_data = self.generate_ts_with_double_points()
-#         query = "select sum(" + helper.double_col.name + ") from " + helper.entry_name + \
-#                 " in range(" + \
-#                 str(helper.start_year) + ", +100d)"
-#         res = settings.cluster.query(query).run()
-#         self.trivial_test(helper.entry_name, len(inserted_double_data[0]), res, 1, 2)
+def test_returns_inserted_data_with_star_select(qdbd_connection, table, intervals):
+    start_time = tslib._start_time(intervals)
+    inserted_double_data = _insert_double_points(table, start_time, 10)
+    query = "select * from " + table.get_name() + \
+        " in range(" + str(tslib._start_year(intervals)) + ", +100d)"
+    res = qdbd_connection.query(query).run()
 
-#         table = res.tables[helper.entry_name]
-#         self.assertEqual(table[0].name, "timestamp")
-#         self.assertTrue(np.isnat(table[0].data[0]), msg="Expected NaT. Got: " + str(table[0].data[0]))
-#         self.assertEqual(table[1].name, "sum(" + helper.double_col.name + ")")
-#         self.assertAlmostEqual(table[1].data[0], np.sum(inserted_double_data[1]))
+    # Column count is 5, because, uninit, int64, blob, timestamp, double
+    sanity_check(table.get_name(),
+                 len(inserted_double_data[0]),
+                 res,
+                 len(inserted_double_data[0]),
+                 5)
 
-#     def test_returns_sum_with_sum_divided_by_count_select(self):
-#         helper, inserted_double_data = self.generate_ts_with_double_points()
-#         query = "select sum(" + helper.double_col.name + ")/count(" + \
-#             helper.double_col.name + ") from " + helper.entry_name + \
-#                 " in range(" + \
-#             str(helper.start_year) + ", +100d)"
-#         res = settings.cluster.query(query).run()
-#         self.trivial_test(helper.entry_name, len(inserted_double_data[0]) * 2, res, 1, 2)
+    assert res.tables[table.get_name()][0].name == "timestamp"
+    np.testing.assert_array_equal(res.tables[table.get_name()][0].data, inserted_double_data[0])
+    assert res.tables[table.get_name()][1].name == tslib._double_col_name(table)
+    np.testing.assert_array_equal(res.tables[table.get_name()][1].data, inserted_double_data[1])
 
-#         table = res.tables[helper.entry_name]
-#         self.assertEqual(table[0].name, "timestamp")
-#         self.assertTrue(np.isnat(table[0].data[0]), msg="Expected NaT. Got: " + str(table[0].data[0]))
-#         self.assertEqual(table[1].name,  "(sum(" +
-#                          helper.double_col.name + ")/count(" + helper.double_col.name + "))")
-#         self.assertAlmostEqual(table[1].data[0], np.average(inserted_double_data[1]))
+def test_returns_inserted_data_with_star_select_and_tag_lookup(qdbd_connection, table, tag_name, intervals):
+    start_time = tslib._start_time(intervals)
+    inserted_double_data = _insert_double_points(table, start_time, 10)
+    table.attach_tag(tag_name)
+    query = "select * from find(tag = " + '"' + tag_name + '")' + \
+        " in range(" + str(tslib._start_year(intervals)) + ", +100d)"
 
-#     def test_returns_max_minus_min_select(self):
-#         helper, inserted_double_data = self.generate_ts_with_double_points()
-#         query = "select max(" + helper.double_col.name + ") - min(" + \
-#             helper.double_col.name + ") from " + helper.entry_name + \
-#             " in range(" + \
-#             str(helper.start_year) + ", +100d)"
-#         res = settings.cluster.query(query).run()
+    res = qdbd_connection.query(query).run()
+    sanity_check(table.get_name(),
+                 len(inserted_double_data[0]),
+                 res,
+                 len(inserted_double_data[0]),
+                 5)
 
-#         self.trivial_test(helper.entry_name, len(inserted_double_data[0]) * 2, res, 1, 2)
+    assert res.tables[table.get_name()][0].name ==  "timestamp"
+    np.testing.assert_array_equal(res.tables[table.get_name()][0].data, inserted_double_data[0])
 
-#         table = res.tables[helper.entry_name]
-#         self.assertEqual(table[0].name, "timestamp")
-#         self.assertTrue(np.isnat(table[0].data[0]), msg="Expected NaT. Got: " + str(table[0].data[0]))
-#         self.assertEqual(table[1].name,  "(max(" +
-#                          helper.double_col.name + ")-min(" + helper.double_col.name + "))")
-#         self.assertAlmostEqual(table[1].data[0], np.max(inserted_double_data[1]) - np.min(inserted_double_data[1]))
+    assert res.tables[table.get_name()][1].name == tslib._double_col_name(table)
+    np.testing.assert_array_equal(res.tables[table.get_name()][1].data, inserted_double_data[1])
 
-#     def test_returns_max_minus_1_select(self):
-#         helper, inserted_double_data = self.generate_ts_with_double_points()
-#         query = "select max(" + helper.double_col.name + ") - 1 from " + \
-#             helper.entry_name + \
-#                 " in range(" + \
-#                 str(helper.start_year) + ", +100d)"
-#         res = settings.cluster.query(query).run()
+def test_returns_inserted_data_with_column_select(qdbd_connection, table, intervals):
+    start_time = tslib._start_time(intervals)
+    inserted_double_data = _insert_double_points(table, start_time, 10)
+    query = "select " + tslib._double_col_name(table) + " from " + table.get_name() + " in range(" + str(tslib._start_year(intervals)) + ", +100d)"
+    res = qdbd_connection.query(query).run()
 
-#         self.trivial_test(helper.entry_name, len(inserted_double_data[0]), res, 1, 2)
+    sanity_check(table.get_name(),
+                 len(inserted_double_data[0]),
+                 res,
+                 len(inserted_double_data[0]),
+                 2)
 
-#         table = res.tables[helper.entry_name]
-#         self.assertEqual(table[0].name, "timestamp")
-#         self.assertGreaterEqual(table[0].data[0], helper.start_time)
-#         self.assertEqual(table[1].name,  "(max(" +
-#                          helper.double_col.name + ")-1)")
-#         self.assertAlmostEqual(table[1].data[0], np.max(inserted_double_data[1]) -1)
+    assert res.tables[table.get_name()][0].name == "timestamp"
+    np.testing.assert_array_equal(res.tables[table.get_name()][0].data, inserted_double_data[0])
+    assert res.tables[table.get_name()][1].name == tslib._double_col_name(table)
+    np.testing.assert_array_equal(res.tables[table.get_name()][1].data, inserted_double_data[1])
 
-#     def test_returns_max_and_scalar_1_select(self):
-#         helper, inserted_double_data = self.generate_ts_with_double_points()
-#         query = "select max(" + helper.double_col.name + "), 1 from " + \
-#             helper.entry_name + \
-#                 " in range(" + \
-#                 str(helper.start_year) + ", +100d)"
-#         res = settings.cluster.query(query).run()
+def test_returns_inserted_data_twice_with_double_column_select(qdbd_connection, table, intervals):
+    start_time = tslib._start_time(intervals)
+    inserted_double_data = _insert_double_points(table, start_time, 10)
+    query = "select " + tslib._double_col_name(table) + "," + tslib._double_col_name(table) + \
+        " from " + table.get_name() + \
+        " in range(" + \
+        str(tslib._start_year(intervals)) + ", +100d)"
+    res = qdbd_connection.query(query).run()
+    sanity_check(table.get_name(), len(inserted_double_data[0]),
+                      res, len(inserted_double_data[0]), 2)
 
-#         self.assertEqual(len(res.tables), 2)
+    assert res.tables[table.get_name()][0].name == "timestamp"
+    np.testing.assert_array_equal(res.tables[table.get_name()][0].data, inserted_double_data[0])
+    assert res.tables[table.get_name()][1].name == tslib._double_col_name(table)
+    np.testing.assert_array_equal(res.tables[table.get_name()][1].data, inserted_double_data[1])
 
-#         table = res.tables["$none"]
-#         self.assertEqual(table[0].name, "timestamp")
-#         self.assertTrue(np.isnat(table[0].data[0]), msg="Expected NaT. Got: " + str(table[0].data[0]))
-#         self.assertEqual(table[1].name,  "max(" + helper.double_col.name + ")")
-#         self.assertEqual(table[2].name,  "1")
-#         self.assertEqual(table[2].data[0], 1)
+def test_returns_sum_with_sum_select(qdbd_connection, table, intervals):
+    start_time = tslib._start_time(intervals)
+    inserted_double_data = _insert_double_points(table, start_time, 10)
+    query = "select sum(" + tslib._double_col_name(table) + ") from " + table.get_name() + \
+        " in range(" + \
+        str(tslib._start_year(intervals)) + ", +100d)"
+    res = qdbd_connection.query(query).run()
+    sanity_check(table.get_name(), len(inserted_double_data[0]), res, 1, 2)
 
-#         table = res.tables[helper.entry_name]
-#         self.assertEqual(table[0].name, "timestamp")
-#         self.assertGreaterEqual(table[0].data[0], helper.start_time)
-#         self.assertEqual(table[1].name,  "max(" + helper.double_col.name + ")")
-#         self.assertAlmostEqual(table[1].data[0], np.max(inserted_double_data[1]))
-#         self.assertEqual(table[2].name,  "1")
+    res_table = res.tables[table.get_name()]
+    assert res_table[0].name == "timestamp"
+    assert np.isnat(res_table[0].data[0])
+    assert res_table[1].name == "sum(" + tslib._double_col_name(table) + ")"
+    assert pytest.approx(res_table[1].data[0], 0.1) == np.sum(inserted_double_data[1])
 
-#     def test_returns_inserted_multi_data_with_star_select(self):
-#         helper, inserted_double_data = self.generate_ts_with_double_points()
-#         inserted_blob_data = tslib._generate_blob_ts(helper.start_time, 10)
-#         inserted_int64_data = tslib._generate_int64_ts(helper.start_time, 10)
-#         inserted_timestamp_data = tslib._generate_timestamp_ts(helper.start_time, helper.start_time, 10)
+def test_returns_sum_with_sum_divided_by_count_select(qdbd_connection, table, intervals):
+    start_time = tslib._start_time(intervals)
+    inserted_double_data = _insert_double_points(table, start_time, 10)
+    query = "select sum(" + tslib._double_col_name(table) + ")/count(" + \
+        tslib._double_col_name(table) + ") from " + table.get_name() + \
+        " in range(" + \
+        str(tslib._start_year(intervals)) + ", +100d)"
+    res = qdbd_connection.query(query).run()
+    sanity_check(table.get_name(), len(inserted_double_data[0]) * 2, res, 1, 2)
 
-#         helper.my_ts.blob_insert(helper.blob_col.name, inserted_blob_data[0], inserted_blob_data[1])
-#         helper.my_ts.int64_insert(helper.int64_col.name, inserted_int64_data[0], inserted_int64_data[1])
-#         helper.my_ts.timestamp_insert(helper.ts_col.name, inserted_timestamp_data[0], inserted_timestamp_data[1])
+    res_table = res.tables[table.get_name()]
+    assert res_table[0].name == "timestamp"
+    assert np.isnat(res_table[0].data[0])
+    assert res_table[1].name ==  "(sum(" + tslib._double_col_name(table) + ")/count(" + tslib._double_col_name(table) + "))"
+    assert pytest.approx(res_table[1].data[0], 0.1) == np.average(inserted_double_data[1])
 
-#         query = "select * from " + helper.entry_name + \
-#             " in range(" + str(helper.start_year) + ", +100d)"
-#         res = settings.cluster.query(query).run()
+def test_returns_max_minus_min_select(qdbd_connection, table, intervals):
+    start_time = tslib._start_time(intervals)
+    inserted_double_data = _insert_double_points(table, start_time, 10)
+    query = "select max(" + tslib._double_col_name(table) + ") - min(" + \
+        tslib._double_col_name(table) + ") from " + table.get_name() + \
+        " in range(" + \
+        str(tslib._start_year(intervals)) + ", +100d)"
+    res = qdbd_connection.query(query).run()
 
-#         # Column count is 5, because, uninit, int64, blob, timestamp, double
-#         self.trivial_test(helper.entry_name, 4 * len(inserted_double_data[0]),
-#                           res, len(inserted_double_data[0]), 5)
+    sanity_check(table.get_name(), len(inserted_double_data[0]) * 2, res, 1, 2)
 
-#         self.assertEqual(res.tables[helper.entry_name][0].name, "timestamp")
-#         np.testing.assert_array_equal(res.tables[helper.entry_name][0].data, inserted_double_data[0])
-#         self.assertEqual(res.tables[helper.entry_name][1].name, helper.double_col.name)
-#         np.testing.assert_array_equal(res.tables[helper.entry_name][1].data, inserted_double_data[1])
-#         self.assertEqual(res.tables[helper.entry_name][2].name, helper.blob_col.name)
-#         np.testing.assert_array_equal(res.tables[helper.entry_name][2].data, inserted_blob_data[1])
-#         self.assertEqual(res.tables[helper.entry_name][3].name, helper.int64_col.name)
-#         np.testing.assert_array_equal(res.tables[helper.entry_name][3].data, inserted_int64_data[1])
-#         self.assertEqual(res.tables[helper.entry_name][4].name, helper.ts_col.name)
-#         np.testing.assert_array_equal(res.tables[helper.entry_name][4].data, inserted_timestamp_data[1])
+    res_table = res.tables[table.get_name()]
+    assert res_table[0].name == "timestamp"
+    assert np.isnat(res_table[0].data[0])
+    assert res_table[1].name == "(max(" + tslib._double_col_name(table) + ")-min(" + tslib._double_col_name(table) + "))"
+    assert pytest.approx(res_table[1].data[0], 0.1) == np.max(inserted_double_data[1]) - np.min(inserted_double_data[1])
 
-# if __name__ == '__main__':
-#     if settings.get_lock_status() is False:
-#         settings.init()
-#         test_directory = os.getcwd()
-#         test_report_directory = os.path.join(os.path.split(
-#             __file__)[0], '..', 'build', 'test', 'test-reports')
-#         import xmlrunner
-#         unittest.main(testRunner=xmlrunner.XMLTestRunner(  # pylint: disable=E1102
-#             output=test_report_directory), exit=False)
-#         settings.terminate()
+def test_returns_max_minus_1_select(qdbd_connection, table, intervals):
+    start_time = tslib._start_time(intervals)
+    inserted_double_data = _insert_double_points(table, start_time, 10)
+    query = "select max(" + tslib._double_col_name(table) + ") - 1 from " + \
+        table.get_name() + \
+        " in range(" + \
+        str(tslib._start_year(intervals)) + ", +100d)"
+    res = qdbd_connection.query(query).run()
+
+    sanity_check(table.get_name(), len(inserted_double_data[0]), res, 1, 2)
+
+    res_table = res.tables[table.get_name()]
+    assert res_table[0].name == "timestamp"
+    assert res_table[0].data[0] >= start_time
+    assert res_table[1].name == "(max(" + tslib._double_col_name(table) + ")-1)"
+    assert pytest.approx(res_table[1].data[0], 0.1) == np.max(inserted_double_data[1]) -1
+
+def test_returns_max_and_scalar_1_select(qdbd_connection, table, intervals):
+    start_time = tslib._start_time(intervals)
+    inserted_double_data = _insert_double_points(table, start_time, 10)
+    query = "select max(" + tslib._double_col_name(table) + "), 1 from " + \
+        table.get_name() + \
+        " in range(" + \
+        str(tslib._start_year(intervals)) + ", +100d)"
+    res = qdbd_connection.query(query).run()
+
+    assert len(res.tables) == 2
+
+    res_table = res.tables["$none"]
+    assert res_table[0].name == "timestamp"
+    assert np.isnat(res_table[0].data[0])
+    assert res_table[1].name ==  "max(" + tslib._double_col_name(table) + ")"
+    assert res_table[2].name ==  "1"
+    assert res_table[2].data[0] == 1
+
+    res_table = res.tables[table.get_name()]
+    assert res_table[0].name == "timestamp"
+    assert res_table[0].data[0] >= start_time
+    assert res_table[1].name == "max(" + tslib._double_col_name(table) + ")"
+    assert pytest.approx(res_table[1].data[0], 0.1) ==  np.max(inserted_double_data[1])
+    assert res_table[2].name == "1"
+
+def test_returns_inserted_multi_data_with_star_select(qdbd_connection, table, intervals):
+    start_time = tslib._start_time(intervals)
+    inserted_double_data = _insert_double_points(table, start_time, 10)
+    inserted_blob_data = _insert_blob_points(table, start_time, 10)
+    inserted_int64_data = _insert_int64_points(table, start_time, 10)
+    inserted_timestamp_data = _insert_timestamp_points(table, start_time, 10)
+
+    query = "select * from " + table.get_name() + \
+        " in range(" + str(tslib._start_year(intervals)) + ", +100d)"
+    res = qdbd_connection.query(query).run()
+
+    # Column count is 5, because, uninit, int64, blob, timestamp, double
+    sanity_check(table.get_name(), 4 * len(inserted_double_data[0]),
+                 res, len(inserted_double_data[0]), 5)
+
+    assert res.tables[table.get_name()][0].name == "timestamp"
+    assert res.tables[table.get_name()][1].name == tslib._double_col_name(table)
+    assert res.tables[table.get_name()][2].name == tslib._blob_col_name(table)
+    assert res.tables[table.get_name()][3].name == tslib._int64_col_name(table)
+    assert res.tables[table.get_name()][4].name == tslib._ts_col_name(table)
+
+    np.testing.assert_array_equal(res.tables[table.get_name()][0].data, inserted_double_data[0])
+    np.testing.assert_array_equal(res.tables[table.get_name()][1].data, inserted_double_data[1])
+    np.testing.assert_array_equal(res.tables[table.get_name()][2].data, inserted_blob_data[1])
+    np.testing.assert_array_equal(res.tables[table.get_name()][3].data, inserted_int64_data[1])
+    np.testing.assert_array_equal(res.tables[table.get_name()][4].data, inserted_timestamp_data[1])
