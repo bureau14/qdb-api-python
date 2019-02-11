@@ -76,7 +76,9 @@ endif()
 
 # for Apple we need to change the id otherwise we won't be able to load the extension
 if (APPLE)
-    execute_process(COMMAND install_name_tool -id "@loader_path/libqdb_api.dylib" ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}/libqdb_api.dylib)
+    execute_process(COMMAND install_name_tool
+                    -id "@loader_path/libqdb_api.dylib"
+                    ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libqdb_api.dylib)
 endif()
 
 # step 3: build
