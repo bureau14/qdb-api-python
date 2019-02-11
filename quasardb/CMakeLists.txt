@@ -105,3 +105,9 @@ pybind11_add_module(quasardb
 
 target_compile_definitions(quasardb PUBLIC QDB_PY_VERSION="${QDB_PY_VERSION}")
 target_link_libraries(quasardb PUBLIC ${QDB_API_LIB})
+
+if (APPLE)
+    set_target_properties(quasardb PROPERTIES INSTALL_RPATH "@loader_path")
+else()
+    set_target_properties(quasardb PROPERTIES INSTALL_RPATH "$ORIGIN/")
+endif()
