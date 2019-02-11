@@ -1,3 +1,0 @@
-include ez_setup.py
-recursive-include @PACKAGE_NAME@ @SHARED_LIBRARY_EXTENSIONS@
-graft quasardb_module
