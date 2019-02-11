@@ -1,3 +1,4 @@
+wheel
 distribute
 pytest
 setuptools_git >= 0.3
