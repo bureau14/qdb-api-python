@@ -2,6 +2,7 @@
 import pytest
 import quasardb
 
+
 def test_types(qdbd_connection, blob_entry, random_blob, tag_name):
 
     blob_entry.put(random_blob)
@@ -16,16 +17,15 @@ def test_types(qdbd_connection, blob_entry, random_blob, tag_name):
 
     assert len(res) == 1
 
-
     res = qdbd_connection.find(
         "find(tag='" + tag_name + "' AND type=integer)").run()
 
     assert len(res) == 0
 
+
 def test_types(qdbd_connection, blob_entry, random_blob, tag_names):
     blob_entry.put(random_blob)
     blob_entry.attach_tags(tag_names)
-
 
     res = qdbd_connection.find("find(tag='" + tag_names[0] + "')").run()
     assert len(res) == 1
@@ -34,6 +34,10 @@ def test_types(qdbd_connection, blob_entry, random_blob, tag_names):
     assert len(res) == 1
 
     res = qdbd_connection.find(
-        "find(tag='" + tag_names[0] + "' AND tag='" + tag_names[1] + "')").run()
+        "find(tag='" +
+        tag_names[0] +
+        "' AND tag='" +
+        tag_names[1] +
+        "')").run()
 
     assert len(res) == 1

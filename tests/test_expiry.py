@@ -3,6 +3,7 @@ import datetime
 import pytest
 import quasardb
 
+
 def _make_expiry_time(td):
     # expires in one minute
     now = datetime.datetime.now()
@@ -33,6 +34,7 @@ def test_expires_at(blob_entry, random_blob):
     assert isinstance(exp, datetime.datetime)
     assert exp == future_exp
 
+
 def test_expires_from_now(blob_entry, random_blob):
     # entry does not exist yet
     with pytest.raises(quasardb.Error):
@@ -59,6 +61,7 @@ def test_expires_from_now(blob_entry, random_blob):
     assert isinstance(exp, datetime.datetime)
     assert future_exp_lower_bound < exp
     assert future_exp_higher_bound > exp
+
 
 def test_methods(blob_entry, random_blob):
 
@@ -88,7 +91,6 @@ def test_methods(blob_entry, random_blob):
 
     assert isinstance(exp, datetime.datetime)
     assert exp == future_exp
-
 
     future_exp = _make_expiry_time(datetime.timedelta(minutes=4))
 

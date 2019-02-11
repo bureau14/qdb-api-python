@@ -3,8 +3,10 @@ from builtins import range as xrange  # pylint: disable=W0622
 import pytest
 import quasardb
 
+
 def test_put(blob_entry, random_string):
     blob_entry.put(random_string)
+
 
 def test_put_throws_exception_when_called_twice(blob_entry, random_blob):
     blob_entry.put(random_blob)
@@ -35,6 +37,7 @@ def test_remove_throws_exception_when_called_twice(blob_entry, random_blob):
     with pytest.raises(quasardb.Error):
         blob_entry.remove()
 
+
 def test_update(blob_entry, random_blob):
     blob_entry.update(random_blob)
     got = blob_entry.get()
@@ -53,6 +56,7 @@ def test_update(blob_entry, random_blob):
 
     assert got == new_entry_content
 
+
 def test_get_and_update(blob_entry, random_blob):
     blob_entry.put(random_blob)
     got = blob_entry.get()
@@ -68,6 +72,7 @@ def test_get_and_update(blob_entry, random_blob):
     assert entry_new_content == got
     blob_entry.remove()
 
+
 def test_get_and_remove(blob_entry, random_blob):
     blob_entry.put(random_blob)
 
@@ -76,6 +81,7 @@ def test_get_and_remove(blob_entry, random_blob):
 
     with pytest.raises(quasardb.Error):
         blob_entry.get()
+
 
 def test_remove_if(blob_entry, random_blob):
     blob_entry.put(random_blob)

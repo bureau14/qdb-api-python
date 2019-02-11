@@ -2,6 +2,7 @@ import re
 import pytest
 import quasardb
 
+
 def test_capi_version_check():
     # This will throw everytime
     # The version check is the most critical step so it is done first.

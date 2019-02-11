@@ -1,5 +1,6 @@
 # pylint: disable=C0103,C0111,C0302,W0212
 
+
 def test_empty_suffix(qdbd_connection):
 
     res = qdbd_connection.suffix_get("testazeazeaze", 10)
@@ -7,6 +8,7 @@ def test_empty_suffix(qdbd_connection):
 
     res = qdbd_connection.suffix_count("testazeazeaze")
     assert res == 0
+
 
 def test_find_one(qdbd_connection, entry_name, random_string):
     dat_suffix = random_string
