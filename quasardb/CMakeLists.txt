@@ -65,7 +65,7 @@ include_directories(SYSTEM
 get_filename_component(QDB_API_LIB_REAL ${QDB_API_LIB} REALPATH)
 
 if (WIN32)
-    file(COPY "${QDB_API_LIB_REAL}" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+    file(COPY "${QDB_API_LIB}" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 elseif(APPLE)
     file(COPY "${QDB_API_LIB_REAL}"
               "${QDB_API_DIR}/lib/libc++.1.dylib"
