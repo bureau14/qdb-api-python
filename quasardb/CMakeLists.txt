@@ -59,21 +59,27 @@ include_directories(SYSTEM
 #
 # Based on the OS, we copy the relevant files into our output directory. This matches the
 # `extdir` as defined in setup.py's CMakeBuild.build_extension().
+
+# We need to detect the _actual_ location of the qdb api lib file, lest we
+# accidentally copy the symlink instead of the file.
+get_filename_component(QDB_API_LIB_REAL ${QDB_API_LIB} REALPATH)
+
 if (WIN32)
-    file(COPY "${QDB_API_DIR}/bin/qdb_api.dll" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+    file(COPY "${QDB_API_LIB_REAL}" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 elseif(APPLE)
-    file(COPY "${QDB_API_DIR}/lib/libqdb_api.dylib"
+    file(COPY "${QDB_API_LIB_REAL}"
               "${QDB_API_DIR}/lib/libc++.1.dylib"
               "${QDB_API_DIR}/lib/libc++abi.1.dylib"
          DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "FreeBSD")
-  file(COPY "${QDB_API_DIR}/lib/libqdb_api.so"
-            "${QDB_API_DIR}/lib/libc++.so"
-            "${QDB_API_DIR}/lib/libc++abi.so"
+    file(COPY "${QDB_API_LIB_REAL}"
+              "${QDB_API_DIR}/lib/libc++.so"
+              "${QDB_API_DIR}/lib/libc++abi.so"
        DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 else()
-    file(COPY "${QDB_API_LIB}" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+    file(COPY "${QDB_API_LIB_REAL}" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 endif()
+
 
 # for Apple we need to change the id otherwise we won't be able to load the extension
 if (APPLE)
