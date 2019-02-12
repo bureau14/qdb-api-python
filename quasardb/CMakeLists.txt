@@ -20,6 +20,8 @@ else()
     find_library(QDB_API_LIB NAMES qdb_api)
 endif()
 
+message(STATUS "Resolved QDB API library location: ${QDB_API_LIB}")
+
 if (NOT QDB_API_LIB)
   message(FATAL_ERROR "\n\
                       ************************************************************************** \n\
