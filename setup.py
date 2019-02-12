@@ -21,7 +21,7 @@ from setuptools import setup, Extension
 from setuptools.command.bdist_egg import bdist_egg as old_bdist_egg  # pylint: disable=C0412
 from pkg_resources import get_build_platform
 
-qdb_version = "3.2.0.dev2".lower()
+qdb_version = "3.2.0.dev3".lower()
 
 # package_modules are our 'extra' files. Our cmake configuration copies our QDB_API_LIB
 # into our source directory, and by adding this to `package_modules` we tell setuptools to
