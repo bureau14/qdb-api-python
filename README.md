@@ -1,112 +1,96 @@
-# quasardb Python API
+# QuasarDB Python API
 
-## Installation
+The QuasarDB Python API is built and tested against the following versions:
 
-You can download a precompiled egg directly from our site, or you can build from the sources.
+- Python 3.5
+- Python 3.6
+- Python 3.7
 
-The QuasarDB Python API requires [numpy](http://www.numpy.org/).
+In addition to this, we support the following environments:
 
-### quasardb C API
+- MacOS 10.9+
+- Microsoft Windows
+- Linux
+- FreeBSD
 
-To build the Python API, you will need the C API. It can either be installed on the machine (e.g. on unix in `/usr/lib` or `/usr/local/lib`) or you can unpack the C API archive in qdb. You will also need the daemon to run the tests.
+## Installation via PyPi
 
-### Building the extension
+#### Windows and MacOS
 
-The QuasarDB API module is written in C++ 14 using [pybind11](https://github.com/pybind/pybind11).
+The QuasarDB Python API is distributed using a PyPi package, and can be installed as follows:
 
-You will need [CMake](http://www.cmake.org/) and the Python dist tools installed.
-
-First, run cmake in a project directory (here ```build```):
-
-```
-mkdir build
-cd build
-cmake -G "your generator" -DCMAKE_BUILD_TYPE=Release ..
-```
-
-Then compile via CMake:
-
-```
-cmake --build . --config Release
+```bash
+$ pip install quasardb
 ```
 
-This will compile the modules and create in ```build/dist``` the different packages for your specific platform.
+This will download the API and install all its dependencies.
 
-## Running the tests
+#### Linux
 
-To run the tests, you will need to have installed in ```qdb``` the daemon (download it from our web site). You will also need the ```xmlrunner``` extension.
+For Linux users, installation via pip through PyPi will trigger a compilation of this module. This will require additional packages to be installed:
 
-Then you run the test from ```build``` with:
+- A modern C++ compiler (llvm, g++)
+- CMake 3.5 or higher
+- [QuasarDB C API](https://doc.quasardb.net/master/api/c.html)
 
-```
-ctest -C Release . --verbose
-```
+##### Ubuntu / Debian
 
-## Usage
+On Ubuntu or Debian, this can be achieved as follows:
 
-Using *quasardb* starts with a Cluster:
-
-```python
-import quasardb
-
-c = quasardb.Cluster('qdb://127.0.0.1:2836')
-```
-
-### Blob API
-
-Now that we have a connection to the cluster, let's store some binary data:
-
-```python
-b = c.blob('bam')
-
-b.put('boom')
-v = b.get() # returns 'boom'
+```bash
+$ apt install apt-transport-https ca-certificates -y
+$ echo "deb [trusted=yes] https://repo.quasardb.net/apt/ /" > /etc/apt/sources.list.d/quasardb.list
+$ apt update
+$ apt install qdb-api cmake g++
+$ pip install wheel
+$ pip install quasardb
 ```
 
-### Timeseries API
+##### RHEL / CentOS
 
-What about time series you say?
+On RHEL or CentOS, the process is a bit more involved because we need a modern GCC compiler and cmake. It can be achieved as follows:
 
-You get an object in the same fashion than for a blob:
+```bash
+# Enable SCL for recent gcc
+$ yum install centos-release-scl -y
 
-```python
-ts = c.ts("dat_ts")
+# Enable EPEL for recent cmake
+$ yum install epel-release -y
 
-ts.create([quasardb.ColumnInfo(quasardb.ColumnType.Double, "doubles"), quasardb.ColumnInfo(quasardb.ColumnType.Blob, "blobs")])
+# Enable QuasarDB Repository
+$ echo $'[quasardb]\nname=QuasarDB repo\nbaseurl=https://repo.quasardb.net/yum/\nenabled=1\ngpgcheck=0' > /etc/yum.repos.d/quasardb.repo
+
+$ yum install devtoolset-7-gcc-c++ cmake3 make qdb-api
+
+# Make cmake3 the default
+$ alternatives --install /usr/bin/cmake cmake /usr/bin/cmake3 10
+
+# Start using gcc 7
+$ scl enable devtoolset-7 bash
+
+# Install the Python module
+$ pip install wheel
+$ pip install quasardb
 ```
 
-Then you can directly insert numpy arrays:
 
-```python
-import numpy as np
 
-dates = np.arange(np.datetime64('2015-07-01'), np.datetime64('2015-07-11')).astype('datetime64[ns]')
-values = np.arange(0.0, 10.0, 1.0)
+## Verifying installation
 
-ts.double_insert("doubles", dates, values)
+You can verify the QuasarDB Python module is installed correctly by trying to print the installed version:
+
+```
+$ python
+Python 3.7.2 (default, Feb 13 2019, 15:08:44) 
+[GCC 7.3.1 20180303 (Red Hat 7.3.1-5)] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import quasardb
+>>> print(quasardb.version())
+3.1.0
 ```
 
-It's also possible to get the raw values:
+This tells you the currently installed version of the Python module, and the QuasarDB C API it is linked against is 3.1.0. Ensure that this version also matched the version of the QuasarDB daemon you're connecting to.
 
-```python
-# results will contain the timestamps and the values in a couple of numpy arrays
-results = ts.double_get_ranges("doubles", [(np.datetime64('2015-07-01', 'ns'), np.datetime64('2015-07-11', 'ns'))])
-```
+## Getting started
 
-And last but not least, run queries:
-
-```python
-q = c.query("select blobs from dat_ts in range(2015-07-01, +10d)")
-# results.tables will contain a dictionary mapped to every table
-results = q.run()
-```
-
-## Compilation Issues
-
-`ImportError: No module named builtins`
-
-Can be solved installing `future` library
-
-```shell
-pip install future
-```
+For instructions on how to use this Python module to interact with a QuasarDB cluster, please refer to [the QuasarDB Python API documentation](https://doc.quasardb.net/master/api/python.html)
