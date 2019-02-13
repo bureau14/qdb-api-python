@@ -1,7 +1,5 @@
 # QuasarDB Python API
 
-[TOC]
-
 The QuasarDB Python API is built and tested against the following versions:
 
 - Python 3.5
@@ -83,7 +81,7 @@ You can verify the QuasarDB Python module is installed correctly by trying to pr
 
 ```
 $ python
-Python 3.7.2 (default, Feb 13 2019, 15:08:44) 
+Python 3.7.2 (default, Feb 13 2019, 15:08:44)
 [GCC 7.3.1 20180303 (Red Hat 7.3.1-5)] on linux
 Type "help", "copyright", "credits" or "license" for more information.
 >>> import quasardb
