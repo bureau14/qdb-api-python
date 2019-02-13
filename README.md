@@ -1,5 +1,7 @@
 # QuasarDB Python API
 
+[TOC]
+
 The QuasarDB Python API is built and tested against the following versions:
 
 - Python 3.5
