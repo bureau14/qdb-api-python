@@ -65,6 +65,7 @@ include_directories(SYSTEM
 # We need to detect the _actual_ location of the qdb api lib file, lest we
 # accidentally copy the symlink instead of the file.
 get_filename_component(QDB_API_LIB_REAL ${QDB_API_LIB} REALPATH)
+get_filename_component(QDB_API_LIB_REAL_NAME ${QDB_API_LIB_REAL} NAME)
 
 if (WIN32)
     file(COPY "${QDB_API_DIR}/bin/qdb_api.dll" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
@@ -80,6 +81,8 @@ elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "FreeBSD")
        DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 else()
     file(COPY "${QDB_API_LIB_REAL}" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+    file(RENAME "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${QDB_API_LIB_REAL_NAME}"
+                "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libqdb_api.so")
 endif()
 
 
