@@ -15,6 +15,8 @@ PIPENV=$(detect_pipenv)
 
 FILE=${1}
 
+rm -f ./Pipfile ./Pipfile.lock
+
 ${PIPENV} install ${FILE}
 ${PIPENV} run python smoke-test.py
 ${PIPENV} uninstall quasardb
