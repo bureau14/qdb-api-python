@@ -32,6 +32,7 @@
 
 #include "entry.hpp"
 #include "ts_convert.hpp"
+#include "ts_reader.hpp"
 
 namespace qdb
 {
@@ -115,6 +116,12 @@ public:
         qdb_release(*_handle, columns);
 
         return c_columns;
+    }
+
+
+    qdb::ts_reader_ptr reader()
+    {
+      return std::make_unique<qdb::ts_reader>(_handle, _alias, convert_columns(list_columns()));
     }
 
 public:
@@ -247,6 +254,9 @@ static inline void register_ts(Module & m)
         .def("get_name", &qdb::ts::get_name) //
         .def("insert_columns", &qdb::ts::insert_columns)                                                     //
         .def("list_columns", &qdb::ts::list_columns)                                                         //
+
+        .def("reader", &qdb::ts::reader)
+
         .def("erase_ranges", &qdb::ts::erase_ranges)                                                         //
         .def("blob_insert", &qdb::ts::blob_insert)                                                           //
         .def("double_insert", &qdb::ts::double_insert)                                                       //
@@ -256,6 +266,8 @@ static inline void register_ts(Module & m)
         .def("double_get_ranges", &qdb::ts::double_get_ranges)                                               //
         .def("int64_get_ranges", &qdb::ts::int64_get_ranges)                                                 //
         .def("timestamp_get_ranges", &qdb::ts::timestamp_get_ranges);                                        //
+
+
 }
 
 } // namespace qdb

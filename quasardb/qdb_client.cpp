@@ -52,4 +52,5 @@ PYBIND11_MODULE(quasardb, m)
     qdb::register_query(m);
     qdb::register_ts(m);
     qdb::register_ts_batch(m);
+    qdb::register_ts_reader(m);
 }

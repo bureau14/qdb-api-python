@@ -118,6 +118,10 @@ def _test_with_table(
 
 def test_successful_bulk_row_insert(qdbd_connection, table, many_intervals):
     batch_inserter = qdbd_connection.ts_batch(_make_ts_batch_info(table))
+
+    for row in table.reader():
+        print(row)
+
     _test_with_table(
         batch_inserter,
         table,
