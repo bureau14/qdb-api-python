@@ -2,9 +2,18 @@
 
 set -eux -o pipefail
 
-PIPENV=$(which pipenv)
-FILE=${1}
+function detect_pipenv() {
+    if [[ ! "${PYTHON_EXECUTABLE-}" == "" ]]
+    then
+        echo "${PYTHON_EXECUTABLE} -m pipenv"
+    else
+        echo $(which pipenv)
+    fi
+}
 
+PIPENV=$(detect_pipenv)
+
+FILE=${1}
 
 ${PIPENV} install ${FILE}
 ${PIPENV} run python smoke-test.py
