@@ -60,7 +60,8 @@ using time_ranges = std::vector<time_range>;
 
 static inline qdb_ts_range_t convert_range(const time_range & tr) noexcept
 {
-    return qdb_ts_range_t{convert_timestamp(tr.first), convert_timestamp(tr.second)};
+
+  return qdb_ts_range_t{convert_timestamp(tr.first), convert_timestamp(tr.second)};
 }
 
 static inline std::vector<qdb_ts_range_t> convert_ranges(const time_ranges & ranges)
@@ -70,6 +71,12 @@ static inline std::vector<qdb_ts_range_t> convert_ranges(const time_ranges & ran
     std::transform(ranges.cbegin(), ranges.cend(), res.begin(), [](const time_range & tr) { return convert_range(tr); });
 
     return res;
+}
+
+// TODO: Is the a more compliant way to describe 'all data in a table'?
+static inline time_ranges all_ranges() {
+  return time_ranges{{0, std::numeric_limits<std::int64_t>::max()}};
+
 }
 
 static void update_str(qdb_ts_blob_point & pt, const char * s, size_t max_size) noexcept

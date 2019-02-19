@@ -30,26 +30,117 @@
  */
 #pragma once
 
-
-#include <qdb/ts.h>
 #include <iostream>
+#include <qdb/ts.h>
+#include "ts_convert.hpp"
+
+namespace py = pybind11;
+
 
 namespace qdb
 {
 
+  typedef std::vector<qdb_ts_column_info_t> ts_columns_t;
+
+
+  /**
+   * Our value class points to a specific index in a local table, and provides
+   * the necessary conversion functions. It does not hold any value of itself.
+   */
+  class ts_value {
+  public:
+    ts_value(qdb_local_table_t local_table, int64_t index)
+      :  _local_table(local_table),
+         _index(index) {
+    }
+
+    std::int64_t
+    int64() const noexcept {
+      std::int64_t v;
+      qdb::qdb_throw_if_error(qdb_ts_row_get_int64(_local_table, _index, &v));
+      return v;
+    }
+
+    std::string
+    blob() const noexcept {
+      void const * v = nullptr;
+      qdb_size_t l = 0;
+
+      qdb::qdb_throw_if_error(qdb_ts_row_get_blob(_local_table, _index, &v, &l));
+      return std::string(static_cast<char const *>(v), static_cast<size_t>(l));
+    }
+
+    double
+    double_() const noexcept {
+      double v = 0.0;
+      qdb::qdb_throw_if_error(qdb_ts_row_get_double(_local_table, _index, &v));
+      return v;
+    }
+
+    std::int64_t
+    timestamp() const noexcept {
+      qdb_timespec_t v;
+      qdb::qdb_throw_if_error(qdb_ts_row_get_timestamp(_local_table, _index, &v));
+      return convert_timestamp(v);
+    }
+
+  private:
+    qdb_local_table_t _local_table;
+    int64_t _index;
+  };
+
+  /**
+   * Our row class is nothing more than an interface on top of the local
+   * table api. It allows lazy access (and possible conversion) of the objects, and
+   * as such avoids copies.
+   */
   class ts_row {
   public:
-    ts_row() {
+
+    // We need a default constructor to due being copied as part of an iterator.
+    ts_row() :
+      _local_table(nullptr) {
+    }
+
+    ts_row(qdb_local_table_t local_table) :
+      _local_table(local_table) {
     }
 
     bool operator==(ts_row const & rhs) const noexcept {
-      return true;
+      // Since our row doesn't hold any intrinsic data itself and is merely
+      // an indirection to the data in the local table, it doesn't make a lot
+      // of sense to compare it with another other than comparing the timestamps
+      // and the local table references.
+      return
+        _timestamp.tv_sec == rhs._timestamp.tv_sec &&
+        _timestamp.tv_nsec == rhs._timestamp.tv_nsec &&
+        _local_table == rhs._local_table;
     }
 
-    bool operator!=(ts_row const & rhs) const noexcept {
-      return false;
+    std::int64_t
+    timestamp() {
+      return convert_timestamp(_timestamp);
     }
 
+    qdb_timespec_t &
+    mutable_timestamp() {
+      return _timestamp;
+    }
+
+
+    ts_value
+    get_item(int64_t index) {
+      return ts_value(_local_table, index);
+    }
+
+    void
+    set_item(int64_t index, int64_t value) {
+      // not implemented
+    }
+
+  private:
+    qdb_local_table_t _local_table;
+    qdb_timespec_t _timestamp;
   };
 
   class ts_reader_iterator {
@@ -62,11 +153,17 @@ namespace qdb
 
   public:
     ts_reader_iterator()
-      : _local_table(nullptr) {
+      : _local_table(nullptr),
+        _the_row(_local_table) {
     }
 
-    ts_reader_iterator(qdb_local_table_t local_table)
-      : _local_table(local_table) {
+    ts_reader_iterator(qdb_local_table_t local_table, ts_columns_t columns)
+      : _local_table(local_table),
+        _columns (columns),
+        _the_row(_local_table) {
+
+      // Work around the api wanting us to go 'next' to go to the beginning
+      ++(*this);
     }
 
     bool operator==(ts_reader_iterator const& rhs) const noexcept {
@@ -90,14 +187,23 @@ namespace qdb
     }
 
     ts_reader_iterator & operator++() noexcept {
-      _local_table = nullptr;
+      qdb_error_t err = qdb_ts_table_next_row(_local_table, &_the_row.mutable_timestamp());
+
+      if (err == qdb_e_iterator_end) {
+        // As seen in the default constructor and operator==, an empty _local_table
+        // designates an end-iterator.
+        _local_table = nullptr;
+      } else {
+        qdb::qdb_throw_if_error(err);
+      }
+
       return *this;
     }
 
   private:
-    ts_row _the_row;
-
     qdb_local_table_t _local_table;
+    ts_columns_t _columns;
+    value_type _the_row;
   };
 
 class ts_reader
@@ -106,8 +212,9 @@ public:
   typedef ts_reader_iterator iterator;
 
 public:
-  ts_reader(qdb::handle_ptr h, const std::string & t, const std::vector<qdb_ts_column_info_t> & c)
+  ts_reader(qdb::handle_ptr h, const std::string & t, const ts_columns_t & c, const std::vector<qdb_ts_range_t> & r)
     : _handle{h},
+      _columns{c},
       _local_table(nullptr)
     {
       qdb::qdb_throw_if_error(qdb_ts_local_table_init(*_handle,
@@ -115,6 +222,8 @@ public:
                                                       c.data(),
                                                       c.size(),
                                                       &_local_table));
+
+      qdb::qdb_throw_if_error(qdb_ts_table_get_ranges(_local_table, r.data(), r.size()));
     }
 
     // since our reader models a stateful generator, we prevent copies
@@ -131,7 +240,7 @@ public:
 
     iterator
     begin() {
-      return iterator(_local_table);
+      return iterator(_local_table, _columns);
     }
 
     iterator
@@ -141,28 +250,39 @@ public:
 
 private:
     qdb::handle_ptr _handle;
+    const ts_columns_t _columns;
     qdb_local_table_t _local_table;
 };
 
 using ts_reader_ptr = std::unique_ptr<ts_reader>;
 
+
 template <typename Module>
 static inline void register_ts_reader(Module & m)
 {
-    namespace py = pybind11;
+  py::class_<qdb::ts_value>{m, "TimeSeriesValue"}
+     .def("int64", &qdb::ts_value::int64)
+     .def("blob", &qdb::ts_value::blob)
+     .def("double", &qdb::ts_value::double_)
+     .def("timestamp", &qdb::ts_value::timestamp)
 
-    py::class_<qdb::ts_row>{m, "TimeSeriesRow"}
-    .def(py::init<>());
+     ;
+  py::class_<qdb::ts_row>{m, "TimeSeriesRow"}
+     .def("__getitem__", &qdb::ts_row::get_item)
+     .def("__setitem__", &qdb::ts_row::set_item)
+     .def("timestamp", &qdb::ts_row::timestamp)
+     ;
 
-    py::class_<qdb::ts_reader>{m, "TimeSeriesReader"}
-    .def(py::init<qdb::handle_ptr,
-                  const std::string &,
-                  const std::vector<qdb_ts_column_info_t>>())
+  py::class_<qdb::ts_reader>{m, "TimeSeriesReader"}
+     .def(py::init<qdb::handle_ptr,
+          const std::string &,
+          const std::vector<qdb_ts_column_info_t> &,
+          const std::vector<qdb_ts_range_t> &>())
 
 
-       .def("__iter__", [](ts_reader & r) {
-                          return py::make_iterator(r.begin(), r.end());
-                        },py::keep_alive<0, 1>());
+     .def("__iter__", [](ts_reader & r) {
+                        return py::make_iterator(r.begin(), r.end());
+                      },py::keep_alive<0, 1>());
 }
 
 } // namespace qdb

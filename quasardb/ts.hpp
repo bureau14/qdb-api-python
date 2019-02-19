@@ -119,9 +119,12 @@ public:
     }
 
 
-    qdb::ts_reader_ptr reader()
+    qdb::ts_reader_ptr reader(const time_ranges & ranges)
     {
-      return std::make_unique<qdb::ts_reader>(_handle, _alias, convert_columns(list_columns()));
+      return std::make_unique<qdb::ts_reader>(_handle,
+                                              _alias,
+                                              convert_columns(list_columns()),
+                                              convert_ranges(ranges));
     }
 
 public:
@@ -255,7 +258,7 @@ static inline void register_ts(Module & m)
         .def("insert_columns", &qdb::ts::insert_columns)                                                     //
         .def("list_columns", &qdb::ts::list_columns)                                                         //
 
-        .def("reader", &qdb::ts::reader)
+        .def("reader", &qdb::ts::reader, py::arg("ranges") = all_ranges())
 
         .def("erase_ranges", &qdb::ts::erase_ranges)                                                         //
         .def("blob_insert", &qdb::ts::blob_insert)                                                           //
