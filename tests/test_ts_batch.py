@@ -98,11 +98,12 @@ def _test_with_table(
 
 
     for row in table.reader():
-        print(row.timestamp())
-        print(row[0].double())
-        print(row[1].blob())
-        print(row[2].int64())
-        print(row[3].timestamp())
+        print("row timestamp: " + str(row.timestamp()))
+        print("double column: " + str(row[0]))
+        print("blob column: " + str(row[1]))
+        print("int64 column: " + str(row[2]))
+        print("timestamp column: " + str(row[3]))
+        print("")
 
 
     results = table.double_get_ranges(

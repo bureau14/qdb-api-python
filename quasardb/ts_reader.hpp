@@ -49,44 +49,77 @@ namespace qdb
    */
   class ts_value {
   public:
-    ts_value(qdb_local_table_t local_table, int64_t index)
-      :  _local_table(local_table),
-         _index(index) {
+    ts_value() :
+      _local_table(nullptr),
+      _index(-1),
+      _type (qdb_ts_column_uninitialized)
+    {
     }
 
-    std::int64_t
-    int64() const noexcept {
+    ts_value(qdb_local_table_t local_table, int64_t index, qdb_ts_column_type_t type)
+      :  _local_table(local_table),
+         _index(index),
+         _type(type) {
+    }
+
+
+    /**
+     * Coerce this value to a Python value, used by the automatic type caster
+     * defined at the bottom.
+     */
+    pybind11::handle
+    cast() const {
+      switch (_type) {
+      case qdb_ts_column_double:
+        return _double();
+      case qdb_ts_column_blob:
+        return _blob();
+      case qdb_ts_column_int64:
+        return _int64();
+      case qdb_ts_column_timestamp:
+        return _timestamp();
+      };
+
+      throw std::runtime_error("Unable to cast QuasarDB type to Python type");
+    }
+
+  private:
+    pybind11::handle
+    _int64() const noexcept {
       std::int64_t v;
       qdb::qdb_throw_if_error(qdb_ts_row_get_int64(_local_table, _index, &v));
-      return v;
+      return PyLong_FromLong(v);
     }
 
-    std::string
-    blob() const noexcept {
+    pybind11::handle
+    _blob() const noexcept {
       void const * v = nullptr;
       qdb_size_t l = 0;
 
       qdb::qdb_throw_if_error(qdb_ts_row_get_blob(_local_table, _index, &v, &l));
-      return std::string(static_cast<char const *>(v), static_cast<size_t>(l));
+      return PyByteArray_FromStringAndSize(static_cast<char const *>(v),
+                                           static_cast<Py_ssize_t>(l));
     }
 
-    double
-    double_() const noexcept {
+    pybind11::handle
+    _double() const noexcept {
       double v = 0.0;
       qdb::qdb_throw_if_error(qdb_ts_row_get_double(_local_table, _index, &v));
-      return v;
+      return PyFloat_FromDouble(v);
     }
 
-    std::int64_t
-    timestamp() const noexcept {
+    pybind11::handle
+    _timestamp() const noexcept {
       qdb_timespec_t v;
       qdb::qdb_throw_if_error(qdb_ts_row_get_timestamp(_local_table, _index, &v));
-      return convert_timestamp(v);
+      return PyLong_FromLong(convert_timestamp(v));
     }
+
 
   private:
     qdb_local_table_t _local_table;
     int64_t _index;
+    qdb_ts_column_type_t _type;
   };
 
   /**
@@ -102,8 +135,9 @@ namespace qdb
       _local_table(nullptr) {
     }
 
-    ts_row(qdb_local_table_t local_table) :
-      _local_table(local_table) {
+    ts_row(qdb_local_table_t local_table, ts_columns_t columns) :
+      _local_table(local_table),
+      _columns(columns) {
     }
 
     bool operator==(ts_row const & rhs) const noexcept {
@@ -130,7 +164,7 @@ namespace qdb
 
     ts_value
     get_item(int64_t index) {
-      return ts_value(_local_table, index);
+      return ts_value(_local_table, index, _columns.at(index).type);
     }
 
     void
@@ -140,6 +174,7 @@ namespace qdb
 
   private:
     qdb_local_table_t _local_table;
+    ts_columns_t _columns;
     qdb_timespec_t _timestamp;
   };
 
@@ -154,13 +189,13 @@ namespace qdb
   public:
     ts_reader_iterator()
       : _local_table(nullptr),
-        _the_row(_local_table) {
+        _the_row(_local_table, _columns) {
     }
 
     ts_reader_iterator(qdb_local_table_t local_table, ts_columns_t columns)
       : _local_table(local_table),
         _columns (columns),
-        _the_row(_local_table) {
+        _the_row(_local_table, _columns) {
 
       // Work around the api wanting us to go 'next' to go to the beginning
       ++(*this);
@@ -261,11 +296,6 @@ template <typename Module>
 static inline void register_ts_reader(Module & m)
 {
   py::class_<qdb::ts_value>{m, "TimeSeriesValue"}
-     .def("int64", &qdb::ts_value::int64)
-     .def("blob", &qdb::ts_value::blob)
-     .def("double", &qdb::ts_value::double_)
-     .def("timestamp", &qdb::ts_value::timestamp)
-
      ;
   py::class_<qdb::ts_row>{m, "TimeSeriesRow"}
      .def("__getitem__", &qdb::ts_row::get_item)
@@ -286,3 +316,41 @@ static inline void register_ts_reader(Module & m)
 }
 
 } // namespace qdb
+
+
+
+namespace pybind11 {
+  namespace detail {
+
+    /**
+     * Implementsa custom type caster for our ts_value class, so that conversion
+     * to and from native python types is completely transparent.
+     */
+
+    template <> struct type_caster<qdb::ts_value> {
+    public:
+
+      /**
+       * Note that this macro magically sets a member variable called 'value'.
+       */
+      PYBIND11_TYPE_CASTER(qdb::ts_value, _("qdb::ts_value"));
+
+      /**
+       * We do not support Python->C++
+       */
+      bool load(handle src, bool) {
+        return false;
+      }
+
+      /**
+       * C++->Python
+       */
+      static handle cast(qdb::ts_value src,
+                         return_value_policy /* policy */,
+                         handle /* parent */) {
+        return src.cast();
+      }
+
+    };
+  };
+};
