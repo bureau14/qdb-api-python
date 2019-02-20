@@ -32,6 +32,8 @@
 
 #include <iostream>
 #include <qdb/ts.h>
+#include <pybind11/numpy.h>
+
 #include "ts_convert.hpp"
 
 namespace py = pybind11;
@@ -42,21 +44,27 @@ namespace qdb
 
   typedef std::vector<qdb_ts_column_info_t> ts_columns_t;
 
+  namespace numpy {
+    class datetime64_proxy : public py::buffer {
+    public:
+    };
+  }
+
 
   /**
    * Our value class points to a specific index in a local table, and provides
    * the necessary conversion functions. It does not hold any value of itself.
    */
-  class ts_value {
+  class ts_reader_value {
   public:
-    ts_value() :
+    ts_reader_value() :
       _local_table(nullptr),
       _index(-1),
       _type (qdb_ts_column_uninitialized)
     {
     }
 
-    ts_value(qdb_local_table_t local_table, int64_t index, qdb_ts_column_type_t type)
+    ts_reader_value(qdb_local_table_t local_table, int64_t index, qdb_ts_column_type_t type)
       :  _local_table(local_table),
          _index(index),
          _type(type) {
@@ -67,7 +75,7 @@ namespace qdb
      * Coerce this value to a Python value, used by the automatic type caster
      * defined at the bottom.
      */
-    pybind11::handle
+    py::handle
     cast() const {
       switch (_type) {
       case qdb_ts_column_double:
@@ -84,14 +92,14 @@ namespace qdb
     }
 
   private:
-    pybind11::handle
+    py::handle
     _int64() const noexcept {
       std::int64_t v;
       qdb::qdb_throw_if_error(qdb_ts_row_get_int64(_local_table, _index, &v));
-      return PyLong_FromLong(v);
+      return PyLong_FromLongLong(v);
     }
 
-    pybind11::handle
+    py::handle
     _blob() const noexcept {
       void const * v = nullptr;
       qdb_size_t l = 0;
@@ -101,21 +109,55 @@ namespace qdb
                                            static_cast<Py_ssize_t>(l));
     }
 
-    pybind11::handle
+    py::handle
     _double() const noexcept {
       double v = 0.0;
       qdb::qdb_throw_if_error(qdb_ts_row_get_double(_local_table, _index, &v));
       return PyFloat_FromDouble(v);
     }
 
-    pybind11::handle
+    py::handle
     _timestamp() const noexcept {
       qdb_timespec_t v;
       qdb::qdb_throw_if_error(qdb_ts_row_get_timestamp(_local_table, _index, &v));
-      return PyLong_FromLong(convert_timestamp(v));
+
+      PyObject * date_time = Py_BuildValue("s", "M8[ns]");
+      PyObject * res = PyLong_FromLongLong(convert_timestamp(v));
+
+      return res;
+
+      //qdb::numpy::datetime64_proxy proxy {};
+
+      //std::int64_t * buf = new std::int64_t(convert_timestamp(v));
+
+      //py::buffer_info ret(buf, sizeof(std::int64_t),
+      //"B", 1,
+      //{8}, {1});
+
+      //return py::memoryview(ret);
+
+
+
+
+
+
+
+      //return datetime64(PyLong_FromLongLong(convert_timestamp(v)));
     }
 
 
+    /**
+buffer info, ptr: 0x7fc7a8778080
+buffer info, ndim: 1
+buffer info, format: B
+buffer info, size: 8
+buffer info, shape size: 1
+buffer info, first shape: 8
+buffer info, strides size: 1
+buffer info, first stride: 1
+buffer as int: 1483315200000000000
+
+    */
   private:
     qdb_local_table_t _local_table;
     int64_t _index;
@@ -156,15 +198,36 @@ namespace qdb
       return convert_timestamp(_timestamp);
     }
 
+    /**
+     * Not exposed through Python, but allows the read_row operation to write the underlying
+     * timestamp object directly.
+     */
     qdb_timespec_t &
     mutable_timestamp() {
       return _timestamp;
     }
 
 
-    ts_value
+    py::handle
+    dtest(py::object v) {
+      PyObject * raw = v.ptr();
+
+      PyTypeObject * type = Py_TYPE(raw);
+      PyObject * tmp = PyLong_FromLongLong(1234);
+
+
+      Py_buffer * buffer = PyObject_GetBuffer(raw);
+      std::cout << "casted = " << buffer << std::endl;
+
+      return PyObject_Init(raw, type);
+
+    }
+
+    ts_reader_value
     get_item(int64_t index) {
-      return ts_value(_local_table, index, _columns.at(index).type);
+      // TODO: we construct this object every time; should be without any heap allocations,
+      // but can we do without this?
+      return ts_reader_value(_local_table, index, _columns.at(index).type);
     }
 
     void
@@ -295,12 +358,14 @@ using ts_reader_ptr = std::unique_ptr<ts_reader>;
 template <typename Module>
 static inline void register_ts_reader(Module & m)
 {
-  py::class_<qdb::ts_value>{m, "TimeSeriesValue"}
+  py::class_<qdb::ts_reader_value>{m, "TimeSeriesValue"}
      ;
+
   py::class_<qdb::ts_row>{m, "TimeSeriesRow"}
-     .def("__getitem__", &qdb::ts_row::get_item)
+     .def("__getitem__", &qdb::ts_row::get_item, py::return_value_policy::move)
      .def("__setitem__", &qdb::ts_row::set_item)
      .def("timestamp", &qdb::ts_row::timestamp)
+     .def("dtest", &qdb::ts_row::dtest)
      ;
 
   py::class_<qdb::ts_reader>{m, "TimeSeriesReader"}
@@ -323,17 +388,17 @@ namespace pybind11 {
   namespace detail {
 
     /**
-     * Implementsa custom type caster for our ts_value class, so that conversion
+     * Implementsa custom type caster for our ts_reader_value class, so that conversion
      * to and from native python types is completely transparent.
      */
 
-    template <> struct type_caster<qdb::ts_value> {
+    template <> struct type_caster<qdb::ts_reader_value> {
     public:
 
       /**
        * Note that this macro magically sets a member variable called 'value'.
        */
-      PYBIND11_TYPE_CASTER(qdb::ts_value, _("qdb::ts_value"));
+      PYBIND11_TYPE_CASTER(qdb::ts_reader_value, _("qdb::ts_reader_value"));
 
       /**
        * We do not support Python->C++
@@ -345,12 +410,15 @@ namespace pybind11 {
       /**
        * C++->Python
        */
-      static handle cast(qdb::ts_value src,
+      static handle cast(qdb::ts_reader_value src,
                          return_value_policy /* policy */,
                          handle /* parent */) {
         return src.cast();
       }
 
     };
+
+
+
   };
 };

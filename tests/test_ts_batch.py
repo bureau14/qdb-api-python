@@ -95,17 +95,6 @@ def _test_with_table(
     # after push, there is everything
     push_method(batch_inserter)
 
-
-
-    for row in table.reader():
-        print("row timestamp: " + str(row.timestamp()))
-        print("double column: " + str(row[0]))
-        print("blob column: " + str(row[1]))
-        print("int64 column: " + str(row[2]))
-        print("timestamp column: " + str(row[3]))
-        print("")
-
-
     results = table.double_get_ranges(
         tslib._double_col_name(table), [whole_range])
 
@@ -126,6 +115,8 @@ def _test_with_table(
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], timestamps)
 
+    return doubles, blobs, integers, timestamps
+
 
 def test_successful_bulk_row_insert(qdbd_connection, table, many_intervals):
     batch_inserter = qdbd_connection.ts_batch(_make_ts_batch_info(table))
@@ -136,6 +127,35 @@ def test_successful_bulk_row_insert(qdbd_connection, table, many_intervals):
         many_intervals,
         _row_insertion_method,
         _regular_push)
+
+def test_reader_returns_correct_results(qdbd_connection, table, many_intervals):
+    batch_inserter = qdbd_connection.ts_batch(_make_ts_batch_info(table))
+
+    doubles, blobs, integers, timestamps = _test_with_table(
+        batch_inserter,
+        table,
+        many_intervals,
+        _row_insertion_method,
+        _regular_push)
+
+    print("Before:")
+
+    offset = 0
+    for row in table.reader():
+        print("before str: " + str(timestamps[offset]))
+        print("before type: " + str(type(timestamps[offset])))
+
+        print("test result: " + str(row.dtest(timestamps[offset])))
+        print("row[3] type: " + str(type(row[3])))
+        print("row[3] value: " + str(row[3]))
+
+        assert row[0] == doubles[offset]
+        assert row[1] == blobs[offset]
+        assert row[2] == integers[offset]
+        assert row[3] == timestamps[offset]
+
+        rows.append(row)
+        offset = offset + 1
 
 # Same test as `test_successful_bulk_row_insert` but using `push_async` to push the entries
 # This allows us to test the `push_async` feature
