@@ -96,6 +96,32 @@ namespace qdb
 namespace numpy
 {
 
+namespace detail
+{
+inline static PyTypeObject * get_datetime64_type() noexcept
+{
+    // Note that this type is not shipped with pybind by default, and we made
+    // local modifications to the pybind/numpy.hpp code to look up this
+    // type at runtime.
+    return py::detail::npy_api::get().PyDatetimeArrType_;
+}
+
+/**
+ * Allocate a new numpy.datetime64 python object. This invokes the numpy code
+ * dynamically loaded at runtime.
+ */
+inline static py_datetime_t * new_datetime64()
+{
+    PyTypeObject * type = detail::get_datetime64_type();
+
+    // Allocate memory
+    py_datetime_t * res = reinterpret_cast<py_datetime_t *>(type->tp_alloc(type, 1));
+
+    // Call constructor.
+    return PyObject_INIT_VAR(res, type, sizeof(py_datetime_t));
+}
+}
+
 typedef PyDatetimeScalarObject py_datetime_t;
 
 /**
@@ -103,7 +129,7 @@ typedef PyDatetimeScalarObject py_datetime_t;
  */
 inline static py::handle to_datetime64(std::int64_t ts)
 {
-    py_datetime_t * res = _new_datetime64();
+    py_datetime_t * res = detail::new_datetime64();
 
     res->obmeta.num  = 1;         // version?
     res->obmeta.base = NPY_FR_ns; // our timestamps are always in ns
@@ -121,28 +147,5 @@ inline static py::handle to_datetime64(const qdb_timespec_t & ts)
     return to_datetime64(convert_timestamp(ts));
 }
 
-private:
-inline static PyTypeObject * _get_datetime64_type() noexcept
-{
-    // Note that this type is not shipped with pybind by default, and we made
-    // local modifications to the pybind/numpy.hpp code to look up this
-    // type at runtime.
-    return py::detail::npy_api::get().PyDatetimeArrType_;
-}
-
-/**
- * Allocate a new numpy.datetime64 python object. This invokes the numpy code
- * dynamically loaded at runtime.
- */
-inline static py_datetime_t * _new_datetime64()
-{
-    PyTypeObject * type = _get_datetime64_type();
-
-    // Allocate memory
-    py_datetime_t * res = reinterpret_cast<py_datetime_t *>(type->tp_alloc(type, 1));
-
-    // Call constructor.
-    return PyObject_INIT_VAR(res, type, sizeof(py_datetime_t));
-}
-}; // namespace numpy
+} // namespace numpy
 } // namespace qdb
