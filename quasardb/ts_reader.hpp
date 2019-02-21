@@ -310,8 +310,7 @@ static inline void register_ts_reader(Module & m)
     py::class_<qdb::ts_row>{m, "TimeSeriesRow"}
         .def("__getitem__", &qdb::ts_row::get_item, py::return_value_policy::move)
         .def("__setitem__", &qdb::ts_row::set_item)
-        .def("timestamp", &qdb::ts_row::timestamp)
-        .def("dtest", &qdb::ts_row::dtest);
+        .def("timestamp", &qdb::ts_row::timestamp);
 
     py::class_<qdb::ts_reader>{m, "TimeSeriesReader"}
         .def(py::init<qdb::handle_ptr, const std::string &, const std::vector<qdb_ts_column_info_t> &,
