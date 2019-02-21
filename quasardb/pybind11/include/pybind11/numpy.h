@@ -126,7 +126,9 @@ struct npy_api {
         NPY_FLOAT_, NPY_DOUBLE_, NPY_LONGDOUBLE_,
         NPY_CFLOAT_, NPY_CDOUBLE_, NPY_CLONGDOUBLE_,
         NPY_OBJECT_ = 17,
-        NPY_STRING_, NPY_UNICODE_, NPY_VOID_
+        NPY_STRING_, NPY_UNICODE_, NPY_VOID_,
+
+        NPY_DATETIME, NPY_TIMEDELTA
     };
 
     typedef struct {
@@ -166,6 +168,9 @@ struct npy_api {
     PyObject *(*PyArray_Squeeze_)(PyObject *);
     int (*PyArray_SetBaseObject_)(PyObject *, PyObject *);
     PyObject* (*PyArray_Resize_)(PyObject*, PyArray_Dims*, int, int);
+
+    PyTypeObject * PyDatetimeArrType_;
+
 private:
     enum functions {
         API_PyArray_GetNDArrayCFeatureVersion = 211,
@@ -184,7 +189,20 @@ private:
         API_PyArray_EquivTypes = 182,
         API_PyArray_GetArrayParamsFromObject = 278,
         API_PyArray_Squeeze = 136,
+
+        /**
+         * Begin modification by Leon Mergen, 2019-02-20, for PyDateimeScalarObject
+         * support.
+         */
+
+        API_PyDatetimeArrType = 215,
+
+        /**
+         * End modification
+         */
+
         API_PyArray_SetBaseObject = 282
+
     };
 
     static npy_api lookup() {
@@ -216,6 +234,18 @@ private:
         DECL_NPY_API(PyArray_GetArrayParamsFromObject);
         DECL_NPY_API(PyArray_Squeeze);
         DECL_NPY_API(PyArray_SetBaseObject);
+
+        /**
+         * Begin modification by Leon Mergen, 2019-02-20, for PyDateimeScalarObject
+         * support.
+         */
+
+        DECL_NPY_API(PyDatetimeArrType);
+
+        /**
+         * End modification
+         */
+
 #undef DECL_NPY_API
         return api;
     }
