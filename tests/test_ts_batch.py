@@ -138,23 +138,13 @@ def test_reader_returns_correct_results(qdbd_connection, table, many_intervals):
         _row_insertion_method,
         _regular_push)
 
-    print("Before:")
-
     offset = 0
     for row in table.reader():
-        print("before str: " + str(timestamps[offset]))
-        print("before type: " + str(type(timestamps[offset])))
-
-        print("test result: " + str(row.dtest(timestamps[offset])))
-        print("row[3] type: " + str(type(row[3])))
-        print("row[3] value: " + str(row[3]))
-
         assert row[0] == doubles[offset]
         assert row[1] == blobs[offset]
         assert row[2] == integers[offset]
         assert row[3] == timestamps[offset]
 
-        rows.append(row)
         offset = offset + 1
 
 # Same test as `test_successful_bulk_row_insert` but using `push_async` to push the entries

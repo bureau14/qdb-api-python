@@ -35,20 +35,14 @@
 #include <pybind11/numpy.h>
 
 #include "ts_convert.hpp"
+#include "numpy.hpp"
 
 namespace py = pybind11;
-
 
 namespace qdb
 {
 
   typedef std::vector<qdb_ts_column_info_t> ts_columns_t;
-
-  namespace numpy {
-    class datetime64_proxy : public py::buffer {
-    public:
-    };
-  }
 
 
   /**
@@ -121,43 +115,9 @@ namespace qdb
       qdb_timespec_t v;
       qdb::qdb_throw_if_error(qdb_ts_row_get_timestamp(_local_table, _index, &v));
 
-      PyObject * date_time = Py_BuildValue("s", "M8[ns]");
-      PyObject * res = PyLong_FromLongLong(convert_timestamp(v));
-
-      return res;
-
-      //qdb::numpy::datetime64_proxy proxy {};
-
-      //std::int64_t * buf = new std::int64_t(convert_timestamp(v));
-
-      //py::buffer_info ret(buf, sizeof(std::int64_t),
-      //"B", 1,
-      //{8}, {1});
-
-      //return py::memoryview(ret);
-
-
-
-
-
-
-
-      //return datetime64(PyLong_FromLongLong(convert_timestamp(v)));
+      return qdb::numpy::to_datetime64(v);
     }
 
-
-    /**
-buffer info, ptr: 0x7fc7a8778080
-buffer info, ndim: 1
-buffer info, format: B
-buffer info, size: 8
-buffer info, shape size: 1
-buffer info, first shape: 8
-buffer info, strides size: 1
-buffer info, first stride: 1
-buffer as int: 1483315200000000000
-
-    */
   private:
     qdb_local_table_t _local_table;
     int64_t _index;
@@ -183,19 +143,21 @@ buffer as int: 1483315200000000000
     }
 
     bool operator==(ts_row const & rhs) const noexcept {
-      // Since our row doesn't hold any intrinsic data itself and is merely
-      // an indirection to the data in the local table, it doesn't make a lot
-      // of sense to compare it with another other than comparing the timestamps
-      // and the local table references.
+      /**
+       * Since our row doesn't hold any intrinsic data itself and is merely
+       * an indirection to the data in the local table, it doesn't make a lot
+       * of sense to compare it with another other than comparing the timestamps
+       * and the local table references.
+       */
       return
         _timestamp.tv_sec == rhs._timestamp.tv_sec &&
         _timestamp.tv_nsec == rhs._timestamp.tv_nsec &&
         _local_table == rhs._local_table;
     }
 
-    std::int64_t
+    py::handle
     timestamp() {
-      return convert_timestamp(_timestamp);
+      return numpy::to_datetime64(_timestamp);
     }
 
     /**
@@ -205,22 +167,6 @@ buffer as int: 1483315200000000000
     qdb_timespec_t &
     mutable_timestamp() {
       return _timestamp;
-    }
-
-
-    py::handle
-    dtest(py::object v) {
-      PyObject * raw = v.ptr();
-
-      PyTypeObject * type = Py_TYPE(raw);
-      PyObject * tmp = PyLong_FromLongLong(1234);
-
-
-      Py_buffer * buffer = PyObject_GetBuffer(raw);
-      std::cout << "casted = " << buffer << std::endl;
-
-      return PyObject_Init(raw, type);
-
     }
 
     ts_reader_value
