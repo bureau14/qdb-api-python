@@ -95,6 +95,9 @@ namespace qdb
 {
 namespace numpy
 {
+
+typedef PyDatetimeScalarObject py_datetime_t;
+
 namespace detail
 {
 
