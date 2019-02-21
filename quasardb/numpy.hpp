@@ -95,9 +95,9 @@ namespace qdb
 {
 namespace numpy
 {
-
 namespace detail
 {
+
 inline static PyTypeObject * get_datetime64_type() noexcept
 {
     // Note that this type is not shipped with pybind by default, and we made
@@ -120,7 +120,7 @@ inline static py_datetime_t * new_datetime64()
     // Call constructor.
     return PyObject_INIT_VAR(res, type, sizeof(py_datetime_t));
 }
-}
+} // namespace detail
 
 typedef PyDatetimeScalarObject py_datetime_t;
 
