@@ -36,7 +36,7 @@
 
 
 /**
- * A datetime64 in numpy is modeles as a scalar array, which is not integrated
+ * A datetime64 in numpy is modeled as a scalar array, which is not integrated
  * into pybind's adapters of numpy.
  *
  * In order to still be able to natively create numpy datetime64 instances, the
