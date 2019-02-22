@@ -84,7 +84,6 @@ public:
     }
 
 private:
-
     py::handle int64() const
     {
         std::int64_t v;
@@ -155,19 +154,20 @@ public:
         return numpy::to_datetime64(_timestamp);
     }
 
-    std::vector <py::object>
-    copy() const {
-      std::vector<py::object> res;
-      res.reserve(_columns.size());
+    std::vector<py::object> copy() const
+    {
+        std::vector<py::object> res;
+        res.reserve(_columns.size());
 
-      for (auto index = 0; index < _columns.size(); ++index) {
-        // By first casting the value, we create a copy of the concrete type
-        // (e.g. the int64 or the blob) rather than the reference into the local
-        // table.
-        res.push_back(py::cast(get_item(index)));
-      }
+        for (auto index = 0; index < _columns.size(); ++index)
+        {
+            // By first casting the value, we create a copy of the concrete type
+            // (e.g. the int64 or the blob) rather than the reference into the local
+            // table.
+            res.push_back(py::cast(get_item(index)));
+        }
 
-      return res;
+        return res;
     }
 
     /**
