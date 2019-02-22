@@ -34,7 +34,7 @@
 #include "ts_convert.hpp"
 #include <qdb/ts.h>
 #include <pybind11/numpy.h>
-#include <iostream>
+#include <pybind11/stl_bind.h>
 
 namespace py = pybind11;
 
@@ -153,6 +153,21 @@ public:
     py::handle timestamp() const noexcept
     {
         return numpy::to_datetime64(_timestamp);
+    }
+
+    std::vector <py::object>
+    copy() const {
+      std::vector<py::object> res;
+      res.reserve(_columns.size());
+
+      for (auto index = 0; index < _columns.size(); ++index) {
+        // By first casting the value, we create a copy of the concrete type
+        // (e.g. the int64 or the blob) rather than the reference into the local
+        // table.
+        res.push_back(py::cast(get_item(index)));
+      }
+
+      return res;
     }
 
     /**
@@ -308,10 +323,13 @@ static inline void register_ts_reader(Module & m)
 {
     py::class_<qdb::ts_reader_value>{m, "TimeSeriesValue"};
 
+    py::bind_vector<std::vector<py::object>>(m, "VectorObject");
+
     py::class_<qdb::ts_row>{m, "TimeSeriesRow"}
         .def("__getitem__", &qdb::ts_row::get_item, py::return_value_policy::move)
         .def("__setitem__", &qdb::ts_row::set_item)
-        .def("timestamp", &qdb::ts_row::timestamp);
+        .def("timestamp", &qdb::ts_row::timestamp)
+        .def("copy", &qdb::ts_row::copy);
 
     py::class_<qdb::ts_reader>{m, "TimeSeriesReader"}
         .def(py::init<qdb::handle_ptr, const std::string &, const std::vector<qdb_ts_column_info_t> &,
