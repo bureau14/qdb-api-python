@@ -71,27 +71,28 @@ public:
         switch (_type)
         {
         case qdb_ts_column_double:
-            return _double();
+            return double_();
         case qdb_ts_column_blob:
-            return _blob();
+            return blob();
         case qdb_ts_column_int64:
-            return _int64();
+            return int64();
         case qdb_ts_column_timestamp:
-            return _timestamp();
+            return timestamp();
         };
 
         throw std::runtime_error("Unable to cast QuasarDB type to Python type");
     }
 
 private:
-    py::handle _int64() const noexcept
+
+    py::handle int64() const
     {
         std::int64_t v;
         qdb::qdb_throw_if_error(qdb_ts_row_get_int64(_local_table, _index, &v));
         return PyLong_FromLongLong(v);
     }
 
-    py::handle _blob() const noexcept
+    py::handle blob() const
     {
         void const * v = nullptr;
         qdb_size_t l   = 0;
@@ -100,14 +101,14 @@ private:
         return PyByteArray_FromStringAndSize(static_cast<char const *>(v), static_cast<Py_ssize_t>(l));
     }
 
-    py::handle _double() const noexcept
+    py::handle double_() const
     {
         double v = 0.0;
         qdb::qdb_throw_if_error(qdb_ts_row_get_double(_local_table, _index, &v));
         return PyFloat_FromDouble(v);
     }
 
-    py::handle _timestamp() const noexcept
+    py::handle timestamp() const
     {
         qdb_timespec_t v;
         qdb::qdb_throw_if_error(qdb_ts_row_get_timestamp(_local_table, _index, &v));
@@ -149,7 +150,7 @@ public:
                && _local_table == rhs._local_table;
     }
 
-    py::handle timestamp()
+    py::handle timestamp() const noexcept
     {
         return numpy::to_datetime64(_timestamp);
     }
@@ -163,7 +164,7 @@ public:
         return _timestamp;
     }
 
-    ts_reader_value get_item(int64_t index)
+    ts_reader_value get_item(int64_t index) const
     {
         // TODO: we construct this object every time; should be without any heap allocations,
         // but can we do without this?
