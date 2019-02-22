@@ -117,7 +117,6 @@ def _test_with_table(
 
     return doubles, blobs, integers, timestamps
 
-
 def test_successful_bulk_row_insert(qdbd_connection, table, many_intervals):
     batch_inserter = qdbd_connection.ts_batch(_make_ts_batch_info(table))
 
@@ -128,38 +127,18 @@ def test_successful_bulk_row_insert(qdbd_connection, table, many_intervals):
         _row_insertion_method,
         _regular_push)
 
-def test_reader_returns_correct_results(qdbd_connection, table, many_intervals):
-    batch_inserter = qdbd_connection.ts_batch(_make_ts_batch_info(table))
 
-    doubles, blobs, integers, timestamps = _test_with_table(
+def test_successful_async_bulk_row_insert(qdbd_connection, table, many_intervals):
+    # Same test as `test_successful_bulk_row_insert` but using `push_async` to push the entries
+    # This allows us to test the `push_async` feature
+
+    batch_inserter = qdbd_connection.ts_batch(_make_ts_batch_info(table))
+    _test_with_table(
         batch_inserter,
         table,
         many_intervals,
         _row_insertion_method,
-        _regular_push)
-
-    offset = 0
-    for row in table.reader():
-        assert row[0] == doubles[offset]
-        assert row[1] == blobs[offset]
-        assert row[2] == integers[offset]
-        assert row[3] == timestamps[offset]
-
-        offset = offset + 1
-
-# Same test as `test_successful_bulk_row_insert` but using `push_async` to push the entries
-# This allows us to test the `push_async` feature
-
-
-# def test_successful_async_bulk_row_insert(
-#         qdbd_connection, table, many_intervals):
-#     batch_inserter = qdbd_connection.ts_batch(_make_ts_batch_info(table))
-#     _test_with_table(
-#         batch_inserter,
-#         table,
-#         many_intervals,
-#         _row_insertion_method,
-#         _async_push)
+        _async_push)
 
 
 def test_failed_local_table_with_wrong_columns(qdbd_connection, entry_name):
