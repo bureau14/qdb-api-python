@@ -82,6 +82,19 @@ static std::vector<column_info> convert_columns(const qdb_ts_column_info_t * col
     return c_columns;
 }
 
+typedef std::map<std::string, qdb_size_t> indexed_columns_t;
+
+static indexed_columns_t index_columns(const std::vector<column_info> & columns)
+{
+    indexed_columns_t i_columns;
+    for (qdb_size_t i = 0; i < columns.size(); ++i)
+    {
+        i_columns.insert(indexed_columns_t::value_type(columns[i].name, i));
+    }
+
+    return i_columns;
+}
+
 class ts : public entry
 {
 
@@ -89,6 +102,7 @@ public:
 public:
     ts(handle_ptr h, std::string a) noexcept
         : entry{h, a}
+        , _has_indexed_columns(false)
     {}
 
 public:
@@ -118,13 +132,22 @@ public:
         return c_columns;
     }
 
+    size_t column_index_by_id(std::string const & alias)
+    {
+        if (_has_indexed_columns == false)
+        {
+            _indexed_columns = index_columns(list_columns());
+        }
+
+        indexed_columns_t::const_iterator i = _indexed_columns.find(alias);
+        if (i == _indexed_columns.end()) throw qdb::exception{qdb_e_out_of_bounds};
+
+        return i->second;
+    }
 
     qdb::ts_reader_ptr reader(const time_ranges & ranges)
     {
-      return std::make_unique<qdb::ts_reader>(_handle,
-                                              _alias,
-                                              convert_columns(list_columns()),
-                                              convert_ranges(ranges));
+        return std::make_unique<qdb::ts_reader>(_handle, _alias, convert_columns(list_columns()), convert_ranges(ranges));
     }
 
 public:
@@ -134,7 +157,8 @@ public:
 
         qdb_uint_t erased_count = 0;
 
-        qdb::qdb_throw_if_error(qdb_ts_erase_ranges(*_handle, _alias.c_str(), column.c_str(), c_ranges.data(), c_ranges.size(), &erased_count));
+        qdb::qdb_throw_if_error(
+            qdb_ts_erase_ranges(*_handle, _alias.c_str(), column.c_str(), c_ranges.data(), c_ranges.size(), &erased_count));
 
         return erased_count;
     }
@@ -232,6 +256,10 @@ public:
 
         return res;
     }
+
+private:
+    bool _has_indexed_columns;
+    indexed_columns_t _indexed_columns;
 };
 
 template <typename Module>
@@ -254,23 +282,22 @@ static inline void register_ts(Module & m)
     py::class_<qdb::ts, qdb::entry>{m, "TimeSeries"}                                                         //
         .def(py::init<qdb::handle_ptr, std::string>())                                                       //
         .def("create", &qdb::ts::create, py::arg("columns"), py::arg("shard_size") = std::chrono::hours{24}) //
-        .def("get_name", &qdb::ts::get_name) //
+        .def("get_name", &qdb::ts::get_name)                                                                 //
+        .def("column_index_by_id", &qdb::ts::column_index_by_id)                                             //
         .def("insert_columns", &qdb::ts::insert_columns)                                                     //
         .def("list_columns", &qdb::ts::list_columns)                                                         //
 
         .def("reader", &qdb::ts::reader, py::arg("ranges") = all_ranges())
 
-        .def("erase_ranges", &qdb::ts::erase_ranges)                                                         //
-        .def("blob_insert", &qdb::ts::blob_insert)                                                           //
-        .def("double_insert", &qdb::ts::double_insert)                                                       //
-        .def("int64_insert", &qdb::ts::int64_insert)                                                         //
-        .def("timestamp_insert", &qdb::ts::timestamp_insert)                                                 //
-        .def("blob_get_ranges", &qdb::ts::blob_get_ranges)                                                   //
-        .def("double_get_ranges", &qdb::ts::double_get_ranges)                                               //
-        .def("int64_get_ranges", &qdb::ts::int64_get_ranges)                                                 //
-        .def("timestamp_get_ranges", &qdb::ts::timestamp_get_ranges);                                        //
-
-
+        .def("erase_ranges", &qdb::ts::erase_ranges)                  //
+        .def("blob_insert", &qdb::ts::blob_insert)                    //
+        .def("double_insert", &qdb::ts::double_insert)                //
+        .def("int64_insert", &qdb::ts::int64_insert)                  //
+        .def("timestamp_insert", &qdb::ts::timestamp_insert)          //
+        .def("blob_get_ranges", &qdb::ts::blob_get_ranges)            //
+        .def("double_get_ranges", &qdb::ts::double_get_ranges)        //
+        .def("int64_get_ranges", &qdb::ts::int64_get_ranges)          //
+        .def("timestamp_get_ranges", &qdb::ts::timestamp_get_ranges); //
 }
 
 } // namespace qdb

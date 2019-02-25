@@ -130,6 +130,21 @@ def test_table_layout(table):
     assert col_list[3].name == "the_ts"
     assert col_list[3].type == quasardb.ColumnType.Timestamp
 
+def test_column_lookup(table):
+    assert table.column_index_by_id("the_double") == 0
+    assert table.column_index_by_id("the_blob") == 1
+    assert table.column_index_by_id("the_int64") == 2
+    assert table.column_index_by_id("the_ts") == 3
+
+    with pytest.raises(quasardb.Error):
+        table.column_index_by_id('foobar')
+
+    with pytest.raises(TypeError):
+        table.column_index_by_id(None)
+
+    with pytest.raises(TypeError):
+        table.column_index_by_id()
+
 
 def test_cannot_double_create(table, entry_name):
     with pytest.raises(quasardb.Error):
