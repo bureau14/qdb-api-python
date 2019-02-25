@@ -106,3 +106,26 @@ def test_reader_can_select_columns(qdbd_connection, table, many_intervals):
             print(str(row[2]))
 
         offset = offset + 1
+
+def test_reader_can_read_dicts(qdbd_connection, table, many_intervals):
+    # Verifies that we can select a subset of the total available columns.
+    batch_inserter = qdbd_connection.ts_batch(batchlib._make_ts_batch_info(table))
+
+    doubles, blobs, integers, timestamps = batchlib._test_with_table(
+        batch_inserter,
+        table,
+        many_intervals,
+        batchlib._row_insertion_method,
+        batchlib._regular_push)
+
+    offset = 0
+    for row in table.reader(dict=True):
+        assert row['the_double'] == doubles[offset]
+        assert row['the_blob'] == blobs[offset]
+        assert row['the_int64'] == integers[offset]
+        assert row['the_ts'] == timestamps[offset]
+
+        with pytest.raises(KeyError):
+            print(str(row['nothere']))
+
+        offset = offset + 1

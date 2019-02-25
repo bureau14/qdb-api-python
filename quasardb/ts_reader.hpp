@@ -62,6 +62,22 @@ public:
         , _type(type)
     {}
 
+    ts_reader_value(const ts_reader_value & rhs)
+        : _local_table(rhs._local_table)
+        , _index(rhs._index)
+        , _type(rhs._type)
+    {}
+
+    ts_reader_value(ts_reader_value && rhs)
+        : _local_table(rhs._local_table)
+        , _index(rhs._index)
+        , _type(rhs._type)
+    {
+        rhs._local_table = nullptr;
+        rhs._index       = -1;
+        rhs._type        = qdb_ts_column_uninitialized;
+    };
+
     /**
      * Coerce this value to a Python value, used by the automatic type caster
      * defined at the bottom.
@@ -121,11 +137,6 @@ private:
     qdb_ts_column_type_t _type;
 };
 
-/**
- * Our row class is nothing more than an interface on top of the local
- * table api. It allows lazy access (and possible conversion) of the objects, and
- * as such avoids copies.
- */
 class ts_row
 {
 public:
@@ -134,9 +145,8 @@ public:
         : _local_table(nullptr)
     {}
 
-    ts_row(qdb_local_table_t local_table, ts_columns_t columns)
+    ts_row(qdb_local_table_t local_table)
         : _local_table(local_table)
-        , _columns(columns)
     {}
 
     bool operator==(ts_row const & rhs) const noexcept
@@ -154,6 +164,37 @@ public:
         return numpy::to_datetime64(_timestamp);
     }
 
+    /**
+     * Not exposed through Python, but allows the read_row operation to write the underlying
+     * timestamp object directly.
+     */
+    qdb_timespec_t & mutable_timestamp()
+    {
+        return _timestamp;
+    }
+
+protected:
+    qdb_local_table_t _local_table;
+    qdb_timespec_t _timestamp;
+};
+
+/**
+ * Our 'fast' row is a pure, lazy list-type row that uses a column's offset for
+ * constant-time access to the column values. E.g. row[0], row[1] which will return
+ * a (short-lived) ts_value.
+ */
+class ts_fast_row : public ts_row
+{
+public:
+    ts_fast_row()
+        : ts_row()
+    {}
+
+    ts_fast_row(qdb_local_table_t local_table, ts_columns_t columns)
+        : ts_row(local_table)
+        , _columns(columns)
+    {}
+
     std::vector<py::object> copy() const
     {
         std::vector<py::object> res;
@@ -164,19 +205,10 @@ public:
             // By first casting the value, we create a copy of the concrete type
             // (e.g. the int64 or the blob) rather than the reference into the local
             // table.
-            res.push_back(py::cast(get_item(index)));
+            res.push_back(py::cast(get_item(index), py::return_value_policy::move));
         }
 
         return res;
-    }
-
-    /**
-     * Not exposed through Python, but allows the read_row operation to write the underlying
-     * timestamp object directly.
-     */
-    qdb_timespec_t & mutable_timestamp()
-    {
-        return _timestamp;
     }
 
     ts_reader_value get_item(int64_t index) const
@@ -192,15 +224,52 @@ public:
     }
 
 private:
-    qdb_local_table_t _local_table;
     ts_columns_t _columns;
-    qdb_timespec_t _timestamp;
 };
 
+/**
+ * Our 'dict' row is a much slower, dict-based row type that provides very convenient
+ * access to the columns by their name. It does, however,  index each and every row's
+ * columns eagerly, and as such will exhibit much worse performance.
+ */
+class ts_dict_row : public ts_row
+{
+public:
+    ts_dict_row()
+        : ts_row()
+    {}
+
+    ts_dict_row(qdb_local_table_t local_table, ts_columns_t columns)
+        : ts_row(local_table)
+        , _indexed_columns(qdb::index_columns(columns))
+    {}
+
+    ts_reader_value get_item(std::string const & alias) const
+    {
+        auto c = _indexed_columns.find(alias);
+        if (c == _indexed_columns.end())
+        {
+            throw pybind11::key_error();
+        }
+
+        qdb_size_t index = c->second.second;
+        return ts_reader_value(_local_table, index, c->second.first);
+    }
+
+    void set_item(std::string const & alias, std::string const & value)
+    {
+        // not implemented
+    }
+
+private:
+    qdb::indexed_columns_t _indexed_columns;
+};
+
+template <typename RowType>
 class ts_reader_iterator
 {
 public:
-    using value_type        = ts_row;
+    using value_type        = RowType;
     using difference_type   = std::ptrdiff_t;
     using pointer           = const value_type *;
     using reference         = const value_type &;
@@ -223,14 +292,15 @@ public:
 
     bool operator==(ts_reader_iterator const & rhs) const noexcept
     {
-        // Our .end() iterator is recognized by a null local table.
+        // Our .end() iterator is recognized by a null local table, and we'll
+        // ignore the actual row object.
         if (rhs._local_table == nullptr || _local_table == nullptr)
         {
             return _local_table == rhs._local_table;
         }
         else
         {
-            return _the_row == rhs._the_row;
+            return _local_table == rhs._local_table && _the_row == rhs._the_row;
         }
     }
     bool operator!=(ts_reader_iterator const & rhs) const noexcept
@@ -272,10 +342,11 @@ private:
     value_type _the_row;
 };
 
+template <typename RowType>
 class ts_reader
 {
 public:
-    typedef ts_reader_iterator iterator;
+    typedef ts_reader_iterator<RowType> iterator;
 
 public:
     ts_reader(qdb::handle_ptr h, const std::string & t, const ts_columns_t & c, const std::vector<qdb_ts_range_t> & r)
@@ -290,6 +361,16 @@ public:
 
     // since our reader models a stateful generator, we prevent copies
     ts_reader(const ts_reader &) = delete;
+
+    // since our reader models a stateful generator, we prevent copies
+    ts_reader(ts_reader && rhs)
+        : _handle(rhs._handle)
+        , _columns(rhs._columns)
+        , _local_table(rhs._local_table)
+    {
+        rhs._handle      = nullptr;
+        rhs._local_table = nullptr;
+    };
 
     ~ts_reader()
     {
@@ -316,8 +397,6 @@ private:
     qdb_local_table_t _local_table;
 };
 
-using ts_reader_ptr = std::unique_ptr<ts_reader>;
-
 template <typename Module>
 static inline void register_ts_reader(Module & m)
 {
@@ -325,17 +404,28 @@ static inline void register_ts_reader(Module & m)
 
     py::bind_vector<std::vector<py::object>>(m, "VectorObject");
 
-    py::class_<qdb::ts_row>{m, "TimeSeriesRow"}
-        .def("__getitem__", &qdb::ts_row::get_item, py::return_value_policy::move)
-        .def("__setitem__", &qdb::ts_row::set_item)
-        .def("timestamp", &qdb::ts_row::timestamp)
-        .def("copy", &qdb::ts_row::copy);
+    py::class_<qdb::ts_fast_row>{m, "TimeSeriesFastRow"}
+        .def("__getitem__", &qdb::ts_fast_row::get_item, py::return_value_policy::move)
+        .def("__setitem__", &qdb::ts_fast_row::set_item)
+        .def("timestamp", &qdb::ts_fast_row::timestamp)
+        .def("copy", &qdb::ts_fast_row::copy);
 
-    py::class_<qdb::ts_reader>{m, "TimeSeriesReader"}
+    py::class_<qdb::ts_dict_row>{m, "TimeSeriesDictRow"}
+        .def("__getitem__", &qdb::ts_dict_row::get_item, py::return_value_policy::move)
+        .def("__setitem__", &qdb::ts_dict_row::set_item)
+        .def("timestamp", &qdb::ts_dict_row::timestamp);
+
+    py::class_<qdb::ts_reader<qdb::ts_fast_row>>{m, "TimeSeriesFastReader"}
         .def(py::init<qdb::handle_ptr, const std::string &, const std::vector<qdb_ts_column_info_t> &,
             const std::vector<qdb_ts_range_t> &>())
 
-        .def("__iter__", [](ts_reader & r) { return py::make_iterator(r.begin(), r.end()); }, py::keep_alive<0, 1>());
+        .def("__iter__", [](ts_reader<qdb::ts_fast_row> & r) { return py::make_iterator(r.begin(), r.end()); }, py::keep_alive<0, 1>());
+
+    py::class_<qdb::ts_reader<qdb::ts_dict_row>>{m, "TimeSeriesDictReader"}
+        .def(py::init<qdb::handle_ptr, const std::string &, const std::vector<qdb_ts_column_info_t> &,
+            const std::vector<qdb_ts_range_t> &>())
+
+        .def("__iter__", [](ts_reader<qdb::ts_dict_row> & r) { return py::make_iterator(r.begin(), r.end()); }, py::keep_alive<0, 1>());
 }
 
 } // namespace qdb

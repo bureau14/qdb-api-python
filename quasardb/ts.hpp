@@ -37,73 +37,6 @@
 namespace qdb
 {
 
-struct column_info
-{
-    column_info() = default;
-
-    column_info(qdb_ts_column_type_t t, const std::string & n)
-        : type{t}
-        , name{n}
-    {}
-
-    column_info(const qdb_ts_column_info_t & ci)
-        : column_info{ci.type, ci.name}
-    {}
-
-    operator qdb_ts_column_info_t() const noexcept
-    {
-        qdb_ts_column_info_t res;
-
-        res.type = type;
-        res.name = name.c_str();
-
-        return res;
-    }
-
-    qdb_ts_column_type_t type{qdb_ts_column_uninitialized};
-    std::string name;
-};
-
-static std::vector<qdb_ts_column_info_t> convert_columns(const std::vector<column_info> & columns)
-{
-    std::vector<qdb_ts_column_info_t> c_columns(columns.size());
-
-    std::transform(columns.cbegin(), columns.cend(), c_columns.begin(), [](const column_info & ci) -> qdb_ts_column_info_t { return ci; });
-
-    return c_columns;
-}
-
-static std::vector<column_info> convert_columns(const qdb_ts_column_info_t * columns, size_t count)
-{
-    std::vector<column_info> c_columns(count);
-
-    std::transform(columns, columns + count, c_columns.begin(), [](const qdb_ts_column_info_t & ci) { return column_info{ci}; });
-
-    return c_columns;
-}
-
-static std::vector<std::string> column_list_to_strings(const std::vector<column_info> & columns)
-{
-    std::vector<std::string> s_columns(columns.size());
-
-    std::transform(columns.cbegin(), columns.cend(), s_columns.begin(), [](const column_info & ci) -> std::string { return ci.name; });
-
-    return s_columns;
-}
-
-typedef std::map<std::string, std::pair<qdb_ts_column_type_t, qdb_size_t>> indexed_columns_t;
-
-static indexed_columns_t index_columns(const std::vector<column_info> & columns)
-{
-    indexed_columns_t i_columns;
-    for (qdb_size_t i = 0; i < columns.size(); ++i)
-    {
-        i_columns.insert(indexed_columns_t::value_type(columns[i].name, std::make_pair(columns[i].type, i)));
-    }
-
-    return i_columns;
-}
-
 class ts : public entry
 {
 
@@ -167,7 +100,7 @@ public:
         return column_info_by_id(alias).first;
     }
 
-    qdb::ts_reader_ptr reader(const std::vector<std::string> & columns, const time_ranges & ranges)
+    py::object reader(const std::vector<std::string> & columns, const time_ranges & ranges, bool dict_mode)
     {
         std::vector<column_info> c_columns;
 
@@ -189,7 +122,11 @@ public:
             }
         }
 
-        return std::make_unique<qdb::ts_reader>(_handle, _alias, convert_columns(c_columns), convert_ranges(ranges));
+        return (dict_mode == true
+                    ? py::cast(qdb::ts_reader<qdb::ts_dict_row>(_handle, _alias, convert_columns(c_columns), convert_ranges(ranges)),
+                          py::return_value_policy::move)
+                    : py::cast(qdb::ts_reader<qdb::ts_fast_row>(_handle, _alias, convert_columns(c_columns), convert_ranges(ranges)),
+                          py::return_value_policy::move));
     }
 
 public:
@@ -332,7 +269,8 @@ static inline void register_ts(Module & m)
         // We cannot initialize columns with all columns by default, because i don't
         // see a way to figure out the `this` address for qdb_ts_reader for the default
         // arguments, and we need it to call qdb::ts::list_columns().
-        .def("reader", &qdb::ts::reader, py::arg("columns") = std::vector<std::string>(), py::arg("ranges") = all_ranges())
+        .def("reader", &qdb::ts::reader, py::arg("columns") = std::vector<std::string>(), py::arg("ranges") = all_ranges(),
+            py::arg("dict") = false)
 
         .def("erase_ranges", &qdb::ts::erase_ranges)                  //
         .def("blob_insert", &qdb::ts::blob_insert)                    //
