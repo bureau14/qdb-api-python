@@ -242,10 +242,26 @@ public:
     ts_dict_row(qdb_local_table_t local_table, ts_columns_t columns)
         : ts_row(local_table)
         , _indexed_columns(qdb::index_columns(columns))
-    {}
+    {
+      std::cout << "ts_dict_row constructor, size = " << _indexed_columns.size() << std::endl;
+      for (auto i : _indexed_columns) {
+        std::cout << "ts_dict_row constructor, alias = " << i.first << ", type = " << i.second.first << ", offset = " << i.second.second << std::endl;
+      }
+    }
+
+  ts_dict_row(const ts_dict_row & rhs)
+    : ts_row(rhs._local_table),
+      _indexed_columns(rhs._indexed_columns) {
+    std::cout << "ts_dict_row copy constructor, size = " << _indexed_columns.size() << std::endl;
+      for (auto i : _indexed_columns) {
+        std::cout << "ts_dict_row copy constructor, alias = " << i.first << ", type = " << i.second.first << ", offset = " << i.second.second << std::endl;
+      }
+  }
+
 
     ts_reader_value get_item(std::string const & alias) const
     {
+        std::cout << "looking up column with alias = " << alias << ", columns size = " << _indexed_columns.size() << std::endl;
         auto c = _indexed_columns.find(alias);
         if (c == _indexed_columns.end())
         {
