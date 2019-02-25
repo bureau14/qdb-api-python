@@ -59,7 +59,6 @@ def test_reader_iterator_returns_reference(qdbd_connection, table, many_interval
         with pytest.raises(quasardb.Error):
             print(str(row[3]))
 
-
 def test_reader_can_copy_rows(qdbd_connection, table, many_intervals):
     # As a mitigation to the local table reference issue tested above,
     # we provide the ability to copy rows.
@@ -84,5 +83,26 @@ def test_reader_can_copy_rows(qdbd_connection, table, many_intervals):
         assert row[1] == blobs[offset]
         assert row[2] == integers[offset]
         assert row[3] == timestamps[offset]
+
+        offset = offset + 1
+
+def test_reader_can_select_columns(qdbd_connection, table, many_intervals):
+    # Verifies that we can select a subset of the total available columns.
+    batch_inserter = qdbd_connection.ts_batch(batchlib._make_ts_batch_info(table))
+
+    doubles, blobs, integers, timestamps = batchlib._test_with_table(
+        batch_inserter,
+        table,
+        many_intervals,
+        batchlib._row_insertion_method,
+        batchlib._regular_push)
+
+    offset = 0
+    for row in table.reader(columns=['the_int64', 'the_double']):
+        assert row[0] == integers[offset]
+        assert row[1] == doubles[offset]
+
+        with pytest.raises(IndexError):
+            print(str(row[2]))
 
         offset = offset + 1

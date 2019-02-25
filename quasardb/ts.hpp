@@ -82,14 +82,23 @@ static std::vector<column_info> convert_columns(const qdb_ts_column_info_t * col
     return c_columns;
 }
 
-typedef std::map<std::string, qdb_size_t> indexed_columns_t;
+static std::vector<std::string> column_list_to_strings(const std::vector<column_info> & columns)
+{
+    std::vector<std::string> s_columns(columns.size());
+
+    std::transform(columns.cbegin(), columns.cend(), s_columns.begin(), [](const column_info & ci) -> std::string { return ci.name; });
+
+    return s_columns;
+}
+
+typedef std::map<std::string, std::pair<qdb_ts_column_type_t, qdb_size_t>> indexed_columns_t;
 
 static indexed_columns_t index_columns(const std::vector<column_info> & columns)
 {
     indexed_columns_t i_columns;
     for (qdb_size_t i = 0; i < columns.size(); ++i)
     {
-        i_columns.insert(indexed_columns_t::value_type(columns[i].name, i));
+        i_columns.insert(indexed_columns_t::value_type(columns[i].name, std::make_pair(columns[i].type, i)));
     }
 
     return i_columns;
@@ -132,13 +141,14 @@ public:
         return c_columns;
     }
 
-    size_t column_index_by_id(std::string const & alias)
+    std::pair<qdb_ts_column_type_t, qdb_size_t> column_info_by_id(std::string const & alias)
     {
         if (_has_indexed_columns == false)
         {
             // It's important to note that if additional columns are added during
             // the lifetime of this object, we will not pick up on this in our cache.
-            _indexed_columns = index_columns(list_columns());
+            _indexed_columns     = index_columns(list_columns());
+            _has_indexed_columns = true;
         }
 
         indexed_columns_t::const_iterator i = _indexed_columns.find(alias);
@@ -147,9 +157,39 @@ public:
         return i->second;
     }
 
-    qdb::ts_reader_ptr reader(const time_ranges & ranges)
+    qdb_size_t column_index_by_id(std::string const & alias)
     {
-        return std::make_unique<qdb::ts_reader>(_handle, _alias, convert_columns(list_columns()), convert_ranges(ranges));
+        return column_info_by_id(alias).second;
+    }
+
+    qdb_ts_column_type_t column_type_by_id(std::string const & alias)
+    {
+        return column_info_by_id(alias).first;
+    }
+
+    qdb::ts_reader_ptr reader(const std::vector<std::string> & columns, const time_ranges & ranges)
+    {
+        std::vector<column_info> c_columns;
+
+        if (columns.empty())
+        {
+            // This is a kludge, because technically a table can have no columns, and we're
+            // abusing it as "no argument provided". It's a highly exceptional use case, and
+            // doesn't really have any implication in practice, so it should be ok.
+            c_columns = list_columns();
+        }
+        else
+        {
+            c_columns.reserve(columns.size());
+            // This transformation can probably be optimized, but it's only invoked when cosntructing
+            // the reader so it's unlikely to be a performance bottleneck.
+            for (auto a : columns)
+            {
+                c_columns.push_back(column_info{this->column_type_by_id(a), a});
+            }
+        }
+
+        return std::make_unique<qdb::ts_reader>(_handle, _alias, convert_columns(c_columns), convert_ranges(ranges));
     }
 
 public:
@@ -289,7 +329,10 @@ static inline void register_ts(Module & m)
         .def("insert_columns", &qdb::ts::insert_columns)                                                     //
         .def("list_columns", &qdb::ts::list_columns)                                                         //
 
-        .def("reader", &qdb::ts::reader, py::arg("ranges") = all_ranges())
+        // We cannot initialize columns with all columns by default, because i don't
+        // see a way to figure out the `this` address for qdb_ts_reader for the default
+        // arguments, and we need it to call qdb::ts::list_columns().
+        .def("reader", &qdb::ts::reader, py::arg("columns") = std::vector<std::string>(), py::arg("ranges") = all_ranges())
 
         .def("erase_ranges", &qdb::ts::erase_ranges)                  //
         .def("blob_insert", &qdb::ts::blob_insert)                    //
