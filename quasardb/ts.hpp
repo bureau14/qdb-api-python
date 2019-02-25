@@ -136,6 +136,8 @@ public:
     {
         if (_has_indexed_columns == false)
         {
+            // It's important to note that if additional columns are added during
+            // the lifetime of this object, we will not pick up on this in our cache.
             _indexed_columns = index_columns(list_columns());
         }
 
