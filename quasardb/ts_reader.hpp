@@ -262,6 +262,10 @@ public:
     ts_reader_value get_item(std::string const & alias) const
     {
         std::cout << "looking up column with alias = " << alias << ", columns size = " << _indexed_columns.size() << std::endl;
+
+        for (auto i : _indexed_columns) {
+          std::cout << "get_item, overview, alias = " << i.first << ", type = " << i.second.first << ", offset = " << i.second.second << std::endl;
+      }
         auto c = _indexed_columns.find(alias);
         if (c == _indexed_columns.end())
         {
