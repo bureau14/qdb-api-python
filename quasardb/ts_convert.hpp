@@ -112,6 +112,12 @@ static std::vector<qdb_ts_column_info_t> convert_columns(const std::vector<colum
 
     std::transform(columns.cbegin(), columns.cend(), c_columns.begin(), [](const column_info & ci) -> qdb_ts_column_info_t { return ci; });
 
+    std::cout << "convert columns, python->native, count = " << columns.size() << std::endl;
+
+    for (auto i : c_columns) {
+      std::cout << "converted columns ->native, type = " << i.type << ", alias = " << i.name << std::endl;
+    }
+
     return c_columns;
 }
 
@@ -120,6 +126,15 @@ static std::vector<column_info> convert_columns(const qdb_ts_column_info_t * col
     std::vector<column_info> c_columns(count);
 
     std::transform(columns, columns + count, c_columns.begin(), [](const qdb_ts_column_info_t & ci) { return column_info{ci}; });
+
+    std::cout << "convert columns, native->python, count = " << count << std::endl;
+
+    for (auto i : c_columns) {
+      std::cout << "converted columns ->python, type = " << i.type << ", alias = " << i.name << std::endl;
+    }
+
+
+
 
     return c_columns;
 }
