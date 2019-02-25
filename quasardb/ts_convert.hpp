@@ -141,6 +141,7 @@ static indexed_columns_t index_columns(const std::vector<ColumnType> & columns)
     indexed_columns_t i_columns;
     for (qdb_size_t i = 0; i < columns.size(); ++i)
     {
+      std::cout << "indexing columns, columns[i].name = " << columns[i].name << std::endl;
         i_columns.insert(indexed_columns_t::value_type(columns[i].name, std::make_pair(columns[i].type, i)));
     }
 
