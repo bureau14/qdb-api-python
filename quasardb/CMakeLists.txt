@@ -108,6 +108,7 @@ pybind11_add_module(quasardb
     ts.hpp
     ts_batch.hpp
     ts_convert.hpp
+    ts_reader.hpp
     tag.hpp
     utils.hpp
     version.hpp
