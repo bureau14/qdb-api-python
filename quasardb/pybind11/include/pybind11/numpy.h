@@ -128,7 +128,19 @@ struct npy_api {
         NPY_OBJECT_ = 17,
         NPY_STRING_, NPY_UNICODE_, NPY_VOID_,
 
+        /**
+         * Begin modification by Leon Mergen, 2019-02-20, for PyDateimeScalarObject
+         * support.
+         *
+         * From:
+         *   https://raw.githubusercontent.com/numpy/numpy/master/numpy/core/include/numpy/ndarraytypes.h
+         */
+
         NPY_DATETIME, NPY_TIMEDELTA
+
+        /**
+         * End modification
+         */
     };
 
     typedef struct {
@@ -193,6 +205,9 @@ private:
         /**
          * Begin modification by Leon Mergen, 2019-02-20, for PyDateimeScalarObject
          * support.
+         *
+         * From:
+         *   https://raw.githubusercontent.com/numpy/numpy/master/numpy/core/code_generators/numpy_api.py
          */
 
         API_PyDatetimeArrType = 215,
