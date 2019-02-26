@@ -33,6 +33,7 @@
 #include "entry.hpp"
 #include "ts_convert.hpp"
 #include "ts_reader.hpp"
+#include "reader/ts_row.hpp"
 #include "detail/ts_column.hpp"
 
 namespace qdb
@@ -127,8 +128,8 @@ public:
 
         return (
             dict_mode == true
-                ? py::cast(new qdb::ts_reader<qdb::ts_dict_row>(_handle, _alias, c_columns, r), py::return_value_policy::take_ownership)
-                : py::cast(new qdb::ts_reader<qdb::ts_fast_row>(_handle, _alias, c_columns, r), py::return_value_policy::take_ownership));
+                ? py::cast(new qdb::ts_reader<reader::ts_dict_row>(_handle, _alias, c_columns, r), py::return_value_policy::take_ownership)
+                : py::cast(new qdb::ts_reader<reader::ts_fast_row>(_handle, _alias, c_columns, r), py::return_value_policy::take_ownership));
     }
 
 public:
