@@ -122,11 +122,14 @@ public:
             }
         }
 
+        auto c = convert_columns(c_columns);
+        auto r = convert_ranges(ranges);
+
         return (dict_mode == true
-                    ? py::cast(qdb::ts_reader<qdb::ts_dict_row>(_handle, _alias, convert_columns(c_columns), convert_ranges(ranges)),
-                          py::return_value_policy::move)
-                    : py::cast(qdb::ts_reader<qdb::ts_fast_row>(_handle, _alias, convert_columns(c_columns), convert_ranges(ranges)),
-                          py::return_value_policy::move));
+                ? py::cast(new qdb::ts_reader<qdb::ts_dict_row>(_handle, _alias, c, r),
+                           py::return_value_policy::take_ownership)
+                : py::cast(new qdb::ts_reader<qdb::ts_fast_row>(_handle, _alias, c, r),
+                           py::return_value_policy::take_ownership));
     }
 
 public:
