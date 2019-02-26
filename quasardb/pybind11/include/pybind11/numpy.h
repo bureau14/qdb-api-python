@@ -129,7 +129,7 @@ struct npy_api {
         NPY_STRING_, NPY_UNICODE_, NPY_VOID_,
 
         /**
-         * Begin modification by Leon Mergen, 2019-02-20, for PyDateimeScalarObject
+         * Begin modification by Leon Mergen, 2019-02-20, for PyDatetimeScalarObject
          * support.
          *
          * From:
@@ -203,7 +203,7 @@ private:
         API_PyArray_Squeeze = 136,
 
         /**
-         * Begin modification by Leon Mergen, 2019-02-20, for PyDateimeScalarObject
+         * Begin modification by Leon Mergen, 2019-02-20, for PyDatetimeScalarObject
          * support.
          *
          * From:
@@ -251,7 +251,7 @@ private:
         DECL_NPY_API(PyArray_SetBaseObject);
 
         /**
-         * Begin modification by Leon Mergen, 2019-02-20, for PyDateimeScalarObject
+         * Begin modification by Leon Mergen, 2019-02-20, for PyDatetimeScalarObject
          * support.
          */
 
