@@ -113,7 +113,10 @@ pybind11_add_module(quasardb
     utils.hpp
     version.hpp
     version.cpp
-    )
+
+    detail/ts_column.hpp
+    reader/ts_row.hpp
+    reader/ts_value.hpp)
 
 target_compile_definitions(quasardb PUBLIC QDB_PY_VERSION="${QDB_PY_VERSION}")
 target_link_libraries(quasardb PUBLIC ${QDB_API_LIB})
