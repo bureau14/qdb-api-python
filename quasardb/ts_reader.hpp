@@ -190,7 +190,7 @@ public:
         : ts_row()
     {}
 
-    ts_fast_row(qdb_local_table_t local_table, ts_columns_t columns)
+    ts_fast_row(qdb_local_table_t local_table, ts_columns_t const & columns)
         : ts_row(local_table)
         , _columns(columns)
     {}
@@ -239,7 +239,7 @@ public:
         : ts_row()
     {}
 
-    ts_dict_row(qdb_local_table_t local_table, ts_columns_t columns)
+    ts_dict_row(qdb_local_table_t local_table, ts_columns_t const & columns)
         : ts_row(local_table)
         , _indexed_columns(qdb::index_columns(columns))
     {
@@ -301,7 +301,7 @@ public:
         , _the_row(_local_table, _columns)
     {}
 
-    ts_reader_iterator(qdb_local_table_t local_table, ts_columns_t columns)
+    ts_reader_iterator(qdb_local_table_t local_table, ts_columns_t const & columns)
         : _local_table(local_table)
         , _columns(columns)
         , _the_row(_local_table, _columns)
@@ -378,8 +378,8 @@ public:
 
 public:
     ts_reader(qdb::handle_ptr h, const std::string & t, const ts_columns_t & c, const std::vector<qdb_ts_range_t> & r)
-        : _handle{h}
-        , _columns{c}
+        : _handle(h)
+        , _columns(c)
         , _local_table(nullptr)
     {
         print_columns("constructor");
@@ -432,7 +432,7 @@ public:
 
 private:
     qdb::handle_ptr _handle;
-    const ts_columns_t _columns;
+    ts_columns_t _columns;
     qdb_local_table_t _local_table;
 };
 
