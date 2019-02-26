@@ -76,7 +76,7 @@ public:
         return c_columns;
     }
 
-    std::pair<qdb_ts_column_type_t, qdb_size_t> column_info_by_id(std::string const & alias)
+    detail::indexed_column_info column_info_by_id(std::string const & alias)
     {
         if (_has_indexed_columns == false)
         {
@@ -94,12 +94,12 @@ public:
 
     qdb_size_t column_index_by_id(std::string const & alias)
     {
-        return column_info_by_id(alias).second;
+        return column_info_by_id(alias).index;
     }
 
     qdb_ts_column_type_t column_type_by_id(std::string const & alias)
     {
-        return column_info_by_id(alias).first;
+        return column_info_by_id(alias).type;
     }
 
     py::object reader(const std::vector<std::string> & columns, const time_ranges & ranges, bool dict_mode)
@@ -126,10 +126,9 @@ public:
 
         auto r = convert_ranges(ranges);
 
-        return (dict_mode == true ? py::cast(qdb::ts_reader<reader::ts_dict_row>(_handle, _alias, c_columns, r),
-                                        py::return_value_policy::move)
-                                  : py::cast(new qdb::ts_reader<reader::ts_fast_row>(_handle, _alias, c_columns, r),
-                                        py::return_value_policy::move));
+        return (dict_mode == true
+                    ? py::cast(qdb::ts_reader<reader::ts_dict_row>(_handle, _alias, c_columns, r), py::return_value_policy::move)
+                    : py::cast(new qdb::ts_reader<reader::ts_fast_row>(_handle, _alias, c_columns, r), py::return_value_policy::move));
     }
 
 public:

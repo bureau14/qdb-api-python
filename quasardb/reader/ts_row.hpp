@@ -62,13 +62,13 @@ public:
 
     bool operator==(ts_row const & rhs) const noexcept
     {
-      auto tie = [] (const auto & ts) { return std::tie(ts.tv_sec, ts.tv_nsec); };
+        auto tie = [](const auto & ts) { return std::tie(ts.tv_sec, ts.tv_nsec); };
 
-      // Since our row doesn't hold any intrinsic data itself and is merely
-      // an indirection to the data in the local table, it doesn't make a lot
-      // of sense to compare it with another other than comparing the timestamps
-      // and the local table references.
-      return (tie(_timestamp) == tie(rhs._timestamp)) && (_local_table == rhs._local_table);
+        // Since our row doesn't hold any intrinsic data itself and is merely
+        // an indirection to the data in the local table, it doesn't make a lot
+        // of sense to compare it with another other than comparing the timestamps
+        // and the local table references.
+        return (tie(_timestamp) == tie(rhs._timestamp)) && (_local_table == rhs._local_table);
     }
 
     py::handle timestamp() const noexcept
@@ -182,12 +182,12 @@ public:
 
         for (auto c : _indexed_columns)
         {
-            qdb_size_t index = c.second.second;
+            qdb_size_t index = c.second.index;
 
             // By first casting the value, we create a copy of the concrete type
             // (e.g. the int64 or the blob) rather than the reference into the local
             // table.
-            res.insert(map_type::value_type(c.first, py::cast(ts_value(_local_table, index, c.second.first))));
+            res.insert(map_type::value_type(c.first, py::cast(ts_value(_local_table, index, c.second.type))));
         }
 
         return res;
@@ -201,8 +201,8 @@ public:
             throw pybind11::key_error();
         }
 
-        qdb_size_t index = c->second.second;
-        return ts_value(_local_table, index, c->second.first);
+        const auto & indexed_column = c->second;
+        return ts_value(_local_table, indexed_column.index, indexed_column.type);
     }
 
     void set_item(std::string const & /* alias */, std::string const & /* value */)

@@ -92,7 +92,24 @@ static std::vector<std::string> column_list_to_strings(const std::vector<column_
     return s_columns;
 }
 
-typedef std::map<std::string, std::pair<qdb_ts_column_type_t, qdb_size_t>> indexed_columns_t;
+struct indexed_column_info
+{
+    indexed_column_info() = default;
+
+    indexed_column_info(qdb_ts_column_type_t t, qdb_size_t i)
+        : type{t}
+        , index{i}
+    {}
+
+    indexed_column_info(const indexed_column_info & ici)
+        : indexed_column_info{ici.type, ici.index}
+    {}
+
+    qdb_ts_column_type_t type{qdb_ts_column_uninitialized};
+    qdb_size_t index;
+};
+
+typedef std::map<std::string, indexed_column_info> indexed_columns_t;
 
 template <typename ColumnType>
 static indexed_columns_t index_columns(const std::vector<ColumnType> & columns)
@@ -100,7 +117,7 @@ static indexed_columns_t index_columns(const std::vector<ColumnType> & columns)
     indexed_columns_t i_columns;
     for (qdb_size_t i = 0; i < columns.size(); ++i)
     {
-        i_columns.insert(indexed_columns_t::value_type(columns[i].name, std::make_pair(columns[i].type, i)));
+        i_columns.insert(indexed_columns_t::value_type(columns[i].name, {columns[i].type, i}));
     }
 
     return i_columns;
@@ -115,6 +132,11 @@ static inline void register_ts_column(Module & m)
         .def(py::init<qdb_ts_column_type_t, const std::string &>()) //
         .def_readwrite("type", &column_info::type)                  //
         .def_readwrite("name", &column_info::name);                 //
+
+    py::class_<indexed_column_info>{m, "IndexedColumnInfo"}  //
+        .def(py::init<qdb_ts_column_type_t, qdb_size_t &>()) //
+        .def_readonly("type", &indexed_column_info::type)    //
+        .def_readonly("index", &indexed_column_info::index); //
 }
 
 } // namespace detail
