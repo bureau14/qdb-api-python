@@ -128,7 +128,7 @@ public:
 
         return (dict_mode == true
                     ? py::cast(qdb::ts_reader<reader::ts_dict_row>(_handle, _alias, c_columns, r), py::return_value_policy::move)
-                    : py::cast(new qdb::ts_reader<reader::ts_fast_row>(_handle, _alias, c_columns, r), py::return_value_policy::move));
+                    : py::cast(qdb::ts_reader<reader::ts_fast_row>(_handle, _alias, c_columns, r), py::return_value_policy::move));
     }
 
 public:
