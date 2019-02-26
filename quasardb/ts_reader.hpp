@@ -305,7 +305,15 @@ public:
         : _local_table(local_table)
         , _columns(columns)
         , _the_row(_local_table, _columns)
-    {
+  {
+    std::cout << "ts_reader_iterator, columns count = " << _columns.size() << std::endl;
+
+    for (qdb_size_t i = 0; i < _columns.size(); ++i)
+      {
+        std::cout << "ts_reader_iterator, columns[i].name = " << _columns[i].name << std::endl;
+      }
+
+
         // Immediately try to move to the first row
         ++(*this);
     }
@@ -403,7 +411,14 @@ public:
 
     iterator begin()
     {
-        return iterator(_local_table, _columns);
+      std::cout << "ts_reader.begin(), columns count = " << _columns.size() << std::endl;
+
+      for (qdb_size_t i = 0; i < _columns.size(); ++i)
+        {
+          std::cout << "ts_reader.begin(), columns[i].name = " << _columns[i].name << std::endl;
+        }
+
+      return iterator(_local_table, _columns);
     }
 
     iterator end()
