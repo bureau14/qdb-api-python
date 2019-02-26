@@ -30,18 +30,20 @@
  */
 #pragma once
 
-#include "numpy.hpp"
-#include "ts_convert.hpp"
-#include <qdb/ts.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl_bind.h>
+#include <qdb/ts.h>
+
+#include "numpy.hpp"
+#include "ts_convert.hpp"
+#include "detail/ts_column.hpp"
 
 namespace py = pybind11;
 
 namespace qdb
 {
 
-typedef std::vector<column_info> ts_columns_t;
+  typedef std::vector<detail::column_info> ts_columns_t;
 
 /**
  * Our value class points to a specific index in a local table, and provides
@@ -241,7 +243,7 @@ public:
 
     ts_dict_row(qdb_local_table_t local_table, ts_columns_t const & columns)
         : ts_row(local_table)
-        , _indexed_columns(qdb::index_columns(columns))
+        , _indexed_columns(detail::index_columns(columns))
     {}
 
     ts_dict_row(const ts_dict_row & rhs)
@@ -267,7 +269,7 @@ public:
     }
 
 private:
-    qdb::indexed_columns_t _indexed_columns;
+  detail::indexed_columns_t _indexed_columns;
 };
 
 template <typename RowType>

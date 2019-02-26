@@ -33,6 +33,7 @@
 #include "entry.hpp"
 #include "ts_convert.hpp"
 #include "ts_reader.hpp"
+#include "detail/ts_column.hpp"
 
 namespace qdb
 {
@@ -48,26 +49,26 @@ public:
     {}
 
 public:
-    void create(const std::vector<column_info> & columns, std::chrono::milliseconds shard_size = std::chrono::hours{24})
+  void create(const std::vector<detail::column_info> & columns, std::chrono::milliseconds shard_size = std::chrono::hours{24})
     {
-        const auto c_columns = convert_columns(columns);
+      const auto c_columns = detail::convert_columns(columns);
         qdb::qdb_throw_if_error(qdb_ts_create(*_handle, _alias.c_str(), shard_size.count(), c_columns.data(), c_columns.size()));
     }
 
-    void insert_columns(const std::vector<column_info> & columns)
+  void insert_columns(const std::vector<detail::column_info> & columns)
     {
-        const auto c_columns = convert_columns(columns);
+      const auto c_columns = detail::convert_columns(columns);
         qdb::qdb_throw_if_error(qdb_ts_insert_columns(*_handle, _alias.c_str(), c_columns.data(), c_columns.size()));
     }
 
-    std::vector<column_info> list_columns()
+  std::vector<detail::column_info> list_columns()
     {
         qdb_ts_column_info_t * columns = nullptr;
         qdb_size_t count               = 0;
 
         qdb::qdb_throw_if_error(qdb_ts_list_columns(*_handle, _alias.c_str(), &columns, &count));
 
-        auto c_columns = convert_columns(columns, count);
+        auto c_columns = detail::convert_columns(columns, count);
 
         qdb_release(*_handle, columns);
 
@@ -80,11 +81,11 @@ public:
         {
             // It's important to note that if additional columns are added during
             // the lifetime of this object, we will not pick up on this in our cache.
-            _indexed_columns     = index_columns(list_columns());
+          _indexed_columns     = detail::index_columns(list_columns());
             _has_indexed_columns = true;
         }
 
-        indexed_columns_t::const_iterator i = _indexed_columns.find(alias);
+        detail::indexed_columns_t::const_iterator i = _indexed_columns.find(alias);
         if (i == _indexed_columns.end()) throw qdb::exception{qdb_e_out_of_bounds};
 
         return i->second;
@@ -102,14 +103,14 @@ public:
 
     py::object reader(const std::vector<std::string> & columns, const time_ranges & ranges, bool dict_mode)
     {
-        std::vector<column_info> c_columns;
+      std::vector<detail::column_info> c_columns;
 
         if (columns.empty())
         {
             // This is a kludge, because technically a table can have no columns, and we're
             // abusing it as "no argument provided". It's a highly exceptional use case, and
             // doesn't really have any implication in practice, so it should be ok.
-            c_columns = list_columns();
+          c_columns = list_columns();
         }
         else
         {
@@ -118,7 +119,7 @@ public:
             // the reader so it's unlikely to be a performance bottleneck.
             for (auto a : columns)
             {
-                c_columns.push_back(column_info{this->column_type_by_id(a), a});
+              c_columns.push_back(detail::column_info{this->column_type_by_id(a), a});
             }
         }
 
@@ -239,7 +240,7 @@ public:
 
 private:
     bool _has_indexed_columns;
-    indexed_columns_t _indexed_columns;
+  detail::indexed_columns_t _indexed_columns;
 };
 
 template <typename Module>
@@ -253,11 +254,6 @@ static inline void register_ts(Module & m)
         .value("Blob", qdb_ts_column_blob)                                            //
         .value("Int64", qdb_ts_column_int64)                                          //
         .value("Timestamp", qdb_ts_column_timestamp);                                 //
-
-    py::class_<qdb::column_info>{m, "ColumnInfo"}                   //
-        .def(py::init<qdb_ts_column_type_t, const std::string &>()) //
-        .def_readwrite("type", &qdb::column_info::type)             //
-        .def_readwrite("name", &qdb::column_info::name);            //
 
     py::class_<qdb::ts, qdb::entry>{m, "TimeSeries"}                                                         //
         .def(py::init<qdb::handle_ptr, std::string>())                                                       //
