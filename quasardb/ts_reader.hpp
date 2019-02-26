@@ -398,6 +398,9 @@ public:
 
     ~ts_reader()
     {
+        print_columns("destructor");
+
+
         if (_handle && _local_table)
         {
             qdb_release(*_handle, _local_table);
