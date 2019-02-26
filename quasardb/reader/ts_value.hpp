@@ -140,7 +140,7 @@ private:
 template <typename Module>
 static inline void register_ts_value(Module & m)
 {
-    py::class_<ts_value>{m, "TimeSeriesValue"};
+    py::class_<ts_value>{m, "TimeSeriesReaderValue"};
 }
 
 };

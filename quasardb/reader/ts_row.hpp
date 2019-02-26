@@ -189,13 +189,13 @@ static inline void register_ts_row(Module & m)
 {
     py::bind_vector<std::vector<py::object>>(m, "VectorObject");
 
-    py::class_<ts_fast_row>{m, "TimeSeriesFastRow"}
+    py::class_<ts_fast_row>{m, "TimeSeriesReaderFastRow"}
         .def("__getitem__", &ts_fast_row::get_item, py::return_value_policy::move)
         .def("__setitem__", &ts_fast_row::set_item)
         .def("timestamp", &ts_fast_row::timestamp)
         .def("copy", &ts_fast_row::copy);
 
-    py::class_<ts_dict_row>{m, "TimeSeriesDictRow"}
+    py::class_<ts_dict_row>{m, "TimeSeriesReaderDictRow"}
         .def("__getitem__", &ts_dict_row::get_item, py::return_value_policy::move)
         .def("__setitem__", &ts_dict_row::set_item)
         .def("timestamp", &ts_dict_row::timestamp);
