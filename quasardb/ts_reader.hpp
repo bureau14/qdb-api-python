@@ -382,12 +382,7 @@ public:
         , _columns{c}
         , _local_table(nullptr)
     {
-      std::cout << "ts_reader constructor, _columns count = " << _columns.size() << std::endl;
-
-      for (qdb_size_t i = 0; i < _columns.size(); ++i)
-        {
-          std::cout << "ts_reader constrcutor, _columns[i].name = " << _columns[i].name << std::endl;
-        }
+        print_columns("constructor");
 
 
         qdb::qdb_throw_if_error(qdb_ts_local_table_init(*_handle, t.c_str(), c.data(), c.size(), &_local_table));
@@ -407,12 +402,7 @@ public:
         rhs._handle      = nullptr;
         rhs._local_table = nullptr;
 
-        std::cout << "ts_reader move constructor, _columns count = " << _columns.size() << std::endl;
-
-      for (qdb_size_t i = 0; i < _columns.size(); ++i)
-        {
-          std::cout << "ts_reader move constructor, _columns[i].name = " << _columns[i].name << std::endl;
-        }
+        print_columns("move constructor");
     };
 
     ~ts_reader()
@@ -424,15 +414,20 @@ public:
         }
     }
 
-    iterator begin()
-    {
-      std::cout << "ts_reader.begin(), columns count = " << _columns.size() << std::endl;
+    void
+    print_columns(std::string const & d) {
+      std::cout << "ts_reader " << d << ", columns count = " << _columns.size() << std::endl;
 
       for (qdb_size_t i = 0; i < _columns.size(); ++i)
         {
-          std::cout << "ts_reader.begin(), columns[i].name = " << _columns[i].name << std::endl;
+          std::cout << "ts_reader " << d << ", columns[i].name = " << _columns[i].name << std::endl;
         }
 
+    }
+
+    iterator begin()
+    {
+      print_columns("begin()");
       return iterator(_local_table, _columns);
     }
 
@@ -475,7 +470,9 @@ static inline void register_ts_reader(Module & m)
         .def(py::init<qdb::handle_ptr, const std::string &, const std::vector<qdb_ts_column_info_t> &,
             const std::vector<qdb_ts_range_t> &>())
 
-        .def("__iter__", [](ts_reader<qdb::ts_dict_row> & r) { return py::make_iterator(r.begin(), r.end()); }, py::keep_alive<0, 1>());
+        .def("__iter__", [](ts_reader<qdb::ts_dict_row> & r) {
+                           r.print_columns("__iter__ <dict_row> lambda");
+                           return py::make_iterator(r.begin(), r.end()); }, py::keep_alive<0, 1>());
 }
 
 } // namespace qdb
