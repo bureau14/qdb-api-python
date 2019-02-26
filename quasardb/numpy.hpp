@@ -45,11 +45,15 @@
  * create/return them.
  *
  * Sourced from:
- * https://raw.githubusercontent.com/numpy/numpy/master/numpy/core/include/numpy/arrayscalars.h
+ *   https://raw.githubusercontent.com/numpy/numpy/master/numpy/core/include/numpy/arrayscalars.h
+ *   https://raw.githubusercontent.com/numpy/numpy/master/numpy/core/include/numpy/ndarraytypes.h
+ *   https://github.com/numpy/numpy/blob/master/numpy/core/include/numpy/npy_common.h#L1077
  */
 
 // Begin numpy proxy
 
+// From:
+//   https://raw.githubusercontent.com/numpy/numpy/master/numpy/core/include/numpy/ndarraytypes.h
 typedef enum
 {
     /* Force signed enum type, must be -1 for code compatibility */
@@ -73,14 +77,26 @@ typedef enum
     NPY_FR_GENERIC = 14  /* unbound units, can convert to anything */
 } NPY_DATETIMEUNIT;
 
+// From:
+//   https://raw.githubusercontent.com/numpy/numpy/master/numpy/core/include/numpy/ndarraytypes.h
 typedef struct
 {
     NPY_DATETIMEUNIT base;
     int num;
 } PyArray_DatetimeMetaData;
 
+// numpy uses their own npy_int64, the definition of which I would like to omit (probing
+// these things is complex).
+//
+// For simplicity's sake, we typedef it as a std::int64_t, because the intention is for it
+// to be a 64bit int anyway.
+//
+// See also:
+//   https://github.com/numpy/numpy/blob/master/numpy/core/include/numpy/npy_common.h#L1077
 typedef std::int64_t npy_datetime;
 
+// From:
+//   https://raw.githubusercontent.com/numpy/numpy/master/numpy/core/include/numpy/arrayscalars.h
 typedef struct
 {
     PyObject_HEAD npy_datetime obval;
