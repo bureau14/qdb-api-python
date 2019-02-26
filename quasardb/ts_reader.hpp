@@ -410,7 +410,7 @@ public:
 
     void
     print_columns(std::string const & d) {
-      std::cout << "ts_reader " << d << ", columns count = " << _columns.size() << std::endl;
+      std::cout << "ts_reader " << d << ", this = " << this << ", &columns = " << &_columns << ", columns count = " << _columns.size() << std::endl;
 
       for (qdb_size_t i = 0; i < _columns.size(); ++i)
         {
