@@ -33,8 +33,8 @@
 #include "entry.hpp"
 #include "ts_convert.hpp"
 #include "ts_reader.hpp"
-#include "reader/ts_row.hpp"
 #include "detail/ts_column.hpp"
+#include "reader/ts_row.hpp"
 
 namespace qdb
 {
@@ -50,19 +50,19 @@ public:
     {}
 
 public:
-  void create(const std::vector<detail::column_info> & columns, std::chrono::milliseconds shard_size = std::chrono::hours{24})
+    void create(const std::vector<detail::column_info> & columns, std::chrono::milliseconds shard_size = std::chrono::hours{24})
     {
-      const auto c_columns = detail::convert_columns(columns);
+        const auto c_columns = detail::convert_columns(columns);
         qdb::qdb_throw_if_error(qdb_ts_create(*_handle, _alias.c_str(), shard_size.count(), c_columns.data(), c_columns.size()));
     }
 
-  void insert_columns(const std::vector<detail::column_info> & columns)
+    void insert_columns(const std::vector<detail::column_info> & columns)
     {
-      const auto c_columns = detail::convert_columns(columns);
+        const auto c_columns = detail::convert_columns(columns);
         qdb::qdb_throw_if_error(qdb_ts_insert_columns(*_handle, _alias.c_str(), c_columns.data(), c_columns.size()));
     }
 
-  std::vector<detail::column_info> list_columns()
+    std::vector<detail::column_info> list_columns()
     {
         qdb_ts_column_info_t * columns = nullptr;
         qdb_size_t count               = 0;
@@ -82,7 +82,7 @@ public:
         {
             // It's important to note that if additional columns are added during
             // the lifetime of this object, we will not pick up on this in our cache.
-          _indexed_columns     = detail::index_columns(list_columns());
+            _indexed_columns     = detail::index_columns(list_columns());
             _has_indexed_columns = true;
         }
 
@@ -104,14 +104,14 @@ public:
 
     py::object reader(const std::vector<std::string> & columns, const time_ranges & ranges, bool dict_mode)
     {
-      std::vector<detail::column_info> c_columns;
+        std::vector<detail::column_info> c_columns;
 
         if (columns.empty())
         {
             // This is a kludge, because technically a table can have no columns, and we're
             // abusing it as "no argument provided". It's a highly exceptional use case, and
             // doesn't really have any implication in practice, so it should be ok.
-          c_columns = list_columns();
+            c_columns = list_columns();
         }
         else
         {
@@ -120,16 +120,16 @@ public:
             // the reader so it's unlikely to be a performance bottleneck.
             for (auto a : columns)
             {
-              c_columns.push_back(detail::column_info{this->column_type_by_id(a), a});
+                c_columns.push_back(detail::column_info{this->column_type_by_id(a), a});
             }
         }
 
         auto r = convert_ranges(ranges);
 
-        return (
-            dict_mode == true
-                ? py::cast(new qdb::ts_reader<reader::ts_dict_row>(_handle, _alias, c_columns, r), py::return_value_policy::take_ownership)
-                : py::cast(new qdb::ts_reader<reader::ts_fast_row>(_handle, _alias, c_columns, r), py::return_value_policy::take_ownership));
+        return (dict_mode == true ? py::cast(new qdb::ts_reader<reader::ts_dict_row>(_handle, _alias, c_columns, r),
+                                        py::return_value_policy::take_ownership)
+                                  : py::cast(new qdb::ts_reader<reader::ts_fast_row>(_handle, _alias, c_columns, r),
+                                        py::return_value_policy::take_ownership));
     }
 
 public:
@@ -241,7 +241,7 @@ public:
 
 private:
     bool _has_indexed_columns;
-  detail::indexed_columns_t _indexed_columns;
+    detail::indexed_columns_t _indexed_columns;
 };
 
 template <typename Module>

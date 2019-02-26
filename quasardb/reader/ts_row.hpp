@@ -30,15 +30,13 @@
  */
 #pragma once
 
-#include <pybind11/numpy.h>
-#include <pybind11/stl_bind.h>
-#include <qdb/ts.h>
-
+#include "../detail/ts_column.hpp"
 #include "../numpy.hpp"
 #include "../ts_convert.hpp"
-#include "../detail/ts_column.hpp"
-
 #include "ts_value.hpp"
+#include <qdb/ts.h>
+#include <pybind11/numpy.h>
+#include <pybind11/stl_bind.h>
 
 namespace py = pybind11;
 
@@ -47,7 +45,6 @@ namespace qdb
 
 namespace reader
 {
-
 
 typedef std::vector<detail::column_info> ts_columns_t;
 
@@ -137,24 +134,18 @@ public:
         // not implemented
     }
 
-
     std::string repr() const
     {
-      // This is inefficient because we first cast everything to Python objects, get the
-      // string representation and then cast back to c++ strings, but it's correct and
-      // effective, and it's used for debugging purposes only.
-      auto xs = copy();
-      std::string kvs = std::accumulate(xs.cbegin(),
-                                        xs.cend(),
-                                        std::string(),
-                                        [](std::string & acc, auto x) {
-                                          std::string s = py::str(x);
-                                          return acc.empty () ? s : acc + ", " + s;
-                                        });
+        // This is inefficient because we first cast everything to Python objects, get the
+        // string representation and then cast back to c++ strings, but it's correct and
+        // effective, and it's used for debugging purposes only.
+        auto xs         = copy();
+        std::string kvs = std::accumulate(xs.cbegin(), xs.cend(), std::string(), [](std::string & acc, auto x) {
+            std::string s = py::str(x);
+            return acc.empty() ? s : acc + ", " + s;
+        });
 
-
-
-      return "[" + kvs + "]";
+        return "[" + kvs + "]";
     }
 
 private:
@@ -188,14 +179,14 @@ public:
         typedef std::map<std::string, py::object> map_type;
         map_type res;
 
-        for (auto c : _indexed_columns) {
-          qdb_size_t index = c.second.second;
+        for (auto c : _indexed_columns)
+        {
+            qdb_size_t index = c.second.second;
 
-          // By first casting the value, we create a copy of the concrete type
-          // (e.g. the int64 or the blob) rather than the reference into the local
-          // table.
-          res.insert(map_type::value_type(c.first,
-                                          py::cast(ts_value(_local_table, index, c.second.first))));
+            // By first casting the value, we create a copy of the concrete type
+            // (e.g. the int64 or the blob) rather than the reference into the local
+            // table.
+            res.insert(map_type::value_type(c.first, py::cast(ts_value(_local_table, index, c.second.first))));
         }
 
         return res;
@@ -220,24 +211,18 @@ public:
 
     std::string repr() const
     {
-      // Same as ts_fast_row::repr, this is inefficient but it's ok
-      auto xs = copy();
-      std::string kvs = std::accumulate(xs.cbegin(),
-                                        xs.cend(),
-                                        std::string(),
-                                        [](std::string & acc, auto x) {
-                                          std::string s = "'" + x.first + "': " + std::string(py::str(x.second));
-                                          return acc.empty () ? s : acc + ", " + s;
-                                        });
+        // Same as ts_fast_row::repr, this is inefficient but it's ok
+        auto xs         = copy();
+        std::string kvs = std::accumulate(xs.cbegin(), xs.cend(), std::string(), [](std::string & acc, auto x) {
+            std::string s = "'" + x.first + "': " + std::string(py::str(x.second));
+            return acc.empty() ? s : acc + ", " + s;
+        });
 
-
-
-      return "{" + kvs + "}";
+        return "{" + kvs + "}";
     }
 
-
 private:
-  detail::indexed_columns_t _indexed_columns;
+    detail::indexed_columns_t _indexed_columns;
 };
 
 template <typename Module>
@@ -258,8 +243,7 @@ static inline void register_ts_row(Module & m)
         .def("__setitem__", &ts_dict_row::set_item)
         .def("timestamp", &ts_dict_row::timestamp)
         .def("copy", &ts_dict_row::copy);
-
 }
 
-}
+} // namespace reader
 } // namespace qdb

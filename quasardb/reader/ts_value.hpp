@@ -30,11 +30,10 @@
  */
 #pragma once
 
+#include "../numpy.hpp"
+#include <qdb/ts.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl_bind.h>
-#include <qdb/ts.h>
-
-#include "../numpy.hpp"
 
 namespace py = pybind11;
 
@@ -143,7 +142,7 @@ static inline void register_ts_value(Module & m)
     py::class_<ts_value>{m, "TimeSeriesReaderValue"};
 }
 
-};
+}; // namespace reader
 }; // namespace qdb
 
 namespace pybind11
@@ -162,7 +161,7 @@ public:
     /**
      * Note that this macro magically sets a member variable called 'value'.
      */
-  PYBIND11_TYPE_CASTER(qdb::reader::ts_value, _("qdb::reader::ts_value"));
+    PYBIND11_TYPE_CASTER(qdb::reader::ts_value, _("qdb::reader::ts_value"));
 
     /**
      * We do not support Python->C++
@@ -175,7 +174,7 @@ public:
     /**
      * C++->Python
      */
-  static handle cast(qdb::reader::ts_value src, return_value_policy /* policy */, handle /* parent */)
+    static handle cast(qdb::reader::ts_value src, return_value_policy /* policy */, handle /* parent */)
     {
         return src.cast();
     }

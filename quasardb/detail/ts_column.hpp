@@ -106,19 +106,17 @@ static indexed_columns_t index_columns(const std::vector<ColumnType> & columns)
     return i_columns;
 }
 
-
-
 template <typename Module>
 static inline void register_ts_column(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<column_info>{m, "ColumnInfo"}                   //
+    py::class_<column_info>{m, "ColumnInfo"}                        //
         .def(py::init<qdb_ts_column_type_t, const std::string &>()) //
-           .def_readwrite("type", &column_info::type)             //
-           .def_readwrite("name", &column_info::name);            //
+        .def_readwrite("type", &column_info::type)                  //
+        .def_readwrite("name", &column_info::name);                 //
 }
 
-}
+} // namespace detail
 
 } // namespace qdb

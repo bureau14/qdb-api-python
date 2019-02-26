@@ -30,14 +30,13 @@
  */
 #pragma once
 
-#include <pybind11/numpy.h>
-#include <pybind11/stl_bind.h>
-#include <qdb/ts.h>
-
 #include "numpy.hpp"
 #include "ts_convert.hpp"
-#include "reader/ts_row.hpp"
+#include <qdb/ts.h>
 #include "detail/ts_column.hpp"
+#include "reader/ts_row.hpp"
+#include <pybind11/numpy.h>
+#include <pybind11/stl_bind.h>
 
 namespace py = pybind11;
 
@@ -50,8 +49,8 @@ template <typename RowType>
 class ts_reader_iterator
 {
 public:
-    using value_type        = RowType;
-    using reference         = const value_type &;
+    using value_type = RowType;
+    using reference  = const value_type &;
 
 public:
     ts_reader_iterator()
