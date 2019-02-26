@@ -116,7 +116,7 @@ public:
         else
         {
             c_columns.reserve(columns.size());
-            // This transformation can probably be optimized, but it's only invoked when cosntructing
+            // This transformation can probably be optimized, but it's only invoked when constructing
             // the reader so it's unlikely to be a performance bottleneck.
             for (auto a : columns)
             {
