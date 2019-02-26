@@ -163,6 +163,24 @@ public:
         , _indexed_columns(rhs._indexed_columns)
     {}
 
+    std::map<std::string, py::object> copy() const
+    {
+        typedef std::map<std::string, py::object> map_type;
+        map_type res;
+
+        for (auto c : _indexed_columns) {
+          qdb_size_t index = c.second.second;
+
+          // By first casting the value, we create a copy of the concrete type
+          // (e.g. the int64 or the blob) rather than the reference into the local
+          // table.
+          res.insert(map_type::value_type(c.first,
+                                          py::cast(ts_value(_local_table, index, c.second.first))));
+        }
+
+        return res;
+    }
+
     ts_value get_item(std::string const & alias) const
     {
         auto c = _indexed_columns.find(alias);
@@ -198,7 +216,8 @@ static inline void register_ts_row(Module & m)
     py::class_<ts_dict_row>{m, "TimeSeriesReaderDictRow"}
         .def("__getitem__", &ts_dict_row::get_item, py::return_value_policy::move)
         .def("__setitem__", &ts_dict_row::set_item)
-        .def("timestamp", &ts_dict_row::timestamp);
+        .def("timestamp", &ts_dict_row::timestamp)
+        .def("copy", &ts_dict_row::copy);
 
 }
 
