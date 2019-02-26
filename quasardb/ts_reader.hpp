@@ -382,6 +382,14 @@ public:
         , _columns{c}
         , _local_table(nullptr)
     {
+      std::cout << "ts_reader constructor, columns count = " << c.size() << std::endl;
+
+      for (qdb_size_t i = 0; i < c.size(); ++i)
+        {
+          std::cout << "ts_reader constrcutor, columns[i].name = " << c[i].name << std::endl;
+        }
+
+
         qdb::qdb_throw_if_error(qdb_ts_local_table_init(*_handle, t.c_str(), c.data(), c.size(), &_local_table));
 
         qdb::qdb_throw_if_error(qdb_ts_table_get_ranges(_local_table, r.data(), r.size()));
