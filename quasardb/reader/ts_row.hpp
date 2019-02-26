@@ -62,12 +62,13 @@ public:
 
     bool operator==(ts_row const & rhs) const noexcept
     {
-        // Since our row doesn't hold any intrinsic data itself and is merely
-        // an indirection to the data in the local table, it doesn't make a lot
-        // of sense to compare it with another other than comparing the timestamps
-        // and the local table references.
-        return _timestamp.tv_sec == rhs._timestamp.tv_sec && _timestamp.tv_nsec == rhs._timestamp.tv_nsec
-               && _local_table == rhs._local_table;
+      auto tie = [] (const auto & ts) { return std::tie(ts.tv_sec, ts.tv_nsec); };
+
+      // Since our row doesn't hold any intrinsic data itself and is merely
+      // an indirection to the data in the local table, it doesn't make a lot
+      // of sense to compare it with another other than comparing the timestamps
+      // and the local table references.
+      return (tie(_timestamp) == tie(rhs._timestamp)) && (_local_table == rhs._local_table);
     }
 
     py::handle timestamp() const noexcept
@@ -124,12 +125,12 @@ public:
 
     ts_value get_item(int64_t index) const
     {
-        // TODO: we construct this object every time; should be without any heap allocations,
-        // but can we do without this?
+        // TODO(leon): we construct this object every time; should be without any heap
+        // allocations,but can we do without this?
         return ts_value(_local_table, index, _columns.at(index).type);
     }
 
-    void set_item(int64_t index, int64_t value)
+    void set_item(int64_t /* index */, int64_t /* value */)
     {
         // not implemented
     }
@@ -204,7 +205,7 @@ public:
         return ts_value(_local_table, index, c->second.first);
     }
 
-    void set_item(std::string const & alias, std::string const & value)
+    void set_item(std::string const & /* alias */, std::string const & /* value */)
     {
         // not implemented
     }
@@ -213,7 +214,7 @@ public:
     {
         // Same as ts_fast_row::repr, this is inefficient but it's ok
         auto xs         = copy();
-        std::string kvs = std::accumulate(xs.cbegin(), xs.cend(), std::string(), [](std::string & acc, auto x) {
+        std::string kvs = std::accumulate(xs.cbegin(), xs.cend(), std::string(), [](const std::string & acc, const auto & x) {
             std::string s = "'" + x.first + "': " + std::string(py::str(x.second));
             return acc.empty() ? s : acc + ", " + s;
         });
