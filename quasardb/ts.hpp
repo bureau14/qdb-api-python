@@ -124,11 +124,10 @@ public:
 
         auto r = convert_ranges(ranges);
 
-        return (dict_mode == true
-                ? py::cast(new qdb::ts_reader<qdb::ts_dict_row>(_handle, _alias, c_columns, r),
-                           py::return_value_policy::take_ownership)
-                : py::cast(new qdb::ts_reader<qdb::ts_fast_row>(_handle, _alias, c_columns, r),
-                           py::return_value_policy::take_ownership));
+        return (
+            dict_mode == true
+                ? py::cast(new qdb::ts_reader<qdb::ts_dict_row>(_handle, _alias, c_columns, r), py::return_value_policy::take_ownership)
+                : py::cast(new qdb::ts_reader<qdb::ts_fast_row>(_handle, _alias, c_columns, r), py::return_value_policy::take_ownership));
     }
 
 public:

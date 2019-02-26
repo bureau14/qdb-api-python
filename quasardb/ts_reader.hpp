@@ -242,14 +242,12 @@ public:
     ts_dict_row(qdb_local_table_t local_table, ts_columns_t const & columns)
         : ts_row(local_table)
         , _indexed_columns(qdb::index_columns(columns))
-    {
-    }
+    {}
 
-  ts_dict_row(const ts_dict_row & rhs)
-    : ts_row(rhs._local_table),
-      _indexed_columns(rhs._indexed_columns) {
-  }
-
+    ts_dict_row(const ts_dict_row & rhs)
+        : ts_row(rhs._local_table)
+        , _indexed_columns(rhs._indexed_columns)
+    {}
 
     ts_reader_value get_item(std::string const & alias) const
     {
@@ -292,7 +290,7 @@ public:
         : _local_table(local_table)
         , _columns(columns)
         , _the_row(_local_table, _columns)
-  {
+    {
         // Immediately try to move to the first row
         ++(*this);
     }
@@ -363,11 +361,7 @@ public:
     {
         auto c_columns = convert_columns(c);
 
-        qdb::qdb_throw_if_error(qdb_ts_local_table_init(*_handle,
-                                                        t.c_str(),
-                                                        c_columns.data(),
-                                                        c_columns.size(),
-                                                        &_local_table));
+        qdb::qdb_throw_if_error(qdb_ts_local_table_init(*_handle, t.c_str(), c_columns.data(), c_columns.size(), &_local_table));
 
         qdb::qdb_throw_if_error(qdb_ts_table_get_ranges(_local_table, r.data(), r.size()));
     }
@@ -389,7 +383,7 @@ public:
 
     iterator begin()
     {
-      return iterator(_local_table, _columns);
+        return iterator(_local_table, _columns);
     }
 
     iterator end()
@@ -422,17 +416,14 @@ static inline void register_ts_reader(Module & m)
         .def("timestamp", &qdb::ts_dict_row::timestamp);
 
     py::class_<qdb::ts_reader<qdb::ts_fast_row>>{m, "TimeSeriesFastReader"}
-        .def(py::init<qdb::handle_ptr, const std::string &, const ts_columns_t &,
-            const std::vector<qdb_ts_range_t> &>())
+        .def(py::init<qdb::handle_ptr, const std::string &, const ts_columns_t &, const std::vector<qdb_ts_range_t> &>())
 
         .def("__iter__", [](ts_reader<qdb::ts_fast_row> & r) { return py::make_iterator(r.begin(), r.end()); }, py::keep_alive<0, 1>());
 
     py::class_<qdb::ts_reader<qdb::ts_dict_row>>{m, "TimeSeriesDictReader"}
-        .def(py::init<qdb::handle_ptr, const std::string &, const ts_columns_t &,
-            const std::vector<qdb_ts_range_t> &>())
+        .def(py::init<qdb::handle_ptr, const std::string &, const ts_columns_t &, const std::vector<qdb_ts_range_t> &>())
 
-        .def("__iter__", [](ts_reader<qdb::ts_dict_row> & r) {
-                           return py::make_iterator(r.begin(), r.end()); }, py::keep_alive<0, 1>());
+        .def("__iter__", [](ts_reader<qdb::ts_dict_row> & r) { return py::make_iterator(r.begin(), r.end()); }, py::keep_alive<0, 1>());
 }
 
 } // namespace qdb
