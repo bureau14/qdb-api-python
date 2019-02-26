@@ -41,7 +41,7 @@ namespace py = pybind11;
 namespace qdb
 {
 
-typedef std::vector<qdb_ts_column_info_t> ts_columns_t;
+typedef std::vector<column_info> ts_columns_t;
 
 /**
  * Our value class points to a specific index in a local table, and provides
@@ -384,8 +384,13 @@ public:
     {
         print_columns("constructor");
 
+        auto c_columns = convert_columns(c);
 
-        qdb::qdb_throw_if_error(qdb_ts_local_table_init(*_handle, t.c_str(), c.data(), c.size(), &_local_table));
+        qdb::qdb_throw_if_error(qdb_ts_local_table_init(*_handle,
+                                                        t.c_str(),
+                                                        c_columns.data(),
+                                                        c_columns.size(),
+                                                        &_local_table));
 
         qdb::qdb_throw_if_error(qdb_ts_table_get_ranges(_local_table, r.data(), r.size()));
     }
@@ -455,13 +460,13 @@ static inline void register_ts_reader(Module & m)
         .def("timestamp", &qdb::ts_dict_row::timestamp);
 
     py::class_<qdb::ts_reader<qdb::ts_fast_row>>{m, "TimeSeriesFastReader"}
-        .def(py::init<qdb::handle_ptr, const std::string &, const std::vector<qdb_ts_column_info_t> &,
+        .def(py::init<qdb::handle_ptr, const std::string &, const ts_columns_t &,
             const std::vector<qdb_ts_range_t> &>())
 
         .def("__iter__", [](ts_reader<qdb::ts_fast_row> & r) { return py::make_iterator(r.begin(), r.end()); }, py::keep_alive<0, 1>());
 
     py::class_<qdb::ts_reader<qdb::ts_dict_row>>{m, "TimeSeriesDictReader"}
-        .def(py::init<qdb::handle_ptr, const std::string &, const std::vector<qdb_ts_column_info_t> &,
+        .def(py::init<qdb::handle_ptr, const std::string &, const ts_columns_t &,
             const std::vector<qdb_ts_range_t> &>())
 
         .def("__iter__", [](ts_reader<qdb::ts_dict_row> & r) {
