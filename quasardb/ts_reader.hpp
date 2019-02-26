@@ -382,11 +382,11 @@ public:
         , _columns{c}
         , _local_table(nullptr)
     {
-      std::cout << "ts_reader constructor, columns count = " << c.size() << std::endl;
+      std::cout << "ts_reader constructor, _columns count = " << _columns.size() << std::endl;
 
-      for (qdb_size_t i = 0; i < c.size(); ++i)
+      for (qdb_size_t i = 0; i < _columns.size(); ++i)
         {
-          std::cout << "ts_reader constrcutor, columns[i].name = " << c[i].name << std::endl;
+          std::cout << "ts_reader constrcutor, _columns[i].name = " << _columns[i].name << std::endl;
         }
 
 
@@ -406,6 +406,13 @@ public:
     {
         rhs._handle      = nullptr;
         rhs._local_table = nullptr;
+
+        std::cout << "ts_reader move constructor, _columns count = " << _columns.size() << std::endl;
+
+      for (qdb_size_t i = 0; i < _columns.size(); ++i)
+        {
+          std::cout << "ts_reader move constructor, _columns[i].name = " << _columns[i].name << std::endl;
+        }
     };
 
     ~ts_reader()
