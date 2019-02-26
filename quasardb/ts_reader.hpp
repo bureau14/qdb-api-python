@@ -137,7 +137,14 @@ public:
     ts_reader(const ts_reader &) = delete;
 
     // since our reader models a stateful generator, we prevent moves
-    ts_reader(ts_reader && rhs) = delete;
+  ts_reader(ts_reader && rhs)
+    : _handle (rhs._handle)
+    , _columns(rhs._columns)
+    , _local_table(rhs._local_table) {
+    rhs._handle = nullptr;
+    rhs._local_table = nullptr;
+    rhs._columns.clear();
+  }
 
     ~ts_reader()
     {
