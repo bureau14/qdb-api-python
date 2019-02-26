@@ -243,29 +243,16 @@ public:
         : ts_row(local_table)
         , _indexed_columns(qdb::index_columns(columns))
     {
-      std::cout << "ts_dict_row constructor, size = " << _indexed_columns.size() << std::endl;
-      for (auto i : _indexed_columns) {
-        std::cout << "ts_dict_row constructor, alias = " << i.first << ", type = " << i.second.first << ", offset = " << i.second.second << std::endl;
-      }
     }
 
   ts_dict_row(const ts_dict_row & rhs)
     : ts_row(rhs._local_table),
       _indexed_columns(rhs._indexed_columns) {
-    std::cout << "ts_dict_row copy constructor, size = " << _indexed_columns.size() << std::endl;
-      for (auto i : _indexed_columns) {
-        std::cout << "ts_dict_row copy constructor, alias = " << i.first << ", type = " << i.second.first << ", offset = " << i.second.second << std::endl;
-      }
   }
 
 
     ts_reader_value get_item(std::string const & alias) const
     {
-        std::cout << "looking up column with alias = " << alias << ", columns size = " << _indexed_columns.size() << std::endl;
-
-        for (auto i : _indexed_columns) {
-          std::cout << "get_item, overview, alias = " << i.first << ", type = " << i.second.first << ", offset = " << i.second.second << std::endl;
-      }
         auto c = _indexed_columns.find(alias);
         if (c == _indexed_columns.end())
         {
@@ -306,14 +293,6 @@ public:
         , _columns(columns)
         , _the_row(_local_table, _columns)
   {
-    std::cout << "ts_reader_iterator, columns count = " << _columns.size() << std::endl;
-
-    for (qdb_size_t i = 0; i < _columns.size(); ++i)
-      {
-        std::cout << "ts_reader_iterator, columns[i].name = " << _columns[i].name << std::endl;
-      }
-
-
         // Immediately try to move to the first row
         ++(*this);
     }
@@ -382,8 +361,6 @@ public:
         , _columns(c)
         , _local_table(nullptr)
     {
-        print_columns("constructor");
-
         auto c_columns = convert_columns(c);
 
         qdb::qdb_throw_if_error(qdb_ts_local_table_init(*_handle,
@@ -403,9 +380,6 @@ public:
 
     ~ts_reader()
     {
-        print_columns("destructor");
-
-
         if (_handle && _local_table)
         {
             qdb_release(*_handle, _local_table);
@@ -413,20 +387,8 @@ public:
         }
     }
 
-    void
-    print_columns(std::string const & d) {
-      std::cout << "ts_reader " << d << ", this = " << this << ", &columns = " << &_columns << ", columns count = " << _columns.size() << std::endl;
-
-      for (qdb_size_t i = 0; i < _columns.size(); ++i)
-        {
-          std::cout << "ts_reader " << d << ", columns[i].name = " << _columns[i].name << std::endl;
-        }
-
-    }
-
     iterator begin()
     {
-      print_columns("begin()");
       return iterator(_local_table, _columns);
     }
 
@@ -470,7 +432,6 @@ static inline void register_ts_reader(Module & m)
             const std::vector<qdb_ts_range_t> &>())
 
         .def("__iter__", [](ts_reader<qdb::ts_dict_row> & r) {
-                           r.print_columns("__iter__ <dict_row> lambda");
                            return py::make_iterator(r.begin(), r.end()); }, py::keep_alive<0, 1>());
 }
 
