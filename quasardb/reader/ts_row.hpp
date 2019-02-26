@@ -60,7 +60,7 @@ public:
         : _local_table(local_table)
     {}
 
-    bool operator==(ts_row const & rhs) const noexcept
+    bool operator==(const ts_row & rhs) const noexcept
     {
         auto tie = [](const auto & ts) { return std::tie(ts.tv_sec, ts.tv_nsec); };
 
@@ -102,7 +102,7 @@ public:
         : ts_row()
     {}
 
-    ts_fast_row(qdb_local_table_t local_table, ts_columns_t const & columns)
+    ts_fast_row(qdb_local_table_t local_table, const ts_columns_t & columns)
         : ts_row(local_table)
         , _columns(columns)
     {}
@@ -165,7 +165,7 @@ public:
         : ts_row()
     {}
 
-    ts_dict_row(qdb_local_table_t local_table, ts_columns_t const & columns)
+    ts_dict_row(qdb_local_table_t local_table, const ts_columns_t & columns)
         : ts_row(local_table)
         , _indexed_columns(detail::index_columns(columns))
     {}
@@ -180,7 +180,7 @@ public:
         typedef std::map<std::string, py::object> map_type;
         map_type res;
 
-        for (auto c : _indexed_columns)
+        for (const auto & c : _indexed_columns)
         {
             qdb_size_t index = c.second.index;
 
@@ -193,7 +193,7 @@ public:
         return res;
     }
 
-    ts_value get_item(std::string const & alias) const
+    ts_value get_item(const std::string & alias) const
     {
         auto c = _indexed_columns.find(alias);
         if (c == _indexed_columns.end())
@@ -205,7 +205,7 @@ public:
         return ts_value(_local_table, indexed_column.index, indexed_column.type);
     }
 
-    void set_item(std::string const & /* alias */, std::string const & /* value */)
+    void set_item(const std::string & /* alias */, const std::string & /* value */)
     {
         // not implemented
     }

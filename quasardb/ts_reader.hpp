@@ -58,7 +58,7 @@ public:
         , _the_row(_local_table, _columns)
     {}
 
-    ts_reader_iterator(qdb_local_table_t local_table, ts_columns_t const & columns)
+    ts_reader_iterator(qdb_local_table_t local_table, const ts_columns_t & columns)
         : _local_table(local_table)
         , _columns(columns)
         , _the_row(_local_table, _columns)
@@ -67,7 +67,7 @@ public:
         ++(*this);
     }
 
-    bool operator==(ts_reader_iterator const & rhs) const noexcept
+    bool operator==(const ts_reader_iterator & rhs) const noexcept
     {
         // Our .end() iterator is recognized by a null local table, and we'll
         // ignore the actual row object.
@@ -80,7 +80,7 @@ public:
             return _local_table == rhs._local_table && _the_row == rhs._the_row;
         }
     }
-    bool operator!=(ts_reader_iterator const & rhs) const noexcept
+    bool operator!=(const ts_reader_iterator & rhs) const noexcept
     {
         return !(*this == rhs);
     }

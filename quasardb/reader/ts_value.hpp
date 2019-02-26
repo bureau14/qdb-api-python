@@ -108,11 +108,11 @@ private:
 
     py::handle blob() const
     {
-        void const * v = nullptr;
+        const void * v = nullptr;
         qdb_size_t l   = 0;
 
         qdb::qdb_throw_if_error(qdb_ts_row_get_blob(_local_table, _index, &v, &l));
-        return PyByteArray_FromStringAndSize(static_cast<char const *>(v), static_cast<Py_ssize_t>(l));
+        return PyByteArray_FromStringAndSize(static_cast<const char *>(v), static_cast<Py_ssize_t>(l));
     }
 
     py::handle double_() const

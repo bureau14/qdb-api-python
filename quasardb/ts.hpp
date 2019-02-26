@@ -76,7 +76,7 @@ public:
         return c_columns;
     }
 
-    detail::indexed_column_info column_info_by_id(std::string const & alias)
+    detail::indexed_column_info column_info_by_id(const std::string & alias)
     {
         if (_has_indexed_columns == false)
         {
@@ -92,12 +92,12 @@ public:
         return i->second;
     }
 
-    qdb_size_t column_index_by_id(std::string const & alias)
+    qdb_size_t column_index_by_id(const std::string & alias)
     {
         return column_info_by_id(alias).index;
     }
 
-    qdb_ts_column_type_t column_type_by_id(std::string const & alias)
+    qdb_ts_column_type_t column_type_by_id(const std::string & alias)
     {
         return column_info_by_id(alias).type;
     }
