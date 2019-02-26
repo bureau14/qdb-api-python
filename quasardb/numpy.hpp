@@ -96,7 +96,7 @@ namespace qdb
 namespace numpy
 {
 
-typedef PyDatetimeScalarObject py_datetime_t;
+// Everything below is custom code
 
 namespace detail
 {
@@ -113,26 +113,24 @@ inline static PyTypeObject * get_datetime64_type() noexcept
  * Allocate a new numpy.datetime64 python object. This invokes the numpy code
  * dynamically loaded at runtime.
  */
-inline static py_datetime_t * new_datetime64()
+inline static PyDatetimeScalarObject * new_datetime64()
 {
     PyTypeObject * type = detail::get_datetime64_type();
 
     // Allocate memory
-    py_datetime_t * res = reinterpret_cast<py_datetime_t *>(type->tp_alloc(type, 1));
+    PyDatetimeScalarObject * res = reinterpret_cast<PyDatetimeScalarObject *>(type->tp_alloc(type, 1));
 
     // Call constructor.
-    return PyObject_INIT_VAR(res, type, sizeof(py_datetime_t));
+    return PyObject_INIT_VAR(res, type, sizeof(PyDatetimeScalarObject));
 }
 } // namespace detail
-
-typedef PyDatetimeScalarObject py_datetime_t;
 
 /**
  * Convert nanoseconds int64 to a numpy datetime
  */
 inline static py::handle to_datetime64(std::int64_t ts)
 {
-    py_datetime_t * res = detail::new_datetime64();
+    PyDatetimeScalarObject * res = detail::new_datetime64();
 
     res->obmeta.num  = 1;         // version?
     res->obmeta.base = NPY_FR_ns; // our timestamps are always in ns
