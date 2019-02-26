@@ -137,6 +137,26 @@ public:
         // not implemented
     }
 
+
+    std::string repr() const
+    {
+      // This is inefficient because we first cast everything to Python objects, get the
+      // string representation and then cast back to c++ strings, but it's correct and
+      // effective, and it's used for debugging purposes only.
+      auto xs = copy();
+      std::string kvs = std::accumulate(xs.cbegin(),
+                                        xs.cend(),
+                                        std::string(),
+                                        [](std::string & acc, auto x) {
+                                          std::string s = py::str(x);
+                                          return acc.empty () ? s : acc + ", " + s;
+                                        });
+
+
+
+      return "[" + kvs + "]";
+    }
+
 private:
     ts_columns_t _columns;
 };
@@ -198,6 +218,24 @@ public:
         // not implemented
     }
 
+    std::string repr() const
+    {
+      // Same as ts_fast_row::repr, this is inefficient but it's ok
+      auto xs = copy();
+      std::string kvs = std::accumulate(xs.cbegin(),
+                                        xs.cend(),
+                                        std::string(),
+                                        [](std::string & acc, auto x) {
+                                          std::string s = "'" + x.first + "': " + std::string(py::str(x.second));
+                                          return acc.empty () ? s : acc + ", " + s;
+                                        });
+
+
+
+      return "{" + kvs + "}";
+    }
+
+
 private:
   detail::indexed_columns_t _indexed_columns;
 };
@@ -208,12 +246,14 @@ static inline void register_ts_row(Module & m)
     py::bind_vector<std::vector<py::object>>(m, "VectorObject");
 
     py::class_<ts_fast_row>{m, "TimeSeriesReaderFastRow"}
+        .def("__repr__", &ts_fast_row::repr)
         .def("__getitem__", &ts_fast_row::get_item, py::return_value_policy::move)
         .def("__setitem__", &ts_fast_row::set_item)
         .def("timestamp", &ts_fast_row::timestamp)
         .def("copy", &ts_fast_row::copy);
 
     py::class_<ts_dict_row>{m, "TimeSeriesReaderDictRow"}
+        .def("__repr__", &ts_dict_row::repr)
         .def("__getitem__", &ts_dict_row::get_item, py::return_value_policy::move)
         .def("__setitem__", &ts_dict_row::set_item)
         .def("timestamp", &ts_dict_row::timestamp)
