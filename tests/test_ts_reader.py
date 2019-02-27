@@ -99,8 +99,6 @@ def test_reader_can_select_columns(qdbd_connection, table, many_intervals):
 
     offset = 0
     for row in table.reader(columns=['the_int64', 'the_double']):
-        print(row)
-
         assert row[0] == integers[offset]
         assert row[1] == doubles[offset]
 
@@ -125,8 +123,6 @@ def test_reader_can_read_dicts(qdbd_connection, table, many_intervals):
 
     offset = 0
     for row in table.reader(dict=True):
-        print(row)
-
         assert row['the_double'] == doubles[offset]
         assert row['the_blob'] == blobs[offset]
         assert row['the_int64'] == integers[offset]
