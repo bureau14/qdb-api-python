@@ -30,10 +30,10 @@
  */
 #pragma once
 
-#include "../detail/ts_column.hpp"
-#include "../numpy.hpp"
-#include "../ts_convert.hpp"
 #include "ts_value.hpp"
+#include <numpy.hpp>
+#include <ts_convert.hpp>
+#include <detail/ts_column.hpp>
 #include <qdb/ts.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl_bind.h>

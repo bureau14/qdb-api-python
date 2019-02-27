@@ -56,6 +56,9 @@ include_directories(SYSTEM
     qdb/include
 )
 
+include_directories(
+  ${CMAKE_SOURCE_DIR})
+
 ##
 # step 2: copy the libraries
 #
