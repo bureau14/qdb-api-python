@@ -80,7 +80,7 @@ public:
      * Not exposed through Python, but allows the read_row operation to write the underlying
      * timestamp object directly.
      */
-    constexpr qdb_timespec_t & mutable_timestamp() noexcept
+    qdb_timespec_t & mutable_timestamp() noexcept
     {
         return _timestamp;
     }
