@@ -5,11 +5,15 @@ from functools import reduce
 import test_ts_batch as batchlib
 import numpy as np
 
-def test_reader_can_return_no_rows(qdbd_connection, table, many_intervals):
-    assert 0 == reduce(lambda x,y : x+1, table.reader(), 0)
 
-def test_reader_returns_correct_results(qdbd_connection, table, many_intervals):
-    batch_inserter = qdbd_connection.ts_batch(batchlib._make_ts_batch_info(table))
+def test_reader_can_return_no_rows(qdbd_connection, table, many_intervals):
+    assert 0 == reduce(lambda x, y: x + 1, table.reader(), 0)
+
+
+def test_reader_returns_correct_results(
+        qdbd_connection, table, many_intervals):
+    batch_inserter = qdbd_connection.ts_batch(
+        batchlib._make_ts_batch_info(table))
 
     doubles, blobs, integers, timestamps = batchlib._test_with_table(
         batch_inserter,
@@ -27,14 +31,17 @@ def test_reader_returns_correct_results(qdbd_connection, table, many_intervals):
 
         offset = offset + 1
 
-def test_reader_iterator_returns_reference(qdbd_connection, table, many_intervals, capsys):
+
+def test_reader_iterator_returns_reference(
+        qdbd_connection, table, many_intervals, capsys):
     # For performance reasons, our iterators are merely references to the
     # underlying local_table position. A side effect is that if the iterator moves
     # forward, all references will move forward as well.
     #
     # This is actually undesired, and this test is here to detect regressions in
     # behavior.
-    batch_inserter = qdbd_connection.ts_batch(batchlib._make_ts_batch_info(table))
+    batch_inserter = qdbd_connection.ts_batch(
+        batchlib._make_ts_batch_info(table))
 
     doubles, blobs, integers, timestamps = batchlib._test_with_table(
         batch_inserter,
@@ -49,7 +56,7 @@ def test_reader_iterator_returns_reference(qdbd_connection, table, many_interval
 
     for row in rows:
         # Timestamp is copied by value
-        assert type(row.timestamp()) == np.datetime64
+        assert isinstance(row.timestamp(), np.datetime64)
 
         with pytest.raises(quasardb.Error):
             print(str(row[0]))
@@ -63,11 +70,13 @@ def test_reader_iterator_returns_reference(qdbd_connection, table, many_interval
         with pytest.raises(quasardb.Error):
             print(str(row[3]))
 
+
 def test_reader_can_copy_rows(qdbd_connection, table, many_intervals):
     # As a mitigation to the local table reference issue tested above,
     # we provide the ability to copy rows.
 
-    batch_inserter = qdbd_connection.ts_batch(batchlib._make_ts_batch_info(table))
+    batch_inserter = qdbd_connection.ts_batch(
+        batchlib._make_ts_batch_info(table))
 
     doubles, blobs, integers, timestamps = batchlib._test_with_table(
         batch_inserter,
@@ -90,9 +99,11 @@ def test_reader_can_copy_rows(qdbd_connection, table, many_intervals):
 
         offset = offset + 1
 
+
 def test_reader_can_select_columns(qdbd_connection, table, many_intervals):
     # Verifies that we can select a subset of the total available columns.
-    batch_inserter = qdbd_connection.ts_batch(batchlib._make_ts_batch_info(table))
+    batch_inserter = qdbd_connection.ts_batch(
+        batchlib._make_ts_batch_info(table))
 
     doubles, blobs, integers, timestamps = batchlib._test_with_table(
         batch_inserter,
@@ -111,9 +122,11 @@ def test_reader_can_select_columns(qdbd_connection, table, many_intervals):
 
         offset = offset + 1
 
+
 def test_reader_can_request_ranges(qdbd_connection, table, many_intervals):
     # Verifies that we can select ranges
-    batch_inserter = qdbd_connection.ts_batch(batchlib._make_ts_batch_info(table))
+    batch_inserter = qdbd_connection.ts_batch(
+        batchlib._make_ts_batch_info(table))
 
     doubles, blobs, integers, timestamps = batchlib._test_with_table(
         batch_inserter,
@@ -124,12 +137,26 @@ def test_reader_can_request_ranges(qdbd_connection, table, many_intervals):
 
     first_range = (many_intervals[0], many_intervals[1])
     second_range = (many_intervals[1], many_intervals[2])
-    assert 1 == reduce(lambda x,y : x+1, table.reader(ranges=[first_range]), 0)
-    assert 2 == reduce(lambda x,y : x+1, table.reader(ranges=[first_range, second_range]), 0)
+    assert 1 == reduce(
+        lambda x,
+        y: x + 1,
+        table.reader(
+            ranges=[first_range]),
+        0)
+    assert 2 == reduce(
+        lambda x,
+        y: x + 1,
+        table.reader(
+            ranges=[
+                first_range,
+                second_range]),
+        0)
+
 
 def test_reader_can_read_dicts(qdbd_connection, table, many_intervals):
     # Verifies that we can select a subset of the total available columns.
-    batch_inserter = qdbd_connection.ts_batch(batchlib._make_ts_batch_info(table))
+    batch_inserter = qdbd_connection.ts_batch(
+        batchlib._make_ts_batch_info(table))
 
     doubles, blobs, integers, timestamps = batchlib._test_with_table(
         batch_inserter,
@@ -150,10 +177,12 @@ def test_reader_can_read_dicts(qdbd_connection, table, many_intervals):
 
         offset = offset + 1
 
+
 def test_reader_can_copy_rows(qdbd_connection, table, many_intervals):
     # Just like our regular row reader, our dict-based ready also needs to
     # copy the rows.
-    batch_inserter = qdbd_connection.ts_batch(batchlib._make_ts_batch_info(table))
+    batch_inserter = qdbd_connection.ts_batch(
+        batchlib._make_ts_batch_info(table))
 
     doubles, blobs, integers, timestamps = batchlib._test_with_table(
         batch_inserter,

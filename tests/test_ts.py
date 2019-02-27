@@ -130,6 +130,7 @@ def test_table_layout(table):
     assert col_list[3].name == "the_ts"
     assert col_list[3].type == quasardb.ColumnType.Timestamp
 
+
 def test_column_lookup(table):
     assert table.column_index_by_id("the_double") == 0
     assert table.column_index_by_id("the_blob") == 1

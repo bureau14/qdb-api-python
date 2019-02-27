@@ -117,6 +117,7 @@ def _test_with_table(
 
     return doubles, blobs, integers, timestamps
 
+
 def test_successful_bulk_row_insert(qdbd_connection, table, many_intervals):
     batch_inserter = qdbd_connection.ts_batch(_make_ts_batch_info(table))
 
@@ -128,7 +129,8 @@ def test_successful_bulk_row_insert(qdbd_connection, table, many_intervals):
         _regular_push)
 
 
-def test_successful_async_bulk_row_insert(qdbd_connection, table, many_intervals):
+def test_successful_async_bulk_row_insert(
+        qdbd_connection, table, many_intervals):
     # Same test as `test_successful_bulk_row_insert` but using `push_async` to push the entries
     # This allows us to test the `push_async` feature
 
