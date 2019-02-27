@@ -5,6 +5,9 @@ from functools import reduce
 import test_ts_batch as batchlib
 import numpy as np
 
+def test_reader_can_return_no_rows(qdbd_connection, table, many_intervals):
+    assert 0 == reduce(lambda x,y : x+1, table.reader(), 0)
+
 def test_reader_returns_correct_results(qdbd_connection, table, many_intervals):
     batch_inserter = qdbd_connection.ts_batch(batchlib._make_ts_batch_info(table))
 
