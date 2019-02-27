@@ -55,6 +55,10 @@ struct column_info
     {
         qdb_ts_column_info_t res;
 
+        // WARNING(leon): we assume that the lifetime of `this` is longer
+        // than `res`, and that the string does not need to be deep-copied.
+        //
+        // In our current code, this is the case.
         res.type = type;
         res.name = name.c_str();
 
