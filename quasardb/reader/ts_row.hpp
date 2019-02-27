@@ -37,6 +37,7 @@
 #include <qdb/ts.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl_bind.h>
+#include <type_traits>
 
 namespace py = pybind11;
 
@@ -98,9 +99,7 @@ protected:
 class ts_fast_row : public ts_row
 {
 public:
-    ts_fast_row() noexcept
-        : ts_row{}
-    {}
+    ts_fast_row() noexcept (std::is_default_constructible<ts_row>::value) = default;
 
     ts_fast_row(qdb_local_table_t local_table, const ts_columns_t & columns) noexcept
         : ts_row(local_table)
@@ -161,9 +160,7 @@ private:
 class ts_dict_row : public ts_row
 {
 public:
-    ts_dict_row() noexcept
-      : ts_row{}
-    {}
+    ts_dict_row() noexcept (std::is_default_constructible<ts_row>::value) = default;
 
     ts_dict_row(qdb_local_table_t local_table, const ts_columns_t & columns)
         : ts_row(local_table)
