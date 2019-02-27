@@ -202,7 +202,7 @@ public:
         return ts_value(_local_table, indexed_column.index, indexed_column.type);
     }
 
-    constexpr void set_item(const std::string & /* alias */, const std::string & /* value */) const noexcept
+    void set_item(const std::string & /* alias */, const std::string & /* value */) const noexcept
     {
         // not implemented
     }

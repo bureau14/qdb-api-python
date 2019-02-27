@@ -161,7 +161,7 @@ public:
     /**
      * We do not support Python->C++
      */
-    constexpr bool load(handle src, bool) const noexcept
+    bool load(handle src, bool) const noexcept
     {
         return false;
     }
