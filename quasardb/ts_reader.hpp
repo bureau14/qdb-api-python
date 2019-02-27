@@ -58,7 +58,7 @@ public:
     using value_type = RowType;
     using reference  = const value_type &;
 
-    friend bool operator==<>(const ts_reader_iterator<RowType> &, const ts_reader_iterator<RowType> &) noexcept;
+    friend bool operator==<RowType>(const ts_reader_iterator<RowType> &, const ts_reader_iterator<RowType> &) noexcept;
 
 public:
     ts_reader_iterator()
