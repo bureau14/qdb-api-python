@@ -49,28 +49,28 @@ namespace reader
 class ts_value
 {
 public:
-    ts_value()
-        : _local_table(nullptr)
-        , _index(-1)
-        , _type(qdb_ts_column_uninitialized)
+    ts_value() noexcept
+    : _local_table{nullptr}
+      , _index{-1}
+      , _type{qdb_ts_column_uninitialized}
     {}
 
-    ts_value(qdb_local_table_t local_table, int64_t index, qdb_ts_column_type_t type)
-        : _local_table(local_table)
-        , _index(index)
-        , _type(type)
+    ts_value(qdb_local_table_t local_table, int64_t index, qdb_ts_column_type_t type) noexcept
+      : _local_table{local_table}
+      , _index{index}
+      , _type{type}
     {}
 
-    ts_value(const ts_value & rhs)
-        : _local_table(rhs._local_table)
-        , _index(rhs._index)
-        , _type(rhs._type)
+    ts_value(const ts_value & rhs) noexcept
+      : _local_table{rhs._local_table}
+      , _index{rhs._index}
+      , _type{rhs._type}
     {}
 
-    ts_value(ts_value && rhs)
-        : _local_table(rhs._local_table)
-        , _index(rhs._index)
-        , _type(rhs._type)
+    ts_value(ts_value && rhs) noexcept
+      : _local_table{rhs._local_table}
+      , _index{rhs._index}
+      , _type{rhs._type}
     {
         rhs._local_table = nullptr;
         rhs._index       = -1;
@@ -166,7 +166,7 @@ public:
     /**
      * We do not support Python->C++
      */
-    bool load(handle src, bool)
+    constexpr bool load(handle src, bool) const noexcept
     {
         return false;
     }

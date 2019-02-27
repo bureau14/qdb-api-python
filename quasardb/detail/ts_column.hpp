@@ -96,12 +96,12 @@ struct indexed_column_info
 {
     indexed_column_info() = default;
 
-    indexed_column_info(qdb_ts_column_type_t t, qdb_size_t i)
+    indexed_column_info(qdb_ts_column_type_t t, qdb_size_t i) noexcept
         : type{t}
         , index{i}
     {}
 
-    indexed_column_info(const indexed_column_info & ici)
+    indexed_column_info(const indexed_column_info & ici) noexcept
         : indexed_column_info{ici.type, ici.index}
     {}
 

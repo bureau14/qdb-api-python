@@ -52,12 +52,12 @@ class ts_row
 {
 public:
     // We need a default constructor to due being copied as part of an iterator.
-    ts_row()
-        : _local_table(nullptr)
+    ts_row() noexcept
+    : _local_table{nullptr}
     {}
 
-    ts_row(qdb_local_table_t local_table)
-        : _local_table(local_table)
+    ts_row(qdb_local_table_t local_table) noexcept
+      : _local_table{local_table}
     {}
 
     bool operator==(const ts_row & rhs) const noexcept
@@ -80,7 +80,7 @@ public:
      * Not exposed through Python, but allows the read_row operation to write the underlying
      * timestamp object directly.
      */
-    qdb_timespec_t & mutable_timestamp()
+    constexpr qdb_timespec_t & mutable_timestamp() noexcept
     {
         return _timestamp;
     }
@@ -98,11 +98,11 @@ protected:
 class ts_fast_row : public ts_row
 {
 public:
-    ts_fast_row()
-        : ts_row()
+    ts_fast_row() noexcept
+        : ts_row{}
     {}
 
-    ts_fast_row(qdb_local_table_t local_table, const ts_columns_t & columns)
+    ts_fast_row(qdb_local_table_t local_table, const ts_columns_t & columns) noexcept
         : ts_row(local_table)
         , _columns(columns)
     {}
@@ -161,8 +161,8 @@ private:
 class ts_dict_row : public ts_row
 {
 public:
-    ts_dict_row()
-        : ts_row()
+    ts_dict_row() noexcept
+      : ts_row{}
     {}
 
     ts_dict_row(qdb_local_table_t local_table, const ts_columns_t & columns)
@@ -170,7 +170,7 @@ public:
         , _indexed_columns(detail::index_columns(columns))
     {}
 
-    ts_dict_row(const ts_dict_row & rhs)
+    ts_dict_row(const ts_dict_row & rhs) noexcept
         : ts_row(rhs._local_table)
         , _indexed_columns(rhs._indexed_columns)
     {}
@@ -205,7 +205,7 @@ public:
         return ts_value(_local_table, indexed_column.index, indexed_column.type);
     }
 
-    void set_item(const std::string & /* alias */, const std::string & /* value */)
+    constexpr void set_item(const std::string & /* alias */, const std::string & /* value */) const noexcept
     {
         // not implemented
     }

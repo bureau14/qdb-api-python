@@ -54,14 +54,14 @@ public:
 
 public:
     ts_reader_iterator()
-        : _local_table(nullptr)
-        , _the_row(_local_table, _columns)
+      : _local_table{nullptr}
+      , _the_row{_local_table, _columns}
     {}
 
     ts_reader_iterator(qdb_local_table_t local_table, const ts_columns_t & columns)
-        : _local_table(local_table)
-        , _columns(columns)
-        , _the_row(_local_table, _columns)
+      : _local_table{local_table}
+      , _columns{columns}
+      , _the_row{_local_table, _columns}
     {
         // Immediately try to move to the first row
         ++(*this);
@@ -122,9 +122,9 @@ public:
 
 public:
     ts_reader(qdb::handle_ptr h, const std::string & t, const ts_columns_t & c, const std::vector<qdb_ts_range_t> & r)
-        : _handle(h)
-        , _columns(c)
-        , _local_table(nullptr)
+      : _handle{h}
+      , _columns{c}
+      , _local_table{nullptr}
     {
         auto c_columns = convert_columns(c);
 
@@ -156,12 +156,12 @@ public:
         }
     }
 
-    iterator begin()
+    constexpr iterator begin() const
     {
         return iterator(_local_table, _columns);
     }
 
-    iterator end()
+    constexpr iterator end() const
     {
         return iterator();
     }
