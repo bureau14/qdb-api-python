@@ -60,7 +60,6 @@ using time_ranges = std::vector<time_range>;
 
 static inline qdb_ts_range_t convert_range(const time_range & tr) noexcept
 {
-
     return qdb_ts_range_t{convert_timestamp(tr.first), convert_timestamp(tr.second)};
 }
 
