@@ -67,29 +67,29 @@ struct column_info
 
 static std::vector<qdb_ts_column_info_t> convert_columns(const std::vector<column_info> & columns)
 {
-    std::vector<qdb_ts_column_info_t> c_columns(columns.size());
+    std::vector<qdb_ts_column_info_t> res(columns.size());
 
-    std::transform(columns.cbegin(), columns.cend(), c_columns.begin(), [](const column_info & ci) -> qdb_ts_column_info_t { return ci; });
+    std::transform(columns.cbegin(), columns.cend(), res.begin(), [](const column_info & ci) -> qdb_ts_column_info_t { return ci; });
 
-    return c_columns;
+    return res;
 }
 
 static std::vector<column_info> convert_columns(const qdb_ts_column_info_t * columns, size_t count)
 {
-    std::vector<column_info> c_columns(count);
+    std::vector<column_info> res(count);
 
-    std::transform(columns, columns + count, c_columns.begin(), [](const qdb_ts_column_info_t & ci) { return column_info{ci}; });
+    std::transform(columns, columns + count, res.begin(), [](const qdb_ts_column_info_t & ci) { return column_info{ci}; });
 
-    return c_columns;
+    return res;
 }
 
 static std::vector<std::string> column_list_to_strings(const std::vector<column_info> & columns)
 {
-    std::vector<std::string> s_columns(columns.size());
+    std::vector<std::string> res(columns.size());
 
-    std::transform(columns.cbegin(), columns.cend(), s_columns.begin(), [](const column_info & ci) -> std::string { return ci.name; });
+    std::transform(columns.cbegin(), columns.cend(), res.begin(), [](const column_info & ci) -> std::string { return ci.name; });
 
-    return s_columns;
+    return res;
 }
 
 struct indexed_column_info
