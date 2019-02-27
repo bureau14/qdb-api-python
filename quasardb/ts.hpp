@@ -41,8 +41,6 @@ namespace qdb
 
 class ts : public entry
 {
-
-public:
 public:
     ts(handle_ptr h, std::string a) noexcept
         : entry{h, a}
