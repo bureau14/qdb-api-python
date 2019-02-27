@@ -60,7 +60,7 @@ public:
         qdb::qdb_throw_if_error(qdb_ts_insert_columns(*_handle, _alias.c_str(), c_columns.data(), c_columns.size()));
     }
 
-    std::vector<detail::column_info> list_columns()
+    std::vector<detail::column_info> list_columns() const
     {
         qdb_ts_column_info_t * columns = nullptr;
         qdb_size_t count               = 0;
@@ -74,7 +74,7 @@ public:
         return c_columns;
     }
 
-    detail::indexed_column_info column_info_by_id(const std::string & alias)
+    detail::indexed_column_info column_info_by_id(const std::string & alias) const
     {
         if (_has_indexed_columns == false)
         {
@@ -90,17 +90,17 @@ public:
         return i->second;
     }
 
-    qdb_size_t column_index_by_id(const std::string & alias)
+    qdb_size_t column_index_by_id(const std::string & alias) const
     {
         return column_info_by_id(alias).index;
     }
 
-    qdb_ts_column_type_t column_type_by_id(const std::string & alias)
+    qdb_ts_column_type_t column_type_by_id(const std::string & alias) const
     {
         return column_info_by_id(alias).type;
     }
 
-    py::object reader(const std::vector<std::string> & columns, const time_ranges & ranges, bool dict_mode)
+    py::object reader(const std::vector<std::string> & columns, const time_ranges & ranges, bool dict_mode) const
     {
         std::vector<detail::column_info> c_columns;
 
@@ -238,8 +238,8 @@ public:
     }
 
 private:
-    bool _has_indexed_columns;
-    detail::indexed_columns_t _indexed_columns;
+    mutable bool _has_indexed_columns;
+    mutable detail::indexed_columns_t _indexed_columns;
 };
 
 template <typename Module>
