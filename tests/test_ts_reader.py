@@ -1,6 +1,7 @@
 # pylint: disable=C0103,C0111,C0302,W0212
 import pytest
 import quasardb
+from functools import reduce
 import test_ts_batch as batchlib
 import numpy as np
 
@@ -106,6 +107,22 @@ def test_reader_can_select_columns(qdbd_connection, table, many_intervals):
             print(str(row[2]))
 
         offset = offset + 1
+
+def test_reader_can_request_ranges(qdbd_connection, table, many_intervals):
+    # Verifies that we can select ranges
+    batch_inserter = qdbd_connection.ts_batch(batchlib._make_ts_batch_info(table))
+
+    doubles, blobs, integers, timestamps = batchlib._test_with_table(
+        batch_inserter,
+        table,
+        many_intervals,
+        batchlib._row_insertion_method,
+        batchlib._regular_push)
+
+    first_range = (many_intervals[0], many_intervals[1])
+    second_range = (many_intervals[1], many_intervals[2])
+    assert 1 == reduce(lambda x,y : x+1, table.reader(ranges=[first_range]), 0)
+    assert 2 == reduce(lambda x,y : x+1, table.reader(ranges=[first_range, second_range]), 0)
 
 def test_reader_can_read_dicts(qdbd_connection, table, many_intervals):
     # Verifies that we can select a subset of the total available columns.
