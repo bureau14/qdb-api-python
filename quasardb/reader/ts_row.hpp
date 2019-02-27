@@ -47,7 +47,7 @@ namespace qdb
 namespace reader
 {
 
-typedef std::vector<detail::column_info> ts_columns_t;
+using ts_columns_t = std::vector<detail::column_info>;
 
 class ts_row
 {
@@ -174,7 +174,7 @@ public:
 
     std::map<std::string, py::object> copy() const
     {
-        typedef std::map<std::string, py::object> map_type;
+        using map_type = std::map<std::string, py::object>;
         map_type res;
 
         for (const auto & c : _indexed_columns)

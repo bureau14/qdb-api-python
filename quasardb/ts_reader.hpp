@@ -43,7 +43,7 @@ namespace py = pybind11;
 namespace qdb
 {
 
-typedef std::vector<detail::column_info> ts_columns_t;
+using ts_columns_t = std::vector<detail::column_info>;
 
 template <typename RowType>
 class ts_reader_iterator
@@ -118,7 +118,7 @@ template <typename RowType>
 class ts_reader
 {
 public:
-    typedef ts_reader_iterator<RowType> iterator;
+    using iterator = ts_reader_iterator<RowType>;
 
 public:
     ts_reader(qdb::handle_ptr h, const std::string & t, const ts_columns_t & c, const std::vector<qdb_ts_range_t> & r)
