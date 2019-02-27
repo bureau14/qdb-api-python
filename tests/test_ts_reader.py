@@ -118,9 +118,6 @@ def test_reader_can_read_dicts(qdbd_connection, table, many_intervals):
         batchlib._row_insertion_method,
         batchlib._regular_push)
 
-    raw = {"foo": "bar", "baz": 1234}
-    print(raw)
-
     offset = 0
     for row in table.reader(dict=True):
         assert row['the_double'] == doubles[offset]
