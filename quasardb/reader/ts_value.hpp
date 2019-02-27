@@ -142,8 +142,8 @@ static inline void register_ts_value(Module & m)
     py::class_<ts_value>{m, "TimeSeriesReaderValue"};
 }
 
-}; // namespace reader
-}; // namespace qdb
+} // namespace reader
+} // namespace qdb
 
 namespace pybind11
 {
@@ -180,5 +180,5 @@ public:
     }
 };
 
-}; // namespace detail
-}; // namespace pybind11
+} // namespace detail
+} // namespace pybind11
