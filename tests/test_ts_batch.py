@@ -115,9 +115,12 @@ def _test_with_table(
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], timestamps)
 
+    return doubles, blobs, integers, timestamps
+
 
 def test_successful_bulk_row_insert(qdbd_connection, table, many_intervals):
     batch_inserter = qdbd_connection.ts_batch(_make_ts_batch_info(table))
+
     _test_with_table(
         batch_inserter,
         table,
@@ -125,12 +128,12 @@ def test_successful_bulk_row_insert(qdbd_connection, table, many_intervals):
         _row_insertion_method,
         _regular_push)
 
-# Same test as `test_successful_bulk_row_insert` but using `push_async` to push the entries
-# This allows us to test the `push_async` feature
-
 
 def test_successful_async_bulk_row_insert(
         qdbd_connection, table, many_intervals):
+    # Same test as `test_successful_bulk_row_insert` but using `push_async` to push the entries
+    # This allows us to test the `push_async` feature
+
     batch_inserter = qdbd_connection.ts_batch(_make_ts_batch_info(table))
     _test_with_table(
         batch_inserter,

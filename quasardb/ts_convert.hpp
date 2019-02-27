@@ -72,6 +72,12 @@ static inline std::vector<qdb_ts_range_t> convert_ranges(const time_ranges & ran
     return res;
 }
 
+// TODO: Is the a more compliant way to describe 'all data in a table'?
+static inline time_ranges all_ranges()
+{
+    return time_ranges{{0, std::numeric_limits<std::int64_t>::max()}};
+}
+
 static void update_str(qdb_ts_blob_point & pt, const char * s, size_t max_size) noexcept
 {
 #ifdef _MSC_VER

@@ -56,6 +56,9 @@ include_directories(SYSTEM
     qdb/include
 )
 
+include_directories(
+  ${CMAKE_SOURCE_DIR})
+
 ##
 # step 2: copy the libraries
 #
@@ -108,11 +111,15 @@ pybind11_add_module(quasardb
     ts.hpp
     ts_batch.hpp
     ts_convert.hpp
+    ts_reader.hpp
     tag.hpp
     utils.hpp
     version.hpp
     version.cpp
-    )
+
+    detail/ts_column.hpp
+    reader/ts_row.hpp
+    reader/ts_value.hpp)
 
 target_compile_definitions(quasardb PUBLIC QDB_PY_VERSION="${QDB_PY_VERSION}")
 target_link_libraries(quasardb PUBLIC ${QDB_API_LIB})

@@ -38,6 +38,7 @@
 #include "tag.hpp"
 #include "ts.hpp"
 #include "ts_batch.hpp"
+#include "ts_reader.hpp"
 #include "utils.hpp"
 #include "version.hpp"
 #include <qdb/node.h>
@@ -245,7 +246,7 @@ static inline void register_cluster(Module & m)
             py::arg("user_name")          = std::string{},                                                                              //
             py::arg("user_private_key")   = std::string{},                                                                              //
             py::arg("cluster_public_key") = std::string{},                                                                              //
-            py::arg("timeout")            = std::chrono::minutes{1})                                                                               //
+            py::arg("timeout")            = std::chrono::minutes{1})                                                                    //
         .def("options", &qdb::cluster::options)                                                                                         //
         .def("node_status", &qdb::cluster::node_status)                                                                                 //
         .def("node_config", &qdb::cluster::node_config)                                                                                 //

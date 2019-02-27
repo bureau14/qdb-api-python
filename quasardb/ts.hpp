@@ -32,89 +32,101 @@
 
 #include "entry.hpp"
 #include "ts_convert.hpp"
+#include "ts_reader.hpp"
+#include "detail/ts_column.hpp"
+#include "reader/ts_row.hpp"
 
 namespace qdb
 {
 
-struct column_info
-{
-    column_info() = default;
-
-    column_info(qdb_ts_column_type_t t, const std::string & n)
-        : type{t}
-        , name{n}
-    {}
-
-    column_info(const qdb_ts_column_info_t & ci)
-        : column_info{ci.type, ci.name}
-    {}
-
-    operator qdb_ts_column_info_t() const noexcept
-    {
-        qdb_ts_column_info_t res;
-
-        res.type = type;
-        res.name = name.c_str();
-
-        return res;
-    }
-
-    qdb_ts_column_type_t type{qdb_ts_column_uninitialized};
-    std::string name;
-};
-
-static std::vector<qdb_ts_column_info_t> convert_columns(const std::vector<column_info> & columns)
-{
-    std::vector<qdb_ts_column_info_t> c_columns(columns.size());
-
-    std::transform(columns.cbegin(), columns.cend(), c_columns.begin(), [](const column_info & ci) -> qdb_ts_column_info_t { return ci; });
-
-    return c_columns;
-}
-
-static std::vector<column_info> convert_columns(const qdb_ts_column_info_t * columns, size_t count)
-{
-    std::vector<column_info> c_columns(count);
-
-    std::transform(columns, columns + count, c_columns.begin(), [](const qdb_ts_column_info_t & ci) { return column_info{ci}; });
-
-    return c_columns;
-}
-
 class ts : public entry
 {
-
-public:
 public:
     ts(handle_ptr h, std::string a) noexcept
         : entry{h, a}
+        , _has_indexed_columns(false)
     {}
 
 public:
-    void create(const std::vector<column_info> & columns, std::chrono::milliseconds shard_size = std::chrono::hours{24})
+    void create(const std::vector<detail::column_info> & columns, std::chrono::milliseconds shard_size = std::chrono::hours{24})
     {
-        const auto c_columns = convert_columns(columns);
+        const auto c_columns = detail::convert_columns(columns);
         qdb::qdb_throw_if_error(qdb_ts_create(*_handle, _alias.c_str(), shard_size.count(), c_columns.data(), c_columns.size()));
     }
 
-    void insert_columns(const std::vector<column_info> & columns)
+    void insert_columns(const std::vector<detail::column_info> & columns)
     {
-        const auto c_columns = convert_columns(columns);
+        const auto c_columns = detail::convert_columns(columns);
         qdb::qdb_throw_if_error(qdb_ts_insert_columns(*_handle, _alias.c_str(), c_columns.data(), c_columns.size()));
     }
 
-    std::vector<column_info> list_columns()
+    std::vector<detail::column_info> list_columns() const
     {
         qdb_ts_column_info_t * columns = nullptr;
         qdb_size_t count               = 0;
 
         qdb::qdb_throw_if_error(qdb_ts_list_columns(*_handle, _alias.c_str(), &columns, &count));
 
-        auto c_columns = convert_columns(columns, count);
+        auto c_columns = detail::convert_columns(columns, count);
 
         qdb_release(*_handle, columns);
 
         return c_columns;
+    }
+
+    detail::indexed_column_info column_info_by_id(const std::string & alias) const
+    {
+        if (_has_indexed_columns == false)
+        {
+            // It's important to note that if additional columns are added during
+            // the lifetime of this object, we will not pick up on this in our cache.
+            _indexed_columns     = detail::index_columns(list_columns());
+            _has_indexed_columns = true;
+        }
+
+        detail::indexed_columns_t::const_iterator i = _indexed_columns.find(alias);
+        if (i == _indexed_columns.end()) throw qdb::exception{qdb_e_out_of_bounds};
+
+        return i->second;
+    }
+
+    qdb_size_t column_index_by_id(const std::string & alias) const
+    {
+        return column_info_by_id(alias).index;
+    }
+
+    qdb_ts_column_type_t column_type_by_id(const std::string & alias) const
+    {
+        return column_info_by_id(alias).type;
+    }
+
+    py::object reader(const std::vector<std::string> & columns, const time_ranges & ranges, bool dict_mode) const
+    {
+        std::vector<detail::column_info> c_columns;
+
+        if (columns.empty())
+        {
+            // This is a kludge, because technically a table can have no columns, and we're
+            // abusing it as "no argument provided". It's a highly exceptional use case, and
+            // doesn't really have any implication in practice (we just look up twice), so it
+            // should be ok.
+            c_columns = list_columns();
+        }
+        else
+        {
+            c_columns.reserve(columns.size());
+            // This transformation can probably be optimized, but it's only invoked when constructing
+            // the reader so it's unlikely to be a performance bottleneck.
+            std::transform(std::cbegin(columns), std::cend(columns), std::back_inserter(c_columns), [this](const auto & col) {
+                return detail::column_info{this->column_type_by_id(col), col};
+            });
+        }
+
+        auto r = convert_ranges(ranges);
+
+        return (dict_mode == true
+                    ? py::cast(qdb::ts_reader<reader::ts_dict_row>(_handle, _alias, c_columns, r), py::return_value_policy::move)
+                    : py::cast(qdb::ts_reader<reader::ts_fast_row>(_handle, _alias, c_columns, r), py::return_value_policy::move));
     }
 
 public:
@@ -124,7 +136,8 @@ public:
 
         qdb_uint_t erased_count = 0;
 
-        qdb::qdb_throw_if_error(qdb_ts_erase_ranges(*_handle, _alias.c_str(), column.c_str(), c_ranges.data(), c_ranges.size(), &erased_count));
+        qdb::qdb_throw_if_error(
+            qdb_ts_erase_ranges(*_handle, _alias.c_str(), column.c_str(), c_ranges.data(), c_ranges.size(), &erased_count));
 
         return erased_count;
     }
@@ -222,6 +235,10 @@ public:
 
         return res;
     }
+
+private:
+    mutable bool _has_indexed_columns;
+    mutable detail::indexed_columns_t _indexed_columns;
 };
 
 template <typename Module>
@@ -236,26 +253,29 @@ static inline void register_ts(Module & m)
         .value("Int64", qdb_ts_column_int64)                                          //
         .value("Timestamp", qdb_ts_column_timestamp);                                 //
 
-    py::class_<qdb::column_info>{m, "ColumnInfo"}                   //
-        .def(py::init<qdb_ts_column_type_t, const std::string &>()) //
-        .def_readwrite("type", &qdb::column_info::type)             //
-        .def_readwrite("name", &qdb::column_info::name);            //
-
     py::class_<qdb::ts, qdb::entry>{m, "TimeSeries"}                                                         //
         .def(py::init<qdb::handle_ptr, std::string>())                                                       //
         .def("create", &qdb::ts::create, py::arg("columns"), py::arg("shard_size") = std::chrono::hours{24}) //
-        .def("get_name", &qdb::ts::get_name) //
+        .def("get_name", &qdb::ts::get_name)                                                                 //
+        .def("column_index_by_id", &qdb::ts::column_index_by_id)                                             //
         .def("insert_columns", &qdb::ts::insert_columns)                                                     //
         .def("list_columns", &qdb::ts::list_columns)                                                         //
-        .def("erase_ranges", &qdb::ts::erase_ranges)                                                         //
-        .def("blob_insert", &qdb::ts::blob_insert)                                                           //
-        .def("double_insert", &qdb::ts::double_insert)                                                       //
-        .def("int64_insert", &qdb::ts::int64_insert)                                                         //
-        .def("timestamp_insert", &qdb::ts::timestamp_insert)                                                 //
-        .def("blob_get_ranges", &qdb::ts::blob_get_ranges)                                                   //
-        .def("double_get_ranges", &qdb::ts::double_get_ranges)                                               //
-        .def("int64_get_ranges", &qdb::ts::int64_get_ranges)                                                 //
-        .def("timestamp_get_ranges", &qdb::ts::timestamp_get_ranges);                                        //
+
+        // We cannot initialize columns with all columns by default, because i don't
+        // see a way to figure out the `this` address for qdb_ts_reader for the default
+        // arguments, and we need it to call qdb::ts::list_columns().
+        .def("reader", &qdb::ts::reader, py::arg("columns") = std::vector<std::string>(), py::arg("ranges") = all_ranges(),
+            py::arg("dict") = false)
+
+        .def("erase_ranges", &qdb::ts::erase_ranges)                  //
+        .def("blob_insert", &qdb::ts::blob_insert)                    //
+        .def("double_insert", &qdb::ts::double_insert)                //
+        .def("int64_insert", &qdb::ts::int64_insert)                  //
+        .def("timestamp_insert", &qdb::ts::timestamp_insert)          //
+        .def("blob_get_ranges", &qdb::ts::blob_get_ranges)            //
+        .def("double_get_ranges", &qdb::ts::double_get_ranges)        //
+        .def("int64_get_ranges", &qdb::ts::int64_get_ranges)          //
+        .def("timestamp_get_ranges", &qdb::ts::timestamp_get_ranges); //
 }
 
 } // namespace qdb
