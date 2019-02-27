@@ -108,7 +108,8 @@ public:
         {
             // This is a kludge, because technically a table can have no columns, and we're
             // abusing it as "no argument provided". It's a highly exceptional use case, and
-            // doesn't really have any implication in practice, so it should be ok.
+            // doesn't really have any implication in practice (we just look up twice), so it
+            // should be ok.
             c_columns = list_columns();
         }
         else
