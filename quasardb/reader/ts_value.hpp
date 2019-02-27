@@ -72,9 +72,6 @@ public:
       , _index{rhs._index}
       , _type{rhs._type}
     {
-        rhs._local_table = nullptr;
-        rhs._index       = -1;
-        rhs._type        = qdb_ts_column_uninitialized;
     };
 
     /**
