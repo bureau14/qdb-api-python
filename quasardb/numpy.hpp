@@ -33,25 +33,24 @@
 #include "ts_convert.hpp"
 #include <pybind11/numpy.h>
 
-/**
- * A datetime64 in numpy is modeled as a scalar array, which is not integrated
- * into pybind's adapters of numpy.
- *
- * In order to still be able to natively create numpy datetime64 instances, the
- * code below proxies the data structures that live inside the numpy code. This
- * will allow us to interact with the objects natively.
- *
- * This works both ways: we can accepts numpy.datetime64 as arguments, but also
- * create/return them.
- *
- * Sourced from:
- *   https://raw.githubusercontent.com/numpy/numpy/master/numpy/core/include/numpy/arrayscalars.h
- *   https://raw.githubusercontent.com/numpy/numpy/master/numpy/core/include/numpy/ndarraytypes.h
- *   https://github.com/numpy/numpy/blob/master/numpy/core/include/numpy/npy_common.h#L1077
- */
 
+// A datetime64 in numpy is modeled as a scalar array, which is not integrated
+// into pybind's adapters of numpy.
+//
+// In order to still be able to natively create numpy datetime64 instances, the
+// code below proxies the data structures that live inside the numpy code. This
+// will allow us to interact with the objects natively.
+//
+// This works both ways: we can accepts numpy.datetime64 as arguments, but also
+// create/return them.
+//
+// Sourced from:
+//   https://raw.githubusercontent.com/numpy/numpy/master/numpy/core/include/numpy/arrayscalars.h
+//   https://raw.githubusercontent.com/numpy/numpy/master/numpy/core/include/numpy/ndarraytypes.h
+//   https://github.com/numpy/numpy/blob/master/numpy/core/include/numpy/npy_common.h#L1077
+//
 // Begin numpy proxy
-
+//
 // From:
 //   https://raw.githubusercontent.com/numpy/numpy/master/numpy/core/include/numpy/ndarraytypes.h
 typedef enum
