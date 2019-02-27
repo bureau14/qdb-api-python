@@ -159,7 +159,7 @@ private:
 class ts_dict_row : public ts_row
 {
 public:
-    ts_dict_row() noexcept(std::is_default_constructible<ts_row>::value) = default;
+    ts_dict_row() noexcept = default;
 
     ts_dict_row(qdb_local_table_t local_table, const ts_columns_t & columns)
         : ts_row(local_table)
