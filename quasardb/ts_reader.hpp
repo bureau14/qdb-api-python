@@ -46,11 +46,19 @@ namespace qdb
 using ts_columns_t = std::vector<detail::column_info>;
 
 template <typename RowType>
+class ts_reader_iterator;
+
+template <typename RowType>
+bool operator==(const ts_reader_iterator<RowType> & lhs, const ts_reader_iterator <RowType> & rhs) noexcept;
+
+template <typename RowType>
 class ts_reader_iterator
 {
 public:
     using value_type = RowType;
     using reference  = const value_type &;
+
+  friend bool operator==<>(const ts_reader_iterator<RowType> &, const ts_reader_iterator<RowType> &);
 
 public:
     ts_reader_iterator()
@@ -67,19 +75,6 @@ public:
         ++(*this);
     }
 
-    bool operator==(const ts_reader_iterator & rhs) const noexcept
-    {
-        // Our .end() iterator is recognized by a null local table, and we'll
-        // ignore the actual row object.
-        if (rhs._local_table == nullptr || _local_table == nullptr)
-        {
-            return _local_table == rhs._local_table;
-        }
-        else
-        {
-            return _local_table == rhs._local_table && _the_row == rhs._the_row;
-        }
-    }
     bool operator!=(const ts_reader_iterator & rhs) const noexcept
     {
         return !(*this == rhs);
@@ -113,6 +108,21 @@ private:
     ts_columns_t _columns;
     value_type _the_row;
 };
+
+template <typename RowType>
+bool operator==(const ts_reader_iterator<RowType> & lhs, const ts_reader_iterator <RowType> & rhs) noexcept
+{
+  // Our .end() iterator is recognized by a null local table, and we'll
+  // ignore the actual row object.
+  if (lhs._local_table == nullptr || rhs._local_table == nullptr)
+    {
+      return lhs._local_table == rhs._local_table;
+    }
+  else
+    {
+      return lhs._local_table == rhs._local_table && lhs._the_row == rhs._the_row;
+    }
+}
 
 template <typename RowType>
 class ts_reader
