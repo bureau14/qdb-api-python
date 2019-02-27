@@ -52,9 +52,7 @@ class ts_row
 {
 public:
     // We need a default constructor to due being copied as part of an iterator.
-    ts_row() noexcept
-        : _local_table{nullptr}
-    {}
+    ts_row() noexcept = default;
 
     ts_row(qdb_local_table_t local_table) noexcept
         : _local_table{local_table}
@@ -86,7 +84,7 @@ public:
     }
 
 protected:
-    qdb_local_table_t _local_table;
+    qdb_local_table_t _local_table {nullptr};
     qdb_timespec_t _timestamp;
 };
 
@@ -139,12 +137,12 @@ public:
         // string representation and then cast back to c++ strings, but it's correct and
         // effective, and it's used for debugging purposes only.
         auto xs         = copy();
-        std::string kvs = std::accumulate(xs.cbegin(), xs.cend(), std::string(), [](std::string & acc, auto x) {
+        std::string kvs = std::accumulate(xs.cbegin(), xs.cend(), std::string(), [](std::string acc, auto x) {
             std::string s = py::str(x);
-            return acc.empty() ? s : acc + ", " + s;
+            return acc.empty() ? s : std::move(acc) + ", " + s;
         });
 
-        return "[" + kvs + "]";
+        return "[" + std::move(kvs) + "]";
     }
 
 private:
@@ -209,13 +207,13 @@ public:
     std::string repr() const
     {
         // Same as ts_fast_row::repr, this is inefficient but it's ok
-        auto xs         = copy();
-        std::string kvs = std::accumulate(xs.cbegin(), xs.cend(), std::string(), [](const std::string & acc, const auto & x) {
+        auto xs           = copy();
+        std::string items = std::accumulate(xs.cbegin(), xs.cend(), std::string(), [](std::string acc, const auto & x) {
             std::string s = "'" + x.first + "': " + std::string(py::str(x.second));
-            return acc.empty() ? s : acc + ", " + s;
+            return acc.empty() ? s : std::move(acc) + ", " + s;
         });
 
-        return "{" + kvs + "}";
+        return "{" + std::move(items) + "}";
     }
 
 private:
