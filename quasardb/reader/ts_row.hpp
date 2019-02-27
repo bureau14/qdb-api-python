@@ -31,12 +31,12 @@
 #pragma once
 
 #include "ts_value.hpp"
-#include <numpy.hpp>
-#include <ts_convert.hpp>
-#include <detail/ts_column.hpp>
 #include <qdb/ts.h>
+#include <detail/ts_column.hpp>
 #include <pybind11/numpy.h>
 #include <pybind11/stl_bind.h>
+#include <numpy.hpp>
+#include <ts_convert.hpp>
 #include <type_traits>
 
 namespace py = pybind11;
@@ -54,11 +54,11 @@ class ts_row
 public:
     // We need a default constructor to due being copied as part of an iterator.
     ts_row() noexcept
-    : _local_table{nullptr}
+        : _local_table{nullptr}
     {}
 
     ts_row(qdb_local_table_t local_table) noexcept
-      : _local_table{local_table}
+        : _local_table{local_table}
     {}
 
     bool operator==(const ts_row & rhs) const noexcept
@@ -99,7 +99,7 @@ protected:
 class ts_fast_row : public ts_row
 {
 public:
-    ts_fast_row() noexcept (std::is_default_constructible<ts_row>::value) = default;
+    ts_fast_row() noexcept(std::is_default_constructible<ts_row>::value) = default;
 
     ts_fast_row(qdb_local_table_t local_table, const ts_columns_t & columns) noexcept
         : ts_row(local_table)
@@ -160,7 +160,7 @@ private:
 class ts_dict_row : public ts_row
 {
 public:
-    ts_dict_row() noexcept (std::is_default_constructible<ts_row>::value) = default;
+    ts_dict_row() noexcept(std::is_default_constructible<ts_row>::value) = default;
 
     ts_dict_row(qdb_local_table_t local_table, const ts_columns_t & columns)
         : ts_row(local_table)

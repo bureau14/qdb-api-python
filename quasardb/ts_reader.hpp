@@ -49,7 +49,7 @@ template <typename RowType>
 class ts_reader_iterator;
 
 template <typename RowType>
-bool operator==(const ts_reader_iterator<RowType> & lhs, const ts_reader_iterator <RowType> & rhs) noexcept;
+bool operator==(const ts_reader_iterator<RowType> & lhs, const ts_reader_iterator<RowType> & rhs) noexcept;
 
 template <typename RowType>
 class ts_reader_iterator
@@ -58,18 +58,18 @@ public:
     using value_type = RowType;
     using reference  = const value_type &;
 
-  friend bool operator==<>(const ts_reader_iterator<RowType> &, const ts_reader_iterator<RowType> &);
+    friend bool operator==<>(const ts_reader_iterator<RowType> &, const ts_reader_iterator<RowType> &);
 
 public:
     ts_reader_iterator()
-      : _local_table{nullptr}
-      , _the_row{_local_table, _columns}
+        : _local_table{nullptr}
+        , _the_row{_local_table, _columns}
     {}
 
     ts_reader_iterator(qdb_local_table_t local_table, const ts_columns_t & columns)
-      : _local_table{local_table}
-      , _columns{columns}
-      , _the_row{_local_table, _columns}
+        : _local_table{local_table}
+        , _columns{columns}
+        , _the_row{_local_table, _columns}
     {
         // Immediately try to move to the first row
         ++(*this);
@@ -110,17 +110,17 @@ private:
 };
 
 template <typename RowType>
-bool operator==(const ts_reader_iterator<RowType> & lhs, const ts_reader_iterator <RowType> & rhs) noexcept
+bool operator==(const ts_reader_iterator<RowType> & lhs, const ts_reader_iterator<RowType> & rhs) noexcept
 {
-  // Our .end() iterator is recognized by a null local table, and we'll
-  // ignore the actual row object.
-  if (lhs._local_table == nullptr || rhs._local_table == nullptr)
+    // Our .end() iterator is recognized by a null local table, and we'll
+    // ignore the actual row object.
+    if (lhs._local_table == nullptr || rhs._local_table == nullptr)
     {
-      return lhs._local_table == rhs._local_table;
+        return lhs._local_table == rhs._local_table;
     }
-  else
+    else
     {
-      return lhs._local_table == rhs._local_table && lhs._the_row == rhs._the_row;
+        return lhs._local_table == rhs._local_table && lhs._the_row == rhs._the_row;
     }
 }
 
@@ -132,9 +132,9 @@ public:
 
 public:
     ts_reader(qdb::handle_ptr h, const std::string & t, const ts_columns_t & c, const std::vector<qdb_ts_range_t> & r)
-      : _handle{h}
-      , _columns{c}
-      , _local_table{nullptr}
+        : _handle{h}
+        , _columns{c}
+        , _local_table{nullptr}
     {
         auto c_columns = convert_columns(c);
 

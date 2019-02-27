@@ -117,10 +117,9 @@ public:
             c_columns.reserve(columns.size());
             // This transformation can probably be optimized, but it's only invoked when cosntructing
             // the reader so it's unlikely to be a performance bottleneck.
-            std::transform(std::cbegin(columns), std::cend(columns), std::back_inserter(c_columns),
-                           [this] (const auto & col) {
-                             return detail::column_info{this->column_type_by_id(col), col};
-                           });
+            std::transform(std::cbegin(columns), std::cend(columns), std::back_inserter(c_columns), [this](const auto & col) {
+                return detail::column_info{this->column_type_by_id(col), col};
+            });
         }
 
         auto r = convert_ranges(ranges);

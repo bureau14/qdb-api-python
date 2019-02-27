@@ -42,7 +42,7 @@ struct column_info
 {
     column_info() = default;
 
-    column_info(qdb_ts_column_type_t  t, const std::string & n)
+    column_info(qdb_ts_column_type_t t, const std::string & n)
         : type{t}
         , name{n}
     {}
@@ -109,7 +109,7 @@ struct indexed_column_info
     qdb_size_t index;
 };
 
-using indexed_columns_t =  std::map<std::string, indexed_column_info>;
+using indexed_columns_t = std::map<std::string, indexed_column_info>;
 
 template <typename ColumnType>
 static indexed_columns_t index_columns(const std::vector<ColumnType> & columns)
