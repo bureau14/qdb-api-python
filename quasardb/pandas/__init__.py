@@ -40,7 +40,20 @@ except ImportError:
     raise PandasRequired("The pandas library is required to handle pandas data formats")
 
 def as_series(table, col_name, ranges):
-    dispatch = {
+    """
+    Read a Pandas Timeseries from a single column.
+
+    Parameters:
+    table : str
+      QuasarDB Timeseries table object, e.g. qdb_cluster.ts('my_table')
+
+    col_name : str
+      Name of the column to read.
+
+    ranges : list
+      A list of ranges to read, represented as tuples of Numpy datetime64[ns] objects.
+    """
+    read_with = {
         quasardb.ColumnType.Double: table.double_get_ranges,
         quasardb.ColumnType.Blob: table.blob_get_ranges,
         quasardb.ColumnType.Int64: table.int64_get_ranges,
@@ -49,6 +62,33 @@ def as_series(table, col_name, ranges):
 
     # Dispatch based on column type
     t = table.column_type_by_id(col_name)
-    res = (dispatch[t])(col_name, ranges)
+    res = (read_with[t])(col_name, ranges)
 
     return Series(res[1], index=res[0])
+
+class QDBTable(PandasObject):
+    """
+    For mapping Pandas tables to QuasarDB tables.
+    """
+    def __init__(self, table):
+        self.table = table
+        self.df = None
+
+
+def as_dataframe(table):
+    """
+    Read a Pandas Dataframe from a QuasarDB Timeseries table.
+
+    Parameters:
+    table : str
+      QuasarDB Timeseries table object, e.g. qdb_cluster.ts('my_table')
+    """
+
+    columns = (c.name for c in table.list_columns())
+    rows = []
+    timestamps = []
+    for row in table.reader():
+        rows.append(row.copy())
+        timestamps.append(row.timestamp())
+
+    return DataFrame.from_records(rows, columns=columns, index=timestamps)
