@@ -33,6 +33,63 @@ def test_can_read_series(qdbd_connection, table, many_intervals):
     np.testing.assert_array_equal(int64_series.to_numpy(), integers)
     np.testing.assert_array_equal(ts_series.to_numpy(), timestamps)
 
+def test_bench_double_series(qdbd_connection, table, many_intervals, benchmark):
+    batch_inserter = qdbd_connection.ts_batch(
+        batchlib._make_ts_batch_info(table))
+
+    doubles, blobs, integers, timestamps = batchlib._test_with_table(
+        batch_inserter,
+        table,
+        many_intervals,
+        batchlib._row_insertion_method,
+        batchlib._regular_push)
+
+    total_range = (many_intervals[0], many_intervals[-1] + np.timedelta64(1, 's'))
+    benchmark(qdbpd.as_series, table, "the_double", [total_range])
+
+def test_bench_blob_series(qdbd_connection, table, many_intervals, benchmark):
+    batch_inserter = qdbd_connection.ts_batch(
+        batchlib._make_ts_batch_info(table))
+
+    doubles, blobs, integers, timestamps = batchlib._test_with_table(
+        batch_inserter,
+        table,
+        many_intervals,
+        batchlib._row_insertion_method,
+        batchlib._regular_push)
+
+    total_range = (many_intervals[0], many_intervals[-1] + np.timedelta64(1, 's'))
+    benchmark(qdbpd.as_series, table, "the_blob", [total_range])
+
+def test_bench_int64_series(qdbd_connection, table, many_intervals, benchmark):
+    batch_inserter = qdbd_connection.ts_batch(
+        batchlib._make_ts_batch_info(table))
+
+    doubles, blobs, integers, timestamps = batchlib._test_with_table(
+        batch_inserter,
+        table,
+        many_intervals,
+        batchlib._row_insertion_method,
+        batchlib._regular_push)
+
+    total_range = (many_intervals[0], many_intervals[-1] + np.timedelta64(1, 's'))
+    benchmark(qdbpd.as_series, table, "the_int64", [total_range])
+
+def test_bench_timestamp_series(qdbd_connection, table, many_intervals, benchmark):
+    batch_inserter = qdbd_connection.ts_batch(
+        batchlib._make_ts_batch_info(table))
+
+    doubles, blobs, integers, timestamps = batchlib._test_with_table(
+        batch_inserter,
+        table,
+        many_intervals,
+        batchlib._row_insertion_method,
+        batchlib._regular_push)
+
+    total_range = (many_intervals[0], many_intervals[-1] + np.timedelta64(1, 's'))
+    benchmark(qdbpd.as_series, table, "the_ts", [total_range])
+
+
 def test_can_read_dataframe(qdbd_connection, table, many_intervals):
     batch_inserter = qdbd_connection.ts_batch(
         batchlib._make_ts_batch_info(table))
@@ -49,3 +106,16 @@ def test_can_read_dataframe(qdbd_connection, table, many_intervals):
     np.testing.assert_array_equal(df['the_blob'].to_numpy(), blobs)
     np.testing.assert_array_equal(df['the_int64'].to_numpy(), integers)
     np.testing.assert_array_equal(df['the_ts'].to_numpy(), timestamps)
+
+def test_benchmark_dataframe(qdbd_connection, table, many_intervals, benchmark):
+    batch_inserter = qdbd_connection.ts_batch(
+        batchlib._make_ts_batch_info(table))
+
+    doubles, blobs, integers, timestamps = batchlib._test_with_table(
+        batch_inserter,
+        table,
+        many_intervals,
+        batchlib._row_insertion_method,
+        batchlib._regular_push)
+
+    benchmark(qdbpd.as_dataframe, table)
