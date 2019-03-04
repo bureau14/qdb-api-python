@@ -258,6 +258,7 @@ static inline void register_ts(Module & m)
         .def("create", &qdb::ts::create, py::arg("columns"), py::arg("shard_size") = std::chrono::hours{24}) //
         .def("get_name", &qdb::ts::get_name)                                                                 //
         .def("column_index_by_id", &qdb::ts::column_index_by_id)                                             //
+        .def("column_type_by_id", &qdb::ts::column_type_by_id)                                             //
         .def("insert_columns", &qdb::ts::insert_columns)                                                     //
         .def("list_columns", &qdb::ts::list_columns)                                                         //
 
