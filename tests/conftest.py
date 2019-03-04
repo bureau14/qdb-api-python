@@ -101,4 +101,4 @@ def intervals():
 def many_intervals():
     start_time = np.datetime64('2017-01-01', 'ns')
     return np.array([(start_time + np.timedelta64(i, 's'))
-                     for i in range(10)]).astype('datetime64[ns]')
+                     for i in range(10000)]).astype('datetime64[ns]')
