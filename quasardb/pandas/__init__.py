@@ -75,7 +75,7 @@ class QDBTable(PandasObject):
         self.df = None
 
 
-def as_dataframe(table):
+def as_dataframe(table, columns=None, ranges=None, index='$timestamp'):
     """
     Read a Pandas Dataframe from a QuasarDB Timeseries table.
 
@@ -84,11 +84,16 @@ def as_dataframe(table):
       QuasarDB Timeseries table object, e.g. qdb_cluster.ts('my_table')
     """
 
-    columns = (c.name for c in table.list_columns())
-    rows = []
-    timestamps = []
-    for row in table.reader():
-        rows.append(row.copy())
-        timestamps.append(row.timestamp())
+    if columns == None:
+        columns = list(c.name for c in table.list_columns())
 
-    return DataFrame.from_records(rows, columns=columns, index=timestamps)
+    reader = table.reader(columns=columns,
+                          ranges=ranges) if ranges else table.reader(columns=columns)
+
+    rows = []
+    for row in reader:
+        rows.append(row.copy())
+
+    columns.insert(0, '$timestamp')
+
+    return DataFrame.from_records(rows, columns=columns, index=index)
