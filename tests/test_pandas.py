@@ -128,13 +128,6 @@ def test_dataframe_can_keep_ordering(qdbd_connection, table, many_intervals):
         batchlib._row_insertion_method,
         batchlib._regular_push)
 
-    doubles2, blobs2, integers2, timestamps2 = batchlib._test_with_table(
-        batch_inserter,
-        table,
-        many_intervals,
-        batchlib._row_insertion_method,
-        batchlib._regular_push)
-
     doubles=_slice_lists(doubles1, doubles2)
     blobs=_slice_lists(blobs1, blobs2)
     integers=_slice_lists(integers1, integers2)
