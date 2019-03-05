@@ -66,23 +66,38 @@ def read_series(table, col_name, ranges):
 
     return Series(res[1], index=res[0])
 
-def read_dataframe(table, columns=None, ranges=None, index='$timestamp'):
+def read_dataframe(table, index='$timestamp', columns=None, ranges=None):
     """
     Read a Pandas Dataframe from a QuasarDB Timeseries table.
 
     Parameters:
     table : str
       QuasarDB Timeseries table object, e.g. qdb_cluster.ts('my_table')
+
+    columns : optional list
+      List of columns to read in dataframe. The timestamp column '$timestamp' is
+      always read.
+
+      Defaults to all columns.
+
+    index: optional str
+      Column name for dataframe index. Defaults to '$timestamp'
+
+    ranges: optional list
+      A list of time ranges to read, represented as tuples of Numpy datetime64[ns] objects.
+      Defaults to the entire table.
+
     """
 
     if columns == None:
         columns = list(c.name for c in table.list_columns())
 
-    reader = table.reader(columns=columns,
-                          ranges=ranges) if ranges else table.reader(columns=columns)
+    kwargs = {'columns': columns}
+    if ranges != None:
+        kwargs['ranges'] = ranges
 
     rows = []
-    for row in reader:
+    for row in table.reader(**kwargs):
         rows.append(row.copy())
 
     columns.insert(0, '$timestamp')
