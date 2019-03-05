@@ -24,13 +24,12 @@ def test_reader_returns_correct_results(
 
     offset = 0
     for row in table.reader():
-        assert row[0] == doubles[offset]
-        assert row[1] == blobs[offset]
-        assert row[2] == integers[offset]
-        assert row[3] == timestamps[offset]
+        assert row[1] == doubles[offset]
+        assert row[2] == blobs[offset]
+        assert row[3] == integers[offset]
+        assert row[4] == timestamps[offset]
 
         offset = offset + 1
-
 
 def test_reader_iterator_returns_reference(
         qdbd_connection, table, many_intervals, capsys):
@@ -56,10 +55,7 @@ def test_reader_iterator_returns_reference(
 
     for row in rows:
         # Timestamp is copied by value
-        assert isinstance(row.timestamp(), np.datetime64)
-
-        with pytest.raises(quasardb.Error):
-            print(str(row[0]))
+        assert isinstance(row[0], np.datetime64)
 
         with pytest.raises(quasardb.Error):
             print(str(row[1]))
@@ -70,6 +66,8 @@ def test_reader_iterator_returns_reference(
         with pytest.raises(quasardb.Error):
             print(str(row[3]))
 
+        with pytest.raises(quasardb.Error):
+            print(str(row[4]))
 
 def test_reader_can_copy_rows(qdbd_connection, table, many_intervals):
     # As a mitigation to the local table reference issue tested above,
@@ -92,10 +90,10 @@ def test_reader_can_copy_rows(qdbd_connection, table, many_intervals):
 
     offset = 0
     for row in rows:
-        assert row[0] == doubles[offset]
-        assert row[1] == blobs[offset]
-        assert row[2] == integers[offset]
-        assert row[3] == timestamps[offset]
+        assert row[1] == doubles[offset]
+        assert row[2] == blobs[offset]
+        assert row[3] == integers[offset]
+        assert row[4] == timestamps[offset]
 
         offset = offset + 1
 
@@ -114,14 +112,13 @@ def test_reader_can_select_columns(qdbd_connection, table, many_intervals):
 
     offset = 0
     for row in table.reader(columns=['the_int64', 'the_double']):
-        assert row[0] == integers[offset]
-        assert row[1] == doubles[offset]
+        assert row[1] == integers[offset]
+        assert row[2] == doubles[offset]
 
         with pytest.raises(IndexError):
-            print(str(row[2]))
+            print(str(row[3]))
 
         offset = offset + 1
-
 
 def test_reader_can_request_ranges(qdbd_connection, table, many_intervals):
     # Verifies that we can select ranges
@@ -167,6 +164,7 @@ def test_reader_can_read_dicts(qdbd_connection, table, many_intervals):
 
     offset = 0
     for row in table.reader(dict=True):
+        assert isinstance(row['$timestamp'], np.datetime64)
         assert row['the_double'] == doubles[offset]
         assert row['the_blob'] == blobs[offset]
         assert row['the_int64'] == integers[offset]
@@ -177,8 +175,7 @@ def test_reader_can_read_dicts(qdbd_connection, table, many_intervals):
 
         offset = offset + 1
 
-
-def test_reader_can_copy_rows(qdbd_connection, table, many_intervals):
+def test_reader_can_copy_dict_rows(qdbd_connection, table, many_intervals):
     # Just like our regular row reader, our dict-based ready also needs to
     # copy the rows.
     batch_inserter = qdbd_connection.ts_batch(

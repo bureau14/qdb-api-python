@@ -122,7 +122,7 @@ private:
         qdb_timespec_t v;
         qdb::qdb_throw_if_error(qdb_ts_row_get_timestamp(_local_table, _index, &v));
 
-        return qdb::numpy::to_datetime64(v);
+        return qdb::numpy::datetime64(v);
     }
 
 private:
