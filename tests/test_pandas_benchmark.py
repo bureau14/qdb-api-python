@@ -67,6 +67,8 @@ def test_benchmark_dataframe(qdbd_connection, table, many_intervals, benchmark):
     batch_inserter = qdbd_connection.ts_batch(
         batchlib._make_ts_batch_info(table))
 
+    total_range = (many_intervals[0], many_intervals[-1] + np.timedelta64(1, 's'))
+
     doubles, blobs, integers, timestamps = batchlib._test_with_table(
         batch_inserter,
         table,
@@ -74,4 +76,4 @@ def test_benchmark_dataframe(qdbd_connection, table, many_intervals, benchmark):
         batchlib._row_insertion_method,
         batchlib._regular_push)
 
-    benchmark(qdbpd.read_dataframe, table)
+    benchmark(qdbpd.read_dataframe, table, ranges=[total_range])

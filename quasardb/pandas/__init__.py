@@ -27,13 +27,14 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-import numpy as np
 import quasardb
 
 class PandasRequired(ImportError):
     pass
 
 try:
+    import pandas as pd
+    import numpy as np
     from pandas.core.api import DataFrame, Series
     from pandas.core.base import PandasObject
 except ImportError:
@@ -44,7 +45,7 @@ def read_series(table, col_name, ranges):
     Read a Pandas Timeseries from a single column.
 
     Parameters:
-    table : str
+    table : quasardb.Timeseries
       QuasarDB Timeseries table object, e.g. qdb_cluster.ts('my_table')
 
     col_name : str
@@ -71,7 +72,7 @@ def read_dataframe(table, index='$timestamp', columns=None, ranges=None):
     Read a Pandas Dataframe from a QuasarDB Timeseries table.
 
     Parameters:
-    table : str
+    table : quasardb.Timeseries
       QuasarDB Timeseries table object, e.g. qdb_cluster.ts('my_table')
 
     columns : optional list
@@ -96,10 +97,61 @@ def read_dataframe(table, index='$timestamp', columns=None, ranges=None):
     if ranges != None:
         kwargs['ranges'] = ranges
 
-    rows = []
-    for row in table.reader(**kwargs):
-        rows.append(row.copy())
+    xs = dict((c, (read_series(table, c, ranges))) for c in columns)
+    return DataFrame(data=xs)
 
-    columns.insert(0, '$timestamp')
+def write_dataframe(df, cluster, table, create=False, chunk_size=50000):
+    """
+    Store a dataframe into a table.
 
-    return DataFrame.from_records(rows, columns=columns, index=index)
+    Parameters:
+    df: pandas.DataFrame
+      The pandas dataframe to store.
+
+    cluster: quasardb.Cluster
+      Active connection to the QuasarDB cluster
+
+    table: quasardb.Timeseries or str
+      Either a string or a reference to a QuasarDB Timeseries table object.
+      For example, 'my_table' or cluster.ts('my_table') are both valid values.
+
+    create: optional bool
+      Whether to create the table. Defaults to false.
+    """
+
+    # Acquire reference to table if string is provided
+    if isinstance(table, str):
+        table = cluster.table(table)
+
+    # Create batch column info from dataframe
+    col_info = list(quasardb.BatchColumnInfo(table.get_name(), c, chunk_size) for c in df.columns)
+    batch = cluster.ts_batch(col_info)
+
+    write_with = [None]*len(df.columns)
+    for i in range(len(df.columns)):
+        c = df.columns[i]
+        dtype = df[c].dtype
+        if dtype == np.int64:
+            write_with[i] = batch.set_int64
+        elif dtype == np.float64:
+            write_with[i] = batch.set_double
+        elif dtype == np.object:
+            write_with[i] = batch.set_blob
+        elif dtype == np.dtype('M8[ns]'):
+            write_with[i] = lambda i, x: batch.set_timestamp(i, np.datetime64(x, 'ns'))
+        else:
+            raise ValueError("Incompatible data type for column " + c + ": ", dtype)
+
+    # Split the dataframe in chunks that equal our batch size
+    dfs = [df[i:i+chunk_size] for i in range(0,df.shape[0],chunk_size)]
+
+    for df in dfs:
+        for row in df.itertuples(index=True):
+            batch.start_row(np.datetime64(row[0], 'ns'))
+
+            for i in range(len(df.columns)):
+                fn = write_with[i]
+                v = row[i + 1]
+                fn(i, v)
+
+        batch.push()
