@@ -117,31 +117,31 @@ def _slice_lists(l, r):
     res[1::2] = l
     return res
 
-def test_dataframe_can_keep_ordering(qdbd_connection, table, many_intervals):
-    batch_inserter = qdbd_connection.ts_batch(
-        batchlib._make_ts_batch_info(table))
+# def test_dataframe_can_keep_ordering(qdbd_connection, table, many_intervals):
+#     batch_inserter = qdbd_connection.ts_batch(
+#         batchlib._make_ts_batch_info(table))
 
-    doubles1, blobs1, integers1, timestamps1 = batchlib._test_with_table(
-        batch_inserter,
-        table,
-        many_intervals,
-        batchlib._row_insertion_method,
-        batchlib._regular_push)
+#     doubles1, blobs1, integers1, timestamps1 = batchlib._test_with_table(
+#         batch_inserter,
+#         table,
+#         many_intervals,
+#         batchlib._row_insertion_method,
+#         batchlib._regular_push)
 
-    doubles=_slice_lists(doubles1, doubles2)
-    blobs=_slice_lists(blobs1, blobs2)
-    integers=_slice_lists(integers1, integers2)
-    timestamps=_slice_lists(timestamps1, timestamps2)
+#     doubles=_slice_lists(doubles1, doubles2)
+#     blobs=_slice_lists(blobs1, blobs2)
+#     integers=_slice_lists(integers1, integers2)
+#     timestamps=_slice_lists(timestamps1, timestamps2)
 
-    total_range = (many_intervals[0], many_intervals[-1] + np.timedelta64(1, 's'))
-    df = qdbpd.read_dataframe(table, ranges=[total_range])
+#     total_range = (many_intervals[0], many_intervals[-1] + np.timedelta64(1, 's'))
+#     df = qdbpd.read_dataframe(table, ranges=[total_range])
 
-    print(str(""))
+#     print(str(""))
 
-    offset = 0
-    for x in df['the_double'].to_numpy():
-        #print("x = ", str(x), ", doubles[offset] = ", str(doubles[offset]))
-        offset += 1
+#     offset = 0
+#     for x in df['the_double'].to_numpy():
+#         #print("x = ", str(x), ", doubles[offset] = ", str(doubles[offset]))
+#         offset += 1
 
     #print(str(df))
 
