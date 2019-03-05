@@ -137,6 +137,7 @@ def write_dataframe(df, cluster, table, create=False, chunk_size=50000):
             write_with[i] = batch.set_double
         elif dtype == np.object:
             write_with[i] = batch.set_blob
+        # Timestamps need to be converted so are a bit trickier
         elif dtype == np.dtype('M8[ns]'):
             write_with[i] = lambda i, x: batch.set_timestamp(i, np.datetime64(x, 'ns'))
         else:
