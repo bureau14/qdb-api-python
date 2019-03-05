@@ -164,5 +164,13 @@ def gen_df(start_time, count):
 
 
 def test_write_dataframe(qdbd_connection, table):
-    df = gen_df(np.datetime64('2017-01-01'), 10)
-    qdbpd.write_dataframe(df, qdbd_connection, table, chunk_size=4)
+    df1 = gen_df(np.datetime64('2017-01-01'), 10)
+    qdbpd.write_dataframe(df1, qdbd_connection, table, chunk_size=4)
+
+    df2 = qdbpd.read_dataframe(table, ranges=[((np.datetime64('2017-01-01', 'ns')),
+                                               (np.datetime64('2017-01-02', 'ns')))])
+
+    assert len(df1.columns) == len(df2.columns)
+    for c in df1.columns:
+        np.testing.assert_array_equal(df1[c].to_numpy(),
+                                      df2[c].to_numpy())
