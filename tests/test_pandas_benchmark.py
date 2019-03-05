@@ -18,7 +18,7 @@ def test_bench_double_series(qdbd_connection, table, many_intervals, benchmark):
         batchlib._regular_push)
 
     total_range = (many_intervals[0], many_intervals[-1] + np.timedelta64(1, 's'))
-    benchmark(qdbpd.as_series, table, "the_double", [total_range])
+    benchmark(qdbpd.read_series, table, "the_double", [total_range])
 
 def test_bench_blob_series(qdbd_connection, table, many_intervals, benchmark):
     batch_inserter = qdbd_connection.ts_batch(
@@ -32,7 +32,7 @@ def test_bench_blob_series(qdbd_connection, table, many_intervals, benchmark):
         batchlib._regular_push)
 
     total_range = (many_intervals[0], many_intervals[-1] + np.timedelta64(1, 's'))
-    benchmark(qdbpd.as_series, table, "the_blob", [total_range])
+    benchmark(qdbpd.read_series, table, "the_blob", [total_range])
 
 def test_bench_int64_series(qdbd_connection, table, many_intervals, benchmark):
     batch_inserter = qdbd_connection.ts_batch(
@@ -46,7 +46,7 @@ def test_bench_int64_series(qdbd_connection, table, many_intervals, benchmark):
         batchlib._regular_push)
 
     total_range = (many_intervals[0], many_intervals[-1] + np.timedelta64(1, 's'))
-    benchmark(qdbpd.as_series, table, "the_int64", [total_range])
+    benchmark(qdbpd.read_series, table, "the_int64", [total_range])
 
 def test_bench_timestamp_series(qdbd_connection, table, many_intervals, benchmark):
     batch_inserter = qdbd_connection.ts_batch(
@@ -60,7 +60,7 @@ def test_bench_timestamp_series(qdbd_connection, table, many_intervals, benchmar
         batchlib._regular_push)
 
     total_range = (many_intervals[0], many_intervals[-1] + np.timedelta64(1, 's'))
-    benchmark(qdbpd.as_series, table, "the_ts", [total_range])
+    benchmark(qdbpd.read_series, table, "the_ts", [total_range])
 
 
 def test_benchmark_dataframe(qdbd_connection, table, many_intervals, benchmark):
@@ -74,4 +74,4 @@ def test_benchmark_dataframe(qdbd_connection, table, many_intervals, benchmark):
         batchlib._row_insertion_method,
         batchlib._regular_push)
 
-    benchmark(qdbpd.as_dataframe, table)
+    benchmark(qdbpd.read_dataframe, table)

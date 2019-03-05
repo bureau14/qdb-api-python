@@ -39,7 +39,7 @@ try:
 except ImportError:
     raise PandasRequired("The pandas library is required to handle pandas data formats")
 
-def as_series(table, col_name, ranges):
+def read_series(table, col_name, ranges):
     """
     Read a Pandas Timeseries from a single column.
 
@@ -66,16 +66,7 @@ def as_series(table, col_name, ranges):
 
     return Series(res[1], index=res[0])
 
-class QDBTable(PandasObject):
-    """
-    For mapping Pandas tables to QuasarDB tables.
-    """
-    def __init__(self, table):
-        self.table = table
-        self.df = None
-
-
-def as_dataframe(table, columns=None, ranges=None, index='$timestamp'):
+def read_dataframe(table, columns=None, ranges=None, index='$timestamp'):
     """
     Read a Pandas Dataframe from a QuasarDB Timeseries table.
 
