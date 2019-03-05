@@ -138,30 +138,45 @@ inline static PyDatetimeScalarObject * new_datetime64()
     // Call constructor.
     return PyObject_INIT_VAR(res, type, sizeof(PyDatetimeScalarObject));
 }
-} // namespace detail
+
+inline bool PyDatetime64_Check(PyObject * o) {
+  // TODO(leon): validate that object is actually a PyDatetime64ScalarObject (how?)
+  return true;
+}
 
 /**
- * Convert nanoseconds int64 to a numpy datetime
+ * Convert nanoseconds int64 to a numpy datetime. Returns a new reference to a PyObject *.
  */
-inline static py::handle to_datetime64(std::int64_t ts)
+inline static PyObject * to_datetime64(std::int64_t ts)
 {
     PyDatetimeScalarObject * res = detail::new_datetime64();
 
-    res->obmeta.num  = 1;         // version?
+    res->obmeta.num  = 1;         // refcount ?
     res->obmeta.base = NPY_FR_ns; // our timestamps are always in ns
     res->obval       = ts;
 
-    return reinterpret_cast<PyObject *>(res);
+    // Ensure that we create a new reference for the caller
+    Py_INCREF(res);
+
+    return reinterpret_cast <PyObject *> (res);
 }
 
-/**
- * Convenience function, directly convert a qdb_timespec to numpy
- * datetime PyObject
- */
-inline static py::handle to_datetime64(const qdb_timespec_t & ts)
-{
-    return to_datetime64(convert_timestamp(ts));
-}
+} // namespace detail
+
+class datetime64 : public py::object {
+public:
+  PYBIND11_OBJECT_DEFAULT(datetime64, object, detail::PyDatetime64_Check)
+
+  datetime64(std::int64_t ts)
+  : py::object(py::reinterpret_steal<py::object>(detail::to_datetime64(ts)))
+  {
+  }
+
+  datetime64(const qdb_timespec_t & ts)
+    : datetime64(convert_timestamp(ts))
+  {
+  }
+};
 
 } // namespace numpy
 } // namespace qdb
