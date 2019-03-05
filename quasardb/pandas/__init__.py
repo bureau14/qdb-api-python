@@ -133,7 +133,7 @@ def write_dataframe(df, cluster, table, create=False, chunk_size=50000):
         dtype = df[c].dtype
         if dtype == np.int64:
             write_with[i] = batch.set_int64
-        if dtype == np.int32:
+        elif dtype == np.int32:
             write_with[i] = batch.set_int64
         elif dtype == np.float64:
             write_with[i] = batch.set_double
