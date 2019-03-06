@@ -74,8 +74,6 @@ public:
         , _alias{a}
     {}
 
-    ~entry() = default;
-
 public:
     bool attach_tag(const std::string & tag)
     {
@@ -132,7 +130,7 @@ public:
         qdb::qdb_throw_if_error(qdb_remove(*_handle, _alias.c_str()));
     }
 
-    qdb::hostname get_location()
+    qdb::hostname get_location() const
     {
         qdb_remote_node_t rn;
 
@@ -145,7 +143,7 @@ public:
         return res;
     }
 
-    metadata get_metadata()
+    metadata get_metadata() const
     {
         qdb_entry_metadata_t md;
 
@@ -154,12 +152,12 @@ public:
         return metadata{md};
     }
 
-    qdb_entry_type_t get_entry_type()
+    qdb_entry_type_t get_entry_type() const
     {
         return get_metadata().type;
     }
 
-    constexpr const std::string & get_name() const
+    const std::string & get_name() const noexcept
     {
         return _alias;
     }
