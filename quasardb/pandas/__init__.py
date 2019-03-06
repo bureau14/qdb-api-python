@@ -88,6 +88,32 @@ def read_series(table, col_name, ranges=None):
 
     return Series(res[1], index=res[0])
 
+def write_series(series, table, col_name):
+    """
+    Writes a Pandas Timeseries to a single column.
+
+    Parameters:
+    series : pandas.Series
+      Pandas Series, with a numpy.datetime64[ns] as index. Underlying data will be attempted
+      to be transformed to appropriate QuasarDB type.
+
+    table : quasardb.Timeseries
+      QuasarDB Timeseries table object, e.g. qdb_cluster.ts('my_table')
+
+    col_name : str
+      Column name to store data in.
+    """
+    write_with = {
+        quasardb.ColumnType.Double: table.double_insert,
+        quasardb.ColumnType.Blob: table.blob_insert,
+        quasardb.ColumnType.Int64: table.int64_insert,
+        quasardb.ColumnType.Timestamp: table.timestamp_insert
+    }
+
+    t = table.column_type_by_id(col_name)
+    res = (write_with[t])(col_name, series.index.to_numpy(), series.to_numpy())
+
+
 def read_dataframe(table, row_index=False, columns=None, ranges=None):
     """
     Read a Pandas Dataframe from a QuasarDB Timeseries table.

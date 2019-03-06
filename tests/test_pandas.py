@@ -8,6 +8,7 @@ import pandas as pd
 import test_ts as tslib
 import test_ts_batch as batchlib
 
+row_count = 1000
 
 def gen_df(start_time, count):
     idx = pd.date_range(start_time, periods=count, freq='S')
@@ -19,34 +20,35 @@ def gen_df(start_time, count):
                                                   for i in range(count)]).astype('datetime64[ns]')},
                         index=idx)
 
-def test_can_read_series(qdbd_connection, table, many_intervals):
-    batch_inserter = qdbd_connection.ts_batch(
-        batchlib._make_ts_batch_info(table))
+def gen_series(start_time, count):
+    idx = pd.date_range(start_time, periods=count, freq='S')
 
-    doubles, blobs, integers, timestamps = batchlib._test_with_table(
-        batch_inserter,
-        table,
-        many_intervals,
-        batchlib._row_insertion_method,
-        batchlib._regular_push)
+    return {"the_double": pd.Series(np.random.uniform(-100.0, 100.0, count),
+                                    index=idx),
+            "the_int64": pd.Series(np.random.randint(-100, 100, count),
+                                   index=idx),
+            "the_blob": pd.Series(np.array([(b"content_" + bytes(item)) for item in range(count)]),
+                                  index=idx),
+            "the_ts": pd.Series(np.array([(start_time + np.timedelta64(i, 's'))
+                                                  for i in range(count)]).astype('datetime64[ns]'),
+                                index=idx)}
 
-    double_series = qdbpd.read_series(table, "the_double")
-    blob_series = qdbpd.read_series(table, "the_blob")
-    int64_series = qdbpd.read_series(table, "the_int64")
-    ts_series = qdbpd.read_series(table, "the_ts")
+def test_series_read_write(qdbd_connection, table, many_intervals):
+    sx = gen_series(np.datetime64('2017-01-01', 'ns'), row_count)
 
-    assert type(double_series) == pd.core.series.Series
-    assert type(blob_series) == pd.core.series.Series
-    assert type(int64_series) == pd.core.series.Series
-    assert type(ts_series) == pd.core.series.Series
+    # Insert everything
+    for c in sx:
+        qdbpd.write_series(sx[c], table, c)
 
-    np.testing.assert_array_equal(double_series.to_numpy(), doubles)
-    np.testing.assert_array_equal(blob_series.to_numpy(), blobs)
-    np.testing.assert_array_equal(int64_series.to_numpy(), integers)
-    np.testing.assert_array_equal(ts_series.to_numpy(), timestamps)
+    # Read everything
+    for c in sx:
+        s = qdbpd.read_series(table, c)
+        assert type(s) == pd.core.series.Series
+        assert s.size == row_count
+        np.testing.assert_array_equal(s.to_numpy(), sx[c].to_numpy())
 
 def test_dataframe(qdbd_connection, table, many_intervals):
-    df1 = gen_df(np.datetime64('2017-01-01'), 1000)
+    df1 = gen_df(np.datetime64('2017-01-01'), row_count)
     qdbpd.write_dataframe(df1, qdbd_connection, table)
 
     df2 = qdbpd.read_dataframe(table)
@@ -56,7 +58,7 @@ def test_dataframe(qdbd_connection, table, many_intervals):
         np.testing.assert_array_equal(df1[c].to_numpy(), df2[c].to_numpy())
 
 def test_dataframe_can_read_columns(qdbd_connection, table, many_intervals):
-    df1 = gen_df(np.datetime64('2017-01-01'), 1000)
+    df1 = gen_df(np.datetime64('2017-01-01'), row_count)
     qdbpd.write_dataframe(df1, qdbd_connection, table)
 
     df2 = qdbpd.read_dataframe(table, columns=['the_double', 'the_int64'])
@@ -84,7 +86,7 @@ def test_dataframe_can_read_ranges(qdbd_connection, table, many_intervals):
 
 def test_write_dataframe(qdbd_connection, table):
     # Ensures that we can do a full-circle write and read of a dataframe
-    df1 = gen_df(np.datetime64('2017-01-01'), 10)
+    df1 = gen_df(np.datetime64('2017-01-01'), row_count)
     qdbpd.write_dataframe(df1, qdbd_connection, table, chunk_size=4)
 
     df2 = qdbpd.read_dataframe(table)
@@ -95,7 +97,7 @@ def test_write_dataframe(qdbd_connection, table):
 
 def test_write_dataframe_create_table(qdbd_connection, entry_name):
     table = qdbd_connection.ts(entry_name)
-    df1 = gen_df(np.datetime64('2017-01-01'), 10000)
+    df1 = gen_df(np.datetime64('2017-01-01'), row_count)
     qdbpd.write_dataframe(df1, qdbd_connection, table, create=True)
 
     df2 = qdbpd.read_dataframe(table)
