@@ -53,7 +53,8 @@ public:
         metadata() noexcept
         {}
 
-        // we need to adjust for timezone as quasardb is UTC and pybind11 will assume local date time points
+        // we need to adjust for timezone as quasardb is UTC and pybind11 will
+        // assume local date time points
         metadata(const qdb_entry_metadata_t & md) noexcept
             : type{md.type}
             , size{md.size}
@@ -72,6 +73,8 @@ public:
         : _handle{h}
         , _alias{a}
     {}
+
+    ~entry() = default;
 
 public:
     bool attach_tag(const std::string & tag)
