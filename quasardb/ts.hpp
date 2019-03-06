@@ -48,6 +48,12 @@ public:
     {}
 
 public:
+
+    std::string repr() const
+    {
+        return "<quasardb.TimeSeries name='" + get_name() + "'>";
+    }
+
     void create(const std::vector<detail::column_info> & columns, std::chrono::milliseconds shard_size = std::chrono::hours{24})
     {
         const auto c_columns = detail::convert_columns(columns);
@@ -255,6 +261,7 @@ static inline void register_ts(Module & m)
 
     py::class_<qdb::ts, qdb::entry>{m, "TimeSeries"}                                                         //
         .def(py::init<qdb::handle_ptr, std::string>())                                                       //
+        .def("__repr__", &qdb::ts::repr)
         .def("create", &qdb::ts::create, py::arg("columns"), py::arg("shard_size") = std::chrono::hours{24}) //
         .def("get_name", &qdb::ts::get_name)                                                                 //
         .def("column_index_by_id", &qdb::ts::column_index_by_id)                                             //
