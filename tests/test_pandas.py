@@ -149,8 +149,8 @@ def gen_df(start_time, count):
 
 def test_write_dataframe(qdbd_connection, table):
     # Ensures that we can do a full-circle write and read of a dataframe
-    df1 = gen_df(np.datetime64('2017-01-01'), 10000)
-    qdbpd.write_dataframe(df1, qdbd_connection, table, chunk_size=4000)
+    df1 = gen_df(np.datetime64('2017-01-01'), 10)
+    qdbpd.write_dataframe(df1, qdbd_connection, table, chunk_size=4)
 
     df2 = qdbpd.read_dataframe(table)
 
