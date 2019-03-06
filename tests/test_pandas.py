@@ -154,16 +154,9 @@ def test_write_dataframe(qdbd_connection, table):
 
     df2 = qdbpd.read_dataframe(table)
 
-     # Ensure equal sorting of columns
-    df2 = df2.reindex(df1.columns, axis=1)
-
-    print("")
-    print("df1:")
-    print(str(df1))
-    print("df2:")
-    print(str(df2))
-
-    assert df1.equals(df2)
+    assert len(df1.columns) == len(df2.columns)
+    for c in df1.columns:
+        np.testing.assert_array_equal(df1[c].to_numpy(), df2[c].to_numpy())
 
 def test_write_dataframe_create_table(qdbd_connection, entry_name):
     table = qdbd_connection.ts(entry_name)
@@ -172,7 +165,6 @@ def test_write_dataframe_create_table(qdbd_connection, entry_name):
 
     df2 = qdbpd.read_dataframe(table)
 
-     # Ensure equal sorting of columns
-    df2 = df2.reindex(df1.columns, axis=1)
-
-    assert df1.equals(df2)
+    assert len(df1.columns) == len(df2.columns)
+    for c in df1.columns:
+        np.testing.assert_array_equal(df1[c].to_numpy(), df2[c].to_numpy())
