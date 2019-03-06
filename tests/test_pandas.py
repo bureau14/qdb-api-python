@@ -157,6 +157,12 @@ def test_write_dataframe(qdbd_connection, table):
      # Ensure equal sorting of columns
     df2 = df2.reindex(df1.columns, axis=1)
 
+    print("")
+    print("df1:")
+    print(str(df1))
+    print("df2:")
+    print(str(df2))
+
     assert df1.equals(df2)
 
 def test_write_dataframe_create_table(qdbd_connection, entry_name):
