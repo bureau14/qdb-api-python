@@ -54,7 +54,7 @@ _dtype_map = {
     np.dtype('M8[ns]'): quasardb.ColumnType.Timestamp
 }
 
-def read_series(table, col_name, ranges):
+def read_series(table, col_name, ranges=None):
     """
     Read a Pandas Timeseries from a single column.
 
@@ -75,9 +75,16 @@ def read_series(table, col_name, ranges):
         quasardb.ColumnType.Timestamp: table.timestamp_get_ranges,
     }
 
+    kwargs = {
+        'column': col_name
+    }
+
+    if ranges:
+        kwargs['ranges'] = ranges
+
     # Dispatch based on column type
     t = table.column_type_by_id(col_name)
-    res = (read_with[t])(col_name, ranges)
+    res = (read_with[t])(**kwargs)
 
     return Series(res[1], index=res[0])
 
@@ -106,10 +113,6 @@ def read_dataframe(table, index='$timestamp', columns=None, ranges=None):
 
     if columns == None:
         columns = list(c.name for c in table.list_columns())
-
-    kwargs = {'columns': columns}
-    if ranges != None:
-        kwargs['ranges'] = ranges
 
     xs = dict((c, (read_series(table, c, ranges))) for c in columns)
     return DataFrame(data=xs)
