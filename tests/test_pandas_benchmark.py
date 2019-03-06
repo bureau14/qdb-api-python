@@ -5,6 +5,7 @@ from functools import reduce
 import numpy as np
 import pandas as pd
 import test_ts_batch as batchlib
+import test_pandas as pandaslib
 
 def test_bench_double_series(qdbd_connection, table, many_intervals, benchmark):
     batch_inserter = qdbd_connection.ts_batch(
@@ -77,3 +78,8 @@ def test_benchmark_dataframe(qdbd_connection, table, many_intervals, benchmark):
         batchlib._regular_push)
 
     benchmark(qdbpd.read_dataframe, table, ranges=[total_range])
+
+def test_benchmark_write_dataframe(qdbd_connection, table, many_intervals, benchmark):
+    # Ensures that we can do a full-circle write and read of a dataframe
+    df = pandaslib.gen_df(np.datetime64('2017-01-01'), len(many_intervals))
+    benchmark(qdbpd.write_dataframe, df, qdbd_connection, table)

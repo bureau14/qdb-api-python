@@ -29,6 +29,7 @@
 
 import quasardb
 
+
 class PandasRequired(ImportError):
     pass
 
@@ -39,6 +40,19 @@ try:
     from pandas.core.base import PandasObject
 except ImportError:
     raise PandasRequired("The pandas library is required to handle pandas data formats")
+
+
+
+# Constant mapping of numpy dtype to QuasarDB column type
+# TODO(leon): support this natively in qdb C api ? we have everything we need
+#             to understand dtypes.
+_dtype_map = {
+    np.dtype('int64'): quasardb.ColumnType.Int64,
+    np.dtype('int32'): quasardb.ColumnType.Int64,
+    np.dtype('float64'): quasardb.ColumnType.Double,
+    np.dtype('object'): quasardb.ColumnType.Blob,
+    np.dtype('M8[ns]'): quasardb.ColumnType.Timestamp
+}
 
 def read_series(table, col_name, ranges):
     """
@@ -123,38 +137,44 @@ def write_dataframe(df, cluster, table, create=False, chunk_size=50000):
     if isinstance(table, str):
         table = cluster.table(table)
 
+    if create:
+        _create_table_from_df(df, table)
+
     # Create batch column info from dataframe
     col_info = list(quasardb.BatchColumnInfo(table.get_name(), c, chunk_size) for c in df.columns)
     batch = cluster.ts_batch(col_info)
 
-    write_with = [None]*len(df.columns)
-    for i in range(len(df.columns)):
-        c = df.columns[i]
-        dtype = df[c].dtype
-        if dtype == np.int64:
-            write_with[i] = batch.set_int64
-        elif dtype == np.int32:
-            write_with[i] = batch.set_int64
-        elif dtype == np.float64:
-            write_with[i] = batch.set_double
-        elif dtype == np.object:
-            write_with[i] = batch.set_blob
-        # Timestamps need to be converted so are a bit trickier
-        elif dtype == np.dtype('M8[ns]'):
-            write_with[i] = lambda i, x: batch.set_timestamp(i, np.datetime64(x, 'ns'))
-        else:
-            raise ValueError("Incompatible data type for column " + c + ": ", dtype)
+    write_with = {
+        quasardb.ColumnType.Double: batch.set_double,
+        quasardb.ColumnType.Blob: batch.set_blob,
+        quasardb.ColumnType.Int64: batch.set_int64,
+        quasardb.ColumnType.Timestamp: lambda i, x: batch.set_timestamp(i, np.datetime64(x, 'ns'))
+    }
 
     # Split the dataframe in chunks that equal our batch size
     dfs = [df[i:i+chunk_size] for i in range(0,df.shape[0],chunk_size)]
 
     for df in dfs:
+        # TODO(leon): use pinned columns so we can write entire numpy arrays
         for row in df.itertuples(index=True):
             batch.start_row(np.datetime64(row[0], 'ns'))
 
             for i in range(len(df.columns)):
-                fn = write_with[i]
+                ct = _dtype_to_column_type(df[df.columns[i]].dtype)
+                fn = write_with[ct]
                 v = row[i + 1]
                 fn(i, v)
 
         batch.push()
+
+def _create_table_from_df(df, table):
+    cols = list(quasardb.ColumnInfo(_dtype_to_column_type(df[c].dtype), c) for c in df.columns)
+    table.create(cols)
+    return table
+
+def _dtype_to_column_type(dt):
+    res = _dtype_map.get(dt, None)
+    if res == None:
+        raise ValueError("Incompatible data type: ", dt)
+
+    return res

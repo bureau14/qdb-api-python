@@ -152,18 +152,33 @@ def gen_df(start_time, count):
                               "the_int64": np.random.randint(-100, 100, count),
                               "the_blob": np.array([(b"content_" + bytes(item)) for item in range(count)]),
                               "the_ts": np.array([(start_time + np.timedelta64(i, 's'))
-                     for i in range(count)]).astype('datetime64[ns]')},
+                                                  for i in range(count)]).astype('datetime64[ns]')},
                         index=idx)
 
-
 def test_write_dataframe(qdbd_connection, table):
-    df1 = gen_df(np.datetime64('2017-01-01'), 10)
-    qdbpd.write_dataframe(df1, qdbd_connection, table, chunk_size=4)
+    # Ensures that we can do a full-circle write and read of a dataframe
+    df1 = gen_df(np.datetime64('2017-01-01'), 10000)
+    qdbpd.write_dataframe(df1, qdbd_connection, table, chunk_size=4000)
 
-    df2 = qdbpd.read_dataframe(table, ranges=[((np.datetime64('2017-01-01', 'ns')),
-                                               (np.datetime64('2017-01-02', 'ns')))])
+    df2 = qdbpd.read_dataframe(table,
+                               ranges=[((np.datetime64('2017-01-01', 'ns')),
+                                        (np.datetime64('2017-01-02', 'ns')))])
 
-    assert len(df1.columns) == len(df2.columns)
-    for c in df1.columns:
-        np.testing.assert_array_equal(df1[c].to_numpy(),
-                                      df2[c].to_numpy())
+     # Ensure equal sorting of columns
+    df2 = df2.reindex(df1.columns, axis=1)
+
+    assert df1.equals(df2)
+
+def test_write_dataframe_create_table(qdbd_connection, entry_name):
+    table = qdbd_connection.ts(entry_name)
+    df1 = gen_df(np.datetime64('2017-01-01'), 10000)
+    qdbpd.write_dataframe(df1, qdbd_connection, table, create=True)
+
+    df2 = qdbpd.read_dataframe(table,
+                               ranges=[((np.datetime64('2017-01-01', 'ns')),
+                                        (np.datetime64('2017-01-02', 'ns')))])
+
+     # Ensure equal sorting of columns
+    df2 = df2.reindex(df1.columns, axis=1)
+
+    assert df1.equals(df2)
