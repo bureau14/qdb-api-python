@@ -57,8 +57,7 @@ def test_reader_iterator_returns_reference(
         # Timestamp is copied by value
         assert isinstance(row[0], np.datetime64)
 
-        with pytest.raises(quasardb.Error):
-            print(str(row[1]))
+        assert row[1] == None
 
         with pytest.raises(quasardb.Error):
             print(str(row[2]))
