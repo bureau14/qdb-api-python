@@ -268,15 +268,15 @@ static inline void register_ts(Module & m)
         .def("reader", &qdb::ts::reader, py::arg("columns") = std::vector<std::string>(), py::arg("ranges") = all_ranges(),
             py::arg("dict") = false)
 
-        .def("erase_ranges", &qdb::ts::erase_ranges)                  //
-        .def("blob_insert", &qdb::ts::blob_insert)                    //
-        .def("double_insert", &qdb::ts::double_insert)                //
-        .def("int64_insert", &qdb::ts::int64_insert)                  //
-        .def("timestamp_insert", &qdb::ts::timestamp_insert)          //
-        .def("blob_get_ranges", &qdb::ts::blob_get_ranges)            //
-        .def("double_get_ranges", &qdb::ts::double_get_ranges)        //
-        .def("int64_get_ranges", &qdb::ts::int64_get_ranges)          //
-        .def("timestamp_get_ranges", &qdb::ts::timestamp_get_ranges); //
+        .def("erase_ranges", &qdb::ts::erase_ranges)                                                                       //
+        .def("blob_insert", &qdb::ts::blob_insert)                                                                         //
+        .def("double_insert", &qdb::ts::double_insert)                                                                     //
+        .def("int64_insert", &qdb::ts::int64_insert)                                                                       //
+        .def("timestamp_insert", &qdb::ts::timestamp_insert)                                                               //
+        .def("blob_get_ranges", &qdb::ts::blob_get_ranges, py::arg("column"), py::arg("ranges") = all_ranges())            //
+        .def("double_get_ranges", &qdb::ts::double_get_ranges, py::arg("column"), py::arg("ranges") = all_ranges())        //
+        .def("int64_get_ranges", &qdb::ts::int64_get_ranges, py::arg("column"), py::arg("ranges") = all_ranges())          //
+        .def("timestamp_get_ranges", &qdb::ts::timestamp_get_ranges, py::arg("column"), py::arg("ranges") = all_ranges()); //
 }
 
 } // namespace qdb

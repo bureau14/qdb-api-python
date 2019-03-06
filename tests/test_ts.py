@@ -314,6 +314,10 @@ def test_int64_get_ranges(table, intervals):
 
     _check_ts_results(results, inserted_int64_data, 20)
 
+    # Everything
+    results = table.int64_get_ranges(_int64_col_name(table))
+    _check_ts_results(results, inserted_int64_data, 1000)
+
     # empty result
     out_of_time = _start_time(intervals) + np.timedelta64(10, 'h')
     results = table.int64_get_ranges(_int64_col_name(
@@ -404,6 +408,10 @@ def test_blob_get_ranges(table, intervals):
                                         _start_time(intervals) + np.timedelta64(20, 's'))])
 
     _check_ts_results(results, inserted_blob_data, 20)
+
+    # Everything
+    results = table.blob_get_ranges(_blob_col_name(table))
+    _check_ts_results(results, inserted_blob_data, 1000)
 
     # empty result
     out_of_time = _start_time(intervals) + np.timedelta64(10, 'h')
