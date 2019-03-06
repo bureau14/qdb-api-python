@@ -156,7 +156,7 @@ public:
         return get_metadata().type;
     }
 
-    std::string get_name()
+    constexpr const std::string & get_name() const
     {
         return _alias;
     }
