@@ -58,15 +58,9 @@ def test_reader_iterator_returns_reference(
         assert isinstance(row[0], np.datetime64)
 
         assert row[1] == None
-
-        with pytest.raises(quasardb.Error):
-            print(str(row[2]))
-
-        with pytest.raises(quasardb.Error):
-            print(str(row[3]))
-
-        with pytest.raises(quasardb.Error):
-            print(str(row[4]))
+        assert row[2] == None
+        assert row[3] == None
+        assert row[4] == None
 
 def test_reader_can_copy_rows(qdbd_connection, table, many_intervals):
     # As a mitigation to the local table reference issue tested above,

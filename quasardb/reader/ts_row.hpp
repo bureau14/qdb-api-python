@@ -71,7 +71,7 @@ public:
 
     numpy::datetime64 timestamp() const noexcept
     {
-      return numpy::datetime64(_timestamp);
+        return numpy::datetime64(_timestamp);
     }
 
     /**
@@ -84,7 +84,7 @@ public:
     }
 
 protected:
-    qdb_local_table_t _local_table {nullptr};
+    qdb_local_table_t _local_table{nullptr};
     qdb_timespec_t _timestamp;
 };
 
@@ -122,18 +122,21 @@ public:
 
     py::object get_item(int64_t index) const
     {
-      if (index == 0) {
-        // TODO(leon): we construct this object every time; should be without any heap
-        // allocations,but can we do without this?
-        return timestamp();
-      } else {
-        int64_t col_index = index - 1;
-        if (col_index > _columns.size()) {
-          throw py::index_error();
+        if (index == 0)
+        {
+            // TODO(leon): we construct this object every time; should be without any heap
+            // allocations,but can we do without this?
+            return timestamp();
         }
-        return py::cast(ts_value(_local_table, col_index, _columns.at(col_index).type),
-                        py::return_value_policy::move);
-      }
+        else
+        {
+            int64_t col_index = index - 1;
+            if (col_index > _columns.size())
+            {
+                throw py::index_error();
+            }
+            return py::cast(ts_value(_local_table, col_index, _columns.at(col_index).type), py::return_value_policy::move);
+        }
     }
 
     void set_item(int64_t /* index */, int64_t /* value */)
@@ -175,7 +178,7 @@ public:
     {
         // We store '$timestamp' as a magic, uninitialized column. This column type
         // is then recorgnized by get_item()
-      _indexed_columns.insert(detail::indexed_columns_t::value_type("$timestamp", {}));
+        _indexed_columns.insert(detail::indexed_columns_t::value_type("$timestamp", {}));
     }
 
     ts_dict_row(const ts_dict_row & rhs) noexcept
@@ -195,11 +198,13 @@ public:
             // By first casting the value, we create a copy of the concrete type
             // (e.g. the int64 or the blob) rather than the reference into the local
             // table.
-            if (c.second.type == qdb_ts_column_uninitialized) {
-              // assert (i.first == "$timestamp")
-              res.insert(map_type::value_type(c.first, timestamp()));
-            } else
-              res.insert(map_type::value_type(c.first, py::cast(ts_value(_local_table, index, c.second.type))));
+            if (c.second.type == qdb_ts_column_uninitialized)
+            {
+                // assert (i.first == "$timestamp")
+                res.insert(map_type::value_type(c.first, timestamp()));
+            }
+            else
+                res.insert(map_type::value_type(c.first, py::cast(ts_value(_local_table, index, c.second.type))));
         }
 
         return res;
@@ -214,12 +219,14 @@ public:
         }
 
         const auto & indexed_column = c->second;
-        if (c->second.type == qdb_ts_column_uninitialized) {
-          // assert(alias == "$timestamp")
-          return timestamp();
-        } else {
-          return py::cast(ts_value(_local_table, indexed_column.index, indexed_column.type),
-                          py::return_value_policy::move);
+        if (c->second.type == qdb_ts_column_uninitialized)
+        {
+            // assert(alias == "$timestamp")
+            return timestamp();
+        }
+        else
+        {
+            return py::cast(ts_value(_local_table, indexed_column.index, indexed_column.type), py::return_value_policy::move);
         }
     }
 

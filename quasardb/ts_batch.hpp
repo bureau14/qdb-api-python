@@ -150,7 +150,7 @@ static inline void register_ts_batch(Module & m)
 
     py::class_<qdb::ts_batch>{m, "TimeSeriesBatch"}                               //
         .def(py::init<qdb::handle_ptr, const std::vector<batch_column_info> &>()) //
-        .def("start_row", &qdb::ts_batch::start_row)                                //
+        .def("start_row", &qdb::ts_batch::start_row)                              //
         .def("set_blob", &qdb::ts_batch::set_blob)                                //
         .def("set_double", &qdb::ts_batch::set_double)                            //
         .def("set_int64", &qdb::ts_batch::set_int64)                              //

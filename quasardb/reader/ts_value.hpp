@@ -97,7 +97,16 @@ private:
     py::handle int64() const
     {
         std::int64_t v;
-        qdb::qdb_throw_if_error(qdb_ts_row_get_int64(_local_table, _index, &v));
+
+        auto res = qdb_ts_row_get_int64(_local_table, _index, &v);
+        if (res == qdb_e_element_not_found)
+        {
+            Py_RETURN_NONE;
+            // notreached
+        }
+
+        qdb::qdb_throw_if_error(res);
+
         return PyLong_FromLongLong(v);
     }
 
@@ -106,7 +115,14 @@ private:
         const void * v = nullptr;
         qdb_size_t l   = 0;
 
-        qdb::qdb_throw_if_error(qdb_ts_row_get_blob(_local_table, _index, &v, &l));
+        auto res = qdb_ts_row_get_blob(_local_table, _index, &v, &l);
+        if (res == qdb_e_element_not_found)
+        {
+            Py_RETURN_NONE;
+            // notreached
+        }
+
+        qdb::qdb_throw_if_error(res);
         return PyByteArray_FromStringAndSize(static_cast<const char *>(v), static_cast<Py_ssize_t>(l));
     }
 
@@ -114,9 +130,12 @@ private:
     {
         double v = 0.0;
         auto res = qdb_ts_row_get_double(_local_table, _index, &v);
-        if (res == qdb_e_element_not_found) {
-          return Py_None;
+        if (res == qdb_e_element_not_found)
+        {
+            Py_RETURN_NONE;
+            // notreached
         }
+
         qdb::qdb_throw_if_error(res);
         return PyFloat_FromDouble(v);
     }
@@ -124,8 +143,14 @@ private:
     py::handle timestamp() const
     {
         qdb_timespec_t v;
-        qdb::qdb_throw_if_error(qdb_ts_row_get_timestamp(_local_table, _index, &v));
+        auto res = qdb_ts_row_get_timestamp(_local_table, _index, &v);
+        if (res == qdb_e_element_not_found)
+        {
+            Py_RETURN_NONE;
+            // notreached
+        }
 
+        qdb::qdb_throw_if_error(res);
         return qdb::numpy::datetime64(v);
     }
 
