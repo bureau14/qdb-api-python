@@ -168,3 +168,48 @@ def test_write_dataframe_create_table(qdbd_connection, entry_name):
     assert len(df1.columns) == len(df2.columns)
     for c in df1.columns:
         np.testing.assert_array_equal(df1[c].to_numpy(), df2[c].to_numpy())
+
+def test_dataframe_read_fast_is_unordered(qdbd_connection, table):
+    # As of now, when reading a dataframe fast, when it contains null values,
+    # rows are not guaranteed to be ordered; they might be matched to the
+    # wrong rows.
+    #
+    # This will be fixed when the reader supports pinned columns, so we can
+    # read the data fast (as numpy arrays) and at the same time keep ordering.
+
+    df1 = gen_df(np.datetime64('2017-01-01'), 2)
+    df2 = gen_df(np.datetime64('2017-01-01'), 2)
+
+    ts1 = np.datetime64('2017-01-01 00:00:00', 'ns')
+    ts2 = np.datetime64('2017-01-01 00:00:01', 'ns')
+
+    # Now, we set the wrong value for a first row in df1, and for
+    # a second row in df2
+    df1.at[ts1, 'the_double'] = None
+    df2.at[ts2, 'the_double'] = None
+
+    df3 = pd.concat([df1, df2]).sort_index()
+    qdbpd.write_dataframe(df3, qdbd_connection, table)
+
+    df4 = qdbpd.read_dataframe(table)
+
+    assert len(df3.columns) == len(df4.columns)
+    for c in df3.columns:
+        expected = True
+        if c is 'the_double':
+            expected = False
+
+        assert np.array_equal(df3[c].to_numpy(), df4[c].to_numpy()) == expected
+
+    df5 = qdbpd.read_dataframe(table, row_index=True)
+
+    assert df5.at[0, 'the_int64'] == df1.at[ts1, 'the_int64']
+    assert df5.at[1, 'the_int64'] == df2.at[ts1, 'the_int64']
+    assert df5.at[2, 'the_int64'] == df1.at[ts2, 'the_int64']
+    assert df5.at[3, 'the_int64'] == df2.at[ts2, 'the_int64']
+
+    # Commenting out failing tests for QDB-2418, re-enable when fixed
+    #assert df5.at[0, 'the_double'] == df1.at[ts1, 'the_double']
+    #assert df5.at[1, 'the_double'] == df2.at[ts1, 'the_double']
+    assert df5.at[2, 'the_double'] == df1.at[ts2, 'the_double']
+    #assert df5.at[3, 'the_double'] == df2.at[ts2, 'the_double']

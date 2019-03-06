@@ -88,7 +88,7 @@ def read_series(table, col_name, ranges=None):
 
     return Series(res[1], index=res[0])
 
-def read_dataframe(table, index='$timestamp', columns=None, ranges=None):
+def read_dataframe(table, row_index=False, columns=None, ranges=None):
     """
     Read a Pandas Dataframe from a QuasarDB Timeseries table.
 
@@ -102,8 +102,11 @@ def read_dataframe(table, index='$timestamp', columns=None, ranges=None):
 
       Defaults to all columns.
 
-    index: optional str
-      Column name for dataframe index. Defaults to '$timestamp'
+    row_index: boolean
+      Whether or not to index by rows rather than timestamps. Set to true if your
+      dataset may contains null values and multiple rows may use the same timestamps.
+      Note: using row_index is significantly slower.
+      Defaults to false.
 
     ranges: optional list
       A list of time ranges to read, represented as tuples of Numpy datetime64[ns] objects.
@@ -114,8 +117,23 @@ def read_dataframe(table, index='$timestamp', columns=None, ranges=None):
     if columns == None:
         columns = list(c.name for c in table.list_columns())
 
-    xs = dict((c, (read_series(table, c, ranges))) for c in columns)
-    return DataFrame(data=xs)
+    if row_index == False:
+        xs = dict((c, (read_series(table, c, ranges))) for c in columns)
+        return DataFrame(data=xs)
+    else:
+        kwargs = {
+            'columns': columns
+        }
+        if ranges:
+            kwargs['ranges'] = ranges
+
+        reader = table.reader(**kwargs)
+        xs = []
+        for row in reader:
+            xs.append(row.copy())
+
+        columns.insert(0, '$timestamp')
+        return DataFrame(data=xs, columns=columns)
 
 def write_dataframe(df, cluster, table, create=False, chunk_size=50000):
     """
@@ -163,10 +181,12 @@ def write_dataframe(df, cluster, table, create=False, chunk_size=50000):
             batch.start_row(np.datetime64(row[0], 'ns'))
 
             for i in range(len(df.columns)):
-                ct = _dtype_to_column_type(df[df.columns[i]].dtype)
-                fn = write_with[ct]
                 v = row[i + 1]
-                fn(i, v)
+
+                if not pd.isnull(v):
+                    ct = _dtype_to_column_type(df[df.columns[i]].dtype)
+                    fn = write_with[ct]
+                    fn(i, v)
 
         batch.push()
 

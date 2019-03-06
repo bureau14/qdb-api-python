@@ -113,7 +113,11 @@ private:
     py::handle double_() const
     {
         double v = 0.0;
-        qdb::qdb_throw_if_error(qdb_ts_row_get_double(_local_table, _index, &v));
+        auto res = qdb_ts_row_get_double(_local_table, _index, &v);
+        if (res == qdb_e_element_not_found) {
+          return Py_None;
+        }
+        qdb::qdb_throw_if_error(res);
         return PyFloat_FromDouble(v);
     }
 
