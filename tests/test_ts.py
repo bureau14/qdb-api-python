@@ -1,10 +1,5 @@
 # pylint: disable=C0103,C0111,C0302,W0212
-from builtins import range as xrange, int as long  # pylint: disable=W0622
-from functools import reduce  # pylint: disable=W0622
 import datetime
-import os
-import sys
-
 import quasardb
 import pytest
 import numpy as np
@@ -27,9 +22,8 @@ def _generate_int64_ts(start_time, count):
 
 def _generate_timestamp_ts(start_time, start_val, count):
     return (
-        _generate_dates(
-            start_time, count), _generate_dates(
-            start_val, count))
+        _generate_dates(start_time, count),
+        _generate_dates(start_val, count))
 
 
 def _generate_blob_ts(start_time, count):
@@ -208,18 +202,9 @@ def test_double_get_ranges(table, intervals):
         _double_col_name(table),
         [
             (_start_time(intervals),
-             _start_time(intervals) +
-             np.timedelta64(
-                10,
-                's')),
-            (_start_time(intervals) +
-             np.timedelta64(
-                10,
-                's'),
-                _start_time(intervals) +
-                np.timedelta64(
-                20,
-                's'))])
+             _start_time(intervals) + np.timedelta64(10, 's')),
+            (_start_time(intervals) + np.timedelta64(10, 's'),
+             _start_time(intervals) + np.timedelta64(20, 's'))])
 
     _check_ts_results(results, inserted_double_data, 20)
 
@@ -403,9 +388,9 @@ def test_blob_get_ranges(table, intervals):
 
     results = table.blob_get_ranges(_blob_col_name(table),
                                     [(_start_time(intervals),
-                                        _start_time(intervals) + np.timedelta64(10, 's')),
+                                      _start_time(intervals) + np.timedelta64(10, 's')),
                                      (_start_time(intervals) + np.timedelta64(10, 's'),
-                                        _start_time(intervals) + np.timedelta64(20, 's'))])
+                                      _start_time(intervals) + np.timedelta64(20, 's'))])
 
     _check_ts_results(results, inserted_blob_data, 20)
 
