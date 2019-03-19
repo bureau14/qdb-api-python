@@ -258,7 +258,7 @@ static inline void register_ts(Module & m)
         .value("Int64", qdb_ts_column_int64)                                          //
         .value("Timestamp", qdb_ts_column_timestamp);                                 //
 
-    py::class_<qdb::ts, qdb::entry>{m, "TimeSeries"}   //
+    py::class_<qdb::ts, qdb::entry>{m, "TimeSeries", "Timeseries table representation"}   //
         .def(py::init<qdb::handle_ptr, std::string>()) //
         .def("__repr__", &qdb::ts::repr)
         .def("create", &qdb::ts::create, py::arg("columns"), py::arg("shard_size") = std::chrono::hours{24}) //
