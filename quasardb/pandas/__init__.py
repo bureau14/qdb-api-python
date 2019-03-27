@@ -182,7 +182,7 @@ def write_dataframe(df, cluster, table, create=False, chunk_size=50000):
 
     # Acquire reference to table if string is provided
     if isinstance(table, str):
-        table = cluster.table(table)
+        table = cluster.ts(table)
 
     if create:
         _create_table_from_df(df, table)
