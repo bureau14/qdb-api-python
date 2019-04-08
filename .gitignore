@@ -1,7 +1,10 @@
 # Build and tests
+/.eggs/
 /bin/
 /build*
 /project/
+/quasardb/
+/quasardb.egg-info/
 /x64/
 /test-reports/
 
