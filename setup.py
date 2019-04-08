@@ -70,7 +70,7 @@ class CMakeBuild(build_ext):
         #    build_args += ['--', '/m']
         else:
             cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
-       #     build_args += ['--', '-j2']
+        #    build_args += ['--', '-j2']
 
         env = os.environ.copy()
         env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(env.get('CXXFLAGS', ''),
@@ -86,11 +86,6 @@ class EggRetagger(old_bdist_egg):
         if self.plat_name is None:
             self.plat_name = get_build_platform()
 
-        if self.plat_name.startswith('freebsd'):
-            parts = self.plat_name.split('-')
-            self.plat_name = parts[0] + '-' + \
-                parts[1].split('.')[0] + '-' + parts[-1]
-
         old_bdist_egg.finalize_options(self)
 
 
@@ -104,10 +99,6 @@ class WheelRetagger(old_bdist_wheel):
         python_tag = tag[0]
         abi_tag = tag[1]
         platform_tag = tag[2]
-
-        if platform_tag.startswith('freebsd'):
-            parts = platform_tag.split('_')
-            platform_tag = '_'.join(parts[:2]) + '_' + parts[-1]
 
         if platform_tag.startswith('macosx_10_') and platform_tag.endswith('_x86_64'):
             supported_versions = [
