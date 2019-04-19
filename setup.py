@@ -69,8 +69,11 @@ class CMakeBuild(build_ext):
         if platform.system() == "Windows":
             cmake_args += [
                 '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(), extdir)]
+            cmake_args += ['-T', 'host=x64']
             if sys.maxsize > 2**32:
                 cmake_args += ['-A', 'x64']
+            else:
+                cmake_args += ['-A', 'Win32']
         #    build_args += ['--', '/m']
         else:
             cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
@@ -111,7 +114,8 @@ class WheelRetagger(old_bdist_wheel):
         if platform_tag.startswith('macosx_10_') and platform_tag.endswith('_x86_64'):
             supported_versions = [
                 'macosx_10_6', 'macosx_10_9', 'macosx_10_10', 'macosx_10_11', 'macosx_10_12']
-            supported_versions = [version + '_x86_64' for version in supported_versions]
+            supported_versions = [
+                version + '_x86_64' for version in supported_versions]
             platform_tag = '.'.join(supported_versions)
 
         tag = (python_tag, abi_tag, platform_tag)
