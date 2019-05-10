@@ -20,7 +20,7 @@ from setuptools.command.bdist_egg import bdist_egg as old_bdist_egg  # pylint: d
 from pkg_resources import get_build_platform
 from wheel.bdist_wheel import bdist_wheel as old_bdist_wheel
 
-qdb_version = "3.3.0.dev0".lower()
+qdb_version = "3.4.0.dev0".lower()
 
 # package_modules are our 'extra' files. Our cmake configuration copies our QDB_API_LIB
 # into our source directory, and by adding this to `package_modules` we tell setuptools to
@@ -69,8 +69,11 @@ class CMakeBuild(build_ext):
         if platform.system() == "Windows":
             cmake_args += [
                 '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(), extdir)]
+            cmake_args += ['-T', 'host=x64']
             if sys.maxsize > 2**32:
                 cmake_args += ['-A', 'x64']
+            else:
+                cmake_args += ['-A', 'Win32']
         #    build_args += ['--', '/m']
         else:
             cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
@@ -111,7 +114,8 @@ class WheelRetagger(old_bdist_wheel):
         if platform_tag.startswith('macosx_10_') and platform_tag.endswith('_x86_64'):
             supported_versions = [
                 'macosx_10_6', 'macosx_10_9', 'macosx_10_10', 'macosx_10_11', 'macosx_10_12']
-            supported_versions = [version + '_x86_64' for version in supported_versions]
+            supported_versions = [
+                version + '_x86_64' for version in supported_versions]
             platform_tag = '.'.join(supported_versions)
 
         tag = (python_tag, abi_tag, platform_tag)
