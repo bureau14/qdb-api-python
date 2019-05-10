@@ -33,6 +33,7 @@
 #include "blob.hpp"
 #include "error.hpp"
 #include "handle.hpp"
+#include "integer.hpp"
 #include "options.hpp"
 #include "query.hpp"
 #include "tag.hpp"
@@ -134,6 +135,11 @@ public:
     qdb::blob_entry blob(const std::string & alias)
     {
         return qdb::blob_entry{_handle, alias};
+    }
+
+    qdb::integer_entry integer(const std::string & alias)
+    {
+        return qdb::integer_entry{_handle, alias};
     }
 
     qdb::ts ts(const std::string & alias)
@@ -253,6 +259,7 @@ static inline void register_cluster(Module & m)
         .def("node_topology", &qdb::cluster::node_topology)                                                                             //
         .def("tag", &qdb::cluster::tag)                                                                                                 //
         .def("blob", &qdb::cluster::blob)                                                                                               //
+        .def("integer", &qdb::cluster::integer)                                                                                         //
         .def("ts", &qdb::cluster::ts)                                                                                                   //
         .def("ts_batch", &qdb::cluster::ts_batch)                                                                                       //
         .def("find", &qdb::cluster::find)                                                                                               //

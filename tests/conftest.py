@@ -72,10 +72,18 @@ def entry_name(random_string):
 def random_blob(random_string):
     return random_string.encode('UTF-8')
 
+@pytest.fixture
+def random_integer():
+    return random.randint(-1000000000, 1000000000)
+
 
 @pytest.fixture
 def blob_entry(qdbd_connection, entry_name):
     return qdbd_connection.blob(entry_name)
+
+@pytest.fixture
+def integer_entry(qdbd_connection, entry_name):
+    return qdbd_connection.integer(entry_name)
 
 
 @pytest.fixture
