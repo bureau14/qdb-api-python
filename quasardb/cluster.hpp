@@ -31,6 +31,7 @@
 #pragma once
 
 #include "blob.hpp"
+#include "integer.hpp"
 #include "error.hpp"
 #include "handle.hpp"
 #include "options.hpp"
@@ -134,6 +135,11 @@ public:
     qdb::blob_entry blob(const std::string & alias)
     {
         return qdb::blob_entry{_handle, alias};
+    }
+
+    qdb::integer_entry integer(const std::string & alias)
+    {
+        return qdb::integer_entry{_handle, alias};
     }
 
     qdb::ts ts(const std::string & alias)
@@ -252,7 +258,9 @@ static inline void register_cluster(Module & m)
         .def("node_config", &qdb::cluster::node_config)                                                                                 //
         .def("node_topology", &qdb::cluster::node_topology)                                                                             //
         .def("tag", &qdb::cluster::tag)                                                                                                 //
-        .def("blob", &qdb::cluster::blob)                                                                                               //
+        .def("blob", &qdb::cluster::blob)
+      //
+        .def("integer", &qdb::cluster::integer)
         .def("ts", &qdb::cluster::ts)                                                                                                   //
         .def("ts_batch", &qdb::cluster::ts_batch)                                                                                       //
         .def("find", &qdb::cluster::find)                                                                                               //
