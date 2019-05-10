@@ -31,9 +31,9 @@
 #pragma once
 
 #include "blob.hpp"
-#include "integer.hpp"
 #include "error.hpp"
 #include "handle.hpp"
+#include "integer.hpp"
 #include "options.hpp"
 #include "query.hpp"
 #include "tag.hpp"
@@ -252,27 +252,27 @@ static inline void register_cluster(Module & m)
             py::arg("user_name")          = std::string{},                                                                              //
             py::arg("user_private_key")   = std::string{},                                                                              //
             py::arg("cluster_public_key") = std::string{},                                                                              //
-            py::arg("timeout")            = std::chrono::minutes{1})                                                                    //
+            py::arg("timeout")            = std::chrono::minutes{1})                                                                               //
         .def("options", &qdb::cluster::options)                                                                                         //
         .def("node_status", &qdb::cluster::node_status)                                                                                 //
         .def("node_config", &qdb::cluster::node_config)                                                                                 //
         .def("node_topology", &qdb::cluster::node_topology)                                                                             //
         .def("tag", &qdb::cluster::tag)                                                                                                 //
         .def("blob", &qdb::cluster::blob)
-      //
+        //
         .def("integer", &qdb::cluster::integer)
-        .def("ts", &qdb::cluster::ts)                                                                                                   //
-        .def("ts_batch", &qdb::cluster::ts_batch)                                                                                       //
-        .def("find", &qdb::cluster::find)                                                                                               //
-        .def("query", &qdb::cluster::query)                                                                                             //
-        .def("prefix_get", &qdb::cluster::prefix_get)                                                                                   //
-        .def("prefix_count", &qdb::cluster::prefix_count)                                                                               //
-        .def("suffix_get", &qdb::cluster::suffix_get)                                                                                   //
-        .def("suffix_count", &qdb::cluster::suffix_count)                                                                               //
-        .def("close", &qdb::cluster::close)                                                                                             //
-        .def("purge_all", &qdb::cluster::purge_all)                                                                                     //
-        .def("trim_all", &qdb::cluster::trim_all)                                                                                       //
-        .def("purge_cache", &qdb::cluster::purge_cache);                                                                                //
+        .def("ts", &qdb::cluster::ts)                     //
+        .def("ts_batch", &qdb::cluster::ts_batch)         //
+        .def("find", &qdb::cluster::find)                 //
+        .def("query", &qdb::cluster::query)               //
+        .def("prefix_get", &qdb::cluster::prefix_get)     //
+        .def("prefix_count", &qdb::cluster::prefix_count) //
+        .def("suffix_get", &qdb::cluster::suffix_get)     //
+        .def("suffix_count", &qdb::cluster::suffix_count) //
+        .def("close", &qdb::cluster::close)               //
+        .def("purge_all", &qdb::cluster::purge_all)       //
+        .def("trim_all", &qdb::cluster::trim_all)         //
+        .def("purge_cache", &qdb::cluster::purge_cache);  //
 }
 
 } // namespace qdb
