@@ -1,6 +1,6 @@
 # QuasarDB Python API
 
-[![PyPI version](https://badge.fury.io/py/quasardb.svg)](https://badge.fury.io/py/quasardb)
+[![PyPI version](https://badge.fury.io/py/quasardb.svg)](https://pypi.org/project/quasardb/)
 
 The QuasarDB Python API is built and tested against the following versions:
 
