@@ -70,6 +70,9 @@ $ alternatives --install /usr/bin/cmake cmake /usr/bin/cmake3 10
 # Start using gcc 7
 $ scl enable devtoolset-7 bash
 
+# Default RHEL7 setuptools is not recent enough
+$ pip install --upgrade setupto
+
 # Install the Python module
 $ pip install wheel
 $ pip install quasardb
