@@ -161,7 +161,7 @@ def read_dataframe(table, row_index=False, columns=None, ranges=None):
         columns.insert(0, '$timestamp')
         return DataFrame(data=xs, columns=columns)
 
-def write_dataframe(df, cluster, table, create=False, chunk_size=50000):
+def write_dataframe(df, cluster, table, create=False, _async=False, chunk_size=50000):
     """
     Store a dataframe into a table.
 
@@ -214,7 +214,10 @@ def write_dataframe(df, cluster, table, create=False, chunk_size=50000):
                     fn = write_with[ct]
                     fn(i, v)
 
-        batch.push()
+        if _async is True:
+            batch.push_async()
+        else:
+            batch.push()
 
 def _create_table_from_df(df, table):
     cols = list(quasardb.ColumnInfo(_dtype_to_column_type(df[c].dtype), c) for c in df.columns)
