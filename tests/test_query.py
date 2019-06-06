@@ -92,7 +92,7 @@ def sanity_check(ts_name, scanned_point_count, res, rows_count, columns_count):
     assert len(res.tables) == 1
     assert len(res.tables[ts_name][0].data) == rows_count
     assert len(res.tables[ts_name]) == columns_count
-    assert res.tables[ts_name][0].name == "timestamp"
+    assert res.tables[ts_name][0].name == "$timestamp"
 
 
 def test_returns_empty_result(qdbd_connection, table):
@@ -119,7 +119,7 @@ def test_returns_inserted_data_with_star_select(
                  len(inserted_double_data[0]),
                  5)
 
-    assert res.tables[table.get_name()][0].name == "timestamp"
+    assert res.tables[table.get_name()][0].name == "$timestamp"
     np.testing.assert_array_equal(
         res.tables[table.get_name()][0].data, inserted_double_data[0])
     assert res.tables[table.get_name(
@@ -143,7 +143,7 @@ def test_returns_inserted_data_with_star_select_and_tag_lookup(
                  len(inserted_double_data[0]),
                  5)
 
-    assert res.tables[table.get_name()][0].name == "timestamp"
+    assert res.tables[table.get_name()][0].name == "$timestamp"
     np.testing.assert_array_equal(
         res.tables[table.get_name()][0].data, inserted_double_data[0])
 
@@ -167,7 +167,7 @@ def test_returns_inserted_data_with_column_select(
                  len(inserted_double_data[0]),
                  2)
 
-    assert res.tables[table.get_name()][0].name == "timestamp"
+    assert res.tables[table.get_name()][0].name == "$timestamp"
     np.testing.assert_array_equal(
         res.tables[table.get_name()][0].data, inserted_double_data[0])
     assert res.tables[table.get_name(
@@ -188,7 +188,7 @@ def test_returns_inserted_data_twice_with_double_column_select(
     sanity_check(table.get_name(), len(inserted_double_data[0]),
                  res, len(inserted_double_data[0]), 2)
 
-    assert res.tables[table.get_name()][0].name == "timestamp"
+    assert res.tables[table.get_name()][0].name == "$timestamp"
     np.testing.assert_array_equal(
         res.tables[table.get_name()][0].data, inserted_double_data[0])
     assert res.tables[table.get_name(
@@ -207,7 +207,7 @@ def test_returns_sum_with_sum_select(qdbd_connection, table, intervals):
     sanity_check(table.get_name(), len(inserted_double_data[0]), res, 1, 2)
 
     res_table = res.tables[table.get_name()]
-    assert res_table[0].name == "timestamp"
+    assert res_table[0].name == "$timestamp"
     assert np.isnat(res_table[0].data[0])
     assert res_table[1].name == "sum(" + tslib._double_col_name(table) + ")"
     assert pytest.approx(res_table[1].data[0], 0.1) == np.sum(
@@ -226,7 +226,7 @@ def test_returns_sum_with_sum_divided_by_count_select(
     sanity_check(table.get_name(), len(inserted_double_data[0]) * 2, res, 1, 2)
 
     res_table = res.tables[table.get_name()]
-    assert res_table[0].name == "timestamp"
+    assert res_table[0].name == "$timestamp"
     assert np.isnat(res_table[0].data[0])
     assert res_table[1].name == "(sum(" + tslib._double_col_name(
         table) + ")/count(" + tslib._double_col_name(table) + "))"
@@ -246,7 +246,7 @@ def test_returns_max_minus_min_select(qdbd_connection, table, intervals):
     sanity_check(table.get_name(), len(inserted_double_data[0]) * 2, res, 1, 2)
 
     res_table = res.tables[table.get_name()]
-    assert res_table[0].name == "timestamp"
+    assert res_table[0].name == "$timestamp"
     assert np.isnat(res_table[0].data[0])
     assert res_table[1].name == "(max(" + tslib._double_col_name(
         table) + ")-min(" + tslib._double_col_name(table) + "))"
@@ -266,7 +266,7 @@ def test_returns_max_minus_1_select(qdbd_connection, table, intervals):
     sanity_check(table.get_name(), len(inserted_double_data[0]), res, 1, 2)
 
     res_table = res.tables[table.get_name()]
-    assert res_table[0].name == "timestamp"
+    assert res_table[0].name == "$timestamp"
     assert res_table[0].data[0] >= start_time
     assert res_table[1].name == "(max(" + \
         tslib._double_col_name(table) + ")-1)"
@@ -286,14 +286,14 @@ def test_returns_max_and_scalar_1_select(qdbd_connection, table, intervals):
     assert len(res.tables) == 2
 
     res_table = res.tables["$none"]
-    assert res_table[0].name == "timestamp"
+    assert res_table[0].name == "$timestamp"
     assert np.isnat(res_table[0].data[0])
     assert res_table[1].name == "max(" + tslib._double_col_name(table) + ")"
     assert res_table[2].name == "1"
     assert res_table[2].data[0] == 1
 
     res_table = res.tables[table.get_name()]
-    assert res_table[0].name == "timestamp"
+    assert res_table[0].name == "$timestamp"
     assert res_table[0].data[0] >= start_time
     assert res_table[1].name == "max(" + tslib._double_col_name(table) + ")"
     assert pytest.approx(res_table[1].data[0], 0.1) == np.max(
@@ -317,7 +317,7 @@ def test_returns_inserted_multi_data_with_star_select(
     sanity_check(table.get_name(), 4 * len(inserted_double_data[0]),
                  res, len(inserted_double_data[0]), 5)
 
-    assert res.tables[table.get_name()][0].name == "timestamp"
+    assert res.tables[table.get_name()][0].name == "$timestamp"
     assert res.tables[table.get_name(
     )][1].name == tslib._double_col_name(table)
     assert res.tables[table.get_name()][2].name == tslib._blob_col_name(table)
