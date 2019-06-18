@@ -1,24 +1,24 @@
 # pylint: disable=C0103,C0111,C0302,W0212
-import pytest
-import quasardb.pandas as qdbpd
-from functools import reduce
 import numpy as np
 import pandas as pd
 
-import test_ts as tslib
-import test_ts_batch as batchlib
+import quasardb.pandas as qdbpd
 
 row_count = 1000
+
 
 def gen_df(start_time, count):
     idx = pd.date_range(start_time, periods=count, freq='S')
 
     return pd.DataFrame(data={"the_double": np.random.uniform(-100.0, 100.0, count),
                               "the_int64": np.random.randint(-100, 100, count),
-                              "the_blob": np.array([(b"content_" + bytes(item)) for item in range(count)]),
-                              "the_ts": np.array([(start_time + np.timedelta64(i, 's'))
-                                                  for i in range(count)]).astype('datetime64[ns]')},
+                              "the_blob": np.array([(b"content_" + bytes(item))
+                                                    for item in range(count)]),
+                              "the_ts": np.array([
+                                  (start_time + np.timedelta64(i, 's'))
+                                  for i in range(count)]).astype('datetime64[ns]')},
                         index=idx)
+
 
 def gen_series(start_time, count):
     idx = pd.date_range(start_time, periods=count, freq='S')
@@ -30,10 +30,11 @@ def gen_series(start_time, count):
             "the_blob": pd.Series(np.array([(b"content_" + bytes(item)) for item in range(count)]),
                                   index=idx),
             "the_ts": pd.Series(np.array([(start_time + np.timedelta64(i, 's'))
-                                                  for i in range(count)]).astype('datetime64[ns]'),
+                                          for i in range(count)]).astype('datetime64[ns]'),
                                 index=idx)}
 
-def test_series_read_write(qdbd_connection, table, many_intervals):
+
+def test_series_read_write(table):
     sx = gen_series(np.datetime64('2017-01-01', 'ns'), row_count)
 
     # Insert everything
@@ -43,11 +44,12 @@ def test_series_read_write(qdbd_connection, table, many_intervals):
     # Read everything
     for c in sx:
         s = qdbpd.read_series(table, c)
-        assert type(s) == pd.core.series.Series
+        assert isinstance(s, pd.core.series.Series)
         assert s.size == row_count
         np.testing.assert_array_equal(s.to_numpy(), sx[c].to_numpy())
 
-def test_dataframe(qdbd_connection, table, many_intervals):
+
+def test_dataframe(qdbd_connection, table):
     df1 = gen_df(np.datetime64('2017-01-01'), row_count)
     qdbpd.write_dataframe(df1, qdbd_connection, table)
 
@@ -57,7 +59,8 @@ def test_dataframe(qdbd_connection, table, many_intervals):
     for c in df1.columns:
         np.testing.assert_array_equal(df1[c].to_numpy(), df2[c].to_numpy())
 
-def test_dataframe_can_read_columns(qdbd_connection, table, many_intervals):
+
+def test_dataframe_can_read_columns(qdbd_connection, table):
     df1 = gen_df(np.datetime64('2017-01-01'), row_count)
     qdbpd.write_dataframe(df1, qdbd_connection, table)
 
@@ -68,13 +71,15 @@ def test_dataframe_can_read_columns(qdbd_connection, table, many_intervals):
     for c in df2.columns:
         np.testing.assert_array_equal(df1[c].to_numpy(), df2[c].to_numpy())
 
-def test_dataframe_can_read_ranges(qdbd_connection, table, many_intervals):
+
+def test_dataframe_can_read_ranges(qdbd_connection, table):
     start = np.datetime64('2017-01-01', 'ns')
     df1 = gen_df(start, 10)
     qdbpd.write_dataframe(df1, qdbd_connection, table)
 
     first_range = (start, start + np.timedelta64(1, 's'))
-    second_range = (start + np.timedelta64(1, 's'), start + np.timedelta64(2, 's'))
+    second_range = (start + np.timedelta64(1, 's'),
+                    start + np.timedelta64(2, 's'))
 
     df2 = qdbpd.read_dataframe(table)
     df3 = qdbpd.read_dataframe(table, ranges=[first_range])
@@ -84,6 +89,7 @@ def test_dataframe_can_read_ranges(qdbd_connection, table, many_intervals):
     assert df3.shape[0] == 1
     assert df4.shape[0] == 2
 
+
 def test_write_dataframe(qdbd_connection, table):
     # Ensures that we can do a full-circle write and read of a dataframe
     df1 = gen_df(np.datetime64('2017-01-01'), row_count)
@@ -92,8 +98,9 @@ def test_write_dataframe(qdbd_connection, table):
     df2 = qdbpd.read_dataframe(table)
 
     assert len(df1.columns) == len(df2.columns)
-    for c in df1.columns:
-        np.testing.assert_array_equal(df1[c].to_numpy(), df2[c].to_numpy())
+    for col in df1.columns:
+        np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
+
 
 def test_write_dataframe_create_table(qdbd_connection, entry_name):
     table = qdbd_connection.ts(entry_name)
@@ -103,8 +110,9 @@ def test_write_dataframe_create_table(qdbd_connection, entry_name):
     df2 = qdbpd.read_dataframe(table)
 
     assert len(df1.columns) == len(df2.columns)
-    for c in df1.columns:
-        np.testing.assert_array_equal(df1[c].to_numpy(), df2[c].to_numpy())
+    for col in df1.columns:
+        np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
+
 
 def test_dataframe_read_fast_is_unordered(qdbd_connection, table):
     # As of now, when reading a dataframe fast, when it contains null values,

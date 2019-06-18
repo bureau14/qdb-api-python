@@ -149,20 +149,20 @@ def read_dataframe(table, row_index=False, columns=None, ranges=None):
     if not row_index:
         xs = dict((c, (read_series(table, c, ranges))) for c in columns)
         return DataFrame(data=xs)
-    else:
-        kwargs = {
-            'columns': columns
-        }
-        if ranges:
-            kwargs['ranges'] = ranges
 
-        reader = table.reader(**kwargs)
-        xs = []
-        for row in reader:
-            xs.append(row.copy())
+    kwargs = {
+        'columns': columns
+    }
+    if ranges:
+        kwargs['ranges'] = ranges
 
-        columns.insert(0, '$timestamp')
-        return DataFrame(data=xs, columns=columns)
+    reader = table.reader(**kwargs)
+    xs = []
+    for row in reader:
+        xs.append(row.copy())
+
+    columns.insert(0, '$timestamp')
+    return DataFrame(data=xs, columns=columns)
 
 
 def write_dataframe(df, cluster, table, create=False, _async=False, chunk_size=50000):
@@ -207,16 +207,17 @@ def write_dataframe(df, cluster, table, create=False, _async=False, chunk_size=5
     # Split the dataframe in chunks that equal our batch size
     dfs = [df[i:i+chunk_size] for i in range(0, df.shape[0], chunk_size)]
 
-    for df in dfs:
+    for current_df in dfs:
         # TODO(leon): use pinned columns so we can write entire numpy arrays
-        for row in df.itertuples(index=True):
+        for row in current_df.itertuples(index=True):
             batch.start_row(np.datetime64(row[0], 'ns'))
 
-            for i in range(len(df.columns)):
+            for i in range(len(current_df.columns)):
                 v = row[i + 1]
 
                 if not pd.isnull(v):
-                    ct = _dtype_to_column_type(df[df.columns[i]].dtype)
+                    ct = _dtype_to_column_type(
+                        current_df[current_df.columns[i]].dtype)
                     fn = write_with[ct]
                     fn(i, v)
 
