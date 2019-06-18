@@ -1,10 +1,10 @@
 # pylint: disable=C0103,C0111,C0302,W0212
-import pytest
 import random
 import string
+import pytest
+import numpy as np
 
 import quasardb
-import numpy as np
 
 
 def connect(uri):
@@ -72,6 +72,7 @@ def entry_name(random_string):
 def random_blob(random_string):
     return random_string.encode('UTF-8')
 
+
 @pytest.fixture
 def random_integer():
     return random.randint(-1000000000, 1000000000)
@@ -80,6 +81,7 @@ def random_integer():
 @pytest.fixture
 def blob_entry(qdbd_connection, entry_name):
     return qdbd_connection.blob(entry_name)
+
 
 @pytest.fixture
 def integer_entry(qdbd_connection, entry_name):

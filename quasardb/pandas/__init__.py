@@ -33,14 +33,15 @@ import quasardb
 class PandasRequired(ImportError):
     pass
 
+
 try:
-    import pandas as pd
     import numpy as np
+    import pandas as pd
     from pandas.core.api import DataFrame, Series
     from pandas.core.base import PandasObject
 except ImportError:
-    raise PandasRequired("The pandas library is required to handle pandas data formats")
-
+    raise PandasRequired(
+        "The pandas library is required to handle pandas data formats")
 
 
 # Constant mapping of numpy dtype to QuasarDB column type
@@ -53,6 +54,7 @@ _dtype_map = {
     np.dtype('object'): quasardb.ColumnType.Blob,
     np.dtype('M8[ns]'): quasardb.ColumnType.Timestamp
 }
+
 
 def read_series(table, col_name, ranges=None):
     """
@@ -88,6 +90,7 @@ def read_series(table, col_name, ranges=None):
 
     return Series(res[1], index=res[0])
 
+
 def write_series(series, table, col_name):
     """
     Writes a Pandas Timeseries to a single column.
@@ -111,7 +114,7 @@ def write_series(series, table, col_name):
     }
 
     t = table.column_type_by_id(col_name)
-    res = (write_with[t])(col_name, series.index.to_numpy(), series.to_numpy())
+    (write_with[t])(col_name, series.index.to_numpy(), series.to_numpy())
 
 
 def read_dataframe(table, row_index=False, columns=None, ranges=None):
@@ -140,10 +143,10 @@ def read_dataframe(table, row_index=False, columns=None, ranges=None):
 
     """
 
-    if columns == None:
+    if columns is None:
         columns = list(c.name for c in table.list_columns())
 
-    if row_index == False:
+    if not row_index:
         xs = dict((c, (read_series(table, c, ranges))) for c in columns)
         return DataFrame(data=xs)
     else:
@@ -160,6 +163,7 @@ def read_dataframe(table, row_index=False, columns=None, ranges=None):
 
         columns.insert(0, '$timestamp')
         return DataFrame(data=xs, columns=columns)
+
 
 def write_dataframe(df, cluster, table, create=False, _async=False, chunk_size=50000):
     """
@@ -188,18 +192,20 @@ def write_dataframe(df, cluster, table, create=False, _async=False, chunk_size=5
         _create_table_from_df(df, table)
 
     # Create batch column info from dataframe
-    col_info = list(quasardb.BatchColumnInfo(table.get_name(), c, chunk_size) for c in df.columns)
+    col_info = list(quasardb.BatchColumnInfo(
+        table.get_name(), c, chunk_size) for c in df.columns)
     batch = cluster.ts_batch(col_info)
 
     write_with = {
         quasardb.ColumnType.Double: batch.set_double,
         quasardb.ColumnType.Blob: batch.set_blob,
         quasardb.ColumnType.Int64: batch.set_int64,
-        quasardb.ColumnType.Timestamp: lambda i, x: batch.set_timestamp(i, np.datetime64(x, 'ns'))
+        quasardb.ColumnType.Timestamp: lambda i, x: batch.set_timestamp(
+            i, np.datetime64(x, 'ns'))
     }
 
     # Split the dataframe in chunks that equal our batch size
-    dfs = [df[i:i+chunk_size] for i in range(0,df.shape[0],chunk_size)]
+    dfs = [df[i:i+chunk_size] for i in range(0, df.shape[0], chunk_size)]
 
     for df in dfs:
         # TODO(leon): use pinned columns so we can write entire numpy arrays
@@ -219,14 +225,17 @@ def write_dataframe(df, cluster, table, create=False, _async=False, chunk_size=5
         else:
             batch.push()
 
+
 def _create_table_from_df(df, table):
-    cols = list(quasardb.ColumnInfo(_dtype_to_column_type(df[c].dtype), c) for c in df.columns)
+    cols = list(quasardb.ColumnInfo(
+        _dtype_to_column_type(df[c].dtype), c) for c in df.columns)
     table.create(cols)
     return table
 
+
 def _dtype_to_column_type(dt):
     res = _dtype_map.get(dt, None)
-    if res == None:
+    if res is None:
         raise ValueError("Incompatible data type: ", dt)
 
     return res

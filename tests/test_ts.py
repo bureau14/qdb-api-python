@@ -1,8 +1,8 @@
 # pylint: disable=C0103,C0111,C0302,W0212
 import datetime
-import quasardb
 import pytest
 import numpy as np
+import quasardb
 
 
 def _generate_dates(start_time, count):
