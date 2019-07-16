@@ -20,7 +20,7 @@ from setuptools.command.bdist_egg import bdist_egg as old_bdist_egg  # pylint: d
 from pkg_resources import get_build_platform
 from wheel.bdist_wheel import bdist_wheel as old_bdist_wheel
 
-qdb_version = "3.4.0.dev0".lower()
+qdb_version = "3.4.0".lower()
 
 # package_modules are our 'extra' files. Our cmake configuration copies our QDB_API_LIB
 # into our source directory, and by adding this to `package_modules` we tell setuptools to
