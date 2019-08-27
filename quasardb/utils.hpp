@@ -56,9 +56,9 @@ static inline size_t max_length(const qdb_ts_blob_point * points, size_t count)
 {
     if (!count) return 0;
 
-    return std::max_element(points, points + count,
-        [](const qdb_ts_blob_point & left, const qdb_ts_blob_point & right) { return left.content_length < right.content_length; })
-        ->content_length;
+    return std::max_element(points, points + count, [](const qdb_ts_blob_point & left, const qdb_ts_blob_point & right) {
+        return left.content_length < right.content_length;
+    })->content_length;
 }
 
 static inline qdb_time_t to_localtime(qdb_time_t t)

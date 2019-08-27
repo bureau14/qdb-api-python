@@ -3,7 +3,7 @@ import pytest
 import quasardb
 import numpy as np
 
-import test_ts as tslib
+import test_table as tslib
 
 
 def _insert_double_points(table, start_time, points=10):

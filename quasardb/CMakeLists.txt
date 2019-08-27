@@ -108,10 +108,10 @@ pybind11_add_module(quasardb
     qdb_client.cpp
     query.hpp
     query.cpp
-    ts.hpp
-    ts_batch.hpp
+    table.hpp
+    table_reader.hpp
+    batch_inserter.hpp
     ts_convert.hpp
-    ts_reader.hpp
     tag.hpp
     utils.hpp
     version.hpp

@@ -31,7 +31,7 @@
 #pragma once
 
 #include "entry.hpp"
-#include "ts.hpp"
+#include "table.hpp"
 
 namespace qdb
 {
@@ -60,11 +60,11 @@ struct batch_column_info
     qdb_size_t elements_count_hint{0};
 };
 
-class ts_batch
+class batch_inserter
 {
 
 public:
-    ts_batch(qdb::handle_ptr h, const std::vector<batch_column_info> & ci)
+    batch_inserter(qdb::handle_ptr h, const std::vector<batch_column_info> & ci)
         : _handle{h}
     {
         std::vector<qdb_ts_batch_column_info_t> converted(ci.size());
@@ -77,9 +77,9 @@ public:
 
     // prevent copy because of the table object, use a unique_ptr of the batch in cluster
     // to return the object
-    ts_batch(const ts_batch &) = delete;
+    batch_inserter(const batch_inserter &) = delete;
 
-    ~ts_batch()
+    ~batch_inserter()
     {
         if (_handle && _batch_table)
         {
@@ -132,10 +132,10 @@ private:
 };
 
 // don't use shared_ptr, let Python do the reference counting, otherwise you will have an undefined behavior
-using ts_batch_ptr = std::unique_ptr<ts_batch>;
+using batch_inserter_ptr = std::unique_ptr<batch_inserter>;
 
 template <typename Module>
-static inline void register_ts_batch(Module & m)
+static inline void register_batch_inserter(Module & m)
 {
     namespace py = pybind11;
 
@@ -148,15 +148,15 @@ static inline void register_ts_batch(Module & m)
         .def_readwrite("column", &qdb::batch_column_info::column)                            //
         .def_readwrite("elements_count_hint", &qdb::batch_column_info::elements_count_hint); //
 
-    py::class_<qdb::ts_batch>{m, "TimeSeriesBatch"}                               //
+    py::class_<qdb::batch_inserter>{m, "TimeSeriesBatch"}                         //
         .def(py::init<qdb::handle_ptr, const std::vector<batch_column_info> &>()) //
-        .def("start_row", &qdb::ts_batch::start_row)                              //
-        .def("set_blob", &qdb::ts_batch::set_blob)                                //
-        .def("set_double", &qdb::ts_batch::set_double)                            //
-        .def("set_int64", &qdb::ts_batch::set_int64)                              //
-        .def("set_timestamp", &qdb::ts_batch::set_timestamp)                      //
-        .def("push", &qdb::ts_batch::push)                                        //
-        .def("push_async", &qdb::ts_batch::push_async);                           //
+        .def("start_row", &qdb::batch_inserter::start_row)                        //
+        .def("set_blob", &qdb::batch_inserter::set_blob)                          //
+        .def("set_double", &qdb::batch_inserter::set_double)                      //
+        .def("set_int64", &qdb::batch_inserter::set_int64)                        //
+        .def("set_timestamp", &qdb::batch_inserter::set_timestamp)                //
+        .def("push", &qdb::batch_inserter::push)                                  //
+        .def("push_async", &qdb::batch_inserter::push_async);                     //
 }
 
 } // namespace qdb

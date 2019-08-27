@@ -29,7 +29,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "query.hpp"
-#include "ts.hpp"
+#include "table.hpp"
 
 namespace py = pybind11;
 
@@ -263,7 +263,8 @@ query::query_result query::run()
 {
     qdb_query_result_t * result = nullptr;
 
-    qdb::qdb_throw_if_error(qdb_query(*_handle, _query_string.c_str(), &result), [&]() noexcept { qdb_release(*_handle, result); });
+    qdb::qdb_throw_if_error(
+        qdb_query(*_handle, _query_string.c_str(), &result), [&]() noexcept { qdb_release(*_handle, result); });
 
     query::query_result converted_result{};
     if (nullptr != result)

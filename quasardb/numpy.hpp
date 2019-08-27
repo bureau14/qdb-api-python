@@ -33,7 +33,6 @@
 #include "ts_convert.hpp"
 #include <pybind11/numpy.h>
 
-
 // A datetime64 in numpy is modeled as a scalar array, which is not integrated
 // into pybind's adapters of numpy.
 //
@@ -139,9 +138,10 @@ inline static PyDatetimeScalarObject * new_datetime64()
     return PyObject_INIT_VAR(res, type, sizeof(PyDatetimeScalarObject));
 }
 
-inline bool PyDatetime64_Check(PyObject * o) {
-  // TODO(leon): validate that object is actually a PyDatetime64ScalarObject (how?)
-  return true;
+inline bool PyDatetime64_Check(PyObject * o)
+{
+    // TODO(leon): validate that object is actually a PyDatetime64ScalarObject (how?)
+    return true;
 }
 
 /**
@@ -158,24 +158,23 @@ inline static PyObject * to_datetime64(std::int64_t ts)
     // Ensure that we create a new reference for the caller
     Py_INCREF(res);
 
-    return reinterpret_cast <PyObject *> (res);
+    return reinterpret_cast<PyObject *>(res);
 }
 
 } // namespace detail
 
-class datetime64 : public py::object {
+class datetime64 : public py::object
+{
 public:
-  PYBIND11_OBJECT_DEFAULT(datetime64, object, detail::PyDatetime64_Check)
+    PYBIND11_OBJECT_DEFAULT(datetime64, object, detail::PyDatetime64_Check)
 
-  datetime64(std::int64_t ts)
-  : py::object(py::reinterpret_steal<py::object>(detail::to_datetime64(ts)))
-  {
-  }
+    datetime64(std::int64_t ts)
+        : py::object(py::reinterpret_steal<py::object>(detail::to_datetime64(ts)))
+    {}
 
-  datetime64(const qdb_timespec_t & ts)
-    : datetime64(convert_timestamp(ts))
-  {
-  }
+    datetime64(const qdb_timespec_t & ts)
+        : datetime64(convert_timestamp(ts))
+    {}
 };
 
 } // namespace numpy

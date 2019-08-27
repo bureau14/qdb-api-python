@@ -46,27 +46,27 @@ namespace qdb
 using ts_columns_t = std::vector<detail::column_info>;
 
 template <typename RowType>
-class ts_reader_iterator;
+class table_reader_iterator;
 
 template <typename RowType>
-bool operator==(const ts_reader_iterator<RowType> & lhs, const ts_reader_iterator<RowType> & rhs) noexcept;
+bool operator==(const table_reader_iterator<RowType> & lhs, const table_reader_iterator<RowType> & rhs) noexcept;
 
 template <typename RowType>
-class ts_reader_iterator
+class table_reader_iterator
 {
 public:
     using value_type = RowType;
     using reference  = const value_type &;
 
-    friend bool operator==<RowType>(const ts_reader_iterator<RowType> &, const ts_reader_iterator<RowType> &) noexcept;
+    friend bool operator==<RowType>(const table_reader_iterator<RowType> &, const table_reader_iterator<RowType> &) noexcept;
 
 public:
-    ts_reader_iterator()
+    table_reader_iterator()
         : _local_table{nullptr}
         , _the_row{_local_table, _columns}
     {}
 
-    ts_reader_iterator(qdb_local_table_t local_table, const ts_columns_t & columns)
+    table_reader_iterator(qdb_local_table_t local_table, const ts_columns_t & columns)
         : _local_table{local_table}
         , _columns{columns}
         , _the_row{_local_table, _columns}
@@ -75,7 +75,7 @@ public:
         ++(*this);
     }
 
-    bool operator!=(const ts_reader_iterator & rhs) const noexcept
+    bool operator!=(const table_reader_iterator & rhs) const noexcept
     {
         return !(*this == rhs);
     }
@@ -85,7 +85,7 @@ public:
         return _the_row;
     }
 
-    ts_reader_iterator & operator++() noexcept
+    table_reader_iterator & operator++() noexcept
     {
         qdb_error_t err = qdb_ts_table_next_row(_local_table, &_the_row.mutable_timestamp());
 
@@ -110,7 +110,7 @@ private:
 };
 
 template <typename RowType>
-bool operator==(const ts_reader_iterator<RowType> & lhs, const ts_reader_iterator<RowType> & rhs) noexcept
+bool operator==(const table_reader_iterator<RowType> & lhs, const table_reader_iterator<RowType> & rhs) noexcept
 {
     // Our .end() iterator is recognized by a null local table, and we'll
     // ignore the actual row object.
@@ -125,13 +125,13 @@ bool operator==(const ts_reader_iterator<RowType> & lhs, const ts_reader_iterato
 }
 
 template <typename RowType>
-class ts_reader
+class table_reader
 {
 public:
-    using iterator = ts_reader_iterator<RowType>;
+    using iterator = table_reader_iterator<RowType>;
 
 public:
-    ts_reader(qdb::handle_ptr h, const std::string & t, const ts_columns_t & c, const std::vector<qdb_ts_range_t> & r)
+    table_reader(qdb::handle_ptr h, const std::string & t, const ts_columns_t & c, const std::vector<qdb_ts_range_t> & r)
         : _handle{h}
         , _columns{c}
         , _local_table{nullptr}
@@ -144,10 +144,10 @@ public:
     }
 
     // since our reader models a stateful generator, we prevent copies
-    ts_reader(const ts_reader &) = delete;
+    table_reader(const table_reader &) = delete;
 
     // since our reader models a stateful generator, we prevent moves
-    ts_reader(ts_reader && rhs)
+    table_reader(table_reader && rhs)
         : _handle(rhs._handle)
         , _columns(rhs._columns)
         , _local_table(rhs._local_table)
@@ -157,7 +157,7 @@ public:
         rhs._columns.clear();
     }
 
-    ~ts_reader()
+    ~table_reader()
     {
         if (_handle && _local_table)
         {
@@ -183,17 +183,21 @@ private:
 };
 
 template <typename Module>
-static inline void register_ts_reader(Module & m)
+static inline void register_table_reader(Module & m)
 {
-    py::class_<qdb::ts_reader<reader::ts_fast_row>>{m, "TimeSeriesFastReader"}
+    py::class_<qdb::table_reader<reader::ts_fast_row>>{m, "TimeSeriesFastReader"}
         .def(py::init<qdb::handle_ptr, const std::string &, const ts_columns_t &, const std::vector<qdb_ts_range_t> &>())
 
-        .def("__iter__", [](ts_reader<reader::ts_fast_row> & r) { return py::make_iterator(r.begin(), r.end()); }, py::keep_alive<0, 1>());
+        .def(
+            "__iter__", [](table_reader<reader::ts_fast_row> & r) { return py::make_iterator(r.begin(), r.end()); },
+            py::keep_alive<0, 1>());
 
-    py::class_<qdb::ts_reader<reader::ts_dict_row>>{m, "TimeSeriesDictReader"}
+    py::class_<qdb::table_reader<reader::ts_dict_row>>{m, "TimeSeriesDictReader"}
         .def(py::init<qdb::handle_ptr, const std::string &, const ts_columns_t &, const std::vector<qdb_ts_range_t> &>())
 
-        .def("__iter__", [](ts_reader<reader::ts_dict_row> & r) { return py::make_iterator(r.begin(), r.end()); }, py::keep_alive<0, 1>());
+        .def(
+            "__iter__", [](table_reader<reader::ts_dict_row> & r) { return py::make_iterator(r.begin(), r.end()); },
+            py::keep_alive<0, 1>());
 }
 
 } // namespace qdb

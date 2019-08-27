@@ -40,72 +40,72 @@ def _check_ts_results(results, generated, count):
 
 def test_list_columns_throws_when_timeseries_does_not_exist(
         qdbd_connection, entry_name):
-    ts = qdbd_connection.ts(entry_name)
+    table = qdbd_connection.table(entry_name)
     with pytest.raises(quasardb.Error):
-        ts.list_columns()
+        table.list_columns()
 
 
 def test_insert_throws_when_timeseries_does_not_exist(
         qdbd_connection, entry_name):
-    ts = qdbd_connection.ts(entry_name)
+    table = qdbd_connection.table(entry_name)
 
     with pytest.raises(quasardb.Error):
-        ts.double_insert("the_double",
+        table.double_insert("the_double",
                          np.array(np.datetime64('2011-01-01', 'ns')),
                          np.array([1.0]))
 
 
 def test_get_ranges_throws_when_timeseries_does_not_exist(
         qdbd_connection, entry_name, intervals):
-    ts = qdbd_connection.ts(entry_name)
+    table = qdbd_connection.table(entry_name)
     with pytest.raises(quasardb.Error):
-        ts.double_get_ranges("blah", intervals)
+        table.double_get_ranges("blah", intervals)
 
 
 def test_erase_ranges_throw_when_timeseries_does_not_exist(
         qdbd_connection, entry_name, intervals):
-    ts = qdbd_connection.ts(entry_name)
+    table = qdbd_connection.table(entry_name)
     with pytest.raises(quasardb.Error):
-        ts.erase_ranges("blah", intervals)
+        table.erase_ranges("blah", intervals)
 
 
 def test_create_without_columns(qdbd_connection, entry_name):
-    ts = qdbd_connection.ts(entry_name)
-    ts.create([])
+    table = qdbd_connection.table(entry_name)
+    table.create([])
 
-    assert len(ts.list_columns()) == 0
+    assert len(table.list_columns()) == 0
 
 
 def test_create_with_shard_size_less_than_1_millisecond_throws(
         qdbd_connection, entry_name):
-    ts = qdbd_connection.ts(entry_name)
+    table = qdbd_connection.table(entry_name)
     with pytest.raises(quasardb.Error):
-        ts.create([], datetime.timedelta(milliseconds=0))
+        table.create([], datetime.timedelta(milliseconds=0))
 
 
 def test_create_with_shard_size_of_1_millisecond(qdbd_connection, entry_name):
-    ts = qdbd_connection.ts(entry_name)
-    ts.create([], datetime.timedelta(milliseconds=1))
-    assert len(ts.list_columns()) == 0
+    table = qdbd_connection.table(entry_name)
+    table.create([], datetime.timedelta(milliseconds=1))
+    assert len(table.list_columns()) == 0
 
 
 def test_create_with_shard_size_of_1_day(qdbd_connection, entry_name):
-    ts = qdbd_connection.ts(entry_name)
-    ts.create([], datetime.timedelta(hours=24))
-    assert len(ts.list_columns()) == 0
+    table = qdbd_connection.table(entry_name)
+    table.create([], datetime.timedelta(hours=24))
+    assert len(table.list_columns()) == 0
 
 
 def test_create_with_shard_size_of_4_weeks(qdbd_connection, entry_name):
-    ts = qdbd_connection.ts(entry_name)
-    ts.create([], datetime.timedelta(weeks=4))
-    assert len(ts.list_columns()) == 0
+    table = qdbd_connection.table(entry_name)
+    table.create([], datetime.timedelta(weeks=4))
+    assert len(table.list_columns()) == 0
 
 
 def test_create_with_shard_size_of_more_than_1_year(
         qdbd_connection, entry_name):
-    ts = qdbd_connection.ts(entry_name)
-    ts.create([], datetime.timedelta(weeks=52))
-    assert len(ts.list_columns()) == 0
+    table = qdbd_connection.table(entry_name)
+    table.create([], datetime.timedelta(weeks=52))
+    assert len(table.list_columns()) == 0
 
 
 def test_table_layout(table):

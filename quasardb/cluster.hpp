@@ -30,16 +30,16 @@
  */
 #pragma once
 
+#include "batch_inserter.hpp"
 #include "blob.hpp"
 #include "error.hpp"
 #include "handle.hpp"
 #include "integer.hpp"
 #include "options.hpp"
 #include "query.hpp"
+#include "table.hpp"
+#include "table_reader.hpp"
 #include "tag.hpp"
-#include "ts.hpp"
-#include "ts_batch.hpp"
-#include "ts_reader.hpp"
 #include "utils.hpp"
 #include "version.hpp"
 #include <qdb/node.h>
@@ -142,15 +142,15 @@ public:
         return qdb::integer_entry{_handle, alias};
     }
 
-    qdb::ts ts(const std::string & alias)
+    qdb::table table(const std::string & alias)
     {
-        return qdb::ts{_handle, alias};
+        return qdb::table{_handle, alias};
     }
 
-    // the ts_batch_ptr is non-copyable
-    qdb::ts_batch_ptr ts_batch(const std::vector<batch_column_info> & ci)
+    // the batch_inserter_ptr is non-copyable
+    qdb::batch_inserter_ptr inserter(const std::vector<batch_column_info> & ci)
     {
-        return std::make_unique<qdb::ts_batch>(_handle, ci);
+        return std::make_unique<qdb::batch_inserter>(_handle, ci);
     }
 
     qdb::options options()
@@ -252,7 +252,7 @@ static inline void register_cluster(Module & m)
             py::arg("user_name")          = std::string{},                                                                              //
             py::arg("user_private_key")   = std::string{},                                                                              //
             py::arg("cluster_public_key") = std::string{},                                                                              //
-            py::arg("timeout")            = std::chrono::minutes{1})                                                                    //
+            py::arg("timeout")            = std::chrono::minutes{1})                                                                               //
         .def("options", &qdb::cluster::options)                                                                                         //
         .def("node_status", &qdb::cluster::node_status)                                                                                 //
         .def("node_config", &qdb::cluster::node_config)                                                                                 //
@@ -260,18 +260,22 @@ static inline void register_cluster(Module & m)
         .def("tag", &qdb::cluster::tag)                                                                                                 //
         .def("blob", &qdb::cluster::blob)                                                                                               //
         .def("integer", &qdb::cluster::integer)                                                                                         //
-        .def("ts", &qdb::cluster::ts)                                                                                                   //
-        .def("ts_batch", &qdb::cluster::ts_batch)                                                                                       //
-        .def("find", &qdb::cluster::find)                                                                                               //
-        .def("query", &qdb::cluster::query)                                                                                             //
-        .def("prefix_get", &qdb::cluster::prefix_get)                                                                                   //
-        .def("prefix_count", &qdb::cluster::prefix_count)                                                                               //
-        .def("suffix_get", &qdb::cluster::suffix_get)                                                                                   //
-        .def("suffix_count", &qdb::cluster::suffix_count)                                                                               //
-        .def("close", &qdb::cluster::close)                                                                                             //
-        .def("purge_all", &qdb::cluster::purge_all)                                                                                     //
-        .def("trim_all", &qdb::cluster::trim_all)                                                                                       //
-        .def("purge_cache", &qdb::cluster::purge_cache);                                                                                //
+        // backwards compatibility, can be removed in the future
+        .def("ts", &qdb::cluster::table)    //
+        .def("table", &qdb::cluster::table) //
+        // backwards compatibility, can be removed in the future
+        .def("ts_batch", &qdb::cluster::inserter)         //
+        .def("inserter", &qdb::cluster::inserter)         //
+        .def("find", &qdb::cluster::find)                 //
+        .def("query", &qdb::cluster::query)               //
+        .def("prefix_get", &qdb::cluster::prefix_get)     //
+        .def("prefix_count", &qdb::cluster::prefix_count) //
+        .def("suffix_get", &qdb::cluster::suffix_get)     //
+        .def("suffix_count", &qdb::cluster::suffix_count) //
+        .def("close", &qdb::cluster::close)               //
+        .def("purge_all", &qdb::cluster::purge_all)       //
+        .def("trim_all", &qdb::cluster::trim_all)         //
+        .def("purge_cache", &qdb::cluster::purge_cache);  //
 }
 
 } // namespace qdb

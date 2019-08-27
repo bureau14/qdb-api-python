@@ -60,7 +60,8 @@ namespace detail
 
 struct no_op
 {
-    void operator()() const noexcept {}
+    void operator()() const noexcept
+    {}
 };
 
 } // namespace detail
@@ -69,9 +70,9 @@ struct no_op
 // (such as calls to `qdb_release`)
 // `pre_throw` defaults to a `no_op` functor that does nothing.
 template <typename PreThrowFtor = detail::no_op>
-void qdb_throw_if_error(qdb_error_t err, PreThrowFtor&& pre_throw = detail::no_op {})
+void qdb_throw_if_error(qdb_error_t err, PreThrowFtor && pre_throw = detail::no_op{})
 {
-    static_assert(noexcept(std::forward<PreThrowFtor&&>(pre_throw)()), "`pre_throw` argument must be noexcept");
+    static_assert(noexcept(std::forward<PreThrowFtor &&>(pre_throw)()), "`pre_throw` argument must be noexcept");
     if ((qdb_e_ok != err) && (qdb_e_ok_created != err))
     {
         pre_throw();

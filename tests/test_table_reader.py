@@ -2,7 +2,7 @@
 import pytest
 import quasardb
 from functools import reduce
-import test_ts_batch as batchlib
+import test_batch_inserter as batchlib
 import numpy as np
 
 
@@ -12,11 +12,11 @@ def test_reader_can_return_no_rows(qdbd_connection, table, many_intervals):
 
 def test_reader_returns_correct_results(
         qdbd_connection, table, many_intervals):
-    batch_inserter = qdbd_connection.ts_batch(
-        batchlib._make_ts_batch_info(table))
+    inserter = qdbd_connection.inserter(
+        batchlib._make_inserter_info(table))
 
     doubles, blobs, integers, timestamps = batchlib._test_with_table(
-        batch_inserter,
+        inserter,
         table,
         many_intervals,
         batchlib._row_insertion_method,
@@ -39,11 +39,11 @@ def test_reader_iterator_returns_reference(
     #
     # This is actually undesired, and this test is here to detect regressions in
     # behavior.
-    batch_inserter = qdbd_connection.ts_batch(
-        batchlib._make_ts_batch_info(table))
+    inserter = qdbd_connection.inserter(
+        batchlib._make_inserter_info(table))
 
     doubles, blobs, integers, timestamps = batchlib._test_with_table(
-        batch_inserter,
+        inserter,
         table,
         many_intervals,
         batchlib._row_insertion_method,
@@ -66,11 +66,11 @@ def test_reader_can_copy_rows(qdbd_connection, table, many_intervals):
     # As a mitigation to the local table reference issue tested above,
     # we provide the ability to copy rows.
 
-    batch_inserter = qdbd_connection.ts_batch(
-        batchlib._make_ts_batch_info(table))
+    inserter = qdbd_connection.inserter(
+        batchlib._make_inserter_info(table))
 
     doubles, blobs, integers, timestamps = batchlib._test_with_table(
-        batch_inserter,
+        inserter,
         table,
         many_intervals,
         batchlib._row_insertion_method,
@@ -93,11 +93,11 @@ def test_reader_can_copy_rows(qdbd_connection, table, many_intervals):
 
 def test_reader_can_select_columns(qdbd_connection, table, many_intervals):
     # Verifies that we can select a subset of the total available columns.
-    batch_inserter = qdbd_connection.ts_batch(
-        batchlib._make_ts_batch_info(table))
+    inserter = qdbd_connection.inserter(
+        batchlib._make_inserter_info(table))
 
     doubles, blobs, integers, timestamps = batchlib._test_with_table(
-        batch_inserter,
+        inserter,
         table,
         many_intervals,
         batchlib._row_insertion_method,
@@ -115,11 +115,11 @@ def test_reader_can_select_columns(qdbd_connection, table, many_intervals):
 
 def test_reader_can_request_ranges(qdbd_connection, table, many_intervals):
     # Verifies that we can select ranges
-    batch_inserter = qdbd_connection.ts_batch(
-        batchlib._make_ts_batch_info(table))
+    inserter = qdbd_connection.inserter(
+        batchlib._make_inserter_info(table))
 
     doubles, blobs, integers, timestamps = batchlib._test_with_table(
-        batch_inserter,
+        inserter,
         table,
         many_intervals,
         batchlib._row_insertion_method,
@@ -145,11 +145,11 @@ def test_reader_can_request_ranges(qdbd_connection, table, many_intervals):
 
 def test_reader_can_read_dicts(qdbd_connection, table, many_intervals):
     # Verifies that we can select a subset of the total available columns.
-    batch_inserter = qdbd_connection.ts_batch(
-        batchlib._make_ts_batch_info(table))
+    inserter = qdbd_connection.inserter(
+        batchlib._make_inserter_info(table))
 
     doubles, blobs, integers, timestamps = batchlib._test_with_table(
-        batch_inserter,
+        inserter,
         table,
         many_intervals,
         batchlib._row_insertion_method,
@@ -171,11 +171,11 @@ def test_reader_can_read_dicts(qdbd_connection, table, many_intervals):
 def test_reader_can_copy_dict_rows(qdbd_connection, table, many_intervals):
     # Just like our regular row reader, our dict-based ready also needs to
     # copy the rows.
-    batch_inserter = qdbd_connection.ts_batch(
-        batchlib._make_ts_batch_info(table))
+    inserter = qdbd_connection.inserter(
+        batchlib._make_inserter_info(table))
 
     doubles, blobs, integers, timestamps = batchlib._test_with_table(
-        batch_inserter,
+        inserter,
         table,
         many_intervals,
         batchlib._row_insertion_method,

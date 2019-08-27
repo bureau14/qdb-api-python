@@ -31,18 +31,18 @@
 #pragma once
 
 #include "entry.hpp"
+#include "table_reader.hpp"
 #include "ts_convert.hpp"
-#include "ts_reader.hpp"
 #include "detail/ts_column.hpp"
 #include "reader/ts_row.hpp"
 
 namespace qdb
 {
 
-class ts : public entry
+class table : public entry
 {
 public:
-    ts(handle_ptr h, std::string a) noexcept
+    table(handle_ptr h, std::string a) noexcept
         : entry{h, a}
         , _has_indexed_columns(false)
     {}
@@ -130,8 +130,8 @@ public:
         auto r = convert_ranges(ranges);
 
         return (dict_mode == true
-                    ? py::cast(qdb::ts_reader<reader::ts_dict_row>(_handle, _alias, c_columns, r), py::return_value_policy::move)
-                    : py::cast(qdb::ts_reader<reader::ts_fast_row>(_handle, _alias, c_columns, r), py::return_value_policy::move));
+                    ? py::cast(qdb::table_reader<reader::ts_dict_row>(_handle, _alias, c_columns, r), py::return_value_policy::move)
+                    : py::cast(qdb::table_reader<reader::ts_fast_row>(_handle, _alias, c_columns, r), py::return_value_policy::move));
     }
 
 public:
@@ -247,7 +247,7 @@ private:
 };
 
 template <typename Module>
-static inline void register_ts(Module & m)
+static inline void register_table(Module & m)
 {
     namespace py = pybind11;
 
@@ -258,31 +258,31 @@ static inline void register_ts(Module & m)
         .value("Int64", qdb_ts_column_int64)                                          //
         .value("Timestamp", qdb_ts_column_timestamp);                                 //
 
-    py::class_<qdb::ts, qdb::entry>{m, "TimeSeries", "Timeseries table representation"}   //
-        .def(py::init<qdb::handle_ptr, std::string>()) //
-        .def("__repr__", &qdb::ts::repr)
-        .def("create", &qdb::ts::create, py::arg("columns"), py::arg("shard_size") = std::chrono::hours{24}) //
-        .def("get_name", &qdb::ts::get_name)                                                                 //
-        .def("column_index_by_id", &qdb::ts::column_index_by_id)                                             //
-        .def("column_type_by_id", &qdb::ts::column_type_by_id)                                               //
-        .def("insert_columns", &qdb::ts::insert_columns)                                                     //
-        .def("list_columns", &qdb::ts::list_columns)                                                         //
+    py::class_<qdb::table, qdb::entry>{m, "TimeSeries", "Timeseries table representation"} //
+        .def(py::init<qdb::handle_ptr, std::string>())                                     //
+        .def("__repr__", &qdb::table::repr)
+        .def("create", &qdb::table::create, py::arg("columns"), py::arg("shard_size") = std::chrono::hours{24}) //
+        .def("get_name", &qdb::table::get_name)                                                                 //
+        .def("column_index_by_id", &qdb::table::column_index_by_id)                                             //
+        .def("column_type_by_id", &qdb::table::column_type_by_id)                                               //
+        .def("insert_columns", &qdb::table::insert_columns)                                                     //
+        .def("list_columns", &qdb::table::list_columns)                                                         //
 
         // We cannot initialize columns with all columns by default, because i don't
         // see a way to figure out the `this` address for qdb_ts_reader for the default
-        // arguments, and we need it to call qdb::ts::list_columns().
-        .def("reader", &qdb::ts::reader, py::arg("columns") = std::vector<std::string>(), py::arg("ranges") = all_ranges(),
+        // arguments, and we need it to call qdb::table::list_columns().
+        .def("reader", &qdb::table::reader, py::arg("columns") = std::vector<std::string>(), py::arg("ranges") = all_ranges(),
             py::arg("dict") = false)
 
-        .def("erase_ranges", &qdb::ts::erase_ranges)                                                                       //
-        .def("blob_insert", &qdb::ts::blob_insert)                                                                         //
-        .def("double_insert", &qdb::ts::double_insert)                                                                     //
-        .def("int64_insert", &qdb::ts::int64_insert)                                                                       //
-        .def("timestamp_insert", &qdb::ts::timestamp_insert)                                                               //
-        .def("blob_get_ranges", &qdb::ts::blob_get_ranges, py::arg("column"), py::arg("ranges") = all_ranges())            //
-        .def("double_get_ranges", &qdb::ts::double_get_ranges, py::arg("column"), py::arg("ranges") = all_ranges())        //
-        .def("int64_get_ranges", &qdb::ts::int64_get_ranges, py::arg("column"), py::arg("ranges") = all_ranges())          //
-        .def("timestamp_get_ranges", &qdb::ts::timestamp_get_ranges, py::arg("column"), py::arg("ranges") = all_ranges()); //
+        .def("erase_ranges", &qdb::table::erase_ranges)                                                                       //
+        .def("blob_insert", &qdb::table::blob_insert)                                                                         //
+        .def("double_insert", &qdb::table::double_insert)                                                                     //
+        .def("int64_insert", &qdb::table::int64_insert)                                                                       //
+        .def("timestamp_insert", &qdb::table::timestamp_insert)                                                               //
+        .def("blob_get_ranges", &qdb::table::blob_get_ranges, py::arg("column"), py::arg("ranges") = all_ranges())            //
+        .def("double_get_ranges", &qdb::table::double_get_ranges, py::arg("column"), py::arg("ranges") = all_ranges())        //
+        .def("int64_get_ranges", &qdb::table::int64_get_ranges, py::arg("column"), py::arg("ranges") = all_ranges())          //
+        .def("timestamp_get_ranges", &qdb::table::timestamp_get_ranges, py::arg("column"), py::arg("ranges") = all_ranges()); //
 }
 
 } // namespace qdb

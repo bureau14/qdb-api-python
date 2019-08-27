@@ -73,7 +73,8 @@ public:
 
     void update(const std::string & data, std::chrono::system_clock::time_point expiry = std::chrono::system_clock::time_point{})
     {
-        qdb::qdb_throw_if_error(qdb_blob_update(*_handle, _alias.c_str(), data.data(), data.size(), expirable_entry::from_time_point(expiry)));
+        qdb::qdb_throw_if_error(
+            qdb_blob_update(*_handle, _alias.c_str(), data.data(), data.size(), expirable_entry::from_time_point(expiry)));
     }
 
     void remove_if(const std::string & comparand)
