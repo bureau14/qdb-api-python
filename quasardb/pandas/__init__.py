@@ -117,6 +117,36 @@ def write_series(series, table, col_name):
     (write_with[t])(col_name, series.index.to_numpy(), series.to_numpy())
 
 
+def query(cluster, query):
+    """
+    Execute a query and return the results as DataFrames. Returns a dict of
+    tablename / DataFrame pairs.
+
+    Parameters:
+    cluster : quasardb.Cluster
+      Active connection to the QuasarDB cluster
+
+    query : str
+      The query to execute.
+
+    """
+    res = cluster.query(query).run()
+
+    ret = {}
+    for k in res.tables:
+        xs = {}
+        idx = []
+        for c in res.tables[k]:
+            if c.name == '$timestamp':
+                idx = c.data
+            else:
+                xs[c.name] = c.data
+
+        df = DataFrame(data=xs, index=idx)
+        ret[k] = df
+
+    return ret
+
 def read_dataframe(table, row_index=False, columns=None, ranges=None):
     """
     Read a Pandas Dataframe from a QuasarDB Timeseries table.

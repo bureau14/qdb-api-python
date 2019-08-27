@@ -59,7 +59,6 @@ def test_dataframe(qdbd_connection, table):
     for c in df1.columns:
         np.testing.assert_array_equal(df1[c].to_numpy(), df2[c].to_numpy())
 
-
 def test_dataframe_can_read_columns(qdbd_connection, table):
     df1 = gen_df(np.datetime64('2017-01-01'), row_count)
     qdbpd.write_dataframe(df1, qdbd_connection, table)
@@ -89,7 +88,6 @@ def test_dataframe_can_read_ranges(qdbd_connection, table):
     assert df3.shape[0] == 1
     assert df4.shape[0] == 2
 
-
 def test_write_dataframe(qdbd_connection, table):
     # Ensures that we can do a full-circle write and read of a dataframe
     df1 = gen_df(np.datetime64('2017-01-01'), row_count)
@@ -112,7 +110,6 @@ def test_write_dataframe_create_table(qdbd_connection, entry_name):
     assert len(df1.columns) == len(df2.columns)
     for col in df1.columns:
         np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
-
 
 def test_dataframe_read_fast_is_unordered(qdbd_connection, table):
     # As of now, when reading a dataframe fast, when it contains null values,
@@ -158,3 +155,14 @@ def test_dataframe_read_fast_is_unordered(qdbd_connection, table):
     #assert df5.at[1, 'the_double'] == df2.at[ts1, 'the_double']
     assert df5.at[2, 'the_double'] == df1.at[ts2, 'the_double']
     #assert df5.at[3, 'the_double'] == df2.at[ts2, 'the_double']
+
+
+def test_query(qdbd_connection, table):
+    df = gen_df(np.datetime64('2017-01-01'), row_count)
+    qdbpd.write_dataframe(df, qdbd_connection, table)
+
+    res = qdbpd.query(qdbd_connection, "SELECT * FROM " + table.get_name())
+    assert list(res.keys()) == [table.get_name()]
+
+    for c in df.columns:
+        np.testing.assert_array_equal(df[c].to_numpy(), res[table.get_name()][c].to_numpy())
