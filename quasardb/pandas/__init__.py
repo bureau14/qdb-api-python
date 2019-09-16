@@ -240,6 +240,9 @@ def write_dataframe(df, cluster, table, create=False, _async=False, chunk_size=5
     for current_df in dfs:
         # TODO(leon): use pinned columns so we can write entire numpy arrays
         for row in current_df.itertuples(index=True):
+            if pd.isnull(row[0]):
+                raise RuntimeError("Index must be a valid timestamp, found: " + str(row[0]))
+
             batch.start_row(np.datetime64(row[0], 'ns'))
 
             for i in range(len(current_df.columns)):
