@@ -112,6 +112,27 @@ t.int64_insert("volume", timestamps, volumes)
 
 # column-insert-end
 
+# column-get-start
+
+# We first prepare the intervals we want to select data from, that is, a list of
+# timeranges. An interval is defined as a tuple of start time (inclusive) and end
+# time (exclusive).
+#
+# In this example, we just use a single interval.
+intervals = np.array([(np.datetime64('2019-02-01', 'ns'), np.datetime64('2019-02-02', 'ns'))])
+
+# As with insertion, our API works with native numpy arrays and returns the results as such.
+(timestamps1, opens) = t.double_get_ranges("open", intervals)
+(timestamps2, closes) = t.double_get_ranges("close", intervals)
+(timestamps3, volumes) = t.int64_get_ranges("volume", intervals)
+
+# For this specific dataset, timestamps1 == timestamps2 == timestamps3, but
+# this does not necessarily have to be the case.
+np.testing.assert_array_equal(timestamps1, timestamps2)
+np.testing.assert_array_equal(timestamps1, timestamps3)
+
+# column-get-end
+
 
 # drop-table-start
 
