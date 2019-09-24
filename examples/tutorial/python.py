@@ -68,3 +68,34 @@ inserter.set_int64(2, 7500)
 inserter.push()
 
 # batch-insert-end
+
+def do_something_async_with(x):
+    pass
+
+# bulk-read-start
+
+# We can initialize a bulk reader based directly from our table. By
+# providing a dict=True parameter, the QuasarDB API will automatically
+# expose our rows as dicts.
+reader = t.reader(dict=True, ranges=[(np.datetime64('2019-02-01', 'ns'), np.datetime64('2019-02-02', 'ns'))])
+
+# The bulk reader is exposed as a regular Python iterator
+for row in reader:
+
+    # We can access the row locally within our loop:
+    print(row)
+
+    # But because the QuasarDB Python API is zero-copy, our row maintains a
+    # reference to the underlying data. If we want to keep the row data alive
+    # longer than the local scope, you can use row.copy() as follows:
+    do_something_async_with(row.copy())
+
+# bulk-read-end
+
+
+# drop-table-start
+
+# Use the earlier reference of the table we acquired to remove it:
+t.remove()
+
+# drop-table-end
