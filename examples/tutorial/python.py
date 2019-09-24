@@ -92,6 +92,26 @@ for row in reader:
 
 # bulk-read-end
 
+# column-insert-start
+
+# Our API is built on top of numpy, and provides zero-copy integration with native
+# numpy arrays. As such, we first prepare three different arrays for each of our three
+# columns:
+opens = np.array([3.40, 3.50], dtype=np.float64)
+closes = np.array([3.50, 3.55], dtype=np.float64)
+volumes = np.array([10000, 7500], dtype=np.int64)
+
+# Seperately, we generate a numpy array of timestamps. Since our three columns share
+# the same timestamps, we can reuse this array for all of them, but this is not required.
+timestamps = np.array([np.datetime64('2019-02-01'), np.datetime64('2019-02-02')], dtype='datetime64[ns]')
+
+# When inserting, we provide the value arrays en timestamp arrays separately.
+t.double_insert("open", timestamps, opens)
+t.double_insert("close", timestamps, closes)
+t.int64_insert("volume", timestamps, volumes)
+
+# column-insert-end
+
 
 # drop-table-start
 
