@@ -30,6 +30,12 @@ t.create(cols)
 
 # create-table-end
 
+# tags-start
+
+t.attach_tag("nasdaq")
+
+# tags-end
+
 # batch-insert-start
 
 # We need to tell the batch inserter which columns we plan to insert. Note
