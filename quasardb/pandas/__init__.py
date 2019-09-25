@@ -62,7 +62,7 @@ def read_series(table, col_name, ranges=None):
 
     Parameters:
     table : quasardb.Timeseries
-      QuasarDB Timeseries table object, e.g. qdb_cluster.ts('my_table')
+      QuasarDB Timeseries table object, e.g. qdb_cluster.table('my_table')
 
     col_name : str
       Name of the column to read.
@@ -101,7 +101,7 @@ def write_series(series, table, col_name):
       to be transformed to appropriate QuasarDB type.
 
     table : quasardb.Timeseries
-      QuasarDB Timeseries table object, e.g. qdb_cluster.ts('my_table')
+      QuasarDB Timeseries table object, e.g. qdb_cluster.table('my_table')
 
     col_name : str
       Column name to store data in.
@@ -153,7 +153,7 @@ def read_dataframe(table, row_index=False, columns=None, ranges=None):
 
     Parameters:
     table : quasardb.Timeseries
-      QuasarDB Timeseries table object, e.g. qdb_cluster.ts('my_table')
+      QuasarDB Timeseries table object, e.g. qdb_cluster.table('my_table')
 
     columns : optional list
       List of columns to read in dataframe. The timestamp column '$timestamp' is
@@ -208,7 +208,7 @@ def write_dataframe(df, cluster, table, create=False, _async=False, chunk_size=5
 
     table: quasardb.Timeseries or str
       Either a string or a reference to a QuasarDB Timeseries table object.
-      For example, 'my_table' or cluster.ts('my_table') are both valid values.
+      For example, 'my_table' or cluster.table('my_table') are both valid values.
 
     create: optional bool
       Whether to create the table. Defaults to false.
@@ -216,7 +216,7 @@ def write_dataframe(df, cluster, table, create=False, _async=False, chunk_size=5
 
     # Acquire reference to table if string is provided
     if isinstance(table, str):
-        table = cluster.ts(table)
+        table = cluster.table(table)
 
     if create:
         _create_table_from_df(df, table)
@@ -224,7 +224,7 @@ def write_dataframe(df, cluster, table, create=False, _async=False, chunk_size=5
     # Create batch column info from dataframe
     col_info = list(quasardb.BatchColumnInfo(
         table.get_name(), c, chunk_size) for c in df.columns)
-    batch = cluster.ts_batch(col_info)
+    batch = cluster.inserter(col_info)
 
     write_with = {
         quasardb.ColumnType.Double: batch.set_double,
