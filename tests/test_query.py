@@ -122,8 +122,7 @@ def test_returns_inserted_data_with_star_select(
     assert res.tables[table.get_name()][0].name == "$timestamp"
     np.testing.assert_array_equal(
         res.tables[table.get_name()][0].data, inserted_double_data[0])
-    assert res.tables[table.get_name(
-    )][1].name == tslib._double_col_name(table)
+    assert res.tables[table.get_name()][1].name == tslib._double_col_name(table)
     np.testing.assert_array_equal(
         res.tables[table.get_name()][1].data, inserted_double_data[1])
 
@@ -147,8 +146,7 @@ def test_returns_inserted_data_with_star_select_and_tag_lookup(
     np.testing.assert_array_equal(
         res.tables[table.get_name()][0].data, inserted_double_data[0])
 
-    assert res.tables[table.get_name(
-    )][1].name == tslib._double_col_name(table)
+    assert res.tables[table.get_name()][1].name == tslib._double_col_name(table)
     np.testing.assert_array_equal(
         res.tables[table.get_name()][1].data, inserted_double_data[1])
 
@@ -157,8 +155,7 @@ def test_returns_inserted_data_with_column_select(
         qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
     inserted_double_data = _insert_double_points(table, start_time, 10)
-    query = "select " + tslib._double_col_name(table) + " from " + table.get_name(
-    ) + " in range(" + str(tslib._start_year(intervals)) + ", +100d)"
+    query = "select " + tslib._double_col_name(table) + " from " + table.get_name() + " in range(" + str(tslib._start_year(intervals)) + ", +100d)"
     res = qdbd_connection.query(query).run()
 
     sanity_check(table.get_name(),
@@ -170,8 +167,7 @@ def test_returns_inserted_data_with_column_select(
     assert res.tables[table.get_name()][0].name == "$timestamp"
     np.testing.assert_array_equal(
         res.tables[table.get_name()][0].data, inserted_double_data[0])
-    assert res.tables[table.get_name(
-    )][1].name == tslib._double_col_name(table)
+    assert res.tables[table.get_name()][1].name == tslib._double_col_name(table)
     np.testing.assert_array_equal(
         res.tables[table.get_name()][1].data, inserted_double_data[1])
 
@@ -191,8 +187,7 @@ def test_returns_inserted_data_twice_with_double_column_select(
     assert res.tables[table.get_name()][0].name == "$timestamp"
     np.testing.assert_array_equal(
         res.tables[table.get_name()][0].data, inserted_double_data[0])
-    assert res.tables[table.get_name(
-    )][1].name == tslib._double_col_name(table)
+    assert res.tables[table.get_name()][1].name == tslib._double_col_name(table)
     np.testing.assert_array_equal(
         res.tables[table.get_name()][1].data, inserted_double_data[1])
 
