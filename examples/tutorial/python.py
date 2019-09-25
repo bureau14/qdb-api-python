@@ -133,6 +133,24 @@ np.testing.assert_array_equal(timestamps1, timestamps3)
 
 # column-get-end
 
+# query-start
+
+result = c.query("SELECT SUM(volume) FROM stocks").run()
+
+# The Query API pre-groups the results by table
+stocks = result.tables["stocks"]
+
+# Within a table result, we have two columns: a timestamp column and
+# our aggregate result column. The timestamp column is always the first
+# result.
+timestamps = stocks[0]
+volumes = stocks[1]
+
+# Since we only expect one row, we access it as such
+aggregate_result = volumes.data[0]
+print("sum(volume): ", aggregate_result)
+
+# query-end
 
 # drop-table-start
 

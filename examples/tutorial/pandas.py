@@ -77,4 +77,13 @@ volumes = qdbpd.read_series(t, "volume", intervals)
 
 # column-get-end
 
+# query-start
+
+dfs = qdbpd.query(c, "SELECT SUM(volume) FROM stocks")
+
+# The API returns dataframes, pre-grouped per table
+print("result: ", dfs["stocks"])
+
+# query-end
+
 c.table("stocks").remove()
