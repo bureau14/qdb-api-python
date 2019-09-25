@@ -69,7 +69,8 @@ qdbpd.write_series(volumes, t, "volume")
 # In this example, we just use a single interval.
 intervals = np.array([(np.datetime64('2019-02-01', 'ns'), np.datetime64('2019-02-02', 'ns'))])
 
-# We can then use the read_series function to read column by column.
+# We can then use the read_series function to read column by column. The objects
+# returned are regular pd.Series objects.
 opens = qdbpd.read_series(t, "open", intervals)
 closes = qdbpd.read_series(t, "close", intervals)
 volumes = qdbpd.read_series(t, "volume", intervals)
