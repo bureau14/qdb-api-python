@@ -81,7 +81,7 @@ def read_series(table, col_name, ranges=None):
         'column': col_name
     }
 
-    if ranges:
+    if ranges is not None:
         kwargs['ranges'] = ranges
 
     # Dispatch based on column type
