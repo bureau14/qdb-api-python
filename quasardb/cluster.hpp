@@ -187,9 +187,9 @@ public:
         return qdb::find_query{_handle, query_string};
     }
 
-    qdb::query query(const std::string & query_string)
+  qdb::query::result_t query(const std::string & query_string)
     {
-        return qdb::query{_handle, query_string};
+      return qdb::query::run(_handle, query_string);
     }
 
 public:
