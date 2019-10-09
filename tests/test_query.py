@@ -95,9 +95,34 @@ def test_returns_empty_result(qdbd_connection, table):
         "select * from " +
         table.get_name() +
         " in range(2016-01-01 , 2016-12-12)")
-
     assert len(res) == 0
 
+
+def test_returns_table_as_string(
+        qdbd_connection, table, intervals):
+    start_time = tslib._start_time(intervals)
+    inserted_double_data = _insert_double_points(table, start_time, 10)
+    query = "select * from " + table.get_name() + \
+        " in range(" + str(tslib._start_year(intervals)) + ", +100d)"
+    res = qdbd_connection.query(query)
+
+    assert len(res) == 10
+
+    for row, v in zip(res, inserted_double_data[1]):
+        assert row['$table'] == table.get_name()
+
+def test_returns_table_as_blob(
+        qdbd_connection, table, intervals):
+    start_time = tslib._start_time(intervals)
+    inserted_double_data = _insert_double_points(table, start_time, 10)
+    query = "select * from " + table.get_name() + \
+        " in range(" + str(tslib._start_year(intervals)) + ", +100d)"
+    res = qdbd_connection.query(query, blobs=['$table'])
+
+    assert len(res) == 10
+
+    for row, v in zip(res, inserted_double_data[1]):
+        assert row['$table'] == bytearray(table.get_name(), 'utf-8')
 
 def test_returns_inserted_data_with_star_select(
         qdbd_connection, table, intervals):
@@ -111,8 +136,6 @@ def test_returns_inserted_data_with_star_select(
 
     for row, v in zip(res, inserted_double_data[1]):
         assert '$timestamp' in row
-
-        print(row)
 
         assert row['the_blob'] == None
         assert row['the_int64'] == None

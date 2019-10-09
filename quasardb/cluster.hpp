@@ -187,9 +187,9 @@ public:
         return qdb::find_query{_handle, query_string};
     }
 
-  qdb::query::result_t query(const std::string & query_string)
+    qdb::query_result_t query(const std::string & query_string, const py::object & blobs)
     {
-      return qdb::query::run(_handle, query_string);
+      return qdb::query_run(_handle, query_string, blobs);
     }
 
 public:
@@ -267,7 +267,9 @@ static inline void register_cluster(Module & m)
         .def("ts_batch", &qdb::cluster::inserter)         //
         .def("inserter", &qdb::cluster::inserter)         //
         .def("find", &qdb::cluster::find)                 //
-        .def("query", &qdb::cluster::query)               //
+        .def("query", &qdb::cluster::query,               //
+             py::arg("query"),                            //
+             py::arg("blobs") = false)                    //
         .def("prefix_get", &qdb::cluster::prefix_get)     //
         .def("prefix_count", &qdb::cluster::prefix_count) //
         .def("suffix_get", &qdb::cluster::suffix_get)     //
