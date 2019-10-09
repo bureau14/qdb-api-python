@@ -79,9 +79,6 @@ namespace qdb
 
     } catch (std::runtime_error const & _) {
 
-      std::cout << "caught exception!" << std::endl;
-      fflush(stdout);
-
       std::vector<std::string> specific_blobs = py::cast<std::vector<std::string>> (opts);
 
       std::vector<bool> ret;
@@ -120,6 +117,9 @@ namespace qdb
 
     case qdb_query_result_int64:
       return PyLong_FromLongLong(p.payload.int64_.value);
+
+    case qdb_query_result_count:
+      return PyLong_FromLongLong(p.payload.count.value);
 
     case qdb_query_result_timestamp:
       return qdb::numpy::datetime64(p.payload.timestamp.value);
