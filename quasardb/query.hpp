@@ -69,9 +69,8 @@ private:
 
 };
 
-typedef std::vector<std::map<std::string, py::handle> > query_result_t;
-
-  query_result_t query_run(qdb::handle_ptr h, std::string const & query, const py::object & blobs);
+typedef std::vector<std::map<std::string, py::handle> > dict_query_result_t;
+dict_query_result_t dict_query(qdb::handle_ptr h, std::string const & query, const py::object & blobs);
 
 template <typename Module>
 static inline void register_query(Module & m)
@@ -82,7 +81,7 @@ static inline void register_query(Module & m)
         .def(py::init<qdb::handle_ptr, const std::string &>())   //
         .def("run", &qdb::find_query::run);                      //
 
-    m.def("query", &qdb::query_run);
+    m.def("dict_query", &qdb::dict_query);
 }
 
 } // namespace qdb

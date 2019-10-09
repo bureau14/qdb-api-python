@@ -161,8 +161,7 @@ def test_query(qdbd_connection, table):
     df = gen_df(np.datetime64('2017-01-01'), row_count)
     qdbpd.write_dataframe(df, qdbd_connection, table)
 
-    res = qdbpd.query(qdbd_connection, "SELECT * FROM " + table.get_name())
-    assert list(res.keys()) == [table.get_name()]
+    res = qdbpd.query(qdbd_connection, "SELECT * FROM " + table.get_name(), blobs=['the_blob'])
 
     for c in df.columns:
-        np.testing.assert_array_equal(df[c].to_numpy(), res[table.get_name()][c].to_numpy())
+        np.testing.assert_array_equal(df[c].to_numpy(), res[c].to_numpy())

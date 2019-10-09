@@ -46,6 +46,7 @@
 #include <qdb/prefix.h>
 #include <qdb/suffix.h>
 #include <pybind11/chrono.h>
+#include <pybind11/stl.h>
 #include <chrono>
 
 namespace qdb
@@ -187,9 +188,9 @@ public:
         return qdb::find_query{_handle, query_string};
     }
 
-    qdb::query_result_t query(const std::string & query_string, const py::object & blobs)
+    py::object query(const std::string & query_string, const py::object & blobs)
     {
-      return qdb::query_run(_handle, query_string, blobs);
+      return py::cast(qdb::dict_query(_handle, query_string, blobs));
     }
 
 public:

@@ -33,6 +33,7 @@
 #include <set>
 #include <pybind11/stl.h>
 
+#include "ts_convert.hpp"
 #include "query.hpp"
 #include "utils.hpp"
 #include "numpy.hpp"
@@ -129,21 +130,69 @@ namespace qdb
   }
 
 
-  /* static */ query_result_t query_run(qdb::handle_ptr h, std::string const & q, const py::object & blobs) {
+  template <typename T>
+  struct coerce_points
+  {
+    using result_type = py::array_t<T>;
+
+
+    result_type operator()(T v, qdb_point_result_t * p, qdb_size_t count);
+  };
+
+  template <>
+  struct coerce_points<double>
+  {
+    using result_type = py::array;
+
+    result_type operator()(double _, qdb_point_result_t * p, qdb_size_t count) {
+      printf("parsing doubles!\n");
+      fflush(stdout);
+
+      py::array_t<double> res(std::vector<ptrdiff_t> {count});
+
+      double * v_dest = res.mutable_data();
+
+      for (qdb_size_t i = 0; i < count; ++i) {
+        printf("storing: %f\n", p[i].payload.double_.value);
+        fflush(stdout);
+
+        v_dest[i] = p[i].payload.double_.value;
+      }
+
+      return res;
+    }
+  };
+
+
+std::vector<std::string>
+coerce_column_names(qdb_query_result_t const & r) {
+  std::vector<std::string> xs;
+  xs.reserve(r.column_count);
+
+  for (qdb_size_t i = 0; i < r.column_count; ++i) {
+    xs.push_back(qdb::to_string(r.column_names[i]));
+  }
+
+  return xs;
+}
+
+std::unique_ptr <qdb_query_result_t>
+wrap_query(qdb::handle_ptr h, std::string const & q) {
+  qdb_query_result_t * r;
+  qdb::qdb_throw_if_error(qdb_query(*h, q.c_str(), &r));
+  return std::unique_ptr<qdb_query_result_t>(r);
+}
+
+dict_query_result_t
+dict_query(qdb::handle_ptr h, std::string const & q, const py::object & blobs) {
   qdb_query_result_t * r;
   qdb::qdb_throw_if_error(qdb_query(*h, q.c_str(), &r));
 
-  std::vector<std::string> column_names;
-  column_names.reserve(r->column_count);
-
-  for (qdb_size_t i = 0; i < r->column_count; ++i) {
-    column_names.push_back(qdb::to_string(r->column_names[i]));
-  }
-
+  std::vector<std::string> column_names = coerce_column_names(*r);
   std::vector<bool> parse_blobs = coerce_blobs_opt(column_names,  blobs);
 
   // Coerce the results
-  qdb::query_result_t ret;
+  qdb::dict_query_result_t ret;
 
   for (qdb_size_t i = 0; i < r->row_count; ++i) {
     std::map<std::string, py::handle> row;
@@ -160,6 +209,23 @@ namespace qdb
   }
 
   return ret;
+}
+
+/**
+ * Useful for pre-allocating entire numpy arrays: probe the data type for the first
+ * non-null column.
+ */
+qdb_query_result_value_type_t
+probe_data_type_(qdb_point_result_t ** rows, qdb_size_t row_count, qdb_size_t col_num) {
+  for (qdb_size_t i = 0; i < row_count; ++i) {
+    if (rows[i][col_num].type != qdb_query_result_none) {
+      // Short circuit loop
+      return rows[i][col_num].type;
+    }
+  }
+
+  // Everything is null!
+  return qdb_query_result_none;
 }
 
 } // namespace qdb
