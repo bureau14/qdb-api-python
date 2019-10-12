@@ -1,4 +1,4 @@
-# Copyright (c) 2009-2017, quasardb SAS
+# Copyright (c) 2009-2019, quasardb SAS
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,41 +33,26 @@ import sys
 import traceback
 import datetime
 
-# you don't need the following, it's just added so it can be run from the git repo
-# without installing the quasardb library
-for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0], '..', 'build')):
-    for p in dirnames:
-        if p.startswith('lib'):
-            sys.path.append(os.path.join(root, p))
-
 import quasardb  # pylint: disable=C0413,E0401
+import numpy as np
 
 def main(quasardb_uri, ts_name):
 
     print("Connecting to: ", quasardb_uri)
-    q = quasardb.Cluster(uri=quasardb_uri)
+    c = quasardb.Cluster(uri=quasardb_uri)
 
     # create an instance of the time series object
     # which may or may not exist on the server
-    ts = q.ts(ts_name)
+    ts = c.ts(ts_name)
 
     # create the time series with one column of doubles named "my_col"
     # you can specify multiple columns if needed
     # if the time series already exist it will throw an exception
     # the function returns objects enabling direct insertion to the columns
     # here an array of one
-    cols = ts.create([quasardb.TimeSeries.DoubleColumnInfo("close"),
-        quasardb.TimeSeries.Int64ColumnInfo("volume"),
-        quasardb.TimeSeries.TimestampColumnInfo("value_date")])
-
-    # you can also directly access the column, which is what you want to do
-    # if the time series already exist
-    # in our example we could have written my_col = cols[0]
-    close_col = ts.column(quasardb.TimeSeries.DoubleColumnInfo("close"))
-    # and cols[1]
-    volume_col = ts.column(quasardb.TimeSeries.Int64ColumnInfo("volume"))
-    # and cols[2]
-    value_date = ts.column(quasardb.TimeSeries.TimestampColumnInfo("value_date"))
+    ts.create([quasardb.ColumnInfo(quasardb.ColumnType.Double, "close"),
+        quasardb.ColumnInfo(quasardb.ColumnType.Int64, "volume"),
+        quasardb.ColumnInfo(quasardb.ColumnType.Timestamp, "value_date")])
 
     # once you have a column, you can directly insert data into it
     # here we use the high level Python API which isn't the fastest
@@ -75,44 +60,37 @@ def main(quasardb_uri, ts_name):
     # in another example we showcase more efficient insertion methods
     # it's also possible to insert into multiple columns at once in a line by
     # line fashion with the bulk insert API
-    close_col.insert([(datetime.datetime(2017, 1, 1), 1.0),
-                   (datetime.datetime(2017, 1, 2), 2.0),
-                   (datetime.datetime(2017, 1, 3), 3.0)])
 
-    volume_col.insert([(datetime.datetime(2017, 1, 1), 10),
-                   (datetime.datetime(2017, 1, 2), 20),
-                   (datetime.datetime(2017, 1, 3), 30)])
+    dates = np.arange(np.datetime64('2017-01-01'), np.datetime64('2017-01-04')).astype('datetime64[ns]')
 
-    value_date.insert([(datetime.datetime(2017, 1, 1), datetime.datetime(2017, 1, 2)),
-                   (datetime.datetime(2017, 1, 2), datetime.datetime(2017, 1, 3)),
-                   (datetime.datetime(2017, 1, 3), datetime.datetime(2017, 1, 4))])
+    ts.double_insert("close", dates, np.arange(1.0, 4.0))
+    ts.int64_insert("volume", dates, np.arange(1, 4))
+    ts.timestamp_insert("value_date", dates, np.arange(np.datetime64('2017-01-02'), np.datetime64('2017-01-05')).astype('datetime64[ns]'))
 
     # note that intervals are left inclusive, right exclusive
-    year_2017 = (datetime.datetime(2017, 1, 1), datetime.datetime(2018, 1, 1))
+    year_2017 = (np.datetime64("2017-01-01", "ns"), np.datetime64("2018-01-01", "ns"))
 
     # from the column you can also get your points back directly
     # you can query multiple ranges at once if needed, in this example we only
     # ask for all the points of the year 2017
-    points = close_col.get_ranges([year_2017])
-    print("Inserted values: ", points)
-    points = volume_col.get_ranges([year_2017])
-    print("Inserted values: ", points)
-    points = value_date.get_ranges([year_2017])
-    print("Inserted values: ", points)
+    points = ts.double_get_ranges("close", [year_2017])
+    print("Inserted values: ", points[0], points[1])
+    points = ts.int64_get_ranges("volume", [year_2017])
+    print("Inserted values: ", points[0], points[1])
+    points = ts.timestamp_get_ranges("value_date", [year_2017])
+    print("Inserted values: ", points[0], points[1])
 
-    # and of course you can run aggregations, server-side which is very often several
-    # orders of magnitude faster than what you can do client side thanks to the power
-    # of distributed computing!
-    # it will return a list of results matching the aggregation requests provided
-    agg_request = quasardb.TimeSeries.DoubleAggregations()
-    agg_request.append(quasardb.TimeSeries.Aggregation.arithmetic_mean, year_2017)
+    # running queries is about creating a query, every time you run it, you get updated values
+    q = c.query("select * from " + ts_name + " in range(2017, +10d)")
 
-    my_average = close_col.aggregate(agg_request)
-    print("The average value is: ", my_average[0].value)
+    res = q.run()
+
+    for col in res.tables[ts_name]:
+        print(col.name, ": ", col.data)
 
     # this is how we remove the time series
     # note that if it doesn't exist it will throw an exception
-#  ts.remove()
+    ts.remove()
 
 if __name__ == "__main__":
 

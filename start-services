@@ -1,0 +1,24 @@
+#!/bin/sh
+
+set -x
+
+CMD="qdb/bin/qdbd"
+ARGS="-c qdbd.conf"
+SECURE_ARGS="-c qdbd.secure.conf"
+
+echo "Cleaning up..."
+pkill -SIGKILL -f qdbd
+rm -rf qdb/db \
+    && rm -rf qdb/log \
+    && rm -rf qdb/securedb \
+    && rm -rf qdb/securelog \
+    && mkdir -p qdb/db \
+    && mkdir -p qdb/log \
+    && mkdir -p qdb/securedb \
+    && mkdir -p qdb/securelog
+
+echo "Starting qdbd..."
+$CMD $ARGS 1>qdbd.out.txt 2>qdbd.err.txt &
+
+echo "Starting qdbd (secure)..."
+$CMD $SECURE_ARGS 1>qdbd.secure.out.txt 2>qdbd.secure.err.txt &

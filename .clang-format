@@ -1,0 +1,78 @@
+# http://clang.llvm.org/docs/ClangFormatStyleOptions.html
+
+BasedOnStyle: LLVM
+
+AlignAfterOpenBracket: DontAlign
+AccessModifierOffset: -4
+AlignConsecutiveAssignments: true
+#AlignConsecutiveDeclarations: true
+AlignEscapedNewlinesLeft: true
+AllowShortBlocksOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+
+AllowShortFunctionsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: true
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakTemplateDeclarations: true
+
+BinPackArguments: true
+BinPackParameters: false
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass:            true
+  AfterControlStatement: true
+  AfterEnum:             true
+  AfterFunction:         true
+  AfterNamespace:        true
+  AfterObjCDeclaration:  true
+  AfterStruct:           true
+  AfterUnion:            true
+  # AfterExternBlock:    true             # clang-format 6
+  BeforeCatch:           true
+  BeforeElse:            true
+  IndentBraces:          false
+  SplitEmptyFunction:    false            # clang-format 5
+  SplitEmptyRecord:      false            # clang-format 5
+  SplitEmptyNamespace:   false            # clang-format 5
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeInheritanceComma: true         # clang-format 5
+BreakConstructorInitializers: BeforeComma # clang-format 5
+
+ColumnLimit: 140
+IndentPPDirectives: AfterHash
+IndentWidth: 4
+# KeepEmptyLinesAtTheStartOfBlocks: true
+
+IncludeBlocks: Merge
+IncludeCategories:
+  - Regex:      '^(<|")api/'
+    Priority:   3
+  - Regex:      '^(<|")apps/'
+    Priority:   3
+  - Regex:      '^(<|")qdb/'
+    Priority:   3
+  - Regex:      '^(<|")tests/'
+    Priority:   3
+  - Regex:      '^(<|")(mach|linux|sys)/'
+    Priority:   7
+  - Regex:      '^(<|")windows'
+    Priority:   7
+  - Regex:      '^<experimental/'
+    Priority:   8
+  - Regex:      '^(<|")[-a-zA-Z0-9_]+/'
+    Priority:   5
+  - Regex:      '^<'
+    Priority:   9
+  - Regex:      '^"[^/]*'
+    Priority:   1
+
+NamespaceIndentation: None
+# PPDirectiveIndentation: All
+
+PointerAlignment: Middle
+# SpaceBeforeOperators: true
+SpacesInAngles: false
+
+TabWidth: 4
+UseTab: Never

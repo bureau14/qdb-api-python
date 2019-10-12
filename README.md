@@ -1,129 +1,101 @@
-# quasardb Python API
+# QuasarDB Python API
 
-## Installation
+[![PyPI version](https://badge.fury.io/py/quasardb.svg)](https://pypi.org/project/quasardb/)
 
-You can download a precompiled egg directly from our site, or you can build from the sources.
+The QuasarDB Python API is built and tested against the following versions:
 
-### quasardb C API
+- Python 3.5
+- Python 3.6
+- Python 3.7
 
-To build the Python API, you will need the C API. It can either be installed on the machine (e.g. on unix in `/usr/lib` or `/usr/local/lib`) or you can unpack the C API archive in qdb.
+In addition to this, we support the following environments:
 
-### Building the extension
+- MacOS 10.9+
+- Microsoft Windows
+- Linux
+- FreeBSD
 
-You will need [CMake](http://www.cmake.org/), [SWIG](http://www.swig.org/) and the Python dist tools installed. You can also download a pre-compiled package from our download site.
+## Installation via PyPi
 
-First, run cmake to create a project directory, for example:
+#### Windows and MacOS
 
-```
-mkdir build
-cd build
-cmake -G "your generator" ..
-```
+The QuasarDB Python API is distributed using a PyPi package, and can be installed as follows:
 
-Depending on the generator you chose, you will then either have to run make or open the solution with your editor (e.g. Visual Studio).
-
-For example on UNIX:
-
-```
-mkdir build
-cd build
-cmake -G "Unix Makefiles" ..
-make
+```bash
+$ pip install quasardb
 ```
 
-## Usage
+This will download the API and install all its dependencies.
 
-Using *quasardb* starts with a Cluster:
+#### Linux
 
-```python
-import quasardb
+For Linux users, installation via pip through PyPi will trigger a compilation of this module. This will require additional packages to be installed:
 
-c = quasardb.Cluster('qdb://127.0.0.1:2836')
+- A modern C++ compiler (llvm, g++)
+- CMake 3.5 or higher
+- [QuasarDB C API](https://doc.quasardb.net/master/api/c.html)
+
+##### Ubuntu / Debian
+
+On Ubuntu or Debian, this can be achieved as follows:
+
+```bash
+$ apt install apt-transport-https ca-certificates -y
+$ echo "deb [trusted=yes] https://repo.quasardb.net/apt/ /" > /etc/apt/sources.list.d/quasardb.list
+$ apt update
+$ apt install qdb-api cmake g++
+$ pip install wheel
+$ pip install quasardb
 ```
 
-Now that we have a connection to the cluster, let's store some binary data:
+##### RHEL / CentOS
 
-```python
-b = c.blob('bam')
+On RHEL or CentOS, the process is a bit more involved because we need a modern GCC compiler and cmake. It can be achieved as follows:
 
-b.put('boom')
-v = b.get() # returns 'boom'
+```bash
+# Enable SCL for recent gcc
+$ yum install centos-release-scl -y
+
+# Enable EPEL for recent cmake
+$ yum install epel-release -y
+
+# Enable QuasarDB Repository
+$ echo $'[quasardb]\nname=QuasarDB repo\nbaseurl=https://repo.quasardb.net/yum/\nenabled=1\ngpgcheck=0' > /etc/yum.repos.d/quasardb.repo
+
+$ yum install devtoolset-7-gcc-c++ cmake3 make qdb-api
+
+# Make cmake3 the default
+$ alternatives --install /usr/bin/cmake cmake /usr/bin/cmake3 10
+
+# Start using gcc 7
+$ scl enable devtoolset-7 bash
+
+# Default RHEL7 setuptools is not recent enough
+$ pip install --upgrade setupto
+
+# Install the Python module
+$ pip install wheel
+$ pip install quasardb
 ```
 
-Want a queue? We have distributed queues.
 
-```python
-q = c.deque('q2')
 
-q.push_back('boom')
-v = q.pop_front() # returns 'boom'
+## Verifying installation
 
-q.push_front('bang')
+You can verify the QuasarDB Python module is installed correctly by trying to print the installed version:
+
+```
+$ python
+Python 3.7.2 (default, Feb 13 2019, 15:08:44)
+[GCC 7.3.1 20180303 (Red Hat 7.3.1-5)] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import quasardb
+>>> print(quasardb.version())
+3.1.0
 ```
 
-quasardb comes out of the box with server-side atomic integers:
+This tells you the currently installed version of the Python module, and the QuasarDB C API it is linked against is 3.1.0. Ensure that this version also matched the version of the QuasarDB daemon you're connecting to.
 
-```python
-i = c.integer('some_int')
+## Getting started
 
-i.put(3)  # i is equal to 3
-i.add(7)  # i is equal to 10
-i.add(-5) # is equal to 5
-```
-
-We also provide distributed hash sets:
-
-```python
-hset = c.hset('the_set')
-
-hset.insert('boom')
-
-hset.contains('boom') # True
-```
-
-What about time series you say?
-
-You can create a time series as such:
-
-```python
-ts = c.ts("dat_ts")
-
-cols = ts.create([quasardb.TimeSeries.DoubleColumnInfo("col1"), quasardb.TimeSeries.BlobColumnInfo("col2")])
-```
-
-Then you can operate on columns:
-
-```python
-col1 = ts.column(quasardb.TimeSeries.DoubleColumnInfo("col1"))
-
-# you can insert as many points as you want
-col1.insert([(datetime.datetime.now(quasardb.tz), 1.0)])
-
-# get the average for multiple intervals
-# assuming start_time1, end_time1 are datetime.datetime objects
-agg = quasardb.TimeSeries.Aggregations()
-agg.append(quasardb.TimeSeries.Aggregation.arithmetic_mean, (start_time1, end_time1))
-agg.append(quasardb.TimeSeries.Aggregation.arithmetic_mean, (start_time2, end_time2))
-
-avg = col1.aggregate(agg)
-
-# avg[0].value has the average for the first interval
-# avg[1].value has the average for the second interval
-```
-
-It's also possible to get the raw values:
-
-```python
-# results contains the points, in a flattened list
-results = col1.get_ranges([(start_time1, end_time1), (start_time2, end_time2)])
-```
-
-## Compilation Issues
-
-`ImportError: No module named builtins`
-
-Can be solved installing `future` library
-
-```shell
-pip install future
-```
+For instructions on how to use this Python module to interact with a QuasarDB cluster, please refer to [the QuasarDB Python API documentation](https://doc.quasardb.net/master/api/python.html)

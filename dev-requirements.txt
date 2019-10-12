@@ -1,0 +1,11 @@
+wheel
+pytest
+setuptools_git >= 0.3
+xmlrunner
+future
+numpy
+pytest
+pytest-runner
+pytest-benchmark >= 3.2.2
+pytz
+pandas >= 0.24.0

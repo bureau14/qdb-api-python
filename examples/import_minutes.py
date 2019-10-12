@@ -1,4 +1,4 @@
-# Copyright (c) 2009-2017, quasardb SAS
+# Copyright (c) 2009-2019, quasardb SAS
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,13 +35,6 @@ import subprocess
 import time
 
 from zipfile import ZipFile
-
-# you don't need the following, it's just added so it can be run from the git repo
-# without installing the quasardb library
-for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0], '..', 'build')):
-    for p in dirnames:
-        if p.startswith('lib'):
-            sys.path.append(os.path.join(root, p))
 
 import quasardb  # pylint: disable=C0413,E0401
 

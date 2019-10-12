@@ -1,4 +1,4 @@
-# Copyright (c) 2009-2017, quasardb SAS
+# Copyright (c) 2009-2019, quasardb SAS
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,16 +33,9 @@ from socket import gethostname
 import sys
 import traceback
 import random
+import numpy as np
 import time
-import datetime
 import locale
-
-# you don't need the following, it's just added so it can be run from the git repo
-# without installing the quasardb library
-for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0], '..', 'build')):
-    for p in dirnames:
-        if p.startswith('lib'):
-            sys.path.append(os.path.join(root, p))
 
 import quasardb  # pylint: disable=C0413,E0401
 
@@ -85,7 +78,6 @@ def gen_ts_name():
     return "test.{}.{}.{}".format(gethostname(), os.getpid(), random.randint(0, 100000))
 
 def create_ts(q, name):
-
     ts = q.ts(name)
 
     try:
@@ -94,43 +86,31 @@ def create_ts(q, name):
     except quasardb.Error:
         pass
 
-    cols = ts.create([quasardb.TimeSeries.DoubleColumnInfo(COLUMN1_NAME), quasardb.TimeSeries.BlobColumnInfo(COLUMN2_NAME)])
+    ts.create([quasardb.ColumnInfo(quasardb.ColumnType.Double, COLUMN1_NAME), quasardb.ColumnInfo(quasardb.ColumnType.Blob, COLUMN2_NAME)])
 
-    return (ts, cols)
+    return ts
 
 def generate_points(points_count):
-    vec = quasardb.DoublePointsVector()
-    vec.resize(points_count)
+    dates = np.arange(np.datetime64('2017-01-01'), np.datetime64('2017-01-01') + np.timedelta64(points_count, 'm')).astype('datetime64[ns]')
+    values = np.random.uniform(-10.0, 40.0, len(dates))
 
-    tv_sec = quasardb.qdb_convert.time_to_unix_timestamp(datetime.datetime(2017, 1, 1))
-    tv_nsec = 0
+    return (dates, values)
 
-    for i in xrange(points_count):
-        vec[i].timestamp.tv_sec = tv_sec
-        vec[i].timestamp.tv_nsec = tv_nsec
-        vec[i].value = 1.0 + random.random() * 10.0
+def generate_cities(dates, values):
+    res = []
 
-        tv_sec += 60
+    for i in range(0, len(values)):
+      res.append(random.choice(cities))
 
-    return vec
+    return np.array(res)
 
-def generate_cities(temp_col):
-    vec = quasardb.BlobPointsVector()
-    vec.resize(temp_col.size())
+def insert(q, ts_name, points_count):
+    ts = time_execution("Creating a time series of name {}".format(ts_name), create_ts, q, ts_name)
+    (dates, values) = time_execution("Generating {:,} points".format(points_count), generate_points, points_count)
+    cities = generate_cities(dates, values)
 
-    for i in xrange(temp_col.size()):
-        vec[i].timestamp = temp_col[i].timestamp
-        vec[i].data = random.choice(cities)
-
-    return vec
-
-def fast_insert(q, ts_name, points_count):
-    (ts, cols) = time_execution("Creating a time series of name {}".format(ts_name), create_ts, q, ts_name)
-    points = time_execution("Generating {:,} points".format(points_count), generate_points, points_count)
-    cities = generate_cities(points)
-
-    time_execution("Inserting {:,} temperature points into {}".format(points_count, ts_name), cols[0].fast_insert, points)
-    time_execution("Inserting {:,} locations into {}".format(points_count, ts_name), cols[1].fast_insert, cities)
+    time_execution("Inserting {:,} temperature points into {}".format(points_count, ts_name), ts.double_insert, COLUMN1_NAME, dates, values)
+    time_execution("Inserting {:,} locations into {}".format(points_count, ts_name), ts.blob_insert, COLUMN2_NAME, dates, cities)
 
 def main(quasardb_uri, ts_name, points_count):
 
@@ -138,7 +118,7 @@ def main(quasardb_uri, ts_name, points_count):
     q = quasardb.Cluster(uri=quasardb_uri)
 
     print(" *** Inserting {:,} into {}".format(points_count, quasardb_uri))
-    fast_insert(q, ts_name, points_count)
+    insert(q, ts_name, points_count)
 
 if __name__ == "__main__":
 

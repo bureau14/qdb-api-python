@@ -1,4 +1,4 @@
-# Copyright (c) 2009-2017, quasardb SAS
+# Copyright (c) 2009-2019, quasardb SAS
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,13 +40,6 @@ import locale
 import numpy as np
 import pandas as pd
 
-# you don't need the following, it's just added so it can be run from the git repo
-# without installing the quasardb library
-for root, dirnames, filenames in os.walk(os.path.join(os.path.split(__file__)[0], '..', 'build')):
-    for p in dirnames:
-        if p.startswith('lib'):
-            sys.path.append(os.path.join(root, p))
-
 import quasardb  # pylint: disable=C0413,E0401
 
 def create_ts(q, name, columns):
@@ -59,7 +52,7 @@ def create_ts(q, name, columns):
     except quasardb.Error:
         pass
 
-    ts.create([quasardb.TimeSeries.DoubleColumnInfo(x) for x in columns])
+    ts.create([quasardb.ColumnInfo(quasardb.ColumnType.Double, x) for x in columns])
 
     return ts
 
@@ -78,26 +71,13 @@ def main(quasardb_uri, ts_name, csv_file):
     display_pts(start_time, time.time(), series.size)
 
     print("Uploading to server: ", quasardb_uri)
-    q = quasardb.Cluster(uri=quasardb_uri)
+    q = quasardb.Cluster(quasardb_uri)
     start_time = time.time()
     ts = create_ts(q, ts_name, series.columns.tolist())
 
-    # prepare the data locally
-    local_table = ts.local_table()
-
-    # the native, nanosecond, quasardb timestamp for high-speed conversion
-    # going through a Python datetime object would be in this case highly inefficient
-    qdb_timestamp = quasardb.impl.qdb_timespec_t()
-
-    # pandas is column oriented and we could insert column by column
-    for index, values in series.iterrows():
-       qdb_timestamp.tv_sec = index.value // 10**9
-       qdb_timestamp.tv_nsec = index.value % 10**9
-
-       local_table.fast_append_row(qdb_timestamp, *values)
-
-    # this is when the data is going to be pushed to the remote host
-    local_table.push()
+    # insert the columns
+    for i in range(0, len(series.columns)):
+        ts.double_insert(series.columns[i], series.index.values, np.squeeze(series.values[:,i:i+1]))
 
     display_pts(start_time, time.time(), series.size)
 
