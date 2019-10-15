@@ -17,8 +17,8 @@ rm -rf qdb/db \
     && mkdir -p qdb/securedb \
     && mkdir -p qdb/securelog
 
-echo "Starting qdbd..."
-$CMD $ARGS 1>qdbd.out.txt 2>qdbd.err.txt &
-
 echo "Starting qdbd (secure)..."
 $CMD $SECURE_ARGS 1>qdbd.secure.out.txt 2>qdbd.secure.err.txt &
+
+echo "Starting qdbd..."
+$CMD $ARGS 1>qdbd.out.txt 2>qdbd.err.txt &
