@@ -46,6 +46,7 @@
 #include <qdb/prefix.h>
 #include <qdb/suffix.h>
 #include <pybind11/chrono.h>
+#include <pybind11/stl.h>
 #include <chrono>
 
 namespace qdb
@@ -187,9 +188,9 @@ public:
         return qdb::find_query{_handle, query_string};
     }
 
-    qdb::query query(const std::string & query_string)
+    py::object query(const std::string & query_string, const py::object & blobs)
     {
-        return qdb::query{_handle, query_string};
+      return py::cast(qdb::dict_query(_handle, query_string, blobs));
     }
 
 public:
@@ -267,7 +268,9 @@ static inline void register_cluster(Module & m)
         .def("ts_batch", &qdb::cluster::inserter)         //
         .def("inserter", &qdb::cluster::inserter)         //
         .def("find", &qdb::cluster::find)                 //
-        .def("query", &qdb::cluster::query)               //
+        .def("query", &qdb::cluster::query,               //
+             py::arg("query"),                            //
+             py::arg("blobs") = false)                    //
         .def("prefix_get", &qdb::cluster::prefix_get)     //
         .def("prefix_count", &qdb::cluster::prefix_count) //
         .def("suffix_get", &qdb::cluster::suffix_get)     //

@@ -37,28 +37,19 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <map>
+
+namespace py = pybind11;
 
 namespace qdb
 {
 
-class base_query
-{
-public:
-    base_query(qdb::handle_ptr h, const std::string & query_string)
-        : _handle{h}
-        , _query_string{query_string}
-    {}
-
-protected:
-    qdb::handle_ptr _handle;
-    std::string _query_string;
-};
-
-class find_query : public base_query
+class find_query
 {
 public:
     find_query(qdb::handle_ptr h, const std::string & query_string)
-        : base_query{h, query_string}
+        : _handle{h}
+        , _query_string{query_string}
     {}
 
 public:
@@ -71,59 +62,26 @@ public:
 
         return convert_strings_and_release(_handle, aliases, count);
     }
+
+private:
+    qdb::handle_ptr _handle;
+    std::string _query_string;
+
 };
 
-class query : public base_query
-{
-public:
-    query(qdb::handle_ptr h, std::string query_string)
-        : base_query{h, query_string}
-    {}
-
-public:
-    struct column_result
-    {
-        std::string name;
-        pybind11::array data;
-    };
-
-    using table_result = std::vector<column_result>;
-
-    struct query_result
-    {
-        qdb_size_t scanned_point_count{0};
-        std::unordered_map<std::string, table_result> tables;
-    };
-
-public:
-    // return a list of numpy arrays
-    query_result run();
-};
+typedef std::vector<std::map<std::string, py::handle> > dict_query_result_t;
+dict_query_result_t dict_query(qdb::handle_ptr h, std::string const & query, const py::object & blobs);
 
 template <typename Module>
 static inline void register_query(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::base_query>{m, "BaseQuery"}                 //
-        .def(py::init<qdb::handle_ptr, const std::string &>()); //
-
-    py::class_<qdb::find_query, qdb::base_query>{m, "FindQuery"} //
+    py::class_<qdb::find_query>{m, "FindQuery"} //
         .def(py::init<qdb::handle_ptr, const std::string &>())   //
         .def("run", &qdb::find_query::run);                      //
 
-    py::class_<qdb::query, qdb::base_query> q{m, "Query"}; //
-
-    py::class_<qdb::query::column_result>{q, "ColumnResult"}    //
-        .def_readonly("name", &qdb::query::column_result::name) //
-        .def_readonly("data", &qdb::query::column_result::data);
-
-    py::class_<qdb::query::query_result>{q, "QueryResult"}                                   //
-        .def_readonly("scanned_point_count", &qdb::query::query_result::scanned_point_count) //
-        .def_readonly("tables", &qdb::query::query_result::tables);
-
-    q.def(py::init<qdb::handle_ptr, const std::string &>()) //
-        .def("run", &qdb::query::run);                      //
+    m.def("dict_query", &qdb::dict_query);
 }
 
 } // namespace qdb

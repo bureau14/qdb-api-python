@@ -145,6 +145,21 @@ struct npy_api {
         NPY_UINT8_ = NPY_UBYTE_,
         NPY_INT16_ = NPY_SHORT_,
         NPY_UINT16_ = NPY_USHORT_,
+
+        /**
+         * Begin modification by Leon Mergen, 2019-02-20, for PyDatetimeScalarObject
+         * support.
+         *
+         * From:
+         *   https://raw.githubusercontent.com/numpy/numpy/master/numpy/core/include/numpy/ndarraytypes.h
+         */
+
+        NPY_DATETIME, NPY_TIMEDELTA,
+
+        /**
+         * End modification
+         */
+
         // `npy_common.h` defines the integer aliases. In order, it checks:
         // NPY_BITSOF_LONG, NPY_BITSOF_LONGLONG, NPY_BITSOF_INT, NPY_BITSOF_SHORT, NPY_BITSOF_CHAR
         // and assigns the alias to the first matching size, so we should check in this order.
@@ -156,20 +171,6 @@ struct npy_api {
             NPY_LONG_, NPY_LONGLONG_, NPY_INT_),
         NPY_UINT64_ = platform_lookup<std::uint64_t, unsigned long, unsigned long long, unsigned int>(
             NPY_ULONG_, NPY_ULONGLONG_, NPY_UINT_),
-
-        /**
-         * Begin modification by Leon Mergen, 2019-02-20, for PyDatetimeScalarObject
-         * support.
-         *
-         * From:
-         *   https://raw.githubusercontent.com/numpy/numpy/master/numpy/core/include/numpy/ndarraytypes.h
-         */
-
-        NPY_DATETIME, NPY_TIMEDELTA
-
-        /**
-         * End modification
-         */
     };
 
     typedef struct {
@@ -210,7 +211,14 @@ struct npy_api {
     int (*PyArray_SetBaseObject_)(PyObject *, PyObject *);
     PyObject* (*PyArray_Resize_)(PyObject*, PyArray_Dims*, int, int);
 
+
+    /**
+     * Begin modification by Leon Mergen, 2019-02-20, for PyDatetimeScalarObject
+     * support.
+     */
+
     PyTypeObject * PyDatetimeArrType_;
+
 private:
     enum functions {
         API_PyArray_GetNDArrayCFeatureVersion = 211,

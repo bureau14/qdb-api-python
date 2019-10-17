@@ -67,4 +67,8 @@ static inline qdb_time_t to_localtime(qdb_time_t t)
     return mktime(local);
 }
 
+static inline std::string to_string(qdb_string_t s) {
+  return std::string(s.data, s.length);
+}
+
 } // namespace qdb
