@@ -146,6 +146,7 @@ struct npy_api {
         NPY_INT16_ = NPY_SHORT_,
         NPY_UINT16_ = NPY_USHORT_,
 
+
         /**
          * Begin modification by Leon Mergen, 2019-02-20, for PyDatetimeScalarObject
          * support.
@@ -238,6 +239,7 @@ private:
         API_PyArray_GetArrayParamsFromObject = 278,
         API_PyArray_Squeeze = 136,
 
+
         /**
          * Begin modification by Leon Mergen, 2019-02-20, for PyDatetimeScalarObject
          * support.
@@ -284,6 +286,7 @@ private:
         DECL_NPY_API(PyArray_GetArrayParamsFromObject);
         DECL_NPY_API(PyArray_Squeeze);
         DECL_NPY_API(PyArray_SetBaseObject);
+
 
         /**
          * Begin modification by Leon Mergen, 2019-02-20, for PyDatetimeScalarObject
