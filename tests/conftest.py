@@ -14,7 +14,7 @@ def connect(uri):
 def config():
     return {"uri":
             {"insecure": "qdb://127.0.0.1:28360",
-             "secure": "qdb://127.0.0.1:28361"}}
+             "secure": "qdb://127.0.0.1:28362"}}
 
 
 @pytest.fixture
@@ -22,7 +22,7 @@ def qdbd_settings(scope="module"):
     return {
         "uri": {
             "insecure": "qdb://127.0.0.1:28360",
-            "secure": "qdb://127.0.0.1:28361"},
+            "secure": "qdb://127.0.0.1:28362"},
         "security": {
             "user_name": 'qdb-api-python',
             "user_private_key": 'SoHHpH26NtZvfq5pqm/8BXKbVIkf+yYiVZ5fQbq1nbcI=',
