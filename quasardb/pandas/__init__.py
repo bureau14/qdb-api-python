@@ -117,7 +117,7 @@ def write_series(series, table, col_name):
     (write_with[t])(col_name, series.index.to_numpy(), series.to_numpy())
 
 
-def query(cluster, query):
+def query(cluster, query, blobs=False):
     """
     Execute a query and return the results as DataFrames. Returns a dict of
     tablename / DataFrame pairs.
@@ -129,23 +129,16 @@ def query(cluster, query):
     query : str
       The query to execute.
 
+    blobs : bool or list
+      Determines which QuasarDB blob-columns should be returned as bytearrays; otherwise
+      they are returned as UTF-8 strings.
+
+      True means every blob column should be returned as byte-array, or a list will
+      specify which specific columns. Defaults to false, meaning all blobs are returned
+      as strings.
+
     """
-    res = cluster.query(query).run()
-
-    ret = {}
-    for k in res.tables:
-        xs = {}
-        idx = []
-        for c in res.tables[k]:
-            if c.name == '$timestamp':
-                idx = c.data
-            else:
-                xs[c.name] = c.data
-
-        df = DataFrame(data=xs, index=idx)
-        ret[k] = df
-
-    return ret
+    return DataFrame(cluster.query(query, blobs=blobs))
 
 def read_dataframe(table, row_index=False, columns=None, ranges=None):
     """

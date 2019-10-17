@@ -28,258 +28,204 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <iostream>
+#include <set>
+#include <pybind11/stl.h>
+
+#include "ts_convert.hpp"
 #include "query.hpp"
-#include "table.hpp"
+#include "utils.hpp"
+#include "numpy.hpp"
 
 namespace py = pybind11;
 
 namespace qdb
 {
 
-static std::string make_string(const qdb_string_t & str)
-{
-    return std::string{str.data, str.length};
-}
+  /**
+   * Options that define whether or not to return blobs as bytearrays or string. Defaults to
+   * strings.
+   */
+  typedef enum query_blobs_type_t
+  {
+   query_blobs_type_none = 0,
+   query_blobs_type_all = 1,
+   query_blobs_type_columns = 2
+  } qdb_blobs_type_t;
 
-static std::vector<qdb_query_result_value_type_t> scan_col_types(const qdb_table_result_t & table)
-{
-    std::vector<qdb_query_result_value_type_t> res(table.columns_count, qdb_query_result_none);
+  typedef struct {
+    query_blobs_type_t type;
+    std::vector<std::string> columns;
 
-    size_t found = 0;
+  } query_blobs_t;
 
-    for (size_t r = 0; (r < table.rows_count) && (found < res.size()); ++r)
-    {
-        for (size_t c = 0; (c < table.columns_count) && (found < res.size()); ++c)
-        {
-            if ((res[c] == qdb_query_result_none) && (table.rows[r][c].type != qdb_query_result_none))
-            {
-                res[c] = table.rows[r][c].type;
-                ++found;
-            }
+
+  /**
+   * Blobs can be provided in a boolean (blobs=True or blobs=False) or as as specific array
+   * (blobs=['packet', 'other_packet']).
+   *
+   * Takes a python object and an array of column names, and returns a bitmap which denotes
+   * whether a column needs to be returned as a blob (True) or as a string (False).
+   */
+  std::vector<bool>
+  coerce_blobs_opt (std::vector<std::string> column_names, const py::object & opts) {
+
+
+    // First try the most common case, a boolean
+    try {
+      bool all_blobs = py::cast<bool> (opts);
+
+      return std::vector<bool> (column_names.size(), all_blobs);
+
+    } catch (std::runtime_error const & _) {
+
+      std::vector<std::string> specific_blobs = py::cast<std::vector<std::string>> (opts);
+
+      std::vector<bool> ret;
+      ret.reserve(column_names.size());
+
+      for (auto const & col : column_names) {
+        ret.push_back(std::find(specific_blobs.begin(),
+                                specific_blobs.end(),
+                                col) != specific_blobs.end());
+      }
+
+
+      return ret;
+    }
+  }
+
+  py::handle coerce_point(qdb_point_result_t p, bool parse_blob) {
+
+    switch (p.type) {
+    case qdb_query_result_none:
+      return Py_None;
+
+    case qdb_query_result_double:
+      return PyFloat_FromDouble(p.payload.double_.value);
+
+    case qdb_query_result_blob:
+      {
+        if (parse_blob == true) {
+          return PyBytes_FromStringAndSize(static_cast<char const *>(p.payload.blob.content),
+                                           static_cast<Py_ssize_t>(p.payload.blob.content_length));
+        } else {
+          return PyUnicode_FromStringAndSize(static_cast<char const *>(p.payload.blob.content),
+                                             static_cast<Py_ssize_t>(p.payload.blob.content_length));
         }
+      }
+
+    case qdb_query_result_int64:
+      return PyLong_FromLongLong(p.payload.int64_.value);
+
+    case qdb_query_result_count:
+      return PyLong_FromLongLong(p.payload.count.value);
+
+    case qdb_query_result_timestamp:
+      return qdb::numpy::datetime64(p.payload.timestamp.value);
     }
 
-    return res;
+    throw std::runtime_error("Unable to cast QuasarDB type to Python type");
+  }
+
+
+  template <typename T>
+  struct coerce_points
+  {
+    using result_type = py::array_t<T>;
+
+
+    result_type operator()(T v, qdb_point_result_t * p, qdb_size_t count);
+  };
+
+  template <>
+  struct coerce_points<double>
+  {
+    using result_type = py::array;
+
+    result_type operator()(double _, qdb_point_result_t * p, qdb_size_t count) {
+      printf("parsing doubles!\n");
+      fflush(stdout);
+
+      py::array_t<double> res(std::vector<ptrdiff_t> {count});
+
+      double * v_dest = res.mutable_data();
+
+      for (qdb_size_t i = 0; i < count; ++i) {
+        printf("storing: %f\n", p[i].payload.double_.value);
+        fflush(stdout);
+
+        v_dest[i] = p[i].payload.double_.value;
+      }
+
+      return res;
+    }
+  };
+
+
+std::vector<std::string>
+coerce_column_names(qdb_query_result_t const & r) {
+  std::vector<std::string> xs;
+  xs.reserve(r.column_count);
+
+  for (qdb_size_t i = 0; i < r.column_count; ++i) {
+    xs.push_back(qdb::to_string(r.column_names[i]));
+  }
+
+  return xs;
 }
 
-static qdb_size_t scan_blob_max_length(const qdb_table_result_t & table, size_t c)
-{
-    if (table.columns_count < c) throw qdb::exception{qdb_e_out_of_bounds};
-
-    qdb_size_t max_length = 0;
-
-    for (size_t r = 0; r < table.rows_count; ++r)
-    {
-        if (table.rows[r][c].type == qdb_query_result_blob)
-        {
-            max_length = std::max(table.rows[r][c].payload.blob.content_length, max_length);
-        }
-    }
-
-    return max_length;
+std::unique_ptr <qdb_query_result_t>
+wrap_query(qdb::handle_ptr h, std::string const & q) {
+  qdb_query_result_t * r;
+  qdb::qdb_throw_if_error(qdb_query(*h, q.c_str(), &r));
+  return std::unique_ptr<qdb_query_result_t>(r);
 }
 
-template <typename MutableArray>
-static void fill_column_double(MutableArray & dest, const qdb_table_result_t & table, size_t c)
-{
-    for (size_t r = 0; r < table.rows_count; ++r)
-    {
-        if (table.rows[r][c].type == qdb_query_result_double)
-        {
-            dest(r) = table.rows[r][c].payload.double_.value;
-        }
-        else
-        {
-            dest(r) = std::numeric_limits<double>::quiet_NaN();
-        }
+dict_query_result_t
+dict_query(qdb::handle_ptr h, std::string const & q, const py::object & blobs) {
+  qdb_query_result_t * r;
+  qdb::qdb_throw_if_error(qdb_query(*h, q.c_str(), &r));
+
+  std::vector<std::string> column_names = coerce_column_names(*r);
+  std::vector<bool> parse_blobs = coerce_blobs_opt(column_names,  blobs);
+
+  // Coerce the results
+  qdb::dict_query_result_t ret;
+
+  for (qdb_size_t i = 0; i < r->row_count; ++i) {
+    std::map<std::string, py::handle> row;
+
+
+    for (qdb_size_t j = 0; j < r->column_count; ++j) {
+      std::string const & column_name = column_names[j];
+      auto value = coerce_point(r->rows[i][j], parse_blobs[j]);
+
+      row[column_name] = value;
     }
+
+    ret.push_back(row);
+  }
+
+  return ret;
 }
 
-template <typename MutableArray>
-static void fill_column_int64(MutableArray & dest, const qdb_table_result_t & table, size_t c)
-{
-    for (size_t r = 0; r < table.rows_count; ++r)
-    {
-        if (table.rows[r][c].type == qdb_query_result_int64)
-        {
-            dest(r) = table.rows[r][c].payload.int64_.value;
-        }
-        else
-        {
-            dest(r) = std::numeric_limits<std::int64_t>::min();
-        }
+/**
+ * Useful for pre-allocating entire numpy arrays: probe the data type for the first
+ * non-null column.
+ */
+qdb_query_result_value_type_t
+probe_data_type_(qdb_point_result_t ** rows, qdb_size_t row_count, qdb_size_t col_num) {
+  for (qdb_size_t i = 0; i < row_count; ++i) {
+    if (rows[i][col_num].type != qdb_query_result_none) {
+      // Short circuit loop
+      return rows[i][col_num].type;
     }
-}
+  }
 
-template <typename MutableArray>
-static void fill_column_count(MutableArray & dest, const qdb_table_result_t & table, size_t c)
-{
-    for (size_t r = 0; r < table.rows_count; ++r)
-    {
-        if (table.rows[r][c].type == qdb_query_result_count)
-        {
-            dest(r) = table.rows[r][c].payload.count.value;
-        }
-        else
-        {
-            dest(r) = std::numeric_limits<std::int64_t>::min();
-        }
-    }
-}
-
-template <typename MutableArray>
-static void fill_column_timestamp(MutableArray & dest, const qdb_table_result_t & table, size_t c)
-{
-    for (size_t r = 0; r < table.rows_count; ++r)
-    {
-        if (table.rows[r][c].type == qdb_query_result_timestamp)
-        {
-            dest(r) = convert_timestamp(table.rows[r][c].payload.timestamp.value);
-        }
-        else
-        {
-            dest(r) = std::numeric_limits<std::int64_t>::min();
-        }
-    }
-}
-
-static void fill_column_blob(char * dest, size_t item_size, const qdb_table_result_t & table, size_t c)
-{
-    for (size_t r = 0; r < table.rows_count; ++r, dest += item_size)
-    {
-        memset(dest, 0, item_size);
-
-        if (table.rows[r][c].type == qdb_query_result_blob)
-        {
-            assert(table.rows[r][c].payload.blob.content_length <= item_size);
-            memcpy(dest, table.rows[r][c].payload.blob.content, table.rows[r][c].payload.blob.content_length);
-        }
-    }
-}
-
-static void create_columns(
-    query::table_result & t, const qdb_table_result_t & table, const std::vector<qdb_query_result_value_type_t> & col_types)
-{
-    t.resize(table.columns_count);
-
-    for (size_t c = 0; c < table.columns_count; ++c)
-    {
-        t[c].name = make_string(table.columns_names[c]);
-
-        switch (col_types[c])
-        {
-        case qdb_query_result_none:
-            t[c].data = py::array_t<double>{{table.rows_count}};
-            break;
-
-        case qdb_query_result_double:
-            t[c].data = py::array_t<double>{{table.rows_count}};
-            break;
-
-        case qdb_query_result_blob:
-        {
-            // need to compute the max length for proper allocation
-            const auto max_length = scan_blob_max_length(table, c);
-            std::stringstream ss;
-            ss << "|S" << max_length;
-            const std::string str = ss.str();
-            t[c].data             = py::array{str.c_str(), {table.rows_count}};
-            break;
-        }
-
-        case qdb_query_result_int64:
-            t[c].data = py::array_t<std::int64_t>{{table.rows_count}};
-            break;
-
-        case qdb_query_result_timestamp:
-            t[c].data = py::array{"datetime64[ns]", {table.rows_count}};
-            break;
-
-        case qdb_query_result_count:
-            t[c].data = py::array_t<std::int64_t>{{table.rows_count}};
-            break;
-        }
-    }
-}
-
-static void insert_table_result(query::query_result & r, const qdb_table_result_t & table)
-{
-    auto it = r.tables.insert(std::make_pair(make_string(table.table_name), query::table_result{})).first;
-
-    const auto col_types = scan_col_types(table);
-
-    create_columns(it->second, table, col_types);
-
-    // and now we fill, column by column
-    for (size_t c = 0; c < table.columns_count; ++c)
-    {
-        switch (col_types[c])
-        {
-        case qdb_query_result_none:
-            break;
-
-        case qdb_query_result_double:
-        {
-            auto dest = it->second[c].data.mutable_unchecked<double, 1>();
-            fill_column_double(dest, table, c);
-            break;
-        }
-
-        case qdb_query_result_int64:
-        {
-            auto dest = it->second[c].data.mutable_unchecked<std::int64_t, 1>();
-            fill_column_int64(dest, table, c);
-            break;
-        }
-
-        case qdb_query_result_count:
-        {
-            auto dest = it->second[c].data.mutable_unchecked<std::int64_t, 1>();
-            fill_column_count(dest, table, c);
-            break;
-        }
-
-        case qdb_query_result_timestamp:
-        {
-            auto dest = it->second[c].data.mutable_unchecked<std::int64_t, 1>();
-            fill_column_timestamp(dest, table, c);
-            break;
-        }
-
-        case qdb_query_result_blob:
-        {
-            char * dest      = static_cast<char *>(it->second[c].data.mutable_data());
-            size_t item_size = it->second[c].data.itemsize();
-
-            fill_column_blob(dest, item_size, table, c);
-
-            break;
-        }
-        }
-    }
-}
-
-query::query_result query::run()
-{
-    qdb_query_result_t * result = nullptr;
-
-    qdb::qdb_throw_if_error(
-        qdb_query(*_handle, _query_string.c_str(), &result), [&]() noexcept { qdb_release(*_handle, result); });
-
-    query::query_result converted_result{};
-    if (nullptr != result)
-    {
-        converted_result.scanned_point_count = result->scanned_point_count;
-        converted_result.tables.reserve(result->tables_count);
-
-        for (size_t t = 0; t < result->tables_count; ++t)
-        {
-            insert_table_result(converted_result, result->tables[t]);
-        }
-
-        qdb_release(*_handle, result);
-    }
-    return converted_result;
+  // Everything is null!
+  return qdb_query_result_none;
 }
 
 } // namespace qdb
