@@ -142,24 +142,18 @@ std::vector<std::string> coerce_column_names(qdb_query_result_t const & r)
     return xs;
 }
 
-std::unique_ptr<qdb_query_result_t> wrap_query(qdb::handle_ptr h, std::string const & q)
-{
-    qdb_query_result_t * r;
-    qdb::qdb_throw_if_error(qdb_query(*h, q.c_str(), &r));
-    return std::unique_ptr<qdb_query_result_t>(r);
-}
-
 dict_query_result_t dict_query(qdb::handle_ptr h, std::string const & q, const py::object & blobs)
 {
     qdb_query_result_t * r;
     qdb::qdb_throw_if_error(qdb_query(*h, q.c_str(), &r));
 
+    qdb::dict_query_result_t ret;
+    if (!r) return ret;
+
     std::vector<std::string> column_names = coerce_column_names(*r);
     std::vector<bool> parse_blobs         = coerce_blobs_opt(column_names, blobs);
 
     // Coerce the results
-    qdb::dict_query_result_t ret;
-
     for (qdb_size_t i = 0; i < r->row_count; ++i)
     {
         std::map<std::string, py::handle> row;
