@@ -234,3 +234,7 @@ def test_returns_inserted_multi_data_with_star_select(
         assert row['the_double'] == double
         assert row['the_int64'] == int64
         assert row['the_ts'] == ts
+
+def test_create_table(qdbd_connection, entry_name):
+    query = "create table {} (col int64)".format(entry_name)
+    res = qdbd_connection.query(query)
