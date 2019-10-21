@@ -133,10 +133,18 @@ inline static PyDatetimeScalarObject * new_datetime64()
     PyTypeObject * type = detail::get_datetime64_type();
 
     // Allocate memory
-    PyDatetimeScalarObject * res = reinterpret_cast<PyDatetimeScalarObject *>(type->tp_alloc(type, 1));
-
+    PyObject * res = type->tp_alloc(type, 1);
     // Call constructor.
-    return PyObject_INIT_VAR(res, type, sizeof(PyDatetimeScalarObject));
+
+    // TODO(leon): this _might_ not be strictly necessary, as there might
+    // be a better way to allocate this object.
+#if PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION < 8
+    PyObject * tmp = PyObject_INIT_VAR(res, type, sizeof(PyDatetimeScalarObject));
+#else
+    PyVarObject * tmp = PyObject_INIT_VAR(res, type, sizeof(PyDatetimeScalarObject));
+#endif
+
+    return reinterpret_cast<PyDatetimeScalarObject *>(tmp);
 }
 
 inline bool PyDatetime64_Check(PyObject * o) {
