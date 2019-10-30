@@ -47,6 +47,7 @@
 #include <qdb/suffix.h>
 #include <pybind11/chrono.h>
 #include <pybind11/stl.h>
+#include <pybind11/operators.h>
 #include <chrono>
 
 namespace qdb
@@ -97,6 +98,17 @@ private:
     }
 
 public:
+    cluster enter()
+    {
+      // No-op, all initialization is done in the constructor.
+      return *this;
+    }
+
+    void exit(pybind11::object type, pybind11::object value, pybind11::object traceback)
+    {
+      return close();
+    }
+
     pybind11::object node_config(const std::string & uri)
     {
         const char * content      = nullptr;
@@ -254,6 +266,8 @@ static inline void register_cluster(Module & m)
             py::arg("user_private_key")   = std::string{},                                                                              //
             py::arg("cluster_public_key") = std::string{},                                                                              //
             py::arg("timeout")            = std::chrono::minutes{1})                                                                               //
+        .def("__enter__", &qdb::cluster::enter)                                                                                         //
+        .def("__exit__", &qdb::cluster::exit)                                                                                           //
         .def("options", &qdb::cluster::options)                                                                                         //
         .def("node_status", &qdb::cluster::node_status)                                                                                 //
         .def("node_config", &qdb::cluster::node_config)                                                                                 //

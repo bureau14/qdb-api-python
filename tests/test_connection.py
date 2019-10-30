@@ -47,3 +47,10 @@ def test_connect_ok_to_secure_cluster(qdbd_settings):
         user_name=qdbd_settings.get("security").get("user_name"),
         user_private_key=qdbd_settings.get("security").get("user_private_key"),
         cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"))
+
+def test_connect_with_open_to_secure_cluster(qdbd_settings):
+    with quasardb.Cluster(uri=qdbd_settings.get("uri").get("insecure")) as conn:
+        topology = conn.node_topology(
+            qdbd_settings.get('uri').get('insecure'))
+
+        assert len(topology) > 0
