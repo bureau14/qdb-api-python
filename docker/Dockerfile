@@ -6,4 +6,4 @@ RUN apt-get update \
         && apt-get install -y cmake \
         && apt-get clean
 
-RUN pip install pipenv
+RUN pip install pipenv pdoc3
