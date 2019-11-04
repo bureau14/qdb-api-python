@@ -247,7 +247,8 @@ static inline void register_cluster(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::cluster>(m, "Cluster")                                                                                              //
+    py::class_<qdb::cluster>(m, "Cluster",
+                             "Represents a connection to the QuasarDB cluster. ")                                                                                              //
         .def(py::init<const std::string &, const std::string &, const std::string &, const std::string &, std::chrono::milliseconds>(), //
             py::arg("uri"),                                                                                                             //
             py::arg("user_name")          = std::string{},                                                                              //

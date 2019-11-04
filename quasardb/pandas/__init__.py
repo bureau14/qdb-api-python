@@ -31,6 +31,10 @@ import quasardb
 
 
 class PandasRequired(ImportError):
+    """
+    Exception raised when trying to use QuasarDB pandas integration, but
+    pandas has not been installed.
+    """
     pass
 
 
