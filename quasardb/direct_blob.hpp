@@ -28,38 +28,59 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "cluster.hpp"
-#include "node.hpp"
-#include <pybind11/pybind11.h>
+#pragma once
 
-namespace py = pybind11;
+#include "error.hpp"
+#include "handle.hpp"
+#include "direct_handle.hpp"
+#include <qdb/direct.h>
 
-PYBIND11_MODULE(quasardb, m)
+namespace qdb
 {
-    py::register_exception<qdb::exception>(m, "Error");
 
-    m.doc() = "QuasarDB Official Python API";
+class direct_blob_entry
+{
+public:
+    direct_blob_entry(handle_ptr h, direct_handle_ptr dh, std::string a) noexcept
+        : _handle{h}
+        , _direct_handle{dh}
+        , _alias{a}
+    {}
 
-    m.def("version", &qdb_version, "Return version number");
-    m.def("build", &qdb_build, "Return build number");
+    pybind11::bytes get()
+    {
+        const void * content      = nullptr;
+        qdb_size_t content_length = 0;
 
-    m.attr("never_expires") = std::chrono::system_clock::time_point{};
+        qdb::qdb_throw_if_error(qdb_direct_blob_get(*_direct_handle, _alias.c_str(), &content, &content_length));
 
-    qdb::register_cluster(m);
-    qdb::register_node(m);
-    qdb::register_options(m);
-    qdb::register_entry(m);
-    qdb::register_blob(m);
-    qdb::register_integer(m);
-    qdb::register_direct_blob(m);
-    qdb::register_direct_integer(m);
-    qdb::register_tag(m);
-    qdb::register_query(m);
-    qdb::register_table(m);
-    qdb::register_batch_inserter(m);
-    qdb::register_table_reader(m);
+        return convert_and_release_content(content, content_length);
+    }
+private:
+    pybind11::bytes convert_and_release_content(const void * content, qdb_size_t content_length)
+    {
+        if (!content || !content_length) return pybind11::bytes{};
 
-    qdb::detail::register_ts_column(m);
-    qdb::reader::register_ts_value(m);
-    qdb::reader::register_ts_row(m);
+        pybind11::bytes res(static_cast<const char *>(content), content_length);
+
+        qdb_release(*_handle, content);
+
+        return res;
+    }
+
+    handle_ptr _handle;
+    direct_handle_ptr _direct_handle;
+    std::string _alias;
+};
+
+template <typename Module>
+static inline void register_direct_blob(Module & m)
+{
+    namespace py = pybind11;
+
+    py::class_<qdb::direct_blob_entry>(m, "DirectBlob")
+        .def(py::init<qdb::handle_ptr, qdb::direct_handle_ptr, std::string>())
+        .def("get", &qdb::direct_blob_entry::get);
 }
+
+} // namespace qdb

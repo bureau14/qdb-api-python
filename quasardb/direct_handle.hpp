@@ -28,38 +28,50 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "cluster.hpp"
-#include "node.hpp"
-#include <pybind11/pybind11.h>
+#pragma once
 
-namespace py = pybind11;
+#include "handle.hpp"
+#include <qdb/direct.h>
+#include <memory>
+#include <string>
 
-PYBIND11_MODULE(quasardb, m)
+namespace qdb
 {
-    py::register_exception<qdb::exception>(m, "Error");
 
-    m.doc() = "QuasarDB Official Python API";
+class direct_handle
+{
+public:
+    explicit direct_handle() noexcept
+    {}
 
-    m.def("version", &qdb_version, "Return version number");
-    m.def("build", &qdb_build, "Return build number");
+    ~direct_handle()
+    {
+        if (_handle)
+        {
+            qdb_direct_close(_handle);
+            _handle = nullptr;
+        }
+    }
+    
+    void connect(const handle_ptr handle, const std::string & uri)
+    {
+        _handle = qdb_direct_connect(*handle, uri.c_str());
+    }
 
-    m.attr("never_expires") = std::chrono::system_clock::time_point{};
+    operator qdb_direct_handle_t() const noexcept
+    {
+        return _handle;
+    }
 
-    qdb::register_cluster(m);
-    qdb::register_node(m);
-    qdb::register_options(m);
-    qdb::register_entry(m);
-    qdb::register_blob(m);
-    qdb::register_integer(m);
-    qdb::register_direct_blob(m);
-    qdb::register_direct_integer(m);
-    qdb::register_tag(m);
-    qdb::register_query(m);
-    qdb::register_table(m);
-    qdb::register_batch_inserter(m);
-    qdb::register_table_reader(m);
+private:
+    qdb_direct_handle_t _handle{nullptr};
+};
 
-    qdb::detail::register_ts_column(m);
-    qdb::reader::register_ts_value(m);
-    qdb::reader::register_ts_row(m);
+using direct_handle_ptr = std::shared_ptr<direct_handle>;
+
+static inline direct_handle_ptr make_direct_handle_ptr()
+{
+    return std::make_shared<qdb::direct_handle>(direct_handle());
 }
+
+} // namespace qdb

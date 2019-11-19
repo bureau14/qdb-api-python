@@ -28,38 +28,43 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "cluster.hpp"
-#include "node.hpp"
-#include <pybind11/pybind11.h>
+#pragma once
 
-namespace py = pybind11;
+#include "direct_handle.hpp"
+#include <qdb/integer.h>
 
-PYBIND11_MODULE(quasardb, m)
+namespace qdb
 {
-    py::register_exception<qdb::exception>(m, "Error");
 
-    m.doc() = "QuasarDB Official Python API";
+class direct_integer_entry
+{
+public:
+    direct_integer_entry(direct_handle_ptr dh, std::string a) noexcept
+        : _direct_handle{dh}
+        , _alias{a}
+    {}
 
-    m.def("version", &qdb_version, "Return version number");
-    m.def("build", &qdb_build, "Return build number");
+public:
+    qdb_int_t get()
+    {
+        qdb_int_t result;
+        qdb::qdb_throw_if_error(qdb_direct_int_get(*_direct_handle, _alias.c_str(), &result));
+        return result;
+    }
 
-    m.attr("never_expires") = std::chrono::system_clock::time_point{};
+private:
+    direct_handle_ptr _direct_handle;
+    std::string _alias;
+};
 
-    qdb::register_cluster(m);
-    qdb::register_node(m);
-    qdb::register_options(m);
-    qdb::register_entry(m);
-    qdb::register_blob(m);
-    qdb::register_integer(m);
-    qdb::register_direct_blob(m);
-    qdb::register_direct_integer(m);
-    qdb::register_tag(m);
-    qdb::register_query(m);
-    qdb::register_table(m);
-    qdb::register_batch_inserter(m);
-    qdb::register_table_reader(m);
+template <typename Module>
+static inline void register_direct_integer(Module & m)
+{
+    namespace py = pybind11;
 
-    qdb::detail::register_ts_column(m);
-    qdb::reader::register_ts_value(m);
-    qdb::reader::register_ts_row(m);
+    py::class_<qdb::direct_integer_entry>(m, "DirectInteger")
+        .def(py::init<qdb::direct_handle_ptr, std::string>())
+        .def("get", &qdb::direct_integer_entry::get);                                                                                                                            //
 }
+
+} // namespace qdb
