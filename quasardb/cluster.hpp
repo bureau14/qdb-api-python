@@ -34,6 +34,7 @@
 #include "blob.hpp"
 #include "error.hpp"
 #include "handle.hpp"
+#include "node.hpp"
 #include "integer.hpp"
 #include "options.hpp"
 #include "query.hpp"
@@ -87,6 +88,12 @@ public:
     void close()
     {
         _handle.reset();
+    }
+
+public:
+    qdb::node node(std::string & uri)
+    {
+        return qdb::node(_handle, uri);
     }
 
 private:
@@ -248,6 +255,27 @@ public:
         qdb::qdb_throw_if_error(qdb_trim_all(*_handle, static_cast<int>(timeout_ms.count())));
     }
 
+public:
+    std::vector<std::string> endpoints()
+    {
+        qdb_remote_node_t * endpoints = nullptr;
+        qdb_size_t count              = 0;
+
+        const qdb_error_t err = qdb_cluster_endpoints(*_handle, &endpoints, &count);
+        if (QDB_FAILURE(err)) throw qdb::exception{err};
+
+        std::vector<std::string> results;
+        results.resize(count);
+
+        std::transform(endpoints, endpoints + count, std::begin(results), [](auto const & endpoint) {
+            return std::string{endpoint.address} + ":" + std::to_string(endpoint.port);
+        });
+
+        qdb_release(*_handle, endpoints);
+
+        return results;
+    }
+
 private:
     std::string _uri;
     handle_ptr _handle;
@@ -268,7 +296,8 @@ static inline void register_cluster(Module & m)
             py::arg("cluster_public_key") = std::string{},                                                                              //
             py::arg("timeout")            = std::chrono::minutes{1})                                                                               //
         .def("__enter__", &qdb::cluster::enter)                                                                                         //
-        .def("__exit__", &qdb::cluster::exit)                                                                                           //
+        .def("__exit__", &qdb::cluster::exit)                                                                                           //                                                                   //
+        .def("node", &qdb::cluster::node)                                                                                               //
         .def("options", &qdb::cluster::options)                                                                                         //
         .def("node_status", &qdb::cluster::node_status)                                                                                 //
         .def("node_config", &qdb::cluster::node_config)                                                                                 //
@@ -293,7 +322,8 @@ static inline void register_cluster(Module & m)
         .def("close", &qdb::cluster::close)               //
         .def("purge_all", &qdb::cluster::purge_all)       //
         .def("trim_all", &qdb::cluster::trim_all)         //
-        .def("purge_cache", &qdb::cluster::purge_cache);  //
+        .def("purge_cache", &qdb::cluster::purge_cache)   //
+        .def("endpoints", &qdb::cluster::endpoints);      //
 }
 
 } // namespace qdb

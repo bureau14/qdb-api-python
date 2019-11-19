@@ -10,6 +10,8 @@ import quasardb
 def connect(uri):
     return quasardb.Cluster(uri)
 
+def direct_connect(conn, node_uri):
+    return conn.node(node_uri)
 
 def config():
     return {"uri":
@@ -33,6 +35,9 @@ def qdbd_settings(scope="module"):
 def qdbd_connection(qdbd_settings):
     return connect(qdbd_settings.get("uri").get("insecure"))
 
+@pytest.fixture
+def qdbd_direct_connection(qdbd_settings, qdbd_connection):
+    return direct_connect(qdbd_connection, qdbd_settings.get("uri").get("insecure").replace("qdb://", ""))
 
 @pytest.fixture
 def random_identifier():

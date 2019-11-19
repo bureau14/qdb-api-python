@@ -6,6 +6,8 @@
 /quasardb.egg-info/
 /x64/
 /test-reports/
+/quasardb/*.dylib
+/quasardb/*.so
 
 # Where you must unzip qdb_api
 /qdb
@@ -21,6 +23,10 @@
 
 # Database directory
 /db
+
+# Datatbase log file
+*.out.txt
+*.err.txt
 
 # Visual Studio Code
 .vscode/*
