@@ -1,4 +1,5 @@
 # import-start
+import json
 import quasardb
 import numpy as np
 # import-end
@@ -7,15 +8,22 @@ def do_something_async_with(x):
     pass
 
 # connect-start
-with quasardb.Cluster("qdb://127.0.0.1:28360") as c:
+with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
 # connect-end
-
     def secure_connect():
+        user_key = {}
+        cluster_key = ""
+
+        with open('user_private.key', 'r') as user_key_file:
+            user_key = json.load(user_key_file)
+        with open('cluster_public.key', 'r') as cluster_key_file:
+            cluster_key = cluster_key_file.read()
+
         # secure-connect-start
         with quasardb.Cluster(uri='qdb://127.0.0.1:2836',
-                              user_name='user_name',
-                              user_private_key='SL8sm9dM5xhPE6VNhfYY4ib4qk3vmAFDXCZ2FDi8AuJ4=',
-                              cluster_public_key='PZMBhqk43w+HNr9lLGe+RYq+qWZPrksFWMF1k1UG/vwc=') as scs:
+                              user_name=user_key['username'],
+                              user_private_key=user_key['secret_key'],
+                              cluster_public_key=cluster_key) as scs:
         # secure-connect-end
             pass
 

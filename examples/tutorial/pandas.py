@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 # import-end
 
-with quasardb.Cluster("qdb://127.0.0.1:28360") as c:
+with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
 
     # batch-insert-start
 

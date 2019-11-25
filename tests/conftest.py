@@ -1,4 +1,5 @@
 # pylint: disable=C0103,C0111,C0302,W0212
+import json
 import random
 import string
 import pytest
@@ -15,20 +16,27 @@ def direct_connect(conn, node_uri):
 
 def config():
     return {"uri":
-            {"insecure": "qdb://127.0.0.1:28360",
-             "secure": "qdb://127.0.0.1:28362"}}
+            {"insecure": "qdb://127.0.0.1:2836",
+             "secure": "qdb://127.0.0.1:2838"}}
 
 
 @pytest.fixture
 def qdbd_settings(scope="module"):
+    user_key = {}
+    cluster_key = ""
+
+    with open('user_private.key', 'r') as user_key_file:
+        user_key = json.load(user_key_file)
+    with open('cluster_public.key', 'r') as cluster_key_file:
+        cluster_key = cluster_key_file.read()
     return {
         "uri": {
-            "insecure": "qdb://127.0.0.1:28360",
-            "secure": "qdb://127.0.0.1:28362"},
+            "insecure": "qdb://127.0.0.1:2836",
+            "secure": "qdb://127.0.0.1:2838"},
         "security": {
-            "user_name": 'qdb-api-python',
-            "user_private_key": 'SoHHpH26NtZvfq5pqm/8BXKbVIkf+yYiVZ5fQbq1nbcI=',
-            "cluster_public_key": 'Pb+d1o3HuFtxEb5uTl9peU89ze9BZTK9f8KdKr4k7zGA='}}
+            "user_name": user_key['username'],
+            "user_private_key": user_key['secret_key'],
+            "cluster_public_key": cluster_key}}
 
 
 @pytest.fixture
