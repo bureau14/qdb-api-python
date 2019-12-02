@@ -89,7 +89,7 @@ public:
     }
 
 public:
-    void start_row(std::int64_t ts)
+    void start_row(py::object ts)
     {
         const qdb_timespec_t converted = convert_timestamp(ts);
         qdb::qdb_throw_if_error(qdb_ts_batch_start_row(_batch_table, &converted));
@@ -110,7 +110,7 @@ public:
         qdb::qdb_throw_if_error(qdb_ts_batch_row_set_int64(_batch_table, index, v));
     }
 
-    void set_timestamp(std::size_t index, std::int64_t v)
+    void set_timestamp(std::size_t index, py::object v)
     {
         const qdb_timespec_t converted = convert_timestamp(v);
         qdb::qdb_throw_if_error(qdb_ts_batch_row_set_timestamp(_batch_table, index, &converted));

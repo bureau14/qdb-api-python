@@ -34,6 +34,8 @@
 #include <qdb/ts.h>
 #include <pybind11/numpy.h>
 
+namespace py = pybind11;
+
 namespace qdb
 {
 
@@ -53,6 +55,13 @@ static inline qdb_timespec_t convert_timestamp(std::int64_t npdt64) noexcept
     res.tv_sec  = (npdt64 - res.tv_nsec) / ns;
 
     return res;
+}
+
+static inline qdb_timespec_t convert_timestamp(py::object v) noexcept
+{
+    // Starting version 3.8, Python does not allow implicit casting from numpy.datetime64
+    // to an int, so we explicitly do it here.
+    return convert_timestamp(v.cast<std::int64_t>());
 }
 
 using time_range  = std::pair<std::int64_t, std::int64_t>;
