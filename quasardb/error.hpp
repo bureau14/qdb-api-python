@@ -32,6 +32,9 @@
 
 #include <qdb/error.h>
 #include <utility>
+#include <pybind11/pybind11.h>
+
+namespace py = pybind11;
 
 namespace qdb
 {
@@ -46,7 +49,7 @@ public:
         : _error{err}
     {}
 
-    const char * what() const noexcept
+    virtual const char * what() const noexcept
     {
         return qdb_error(_error);
     }
@@ -54,6 +57,21 @@ public:
 private:
     qdb_error_t _error{qdb_e_ok};
 };
+
+class input_buffer_too_small_exception : public exception
+{
+public:
+    input_buffer_too_small_exception() noexcept
+        : exception(qdb_e_network_inbuf_too_small)
+    {
+    }
+
+    virtual const char * what() const noexcept
+    {
+        return "Input buffer too small: result set too large. Hint: consider increasing the buffer size using cluster.options().set_client_max_in_buf_size(..) prior to address this error.";
+    }
+};
+
 
 namespace detail
 {
@@ -75,9 +93,23 @@ void qdb_throw_if_error(qdb_error_t err, PreThrowFtor && pre_throw = detail::no_
     static_assert(noexcept(std::forward<PreThrowFtor &&>(pre_throw)()), "`pre_throw` argument must be noexcept");
     if ((qdb_e_ok != err) && (qdb_e_ok_created != err))
     {
-        pre_throw();
+      pre_throw();
+
+      switch (err) {
+      case qdb_e_network_inbuf_too_small:
+          throw qdb::input_buffer_too_small_exception{};
+
+      default:
         throw qdb::exception{err};
+      };
     }
+}
+
+template <typename Module>
+static inline void register_errors(Module & m)
+{
+    py::register_exception<qdb::exception>(m, "Error");
+    py::register_exception<qdb::input_buffer_too_small_exception>(m, "InputBufferTooSmallError");
 }
 
 } // namespace qdb

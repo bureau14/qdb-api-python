@@ -36,15 +36,12 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(quasardb, m)
 {
-    py::register_exception<qdb::exception>(m, "Error");
-
     m.doc() = "QuasarDB Official Python API";
-
     m.def("version", &qdb_version, "Return version number");
     m.def("build", &qdb_build, "Return build number");
-
     m.attr("never_expires") = std::chrono::system_clock::time_point{};
 
+    qdb::register_errors(m);
     qdb::register_cluster(m);
     qdb::register_node(m);
     qdb::register_options(m);
