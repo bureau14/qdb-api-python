@@ -126,6 +126,11 @@ public:
         qdb::qdb_throw_if_error(qdb_ts_batch_push_async(_batch_table));
     }
 
+    void push_fast()
+    {
+        qdb::qdb_throw_if_error(qdb_ts_batch_fast_push(_batch_table));
+    }
+
 private:
     qdb::handle_ptr _handle;
     qdb_batch_table_t _batch_table{nullptr};
@@ -155,8 +160,9 @@ static inline void register_batch_inserter(Module & m)
         .def("set_double", &qdb::batch_inserter::set_double)                      //
         .def("set_int64", &qdb::batch_inserter::set_int64)                        //
         .def("set_timestamp", &qdb::batch_inserter::set_timestamp)                //
-        .def("push", &qdb::batch_inserter::push)                                  //
-        .def("push_async", &qdb::batch_inserter::push_async);                     //
+        .def("push", &qdb::batch_inserter::push, "Regular batch push") //
+        .def("push_async", &qdb::batch_inserter::push_async, "Asynchronous batch push that buffers data inside the QuasarDB daemon") //
+        .def("push_fast", &qdb::batch_inserter::push_fast, "Fast, in-place batch push that is efficient when doing lots of small, incremental pushes.");
 }
 
 } // namespace qdb

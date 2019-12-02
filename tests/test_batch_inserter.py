@@ -35,6 +35,8 @@ def _async_push(inserter):
     # Ideally we could be able to get the proper flush interval
     sleep(8)
 
+def _fast_push(inserter):
+    inserter.push_fast()
 
 def _make_inserter_info(table):
     return [quasardb.BatchColumnInfo(table.get_name(), tslib._double_col_name(table), 100),
@@ -141,6 +143,20 @@ def test_successful_async_bulk_row_insert(
         many_intervals,
         _row_insertion_method,
         _async_push)
+
+
+def test_successful_fast_bulk_row_insert(
+        qdbd_connection, table, many_intervals):
+    # Same test as `test_successful_bulk_row_insert` but using `push_async` to push the entries
+    # This allows us to test the `push_async` feature
+
+    inserter = qdbd_connection.inserter(_make_inserter_info(table))
+    _test_with_table(
+        inserter,
+        table,
+        many_intervals,
+        _row_insertion_method,
+        _fast_push)
 
 
 def test_failed_local_table_with_wrong_columns(qdbd_connection, entry_name):
