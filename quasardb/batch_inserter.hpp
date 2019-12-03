@@ -128,7 +128,7 @@ public:
 
     void push_fast()
     {
-        qdb::qdb_throw_if_error(qdb_ts_batch_fast_push(_batch_table));
+        qdb::qdb_throw_if_error(qdb_ts_batch_push_fast(_batch_table));
     }
 
 private:
