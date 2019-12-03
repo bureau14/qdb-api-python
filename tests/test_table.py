@@ -142,7 +142,7 @@ def test_column_lookup(table):
 
 
 def test_cannot_double_create(table, entry_name):
-    with pytest.raises(quasardb.Error):
+    with pytest.raises(quasardb.AliasAlreadyExistsError):
         table.create([quasardb.ColumnInfo(
             quasardb.ColumnType.Double, entry_name)])
 

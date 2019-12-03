@@ -10,7 +10,7 @@ def test_put(blob_entry, random_string):
 
 def test_put_throws_exception_when_called_twice(blob_entry, random_blob):
     blob_entry.put(random_blob)
-    with pytest.raises(quasardb.Error):
+    with pytest.raises(quasardb.AliasAlreadyExistsError):
         blob_entry.put(random_blob)
 
 
