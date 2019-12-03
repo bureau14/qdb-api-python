@@ -82,6 +82,31 @@ public:
     }
 };
 
+class invalid_datetime_exception : public exception
+{
+public:
+    invalid_datetime_exception() noexcept
+    : exception(qdb_e_incompatible_type),
+      what_("Unable to interpret provided numpy datetime64. Hint: QuasarDB only works with nanosecond precision datetime64. You can correct this by explicitly casting your timestamps to the dtype datetime64[ns]")
+    {
+    }
+
+    invalid_datetime_exception(py::object o)
+      : exception(qdb_e_incompatible_type),
+        what_ (std::string("Unable to interpret provided numpy datetime64: " + (std::string)(py::str(o)) + ". Hint: QuasarDB only works with nanosecond precision datetime64. You can correct this by explicitly casting your timestamps to the dtype datetime64[ns]"))
+    {
+    }
+
+    virtual const char * what() const noexcept
+    {
+      return what_.c_str();
+
+    }
+
+private:
+  std::string what_;
+};
+
 namespace detail
 {
 
@@ -123,6 +148,7 @@ static inline void register_errors(Module & m)
     py::register_exception<qdb::exception>(m, "Error");
     py::register_exception<qdb::input_buffer_too_small_exception>(m, "InputBufferTooSmallError");
     py::register_exception<qdb::alias_already_exists_exception>(m, "AliasAlreadyExistsError");
+    py::register_exception<qdb::invalid_datetime_exception>(m, "InvalidDatetimeError");
 }
 
 } // namespace qdb

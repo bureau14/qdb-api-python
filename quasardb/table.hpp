@@ -105,8 +105,9 @@ public:
         return column_info_by_id(alias).type;
     }
 
-    py::object reader(const std::vector<std::string> & columns, const time_ranges & ranges, bool dict_mode) const
+    py::object reader(const std::vector<std::string> & columns, const obj_time_ranges & obj_ranges, bool dict_mode) const
     {
+        time_ranges ranges = prep_ranges(obj_ranges);
         std::vector<detail::column_info> c_columns;
 
         if (columns.empty())

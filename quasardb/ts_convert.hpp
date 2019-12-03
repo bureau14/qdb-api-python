@@ -30,9 +30,12 @@
  */
 #pragma once
 
+#include <iostream>
 #include "utils.hpp"
 #include <qdb/ts.h>
-#include <pybind11/numpy.h>
+
+#include <pybind11/pytypes.h>
+#include <pybind11/pybind11.h>
 
 namespace py = pybind11;
 
@@ -57,15 +60,30 @@ static inline qdb_timespec_t convert_timestamp(std::int64_t npdt64) noexcept
     return res;
 }
 
-static inline qdb_timespec_t convert_timestamp(py::object v) noexcept
-{
+static inline std::int64_t prep_datetime(py::object v) {
     // Starting version 3.8, Python does not allow implicit casting from numpy.datetime64
     // to an int, so we explicitly do it here.
-    return convert_timestamp(v.cast<std::int64_t>());
+    try {
+        return v.cast<std::int64_t>();
+    } catch (py::cast_error const & e) {
+        throw qdb::invalid_datetime_exception{v};
+    }
+}
+
+static inline qdb_timespec_t convert_timestamp(py::object v)
+{
+    try {
+      return convert_timestamp(prep_datetime(v));
+    } catch (py::cast_error const & e) {
+      throw qdb::invalid_datetime_exception{};
+    }
 }
 
 using time_range  = std::pair<std::int64_t, std::int64_t>;
 using time_ranges = std::vector<time_range>;
+
+using obj_time_range  = std::pair<py::object, py::object>;
+using obj_time_ranges = std::vector<obj_time_range>;
 
 static inline qdb_ts_range_t convert_range(const time_range & tr) noexcept
 {
@@ -79,6 +97,22 @@ static inline std::vector<qdb_ts_range_t> convert_ranges(const time_ranges & ran
     std::transform(ranges.cbegin(), ranges.cend(), res.begin(), [](const time_range & tr) { return convert_range(tr); });
 
     return res;
+}
+
+static inline time_ranges prep_ranges(const obj_time_ranges & ranges) {
+  time_ranges res(ranges.size());
+
+
+  std::transform(ranges.cbegin(), ranges.cend(), res.begin(), [](const obj_time_range & tr) {
+
+                                                                auto x = prep_datetime(tr.first);
+                                                                auto y = prep_datetime(tr.second);
+
+                                                                return time_range{x, y};
+                                                              });
+
+  return res;
+
 }
 
 // TODO: Is the a more compliant way to describe 'all data in a table'?
