@@ -73,6 +73,15 @@ public:
 };
 
 
+class alias_already_exists_exception : public exception
+{
+public:
+    alias_already_exists_exception() noexcept
+        : exception(qdb_e_alias_already_exists)
+    {
+    }
+};
+
 namespace detail
 {
 
@@ -96,6 +105,9 @@ void qdb_throw_if_error(qdb_error_t err, PreThrowFtor && pre_throw = detail::no_
       pre_throw();
 
       switch (err) {
+      case qdb_e_alias_already_exists:
+        throw qdb::alias_already_exists_exception{};
+
       case qdb_e_network_inbuf_too_small:
           throw qdb::input_buffer_too_small_exception{};
 
@@ -110,6 +122,7 @@ static inline void register_errors(Module & m)
 {
     py::register_exception<qdb::exception>(m, "Error");
     py::register_exception<qdb::input_buffer_too_small_exception>(m, "InputBufferTooSmallError");
+    py::register_exception<qdb::alias_already_exists_exception>(m, "AliasAlreadyExistsError");
 }
 
 } // namespace qdb

@@ -260,7 +260,13 @@ def write_dataframe(df, cluster, table, create=False, _async=False, chunk_size=5
 def _create_table_from_df(df, table):
     cols = list(quasardb.ColumnInfo(
         _dtype_to_column_type(df[c].dtype), c) for c in df.columns)
-    table.create(cols)
+
+    try:
+        table.create(cols)
+    except quasardb.quasardb.AliasAlreadyExistsError:
+        # TODO(leon): warn? how?
+        pass
+
     return table
 
 

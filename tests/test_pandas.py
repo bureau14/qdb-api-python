@@ -111,6 +111,10 @@ def test_write_dataframe_create_table(qdbd_connection, entry_name):
     for col in df1.columns:
         np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
 
+def test_write_dataframe_create_table_twice(qdbd_connection, table):
+    df1 = gen_df(np.datetime64('2017-01-01'), row_count)
+    qdbpd.write_dataframe(df1, qdbd_connection, table, create=True)
+
 def test_dataframe_read_fast_is_unordered(qdbd_connection, table):
     # As of now, when reading a dataframe fast, when it contains null values,
     # rows are not guaranteed to be ordered; they might be matched to the
