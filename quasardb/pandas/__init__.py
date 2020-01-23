@@ -1,6 +1,6 @@
 # pylint: disable=C0103,C0111,C0302,R0903
 
-# Copyright (c) 2009-2019, quasardb SAS
+# Copyright (c) 2009-2020, quasardb SAS. All rights reserved.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -144,6 +144,7 @@ def query(cluster, query, blobs=False):
     """
     return DataFrame(cluster.query(query, blobs=blobs))
 
+
 def read_dataframe(table, row_index=False, columns=None, ranges=None):
     """
     Read a Pandas Dataframe from a QuasarDB Timeseries table.
@@ -238,7 +239,8 @@ def write_dataframe(df, cluster, table, create=False, _async=False, chunk_size=5
         # TODO(leon): use pinned columns so we can write entire numpy arrays
         for row in current_df.itertuples(index=True):
             if pd.isnull(row[0]):
-                raise RuntimeError("Index must be a valid timestamp, found: " + str(row[0]))
+                raise RuntimeError(
+                    "Index must be a valid timestamp, found: " + str(row[0]))
 
             batch.start_row(np.datetime64(row[0], 'ns'))
 
