@@ -8,6 +8,9 @@
 /test-reports/
 /quasardb/*.dylib
 /quasardb/*.so
+dist/
+quasardb/qdb_api.dll
+quasardb/quasardb.cp37-win_amd64.pyd
 
 # Where you must unzip qdb_api
 /qdb
@@ -35,3 +38,11 @@
 !.vscode/launch.json
 !.vscode/extensions.json
 *.code-workspace
+
+# Test specific
+cluster_private.key
+cluster_public.key
+insecure/
+secure/
+user_private.key
+users.cfg

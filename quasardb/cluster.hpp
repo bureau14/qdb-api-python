@@ -37,6 +37,7 @@
 #include "node.hpp"
 #include "integer.hpp"
 #include "options.hpp"
+#include "perf.hpp"
 #include "query.hpp"
 #include "table.hpp"
 #include "table_reader.hpp"
@@ -177,6 +178,11 @@ public:
     {
         return qdb::options{_handle};
     }
+    
+    qdb::perf perf()
+    {
+        return qdb::perf{_handle};
+    }
 
 public:
     std::vector<std::string> prefix_get(const std::string & prefix, qdb_int_t max_count)
@@ -294,11 +300,12 @@ static inline void register_cluster(Module & m)
             py::arg("user_name")          = std::string{},                                                                              //
             py::arg("user_private_key")   = std::string{},                                                                              //
             py::arg("cluster_public_key") = std::string{},                                                                              //
-            py::arg("timeout")            = std::chrono::minutes{1})                                                                               //
+            py::arg("timeout")            = std::chrono::minutes{1})                                                                    //
         .def("__enter__", &qdb::cluster::enter)                                                                                         //
         .def("__exit__", &qdb::cluster::exit)                                                                                           //                                                                   //
         .def("node", &qdb::cluster::node)                                                                                               //
         .def("options", &qdb::cluster::options)                                                                                         //
+        .def("perf", &qdb::cluster::perf)                                                                                               //
         .def("node_status", &qdb::cluster::node_status)                                                                                 //
         .def("node_config", &qdb::cluster::node_config)                                                                                 //
         .def("node_topology", &qdb::cluster::node_topology)                                                                             //
