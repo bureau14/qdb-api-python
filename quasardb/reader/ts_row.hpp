@@ -120,7 +120,7 @@ public:
         return res;
     }
 
-    py::object get_item(int64_t index) const
+    py::object get_item(uint64_t index) const
     {
         if (index == 0)
         {
@@ -130,7 +130,7 @@ public:
         }
         else
         {
-            int64_t col_index = index - 1;
+            uint64_t col_index = index - 1;
             if (col_index > _columns.size())
             {
                 throw py::index_error();

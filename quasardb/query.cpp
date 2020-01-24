@@ -76,7 +76,7 @@ std::vector<bool> coerce_blobs_opt(std::vector<std::string> column_names, const 
 
         return std::vector<bool>(column_names.size(), all_blobs);
     }
-    catch (std::runtime_error const & _)
+    catch (std::runtime_error const & /*_*/)
     {
         std::vector<std::string> specific_blobs = py::cast<std::vector<std::string>>(opts);
 

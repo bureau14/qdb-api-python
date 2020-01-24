@@ -65,7 +65,7 @@ static inline std::int64_t prep_datetime(py::object v) {
     // to an int, so we explicitly do it here.
     try {
         return v.cast<std::int64_t>();
-    } catch (py::cast_error const & e) {
+    } catch (py::cast_error const & /*e*/) {
         throw qdb::invalid_datetime_exception{v};
     }
 }
@@ -74,7 +74,7 @@ static inline qdb_timespec_t convert_timestamp(py::object v)
 {
     try {
       return convert_timestamp(prep_datetime(v));
-    } catch (py::cast_error const & e) {
+    } catch (py::cast_error const & /*e*/) {
       throw qdb::invalid_datetime_exception{};
     }
 }
