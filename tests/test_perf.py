@@ -28,9 +28,12 @@ def test_perf_get__when_empty(qdbd_connection):
 def test_perf_get_after_blob_put(qdbd_connection, entry_name, random_string):
     qdbd_connection.perf().enable()
     qdbd_connection.blob(entry_name).put(random_string)
+    qdbd_connection.blob(entry_name).get()
 
     profiles = qdbd_connection.perf().get()
-    assert len(profiles) != 0
+    assert len(profiles) == 2
+    assert profiles[0][0] == "blob.put"
+    assert profiles[1][0] == "common.get"
 
 
 def test_perf_clear_after_blob_put(qdbd_connection, entry_name, random_string):

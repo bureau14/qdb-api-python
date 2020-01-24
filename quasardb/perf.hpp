@@ -118,25 +118,30 @@ public:
     explicit perf(qdb::handle_ptr h)
         : _handle{h}
     {}
+
+    // we use vectors of pairs instead of maps to keep the order as it is
+    // provided to us
+    using measurement = std::pair<std::string, std::chrono::nanoseconds>;
+    using profile = std::pair<std::string, std::vector<measurement>>;
     
-    std::map<std::string, std::map<std::string, std::chrono::nanoseconds>> get_profiles() const
+    std::vector<profile> get_profiles() const
     {
-        std::map<std::string, std::map<std::string, std::chrono::nanoseconds>> profiles;
+        std::vector<profile> profiles;
         
         qdb_perf_profile_t * qdb_profiles = nullptr;
         qdb_size_t count = 0;
 
         qdb::qdb_throw_if_error(qdb_perf_get_profiles(*_handle, &qdb_profiles, &count));
         
-        for (auto prof = qdb_profiles ; prof != qdb_profiles + count ; ++prof)
-        {
-            std::map<std::string, std::chrono::nanoseconds> measurements;
-            for (auto mes = prof->measurements ; mes != prof->measurements + prof->count ; ++mes)
-            {
-                measurements.insert(std::make_pair(perf_label_name(mes->label), std::chrono::nanoseconds{mes->elapsed}));
-            }
-            profiles.insert(std::make_pair(std::string{prof->name.data, prof->name.length}, measurements));
-        }
+        profiles.reserve(count);
+        std::transform(qdb_profiles, qdb_profiles + count, std::back_inserter(profiles), [](const qdb_perf_profile_t & prof) {
+            std::vector<measurement> measurements;
+            measurements.reserve(prof.count);
+            std::transform(prof.measurements, prof.measurements + prof.count, std::back_inserter(measurements), [](const qdb_perf_measurement_t & mes) {
+                return std::make_pair(std::move(perf_label_name(mes.label)), std::chrono::nanoseconds{mes.elapsed});
+            });
+            return std::make_pair(std::move(std::string{prof.name.data, prof.name.length}), std::move(measurements));
+        });
         qdb_release(*_handle, qdb_profiles);
 
         return profiles;
