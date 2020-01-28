@@ -35,13 +35,17 @@ def _async_push(inserter):
     # Ideally we could be able to get the proper flush interval
     sleep(8)
 
+
 def _fast_push(inserter):
     inserter.push_fast()
 
+
 def _make_inserter_info(table):
     return [quasardb.BatchColumnInfo(table.get_name(), tslib._double_col_name(table), 100),
-            quasardb.BatchColumnInfo(table.get_name(), tslib._blob_col_name(table), 100),
-            quasardb.BatchColumnInfo(table.get_name(), tslib._int64_col_name(table), 100),
+            quasardb.BatchColumnInfo(
+                table.get_name(), tslib._blob_col_name(table), 100),
+            quasardb.BatchColumnInfo(
+                table.get_name(), tslib._int64_col_name(table), 100),
             quasardb.BatchColumnInfo(table.get_name(), tslib._ts_col_name(table), 100)]
 
 
@@ -96,6 +100,8 @@ def _test_with_table(
 
     # after push, there is everything
     push_method(inserter)
+    if push_method == _async_push:
+        sleep(10)
 
     results = table.double_get_ranges(
         tslib._double_col_name(table), [whole_range])
