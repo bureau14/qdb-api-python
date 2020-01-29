@@ -280,7 +280,7 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
         logger.debug("push chunk of %d rows, fast?=%s, async?=%s", len(current_df.index), fast, _async)
 
         if fast is True:
-            batch.push_async()
+            batch.push_fast()
         if _async is True:
             batch.push_async()
         else:
