@@ -72,7 +72,7 @@ void
 qdb::native::_do_flush() {
   // NOTE: this assumes a lock to _buffer-lock has been acquired, never call this
   //       function directly!
-
+  assert(!_buffer_lock.try_lock());
 
   // TODO(leon): we can improve native <> python vm context switching by folding all
   //             invocations below into a single call.

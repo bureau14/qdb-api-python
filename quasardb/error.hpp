@@ -126,6 +126,12 @@ template <typename PreThrowFtor = detail::no_op>
 void qdb_throw_if_error(qdb_error_t err, PreThrowFtor && pre_throw = detail::no_op{})
 {
     static_assert(noexcept(std::forward<PreThrowFtor &&>(pre_throw)()), "`pre_throw` argument must be noexcept");
+
+
+    // HACKS(leon): we need to flush our log buffer a lot, ideally after every native qdb
+    //              call. Guess which function is invoked exactly at those moments?
+    qdb::native::flush();
+
     if ((qdb_e_ok != err) && (qdb_e_ok_created != err))
     {
       pre_throw();
@@ -141,10 +147,6 @@ void qdb_throw_if_error(qdb_error_t err, PreThrowFtor && pre_throw = detail::no_
         throw qdb::exception{err};
       };
     }
-
-    // HACKS(leon): we need to flush our log buffer a lot, ideally after every native qdb
-    //              call. Guess which function is invoked exactly at those moments?
-    qdb::native::flush();
 }
 
 template <typename Module>
