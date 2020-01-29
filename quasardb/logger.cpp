@@ -104,5 +104,5 @@ qdb::native::_do_flush() {
 
   }
 
-
+  _buffer.clear();
 }

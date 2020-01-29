@@ -1,11 +1,8 @@
 # pylint: disable=C0103,C0111,C0302,W0212
 import numpy as np
 import pandas as pd
-import logging
 
 import quasardb.pandas as qdbpd
-
-logging.basicConfig(level=logging.DEBUG)
 
 row_count = 1000
 
