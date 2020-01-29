@@ -63,7 +63,7 @@ public:
 
   /**
    * Acquire a logger instance for a module. This constructor is a relatively
-   * expensive call, try to minimize invocations by re-using a logger accross
+   * expensive call, try to minimize invocations by re-using a logger across
    * invocations.
    */
   logger(const std::string & module_name)
