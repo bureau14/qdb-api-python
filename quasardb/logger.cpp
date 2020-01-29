@@ -15,8 +15,8 @@ qdb::native::swap_callback() {
 
   error = qdb_log_remove_callback(local_callback_id);
   if (error) {
-      fprintf(stderr, "unable to remove previous callback: %s (%#x)\n", qdb_error(error), error);
-      fflush(stderr);
+    // This error is quite common the first time a callback is set, because we did
+    // not have a callback yet.
   }
 
   error = qdb_log_add_callback(_callback, &local_callback_id);
@@ -66,7 +66,6 @@ qdb::native::flush() {
     qdb::native::_do_flush();
   }
 }
-
 
 void
 qdb::native::_do_flush() {
