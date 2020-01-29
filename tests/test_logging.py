@@ -11,7 +11,7 @@ def test_native_logging_output(blob_entry, random_string, caplog):
     blob_entry.put(random_string)
 
     # Wait for QuasarDB to flush the logs
-    time.sleep(3)
+    time.sleep(6)
 
     # Do something that will flush the logs
     blob_entry.remove()
@@ -21,5 +21,8 @@ def test_native_logging_output(blob_entry, random_string, caplog):
     messages = (lr.message for lr in caplog.records)
     modules = (lr.name for lr in caplog.records)
 
-    assert 'requested asynchronous logger task service run' in messages
+    print("messages: ", list(messages))
+    print("modules: ", list(modules))
+
     assert 'quasardb.native' in modules
+    assert 'requested asynchronous logger task service run' in messages
