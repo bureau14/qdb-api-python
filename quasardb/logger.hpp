@@ -30,7 +30,10 @@
  */
 #pragma once
 
+#include <qdb/log.h>
 #include <pybind11/pybind11.h>
+#include <mutex>
+#include <atomic>
 
 namespace qdb
 {
@@ -50,6 +53,13 @@ namespace qdb
 class logger
 {
 public:
+
+  /**
+   * Default constructor, invoking any .debug() etc on a default initialized
+   * instantiation of this class leads to undefined behavior, but it's needed
+   * for certain situations.
+   */
+  logger() {};
 
   /**
    * Acquire a logger instance for a module. This constructor is a relatively
@@ -141,6 +151,73 @@ private:
   py::object _error;
   py::object _critical;
 };
+
+
+
+/**
+ * QuasarDB's logging handler works with callbacks, and unfortunately is fairly
+ * error prone to 'just keep exactly one callback': if there are no active
+ * sessions left, the callback is removed.
+ *
+ * As such, the only way to bridge this logging API with QuasarDB's is to:
+ *
+ *  - frequently (i.e. every new connection) remove any existing callbacks and
+ *    set our new callback.
+ *
+ *  - when a callback is invoked, keep a local container with buffered logs.
+ *
+ *  - from all other functions, basically after every native qdb call, flush all
+ *    buffered logs.
+ *
+ *  - unfortunately, QuasarDB also buffers the logs before triggering callbacks,
+ *    so it is unlikely that relevant logs are already present here right after an
+ *    error. :'(
+ *
+ */
+
+  namespace native {
+
+    typedef struct  {
+      int year;
+      int mon;
+      int day;
+      int hour;
+      int min;
+      int sec;
+    } message_time_t;
+
+    typedef struct {
+      qdb_log_level_t level;
+      message_time_t timestamp;
+
+      int pid;
+      int tid;
+      std::string message;
+
+    } message_t;
+
+
+    void
+    swap_callback();
+
+    void
+    flush();
+
+    void _callback( //
+                   qdb_log_level_t log_level,    // qdb log level
+                   const unsigned long * date,   // [years, months, day, hours, minute, seconds] (valid only in the context of the callback)
+                   unsigned long pid,            // process id
+                   unsigned long tid,            // thread id
+                   const char * message_buffer,  // message buffer (valid only in the context of the callback)
+                   size_t message_size);         // message buffer size
+
+
+    /**
+     * Implementation function of flush(), which assumes that locks have been
+     * acquired and buffer actually contains logs.
+     */
+    void _do_flush();
+  }
 
 
 } // namespace qdb

@@ -84,8 +84,17 @@ public:
 
         options().set_timeout(timeout);
 
+
+        // HACKS(leon): we need to ensure there is always one callback active
+        //              for qdb. Callbacks can be lost when the last active session
+        //              gets closed. As such, the most pragmatic place to 'check'
+        //              for this callback is when establishing a new connection.
+        qdb::native::swap_callback();
+
         _logger.info("Connecting to cluster %s", _uri);
         _handle->connect(_uri);
+
+
     }
 
 public:

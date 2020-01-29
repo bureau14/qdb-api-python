@@ -30,6 +30,7 @@
  */
 #pragma once
 
+#include "logger.hpp"
 #include <qdb/error.h>
 #include <utility>
 #include <pybind11/pybind11.h>
@@ -140,6 +141,10 @@ void qdb_throw_if_error(qdb_error_t err, PreThrowFtor && pre_throw = detail::no_
         throw qdb::exception{err};
       };
     }
+
+    // HACKS(leon): we need to flush our log buffer a lot, ideally after every native qdb
+    //              call. Guess which function is invoked exactly at those moments?
+    qdb::native::flush();
 }
 
 template <typename Module>
