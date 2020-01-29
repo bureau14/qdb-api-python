@@ -28,7 +28,10 @@
 #
 
 import quasardb
+import logging
+import time
 
+logger = logging.getLogger('quasardb.pandas')
 
 class PandasRequired(ImportError):
     """
@@ -90,6 +93,9 @@ def read_series(table, col_name, ranges=None):
 
     # Dispatch based on column type
     t = table.column_type_by_id(col_name)
+
+    logger.debug("reading Series from column %s.%s with type %s", table.get_name(), col_name, t)
+
     res = (read_with[t])(**kwargs)
 
     return Series(res[1], index=res[0])
@@ -118,6 +124,9 @@ def write_series(series, table, col_name):
     }
 
     t = table.column_type_by_id(col_name)
+
+    logger.debug("writing Series to column %s.%s with type %s", table.get_name(), col_name, t)
+
     (write_with[t])(col_name, series.index.to_numpy(), series.to_numpy())
 
 
@@ -142,6 +151,8 @@ def query(cluster, query, blobs=False):
       as strings.
 
     """
+    logger.debug("querying and returning as DataFrame: %s", query)
+
     return DataFrame(cluster.query(query, blobs=blobs))
 
 
@@ -175,6 +186,7 @@ def read_dataframe(table, row_index=False, columns=None, ranges=None):
         columns = list(c.name for c in table.list_columns())
 
     if not row_index:
+        logger.debug("reading DataFrame from %d series", len(columns))
         xs = dict((c, (read_series(table, c, ranges))) for c in columns)
         return DataFrame(data=xs)
 
@@ -184,16 +196,22 @@ def read_dataframe(table, row_index=False, columns=None, ranges=None):
     if ranges:
         kwargs['ranges'] = ranges
 
+    logger.debug("reading DataFrame from bulk reader")
+
     reader = table.reader(**kwargs)
     xs = []
     for row in reader:
         xs.append(row.copy())
 
     columns.insert(0, '$timestamp')
+
+    logger.debug("read %d rows, returning as DataFrame with %d columns", len(xs), len(columns))
+
+
     return DataFrame(data=xs, columns=columns)
 
 
-def write_dataframe(df, cluster, table, create=False, _async=False, chunk_size=50000):
+def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, chunk_size=50000):
     """
     Store a dataframe into a table.
 
@@ -232,8 +250,12 @@ def write_dataframe(df, cluster, table, create=False, _async=False, chunk_size=5
             i, np.datetime64(x, 'ns'))
     }
 
+    logger.debug("writing dataframe, splitting into chunks of %d rows", chunk_size)
+
     # Split the dataframe in chunks that equal our batch size
     dfs = [df[i:i+chunk_size] for i in range(0, df.shape[0], chunk_size)]
+
+    logger.debug("split dataframe into %d chunks", len(dfs))
 
     for current_df in dfs:
         # TODO(leon): use pinned columns so we can write entire numpy arrays
@@ -253,11 +275,18 @@ def write_dataframe(df, cluster, table, create=False, _async=False, chunk_size=5
                     fn = write_with[ct]
                     fn(i, v)
 
+        start = time.time()
+
+        logger.debug("push chunk of %d rows, fast?=%s, async?=%s", len(current_df.index), fast, _async)
+
+        if fast is True:
+            batch.push_async()
         if _async is True:
             batch.push_async()
         else:
             batch.push()
 
+        logger.debug("pushed %d rows in %s seconds", len(current_df.index), (time.time() - start))
 
 def _create_table_from_df(df, table):
     cols = list(quasardb.ColumnInfo(

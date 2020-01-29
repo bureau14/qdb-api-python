@@ -30,6 +30,7 @@
  */
 #pragma once
 
+#include "logger.hpp"
 #include "batch_inserter.hpp"
 #include "blob.hpp"
 #include "error.hpp"
@@ -66,6 +67,7 @@ public:
         : _uri{uri}
         , _handle{make_handle_ptr()}
         , _json_loads{pybind11::module::import("json").attr("loads")}
+        , _logger("quasardb.cluster")
     {
         // Check that the C API version installed on the target system matches
         // the one used during the build
@@ -82,12 +84,14 @@ public:
 
         options().set_timeout(timeout);
 
+        _logger.info("Connecting to cluster %s", _uri);
         _handle->connect(_uri);
     }
 
 public:
     void close()
     {
+        _logger.info("Closing connection to cluster");
         _handle.reset();
     }
 
@@ -178,7 +182,7 @@ public:
     {
         return qdb::options{_handle};
     }
-    
+
     qdb::perf perf()
     {
         return qdb::perf{_handle};
@@ -286,6 +290,8 @@ private:
     std::string _uri;
     handle_ptr _handle;
     pybind11::object _json_loads;
+
+    qdb::logger _logger;
 };
 
 template <typename Module>

@@ -30,6 +30,7 @@
  */
 #pragma once
 
+#include "logger.hpp"
 #include "entry.hpp"
 #include "table.hpp"
 
@@ -65,7 +66,10 @@ class batch_inserter
 
 public:
     batch_inserter(qdb::handle_ptr h, const std::vector<batch_column_info> & ci)
-        : _handle{h}
+      : _logger("quasardb.batch_inserter"),
+        _handle{h},
+        _row_count{0},
+        _point_count{0}
     {
         std::vector<qdb_ts_batch_column_info_t> converted(ci.size());
 
@@ -73,6 +77,8 @@ public:
             ci.cbegin(), ci.cend(), converted.begin(), [](const batch_column_info & ci) -> qdb_ts_batch_column_info_t { return ci; });
 
         qdb::qdb_throw_if_error(qdb_ts_batch_table_init(*_handle, converted.data(), converted.size(), &_batch_table));
+
+        _logger.debug("initialized batch reader with %d columns", ci.size());
     }
 
     // prevent copy because of the table object, use a unique_ptr of the batch in cluster
@@ -93,47 +99,79 @@ public:
     {
         const qdb_timespec_t converted = convert_timestamp(ts);
         qdb::qdb_throw_if_error(qdb_ts_batch_start_row(_batch_table, &converted));
+
+        ++_row_count;
     }
 
     void set_blob(std::size_t index, const std::string & blob)
     {
         qdb::qdb_throw_if_error(qdb_ts_batch_row_set_blob(_batch_table, index, blob.data(), blob.size()));
+        ++_point_count;
     }
 
     void set_double(std::size_t index, double v)
     {
         qdb::qdb_throw_if_error(qdb_ts_batch_row_set_double(_batch_table, index, v));
+        ++_point_count;
     }
 
     void set_int64(std::size_t index, std::int64_t v)
     {
         qdb::qdb_throw_if_error(qdb_ts_batch_row_set_int64(_batch_table, index, v));
+        ++_point_count;
     }
 
     void set_timestamp(std::size_t index, py::object v)
     {
         const qdb_timespec_t converted = convert_timestamp(v);
         qdb::qdb_throw_if_error(qdb_ts_batch_row_set_timestamp(_batch_table, index, &converted));
+        ++_point_count;
     }
 
     void push()
     {
+        _logger.debug("pushing batch of %d rows with %d data points", _row_count, _point_count);
         qdb::qdb_throw_if_error(qdb_ts_batch_push(_batch_table));
+        _logger.debug("pushed batch of %d rows with %d data points", _row_count, _point_count);
+
+        _reset_counters();
     }
 
     void push_async()
     {
+        _logger.debug("async pushing batch of %d rows with %d data points", _row_count, _point_count);
         qdb::qdb_throw_if_error(qdb_ts_batch_push_async(_batch_table));
+        _logger.debug("async pushed batch of %d rows with %d data points", _row_count, _point_count);
+
+        _reset_counters();
     }
 
     void push_fast()
     {
+        _logger.debug("fast pushing batch of %d rows with %d data points", _row_count, _point_count);
         qdb::qdb_throw_if_error(qdb_ts_batch_push_fast(_batch_table));
+        _logger.debug("fast pushed batch of %d rows with %d data points", _row_count, _point_count);
+
+        _reset_counters();
     }
 
 private:
+
+    void _reset_counters() {
+        _row_count = 0;
+        _point_count = 0;
+    }
+
+
+private:
+
+    qdb::logger _logger;
     qdb::handle_ptr _handle;
     qdb_batch_table_t _batch_table{nullptr};
+
+    int64_t _row_count;
+    int64_t _point_count;
+
 };
 
 // don't use shared_ptr, let Python do the reference counting, otherwise you will have an undefined behavior
