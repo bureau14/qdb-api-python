@@ -111,6 +111,7 @@ def test_returns_table_as_string(
     for row, v in zip(res, inserted_double_data[1]):
         assert row['$table'] == table.get_name()
 
+
 def test_returns_table_as_blob(
         qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
@@ -122,7 +123,8 @@ def test_returns_table_as_blob(
     assert len(res) == 10
 
     for row, v in zip(res, inserted_double_data[1]):
-        assert row['$table'] == bytearray(table.get_name(), 'utf-8')
+        assert row['$table'] == table.get_name()
+
 
 def test_returns_inserted_data_with_star_select(
         qdbd_connection, table, intervals):
@@ -142,6 +144,7 @@ def test_returns_inserted_data_with_star_select(
         assert row['the_ts'] == None
         assert row['$table'] == table.get_name()
         assert row['the_double'] == v
+
 
 def test_returns_inserted_data_with_column_select(
         qdbd_connection, table, intervals):
@@ -181,6 +184,7 @@ def test_returns_inserted_data_with_specific_select(
 
         assert row['the_double'] == v
 
+
 def test_returns_count_data_with_count_select(
         qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
@@ -192,6 +196,7 @@ def test_returns_count_data_with_count_select(
     assert len(res) == 1
     assert res[0]['count(the_double)'] == 10
 
+
 def test_returns_count_data_with_sum_select(
         qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
@@ -201,7 +206,8 @@ def test_returns_count_data_with_sum_select(
     res = qdbd_connection.query(query)
 
     assert len(res) == 1
-    assert pytest.approx(res[0]['sum(the_double)'], np.sum(inserted_double_data[1]))
+    assert pytest.approx(res[0]['sum(the_double)'],
+                         np.sum(inserted_double_data[1]))
 
 
 def test_returns_inserted_multi_data_with_star_select(
@@ -234,6 +240,7 @@ def test_returns_inserted_multi_data_with_star_select(
         assert row['the_double'] == double
         assert row['the_int64'] == int64
         assert row['the_ts'] == ts
+
 
 def test_create_table(qdbd_connection, entry_name):
     query = "create table {} (col int64)".format(entry_name)
