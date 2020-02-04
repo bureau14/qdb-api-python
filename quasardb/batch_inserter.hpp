@@ -100,6 +100,11 @@ public:
         qdb::qdb_throw_if_error(qdb_ts_batch_row_set_blob(_batch_table, index, blob.data(), blob.size()));
     }
 
+    void set_string(std::size_t index, const std::string & string)
+    {
+        qdb::qdb_throw_if_error(qdb_ts_batch_row_set_string(_batch_table, index, string.data(), string.size()));
+    }
+
     void set_double(std::size_t index, double v)
     {
         qdb::qdb_throw_if_error(qdb_ts_batch_row_set_double(_batch_table, index, v));
@@ -157,6 +162,7 @@ static inline void register_batch_inserter(Module & m)
         .def(py::init<qdb::handle_ptr, const std::vector<batch_column_info> &>()) //
         .def("start_row", &qdb::batch_inserter::start_row)                        //
         .def("set_blob", &qdb::batch_inserter::set_blob)                          //
+        .def("set_string", &qdb::batch_inserter::set_string)                      //
         .def("set_double", &qdb::batch_inserter::set_double)                      //
         .def("set_int64", &qdb::batch_inserter::set_int64)                        //
         .def("set_timestamp", &qdb::batch_inserter::set_timestamp)                //

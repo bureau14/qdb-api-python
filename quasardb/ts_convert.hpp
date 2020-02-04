@@ -121,7 +121,8 @@ static inline time_ranges all_ranges()
     return time_ranges{{0, std::numeric_limits<std::int64_t>::max()}};
 }
 
-static void update_str(qdb_ts_blob_point & pt, const char * s, size_t max_size) noexcept
+template <typename PointType>
+static void update_str(PointType & pt, const char * s, size_t max_size) noexcept
 {
 #ifdef _MSC_VER
     pt.content_length = strnlen_s(s, max_size);
@@ -183,6 +184,46 @@ struct convert_values<qdb_ts_blob_point, const char *>
         {
             points[i].timestamp = convert_timestamp(t(i));
             update_str(points[i], ptr, str_size);
+        }
+
+        return points;
+    }
+};
+
+template <>
+struct convert_values<qdb_ts_string_point, const char *>
+{
+    std::vector<qdb_ts_string_point> operator()(const pybind11::array & timestamps, const pybind11::array & values) const
+    {
+        if (timestamps.size() != values.size()) throw qdb::exception{qdb_e_invalid_argument};
+        if ((timestamps.ndim() != 1) || (values.ndim() != 1)) throw qdb::exception{qdb_e_invalid_argument};
+
+        std::vector<qdb_ts_string_point> points(timestamps.size());
+
+        auto t              = timestamps.template unchecked<std::int64_t, 1>();
+        const py::str * ptr = static_cast<const py::str *>(values.data());
+
+
+        size_t str_size = values.itemsize();
+        char * buffer;
+        ssize_t length;
+
+        for (size_t i = 0; i < points.size(); ++i, ptr += 1)
+        {
+            points[i].timestamp = convert_timestamp(t(i));
+            //update_str(points[i], ptr, str_size);
+
+
+            // We use low-level APIs here because pybind11 wraps a bit too much.
+            // Using the native API directly allows us to write our UTF-8 strings
+            // directly into our qdb buffers.
+            PyObject * temp = PyUnicode_AsUTF8String(ptr->ptr());
+
+            if (PYBIND11_BYTES_AS_STRING_AND_SIZE(temp,
+                                                  (char **)(&points[i].content),
+                                                  (long *)(&points[i].content_length))) {
+              throw qdb::incompatible_type_exception{};
+            }
         }
 
         return points;
@@ -284,6 +325,32 @@ struct vectorize_result<qdb_ts_blob_point, const char *>
 
             memset(ptr, 0, item_size);
             memcpy(ptr, points[i].content, points[i].content_length);
+        }
+
+        return res;
+    }
+};
+
+
+template <>
+struct vectorize_result<qdb_ts_string_point, const char *>
+{
+    using result_type = std::pair<pybind11::array, pybind11::array>;
+
+    result_type operator()(const qdb_ts_string_point * points, size_t count) const
+    {
+        size_t item_size = max_length(points, count);
+
+        result_type res{pybind11::array{"datetime64[ns]", {count}}, pybind11::array{"O", {count}}};
+
+        auto ts_dest = res.first.template mutable_unchecked<std::int64_t, 1>();
+        auto v_dest = res.second.template mutable_unchecked<pybind11::object, 1>();
+
+
+        for (size_t i = 0; i < count; ++i)
+        {
+          ts_dest(i) = convert_timestamp(points[i].timestamp);
+          v_dest(i) = py::str(points[i].content, points[i].content_length);
         }
 
         return res;

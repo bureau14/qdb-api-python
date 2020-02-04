@@ -72,6 +72,19 @@ public:
     }
 };
 
+class incompatible_type_exception : public exception
+{
+public:
+    incompatible_type_exception() noexcept
+        : exception(qdb_e_incompatible_type)
+    {
+    }
+
+    virtual const char * what() const noexcept
+    {
+        return "Incompatible type";
+    }
+};
 
 class alias_already_exists_exception : public exception
 {
@@ -136,6 +149,9 @@ void qdb_throw_if_error(qdb_error_t err, PreThrowFtor && pre_throw = detail::no_
       case qdb_e_network_inbuf_too_small:
           throw qdb::input_buffer_too_small_exception{};
 
+      case qdb_e_incompatible_type:
+          throw qdb::incompatible_type_exception{};
+
       default:
         throw qdb::exception{err};
       };
@@ -149,6 +165,7 @@ static inline void register_errors(Module & m)
     py::register_exception<qdb::input_buffer_too_small_exception>(m, "InputBufferTooSmallError");
     py::register_exception<qdb::alias_already_exists_exception>(m, "AliasAlreadyExistsError");
     py::register_exception<qdb::invalid_datetime_exception>(m, "InvalidDatetimeError");
+    py::register_exception<qdb::incompatible_type_exception>(m, "IncompatibleTypeError");
 }
 
 } // namespace qdb

@@ -52,11 +52,12 @@ static inline std::vector<std::string> convert_strings_and_release(qdb::handle_p
     return res;
 }
 
-static inline size_t max_length(const qdb_ts_blob_point * points, size_t count)
+template <typename PointType>
+static inline size_t max_length(const PointType * points, size_t count)
 {
     if (!count) return 0;
 
-    return std::max_element(points, points + count, [](const qdb_ts_blob_point & left, const qdb_ts_blob_point & right) {
+    return std::max_element(points, points + count, [](const PointType & left, const PointType & right) {
         return left.content_length < right.content_length;
     })->content_length;
 }

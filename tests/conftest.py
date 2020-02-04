@@ -107,10 +107,11 @@ def table(qdbd_connection, entry_name):
     ts = qdbd_connection.ts(entry_name)
     double_col = quasardb.ColumnInfo(quasardb.ColumnType.Double, "the_double")
     blob_col = quasardb.ColumnInfo(quasardb.ColumnType.Blob, "the_blob")
+    string_col = quasardb.ColumnInfo(quasardb.ColumnType.String, "the_string")
     int64_col = quasardb.ColumnInfo(quasardb.ColumnType.Int64, "the_int64")
     ts_col = quasardb.ColumnInfo(quasardb.ColumnType.Timestamp, "the_ts")
 
-    ts.create([double_col, blob_col, int64_col, ts_col])
+    ts.create([double_col, blob_col, string_col, int64_col, ts_col])
     return ts
 
 

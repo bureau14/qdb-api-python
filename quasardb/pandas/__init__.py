@@ -55,7 +55,7 @@ _dtype_map = {
     np.dtype('int64'): quasardb.ColumnType.Int64,
     np.dtype('int32'): quasardb.ColumnType.Int64,
     np.dtype('float64'): quasardb.ColumnType.Double,
-    np.dtype('object'): quasardb.ColumnType.Blob,
+    np.dtype('object'): quasardb.ColumnType.String,
     np.dtype('M8[ns]'): quasardb.ColumnType.Timestamp
 }
 
@@ -77,6 +77,7 @@ def read_series(table, col_name, ranges=None):
     read_with = {
         quasardb.ColumnType.Double: table.double_get_ranges,
         quasardb.ColumnType.Blob: table.blob_get_ranges,
+        quasardb.ColumnType.String: table.string_get_ranges,
         quasardb.ColumnType.Int64: table.int64_get_ranges,
         quasardb.ColumnType.Timestamp: table.timestamp_get_ranges,
     }
@@ -85,11 +86,13 @@ def read_series(table, col_name, ranges=None):
         'column': col_name
     }
 
+
     if ranges is not None:
         kwargs['ranges'] = ranges
 
     # Dispatch based on column type
     t = table.column_type_by_id(col_name)
+
     res = (read_with[t])(**kwargs)
 
     return Series(res[1], index=res[0])
@@ -113,6 +116,7 @@ def write_series(series, table, col_name):
     write_with = {
         quasardb.ColumnType.Double: table.double_insert,
         quasardb.ColumnType.Blob: table.blob_insert,
+        quasardb.ColumnType.String: table.string_insert,
         quasardb.ColumnType.Int64: table.int64_insert,
         quasardb.ColumnType.Timestamp: table.timestamp_insert
     }
@@ -227,10 +231,20 @@ def write_dataframe(df, cluster, table, create=False, _async=False, chunk_size=5
     write_with = {
         quasardb.ColumnType.Double: batch.set_double,
         quasardb.ColumnType.Blob: batch.set_blob,
+        quasardb.ColumnType.String: batch.set_string,
         quasardb.ColumnType.Int64: batch.set_int64,
         quasardb.ColumnType.Timestamp: lambda i, x: batch.set_timestamp(
             i, np.datetime64(x, 'ns'))
     }
+
+    # We derive our column types from our table.
+    ctypes = dict()
+    for c in table.list_columns():
+        ctypes[c.name] = c.type
+
+    # Performance improvement: avoid a expensive dict lookups by indexing
+    # the column types by relative offset within the df.
+    ctypes_indexed = list(ctypes[c] for c in df.columns)
 
     # Split the dataframe in chunks that equal our batch size
     dfs = [df[i:i+chunk_size] for i in range(0, df.shape[0], chunk_size)]
@@ -248,8 +262,7 @@ def write_dataframe(df, cluster, table, create=False, _async=False, chunk_size=5
                 v = row[i + 1]
 
                 if not pd.isnull(v):
-                    ct = _dtype_to_column_type(
-                        current_df[current_df.columns[i]].dtype)
+                    ct = ctypes_indexed[i]
                     fn = write_with[ct]
                     fn(i, v)
 
@@ -258,8 +271,11 @@ def write_dataframe(df, cluster, table, create=False, _async=False, chunk_size=5
         else:
             batch.push()
 
-
 def _create_table_from_df(df, table):
+
+    for col in df.columns:
+        npa = df[col].to_numpy()
+
     cols = list(quasardb.ColumnInfo(
         _dtype_to_column_type(df[c].dtype), c) for c in df.columns)
 
@@ -270,7 +286,6 @@ def _create_table_from_df(df, table):
         pass
 
     return table
-
 
 def _dtype_to_column_type(dt):
     res = _dtype_map.get(dt, None)

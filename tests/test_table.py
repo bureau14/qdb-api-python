@@ -110,7 +110,7 @@ def test_create_with_shard_size_of_more_than_1_year(
 
 def test_table_layout(table):
     col_list = table.list_columns()
-    assert len(col_list) == 4
+    assert len(col_list) == 5
 
     assert col_list[0].name == "the_double"
     assert col_list[0].type == quasardb.ColumnType.Double
@@ -118,18 +118,22 @@ def test_table_layout(table):
     assert col_list[1].name == "the_blob"
     assert col_list[1].type == quasardb.ColumnType.Blob
 
-    assert col_list[2].name == "the_int64"
-    assert col_list[2].type == quasardb.ColumnType.Int64
+    assert col_list[2].name == "the_string"
+    assert col_list[2].type == quasardb.ColumnType.String
 
-    assert col_list[3].name == "the_ts"
-    assert col_list[3].type == quasardb.ColumnType.Timestamp
+    assert col_list[3].name == "the_int64"
+    assert col_list[3].type == quasardb.ColumnType.Int64
+
+    assert col_list[4].name == "the_ts"
+    assert col_list[4].type == quasardb.ColumnType.Timestamp
 
 
 def test_column_lookup(table):
     assert table.column_index_by_id("the_double") == 0
     assert table.column_index_by_id("the_blob") == 1
-    assert table.column_index_by_id("the_int64") == 2
-    assert table.column_index_by_id("the_ts") == 3
+    assert table.column_index_by_id("the_string") == 2
+    assert table.column_index_by_id("the_int64") == 3
+    assert table.column_index_by_id("the_ts") == 4
 
     with pytest.raises(quasardb.Error):
         table.column_index_by_id('foobar')
@@ -154,13 +158,15 @@ def _double_col_name(table):
 def _blob_col_name(table):
     return table.list_columns()[1].name
 
+def _string_col_name(table):
+    return table.list_columns()[2].name
 
 def _int64_col_name(table):
-    return table.list_columns()[2].name
+    return table.list_columns()[3].name
 
 
 def _ts_col_name(table):
-    return table.list_columns()[3].name
+    return table.list_columns()[4].name
 
 
 def _start_time(intervals):
@@ -231,7 +237,7 @@ def test_double_get_ranges(table, intervals):
         table.blob_get_ranges(_double_col_name, [(_start_time(
             intervals), _start_time(intervals) + np.timedelta64(10, 's'))])
 
-    with pytest.raises(quasardb.Error):
+    with pytest.raises(quasardb.IncompatibleTypeError):
         table.blob_insert(
             _double_col_name(table),
             inserted_double_data[0],
@@ -326,7 +332,7 @@ def test_int64_get_ranges(table, intervals):
         table.blob_get_ranges(_int64_col_name, [(_start_time(
             intervals), _start_time(intervals) + np.timedelta64(10, 's'))])
 
-    with pytest.raises(quasardb.Error):
+    with pytest.raises(quasardb.IncompatibleTypeError):
         table.blob_insert(
             _int64_col_name(table),
             inserted_int64_data[0],

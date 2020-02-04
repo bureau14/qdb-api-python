@@ -88,6 +88,8 @@ public:
             return int64();
         case qdb_ts_column_timestamp:
             return timestamp();
+        case qdb_ts_column_string:
+            return string();
         };
 
         throw std::runtime_error("Unable to cast QuasarDB type to Python type");
@@ -111,6 +113,22 @@ private:
     }
 
     py::handle blob() const
+    {
+        const void * v = nullptr;
+        qdb_size_t l   = 0;
+
+        auto res = qdb_ts_row_get_blob(_local_table, _index, &v, &l);
+        if (res == qdb_e_element_not_found)
+        {
+            Py_RETURN_NONE;
+            // notreached
+        }
+
+        qdb::qdb_throw_if_error(res);
+        return PyByteArray_FromStringAndSize(static_cast<const char *>(v), static_cast<Py_ssize_t>(l));
+    }
+
+    py::handle string() const
     {
         const void * v = nullptr;
         qdb_size_t l   = 0;
