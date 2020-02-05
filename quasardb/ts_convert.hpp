@@ -221,7 +221,7 @@ struct convert_values<qdb_ts_string_point, const char *>
 
             if (PYBIND11_BYTES_AS_STRING_AND_SIZE(temp,
                                                   (char **)(&points[i].content),
-                                                  (long *)(&points[i].content_length))) {
+                                                  (Py_ssize_t *)(&points[i].content_length))) {
               throw qdb::incompatible_type_exception{};
             }
         }
