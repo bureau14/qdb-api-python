@@ -143,7 +143,7 @@ void qdb_throw_if_error(qdb_error_t err, PreThrowFtor && pre_throw = detail::no_
       if (err_ != err) {
         // Error context returned is not the same, which means this thread already made
         // another call to the QDB API, or the QDB API itself
-        throw qdb::exception{err_, qdb_error(err)};
+        throw qdb::exception{err, qdb_error(err)};
       }
       assert(err_ == err);
 
