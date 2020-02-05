@@ -145,8 +145,8 @@ struct convert_values
 {
     std::vector<Point> operator()(const pybind11::array & timestamps, const pybind11::array_t<T> & values) const
     {
-        if (timestamps.size() != values.size()) throw qdb::exception{qdb_e_invalid_argument};
-        if ((timestamps.ndim() != 1) || (values.ndim() != 1)) throw qdb::exception{qdb_e_invalid_argument};
+        if (timestamps.size() != values.size()) throw qdb::exception{qdb_e_invalid_argument, "Timestamps size must match values size"};
+        if ((timestamps.ndim() != 1) || (values.ndim() != 1)) throw qdb::exception{qdb_e_invalid_argument, "Only single-dimension numpy arrays are supported"};
 
         std::vector<Point> points(timestamps.size());
 
@@ -168,8 +168,8 @@ struct convert_values<qdb_ts_blob_point, const char *>
 {
     std::vector<qdb_ts_blob_point> operator()(const pybind11::array & timestamps, const pybind11::array & values) const
     {
-        if (timestamps.size() != values.size()) throw qdb::exception{qdb_e_invalid_argument};
-        if ((timestamps.ndim() != 1) || (values.ndim() != 1)) throw qdb::exception{qdb_e_invalid_argument};
+        if (timestamps.size() != values.size()) throw qdb::exception{qdb_e_invalid_argument, "Timestamps size must match values size"};
+        if ((timestamps.ndim() != 1) || (values.ndim() != 1)) throw qdb::exception{qdb_e_invalid_argument, "Only single-dimension numpy arrays are supported"};
 
         std::vector<qdb_ts_blob_point> points(timestamps.size());
 
@@ -195,8 +195,8 @@ struct convert_values<qdb_ts_string_point, const char *>
 {
     std::vector<qdb_ts_string_point> operator()(const pybind11::array & timestamps, const pybind11::array & values) const
     {
-        if (timestamps.size() != values.size()) throw qdb::exception{qdb_e_invalid_argument};
-        if ((timestamps.ndim() != 1) || (values.ndim() != 1)) throw qdb::exception{qdb_e_invalid_argument};
+        if (timestamps.size() != values.size()) throw qdb::exception{qdb_e_invalid_argument, "Timestamps size must match values size"};
+        if ((timestamps.ndim() != 1) || (values.ndim() != 1)) throw qdb::exception{qdb_e_invalid_argument, "Only single-dimension numpy arrays are supported"};
 
         std::vector<qdb_ts_string_point> points(timestamps.size());
 
@@ -235,8 +235,8 @@ struct convert_values<qdb_ts_timestamp_point, std::int64_t>
 {
     std::vector<qdb_ts_timestamp_point> operator()(const pybind11::array & timestamps, const pybind11::array_t<std::int64_t> & values) const
     {
-        if (timestamps.size() != values.size()) throw qdb::exception{qdb_e_invalid_argument};
-        if ((timestamps.ndim() != 1) || (values.ndim() != 1)) throw qdb::exception{qdb_e_invalid_argument};
+        if (timestamps.size() != values.size()) throw qdb::exception{qdb_e_invalid_argument, "Timestamps size must match values size"};
+        if ((timestamps.ndim() != 1) || (values.ndim() != 1)) throw qdb::exception{qdb_e_invalid_argument, "Only single-dimension numpy arrays are supported"};
 
         std::vector<qdb_ts_timestamp_point> points(timestamps.size());
 

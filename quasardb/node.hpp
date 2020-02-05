@@ -52,7 +52,7 @@ public:
     }
     ~node() {}
 
-    void close() 
+    void close()
     {
         _handle.reset();
         _direct_handle.reset();
@@ -65,7 +65,7 @@ public:
 
         // don't throw if no prefix is found
         const qdb_error_t err = qdb_direct_prefix_get(*_direct_handle, prefix.c_str(), max_count, &result, &count);
-        if (QDB_FAILURE(err) && (err != qdb_e_alias_not_found)) throw qdb::exception{err};
+        qdb_throw_if_error(err);
 
         return convert_strings_and_release(_handle, result, count);
     }
@@ -95,7 +95,7 @@ static inline void register_node(Module & m)
         // no constructor: use quasardb.Cluster(uri).node(node_uri) to initialise
         .def("prefix_get", &qdb::node::prefix_get)
         .def("blob", &qdb::node::blob)
-        .def("integer", &qdb::node::integer) ;                                                 
+        .def("integer", &qdb::node::integer) ;
 }
 
 } // namespace qdb

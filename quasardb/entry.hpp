@@ -78,7 +78,7 @@ public:
     bool attach_tag(const std::string & tag)
     {
         const qdb_error_t err = qdb_attach_tag(*_handle, _alias.c_str(), tag.c_str());
-        if (QDB_FAILURE(err)) throw qdb::exception{err};
+        qdb_throw_if_error(err);
 
         return err != qdb_e_tag_already_set;
     }
@@ -95,7 +95,7 @@ public:
     bool detach_tag(const std::string & tag)
     {
         const qdb_error_t err = qdb_detach_tag(*_handle, _alias.c_str(), tag.c_str());
-        if (QDB_FAILURE(err)) throw qdb::exception{err};
+        qdb_throw_if_error(err);
 
         return err != qdb_e_tag_not_set;
     }

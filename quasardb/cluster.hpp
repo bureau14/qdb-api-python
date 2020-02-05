@@ -73,8 +73,8 @@ public:
         // the one used during the build
         check_qdb_c_api_version(qdb_version());
         // must specify everything or nothing
-        if (user_name.empty() != user_private_key.empty()) throw qdb::exception{qdb_e_invalid_argument};
-        if (user_name.empty() != cluster_public_key.empty()) throw qdb::exception{qdb_e_invalid_argument};
+        if (user_name.empty() != user_private_key.empty()) throw qdb::exception{qdb_e_invalid_argument, "Either all security settings must be provided, or none at all"};
+        if (user_name.empty() != cluster_public_key.empty()) throw qdb::exception{qdb_e_invalid_argument, "Either all security settings must be provided, or none at all"};
 
         if (!user_name.empty())
         {
@@ -205,7 +205,7 @@ public:
 
         // don't throw if no prefix is found
         const qdb_error_t err = qdb_prefix_get(*_handle, prefix.c_str(), max_count, &result, &count);
-        if (QDB_FAILURE(err) && (err != qdb_e_alias_not_found)) throw qdb::exception{err};
+        qdb_throw_if_error(err);
 
         return convert_strings_and_release(_handle, result, count);
     }
@@ -215,7 +215,7 @@ public:
         qdb_uint_t count = 0;
 
         const qdb_error_t err = qdb_prefix_count(*_handle, prefix.c_str(), &count);
-        if (QDB_FAILURE(err) && (err != qdb_e_alias_not_found)) throw qdb::exception{err};
+        qdb_throw_if_error(err);
 
         return count;
     }
@@ -238,7 +238,7 @@ public:
         size_t count         = 0;
 
         const qdb_error_t err = qdb_suffix_get(*_handle, suffix.c_str(), max_count, &result, &count);
-        if (QDB_FAILURE(err) && (err != qdb_e_alias_not_found)) throw qdb::exception{err};
+        qdb_throw_if_error(err);
 
         return convert_strings_and_release(_handle, result, count);
     }
@@ -248,7 +248,7 @@ public:
         qdb_uint_t count = 0;
 
         const qdb_error_t err = qdb_suffix_count(*_handle, suffix.c_str(), &count);
-        if (QDB_FAILURE(err) && (err != qdb_e_alias_not_found)) throw qdb::exception{err};
+        qdb_throw_if_error(err);
 
         return count;
     }
@@ -281,7 +281,7 @@ public:
         qdb_size_t count              = 0;
 
         const qdb_error_t err = qdb_cluster_endpoints(*_handle, &endpoints, &count);
-        if (QDB_FAILURE(err)) throw qdb::exception{err};
+        qdb_throw_if_error(err);
 
         std::vector<std::string> results;
         results.resize(count);

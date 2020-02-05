@@ -90,7 +90,7 @@ public:
         }
 
         detail::indexed_columns_t::const_iterator i = _indexed_columns.find(alias);
-        if (i == _indexed_columns.end()) throw qdb::exception{qdb_e_out_of_bounds};
+        if (i == _indexed_columns.end()) throw qdb::exception{qdb_e_out_of_bounds, std::string("Column not found: ") + alias};
 
         return i->second;
     }

@@ -114,8 +114,10 @@ public:
         qdb_error_t err = qdb_blob_compare_and_swap(*_handle, _alias.c_str(), new_value.data(), new_value.size(), comparand.data(),
             comparand.size(), expirable_entry::from_time_point(expiry), &content, &content_length);
 
-        // we don't want to throw on "unmatching content", so we don't use the qdb::qdb_throw_if_error function
-        if (QDB_FAILURE(err)) throw qdb::exception{err};
+        // Ensure this is a true failure, not just 'content did not match'
+        if (QDB_FAILURE(err)) {
+          qdb_throw_if_error(err);
+        }
 
         return convert_and_release_content(content, content_length);
     }
