@@ -30,12 +30,11 @@
  */
 #pragma once
 
-#include <iostream>
 #include "utils.hpp"
 #include <qdb/ts.h>
-
-#include <pybind11/pytypes.h>
 #include <pybind11/pybind11.h>
+#include <pybind11/pytypes.h>
+#include <iostream>
 
 namespace py = pybind11;
 
@@ -60,22 +59,29 @@ static inline qdb_timespec_t convert_timestamp(std::int64_t npdt64) noexcept
     return res;
 }
 
-static inline std::int64_t prep_datetime(py::object v) {
+static inline std::int64_t prep_datetime(py::object v)
+{
     // Starting version 3.8, Python does not allow implicit casting from numpy.datetime64
     // to an int, so we explicitly do it here.
-    try {
+    try
+    {
         return v.cast<std::int64_t>();
-    } catch (py::cast_error const & /*e*/) {
+    }
+    catch (py::cast_error const & /*e*/)
+    {
         throw qdb::invalid_datetime_exception{v};
     }
 }
 
 static inline qdb_timespec_t convert_timestamp(py::object v)
 {
-    try {
-      return convert_timestamp(prep_datetime(v));
-    } catch (py::cast_error const & /*e*/) {
-      throw qdb::invalid_datetime_exception{};
+    try
+    {
+        return convert_timestamp(prep_datetime(v));
+    }
+    catch (py::cast_error const & /*e*/)
+    {
+        throw qdb::invalid_datetime_exception{};
     }
 }
 
@@ -99,20 +105,18 @@ static inline std::vector<qdb_ts_range_t> convert_ranges(const time_ranges & ran
     return res;
 }
 
-static inline time_ranges prep_ranges(const obj_time_ranges & ranges) {
-  time_ranges res(ranges.size());
+static inline time_ranges prep_ranges(const obj_time_ranges & ranges)
+{
+    time_ranges res(ranges.size());
 
+    std::transform(ranges.cbegin(), ranges.cend(), res.begin(), [](const obj_time_range & tr) {
+        auto x = prep_datetime(tr.first);
+        auto y = prep_datetime(tr.second);
 
-  std::transform(ranges.cbegin(), ranges.cend(), res.begin(), [](const obj_time_range & tr) {
+        return time_range{x, y};
+    });
 
-                                                                auto x = prep_datetime(tr.first);
-                                                                auto y = prep_datetime(tr.second);
-
-                                                                return time_range{x, y};
-                                                              });
-
-  return res;
-
+    return res;
 }
 
 // TODO: Is the a more compliant way to describe 'all data in a table'?
@@ -146,7 +150,8 @@ struct convert_values
     std::vector<Point> operator()(const pybind11::array & timestamps, const pybind11::array_t<T> & values) const
     {
         if (timestamps.size() != values.size()) throw qdb::exception{qdb_e_invalid_argument, "Timestamps size must match values size"};
-        if ((timestamps.ndim() != 1) || (values.ndim() != 1)) throw qdb::exception{qdb_e_invalid_argument, "Only single-dimension numpy arrays are supported"};
+        if ((timestamps.ndim() != 1) || (values.ndim() != 1))
+            throw qdb::exception{qdb_e_invalid_argument, "Only single-dimension numpy arrays are supported"};
 
         std::vector<Point> points(timestamps.size());
 
@@ -169,7 +174,8 @@ struct convert_values<qdb_ts_blob_point, const char *>
     std::vector<qdb_ts_blob_point> operator()(const pybind11::array & timestamps, const pybind11::array & values) const
     {
         if (timestamps.size() != values.size()) throw qdb::exception{qdb_e_invalid_argument, "Timestamps size must match values size"};
-        if ((timestamps.ndim() != 1) || (values.ndim() != 1)) throw qdb::exception{qdb_e_invalid_argument, "Only single-dimension numpy arrays are supported"};
+        if ((timestamps.ndim() != 1) || (values.ndim() != 1))
+            throw qdb::exception{qdb_e_invalid_argument, "Only single-dimension numpy arrays are supported"};
 
         std::vector<qdb_ts_blob_point> points(timestamps.size());
 
@@ -196,33 +202,29 @@ struct convert_values<qdb_ts_string_point, const char *>
     std::vector<qdb_ts_string_point> operator()(const pybind11::array & timestamps, const pybind11::array & values) const
     {
         if (timestamps.size() != values.size()) throw qdb::exception{qdb_e_invalid_argument, "Timestamps size must match values size"};
-        if ((timestamps.ndim() != 1) || (values.ndim() != 1)) throw qdb::exception{qdb_e_invalid_argument, "Only single-dimension numpy arrays are supported"};
+        if ((timestamps.ndim() != 1) || (values.ndim() != 1))
+            throw qdb::exception{qdb_e_invalid_argument, "Only single-dimension numpy arrays are supported"};
 
         std::vector<qdb_ts_string_point> points(timestamps.size());
 
         auto t              = timestamps.template unchecked<std::int64_t, 1>();
         const py::str * ptr = static_cast<const py::str *>(values.data());
 
-
         size_t str_size = values.itemsize();
-        char * buffer;
-        ssize_t length;
 
         for (size_t i = 0; i < points.size(); ++i, ptr += 1)
         {
             points[i].timestamp = convert_timestamp(t(i));
-            //update_str(points[i], ptr, str_size);
-
+            // update_str(points[i], ptr, str_size);
 
             // We use low-level APIs here because pybind11 wraps a bit too much.
             // Using the native API directly allows us to write our UTF-8 strings
             // directly into our qdb buffers.
             PyObject * temp = PyUnicode_AsUTF8String(ptr->ptr());
 
-            if (PYBIND11_BYTES_AS_STRING_AND_SIZE(temp,
-                                                  (char **)(&points[i].content),
-                                                  (Py_ssize_t *)(&points[i].content_length))) {
-              throw qdb::incompatible_type_exception{};
+            if (PYBIND11_BYTES_AS_STRING_AND_SIZE(temp, (char **)(&points[i].content), (Py_ssize_t *)(&points[i].content_length)))
+            {
+                throw qdb::incompatible_type_exception{};
             }
         }
 
@@ -236,7 +238,8 @@ struct convert_values<qdb_ts_timestamp_point, std::int64_t>
     std::vector<qdb_ts_timestamp_point> operator()(const pybind11::array & timestamps, const pybind11::array_t<std::int64_t> & values) const
     {
         if (timestamps.size() != values.size()) throw qdb::exception{qdb_e_invalid_argument, "Timestamps size must match values size"};
-        if ((timestamps.ndim() != 1) || (values.ndim() != 1)) throw qdb::exception{qdb_e_invalid_argument, "Only single-dimension numpy arrays are supported"};
+        if ((timestamps.ndim() != 1) || (values.ndim() != 1))
+            throw qdb::exception{qdb_e_invalid_argument, "Only single-dimension numpy arrays are supported"};
 
         std::vector<qdb_ts_timestamp_point> points(timestamps.size());
 
@@ -331,7 +334,6 @@ struct vectorize_result<qdb_ts_blob_point, const char *>
     }
 };
 
-
 template <>
 struct vectorize_result<qdb_ts_string_point, const char *>
 {
@@ -344,13 +346,12 @@ struct vectorize_result<qdb_ts_string_point, const char *>
         result_type res{pybind11::array{"datetime64[ns]", {count}}, pybind11::array{"O", {count}}};
 
         auto ts_dest = res.first.template mutable_unchecked<std::int64_t, 1>();
-        auto v_dest = res.second.template mutable_unchecked<pybind11::object, 1>();
-
+        auto v_dest  = res.second.template mutable_unchecked<pybind11::object, 1>();
 
         for (size_t i = 0; i < count; ++i)
         {
-          ts_dest(i) = convert_timestamp(points[i].timestamp);
-          v_dest(i) = py::str(points[i].content, points[i].content_length);
+            ts_dest(i) = convert_timestamp(points[i].timestamp);
+            v_dest(i)  = py::str(points[i].content, points[i].content_length);
         }
 
         return res;
