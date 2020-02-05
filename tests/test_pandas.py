@@ -111,7 +111,7 @@ def test_write_dataframe(qdbd_connection, table):
 def test_write_dataframe_create_table(qdbd_connection, entry_name):
     table = qdbd_connection.ts(entry_name)
     df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
-    qdbpd.write_dataframe(df1, qdbd_connection, table, create=True)
+    qdbpd.write_dataframe(df1, qdbd_connection, table, create=True, blobs='the_blob')
 
     df2 = qdbpd.read_dataframe(table)
 

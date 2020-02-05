@@ -116,6 +116,8 @@ pybind11_add_module(quasardb
     utils.hpp
     version.hpp
     version.cpp
+    logger.hpp
+    logger.cpp
 
     detail/ts_column.hpp
     reader/ts_row.hpp

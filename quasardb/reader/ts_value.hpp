@@ -30,6 +30,7 @@
  */
 #pragma once
 
+#include "../logger.hpp"
 #include "../numpy.hpp"
 #include <qdb/ts.h>
 #include <pybind11/numpy.h>
@@ -50,25 +51,29 @@ class ts_value
 {
 public:
     ts_value() noexcept
-        : _local_table{nullptr}
+        : _logger("quasardb.reader.ts_value")
+        ,  _local_table{nullptr}
         , _index{-1}
         , _type{qdb_ts_column_uninitialized}
     {}
 
     ts_value(qdb_local_table_t local_table, int64_t index, qdb_ts_column_type_t type) noexcept
-        : _local_table{local_table}
+        : _logger("quasardb.reader.ts_value")
+        , _local_table{local_table}
         , _index{index}
         , _type{type}
     {}
 
     ts_value(const ts_value & rhs) noexcept
-        : _local_table{rhs._local_table}
+        : _logger("quasardb.reader.ts_value")
+        , _local_table{rhs._local_table}
         , _index{rhs._index}
         , _type{rhs._type}
     {}
 
     ts_value(ts_value && rhs) noexcept
-        : _local_table{rhs._local_table}
+        : _logger("quasardb.reader.ts_value")
+        , _local_table{rhs._local_table}
         , _index{rhs._index}
         , _type{rhs._type} {};
 
@@ -84,12 +89,12 @@ public:
             return double_();
         case qdb_ts_column_blob:
             return blob();
+        case qdb_ts_column_string:
+            return string();
         case qdb_ts_column_int64:
             return int64();
         case qdb_ts_column_timestamp:
             return timestamp();
-        case qdb_ts_column_string:
-            return string();
         };
 
         throw std::runtime_error("Unable to cast QuasarDB type to Python type");
@@ -130,10 +135,10 @@ private:
 
     py::handle string() const
     {
-        const void * v = nullptr;
+        const char * v = nullptr;
         qdb_size_t l   = 0;
 
-        auto res = qdb_ts_row_get_blob(_local_table, _index, &v, &l);
+        auto res = qdb_ts_row_get_string(_local_table, _index, &v, &l);
         if (res == qdb_e_element_not_found)
         {
             Py_RETURN_NONE;
@@ -141,7 +146,7 @@ private:
         }
 
         qdb::qdb_throw_if_error(res);
-        return PyByteArray_FromStringAndSize(static_cast<const char *>(v), static_cast<Py_ssize_t>(l));
+        return PyUnicode_FromStringAndSize(v, static_cast<Py_ssize_t>(l));
     }
 
     py::handle double_() const
@@ -173,6 +178,7 @@ private:
     }
 
 private:
+    qdb::logger _logger;
     qdb_local_table_t _local_table;
     int64_t _index;
     qdb_ts_column_type_t _type;

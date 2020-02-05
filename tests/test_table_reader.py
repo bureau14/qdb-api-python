@@ -15,7 +15,7 @@ def test_reader_returns_correct_results(
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, integers, timestamps = batchlib._test_with_table(
+    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,
@@ -26,8 +26,9 @@ def test_reader_returns_correct_results(
     for row in table.reader():
         assert row[1] == doubles[offset]
         assert row[2] == blobs[offset]
-        assert row[3] == integers[offset]
-        assert row[4] == timestamps[offset]
+        assert row[3] == strings[offset]
+        assert row[4] == integers[offset]
+        assert row[5] == timestamps[offset]
 
         offset = offset + 1
 
@@ -42,7 +43,7 @@ def test_reader_iterator_returns_reference(
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, integers, timestamps = batchlib._test_with_table(
+    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,
@@ -61,6 +62,7 @@ def test_reader_iterator_returns_reference(
         assert row[2] == None
         assert row[3] == None
         assert row[4] == None
+        assert row[5] == None
 
 def test_reader_can_copy_rows(qdbd_connection, table, many_intervals):
     # As a mitigation to the local table reference issue tested above,
@@ -69,7 +71,7 @@ def test_reader_can_copy_rows(qdbd_connection, table, many_intervals):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, integers, timestamps = batchlib._test_with_table(
+    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,
@@ -85,8 +87,9 @@ def test_reader_can_copy_rows(qdbd_connection, table, many_intervals):
     for row in rows:
         assert row[1] == doubles[offset]
         assert row[2] == blobs[offset]
-        assert row[3] == integers[offset]
-        assert row[4] == timestamps[offset]
+        assert row[3] == strings[offset]
+        assert row[4] == integers[offset]
+        assert row[5] == timestamps[offset]
 
         offset = offset + 1
 
@@ -96,7 +99,7 @@ def test_reader_can_select_columns(qdbd_connection, table, many_intervals):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, integers, timestamps = batchlib._test_with_table(
+    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,
@@ -118,7 +121,7 @@ def test_reader_can_request_ranges(qdbd_connection, table, many_intervals):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, integers, timestamps = batchlib._test_with_table(
+    doubles, blobs, string, integers, timestamps = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,
@@ -147,7 +150,7 @@ def test_reader_raises_error_on_invalid_datetime_ranges(qdbd_connection, table, 
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, integers, timestamps = batchlib._test_with_table(
+    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,
@@ -177,7 +180,7 @@ def test_reader_can_read_dicts(qdbd_connection, table, many_intervals):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, integers, timestamps = batchlib._test_with_table(
+    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,
@@ -189,6 +192,7 @@ def test_reader_can_read_dicts(qdbd_connection, table, many_intervals):
         assert isinstance(row['$timestamp'], np.datetime64)
         assert row['the_double'] == doubles[offset]
         assert row['the_blob'] == blobs[offset]
+        assert row['the_string'] == strings[offset]
         assert row['the_int64'] == integers[offset]
         assert row['the_ts'] == timestamps[offset]
 
@@ -203,7 +207,7 @@ def test_reader_can_copy_dict_rows(qdbd_connection, table, many_intervals):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, integers, timestamps = batchlib._test_with_table(
+    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,
@@ -220,6 +224,7 @@ def test_reader_can_copy_dict_rows(qdbd_connection, table, many_intervals):
     for row in rows:
         assert row['the_double'] == doubles[offset]
         assert row['the_blob'] == blobs[offset]
+        assert row['the_string'] == strings[offset]
         assert row['the_int64'] == integers[offset]
         assert row['the_ts'] == timestamps[offset]
 

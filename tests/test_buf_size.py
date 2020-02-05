@@ -28,7 +28,7 @@ def test_client_query_buf_size_error(qdbd_connection, table, many_intervals):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, integers, timestamps = batchlib._test_with_table(
+    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,

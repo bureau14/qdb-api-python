@@ -15,14 +15,16 @@ def _row_insertion_method(
         dates,
         doubles,
         blobs,
+        strings,
         integers,
         timestamps):
     for i in range(len(dates)):
         inserter.start_row(dates[i])
         inserter.set_double(0, doubles[i])
         inserter.set_blob(1, blobs[i])
-        inserter.set_int64(2, integers[i])
-        inserter.set_timestamp(3, timestamps[i])
+        inserter.set_string(2, strings[i])
+        inserter.set_int64(3, integers[i])
+        inserter.set_timestamp(4, timestamps[i])
 
 
 def _regular_push(inserter):
@@ -44,6 +46,8 @@ def _make_inserter_info(table):
     return [quasardb.BatchColumnInfo(table.get_name(), tslib._double_col_name(table), 100),
             quasardb.BatchColumnInfo(
                 table.get_name(), tslib._blob_col_name(table), 100),
+            quasardb.BatchColumnInfo(
+                table.get_name(), tslib._string_col_name(table), 100),
             quasardb.BatchColumnInfo(
                 table.get_name(), tslib._int64_col_name(table), 100),
             quasardb.BatchColumnInfo(table.get_name(), tslib._ts_col_name(table), 100)]
@@ -71,6 +75,7 @@ def _test_with_table(
     doubles = np.random.uniform(-100.0, 100.0, count)
     integers = np.random.randint(-100, 100, count)
     blobs = np.array([(b"content_" + bytes(i)) for i in range(count)])
+    strings = np.array([("content_" + str(item)) for item in range(count)])
     timestamps = tslib._generate_dates(
         start_time + np.timedelta64('1', 'D'), count)
 
@@ -79,6 +84,7 @@ def _test_with_table(
         intervals,
         doubles,
         blobs,
+        strings,
         integers,
         timestamps)
 
@@ -88,6 +94,9 @@ def _test_with_table(
     assert len(results[0]) == 0
 
     results = table.blob_get_ranges(tslib._blob_col_name(table), [whole_range])
+    assert len(results[0]) == 0
+
+    results = table.string_get_ranges(tslib._string_col_name(table), [whole_range])
     assert len(results[0]) == 0
 
     results = table.int64_get_ranges(
@@ -113,6 +122,10 @@ def _test_with_table(
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], blobs)
 
+    results = table.string_get_ranges(tslib._string_col_name(table), [whole_range])
+    np.testing.assert_array_equal(results[0], intervals)
+    np.testing.assert_array_equal(results[1], strings)
+
     results = table.int64_get_ranges(
         tslib._int64_col_name(table), [whole_range])
     np.testing.assert_array_equal(results[0], intervals)
@@ -123,7 +136,7 @@ def _test_with_table(
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], timestamps)
 
-    return doubles, blobs, integers, timestamps
+    return doubles, blobs, strings, integers, timestamps
 
 
 def test_successful_bulk_row_insert(qdbd_connection, table, many_intervals):
@@ -139,6 +152,7 @@ def test_successful_bulk_row_insert(qdbd_connection, table, many_intervals):
 
 def test_successful_async_bulk_row_insert(
         qdbd_connection, table, many_intervals):
+
     # Same test as `test_successful_bulk_row_insert` but using `push_async` to push the entries
     # This allows us to test the `push_async` feature
 
