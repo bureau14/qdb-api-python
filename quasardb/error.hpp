@@ -30,6 +30,7 @@
  */
 #pragma once
 
+#include <iostream>
 #include "logger.hpp"
 #include <qdb/error.h>
 #include <qdb/client.h>
@@ -67,7 +68,7 @@ class input_buffer_too_small_exception : public exception
 public:
     input_buffer_too_small_exception() noexcept
     : exception(qdb_e_network_inbuf_too_small,
-                "Input buffer too small: result set too large. Hint: consider increasing the buffer size using cluster.options().set_client_max_in_buf_size(..) prior to address this error.")
+                std::string("Input buffer too small: result set too large. Hint: consider increasing the buffer size using cluster.options().set_client_max_in_buf_size(..) prior to address this error."))
     {
     }
 };
@@ -76,7 +77,7 @@ class incompatible_type_exception : public exception
 {
 public:
     incompatible_type_exception() noexcept
-      : exception(qdb_e_incompatible_type, "Incompatible type")
+    : exception(qdb_e_incompatible_type, std::string("Incompatible type"))
     {
     }
 
@@ -86,7 +87,7 @@ class alias_already_exists_exception : public exception
 {
 public:
     alias_already_exists_exception() noexcept
-      : exception(qdb_e_alias_already_exists, "Alias already exists")
+    : exception(qdb_e_alias_already_exists, std::string("Alias already exists"))
     {
     }
 };
@@ -95,7 +96,8 @@ class invalid_datetime_exception : public exception
 {
 public:
     invalid_datetime_exception() noexcept
-    : exception(qdb_e_incompatible_type, "Unable to interpret provided numpy datetime64. Hint: QuasarDB only works with nanosecond precision datetime64. You can correct this by explicitly casting your timestamps to the dtype datetime64[ns]")
+    : exception(qdb_e_incompatible_type,
+                std::string("Unable to interpret provided numpy datetime64. Hint: QuasarDB only works with nanosecond precision datetime64. You can correct this by explicitly casting your timestamps to the dtype datetime64[ns]"))
     {
     }
 
@@ -137,6 +139,12 @@ void qdb_throw_if_error(qdb_error_t err, PreThrowFtor && pre_throw = detail::no_
       qdb_string_t msg_;
       qdb_error_t  err_;
       qdb_get_last_error(&err_, &msg_);
+
+      if (err_ != err) {
+        // Error context returned is not the same, which means this thread already made
+        // another call to the QDB API, or the QDB API itself
+        throw qdb::exception{err_, qdb_error(err)};
+      }
       assert(err_ == err);
 
       pre_throw();
@@ -152,7 +160,7 @@ void qdb_throw_if_error(qdb_error_t err, PreThrowFtor && pre_throw = detail::no_
           throw qdb::incompatible_type_exception{};
 
       default:
-        throw qdb::exception{err_, msg_.data};
+          throw qdb::exception{err_, msg_.data};
       };
     }
 }

@@ -203,9 +203,11 @@ public:
         const char ** result = nullptr;
         size_t count         = 0;
 
-        // don't throw if no prefix is found
         const qdb_error_t err = qdb_prefix_get(*_handle, prefix.c_str(), max_count, &result, &count);
-        qdb_throw_if_error(err);
+        // don't throw if no prefix is found
+        if (err != qdb_e_alias_not_found) {
+          qdb_throw_if_error(err);
+        }
 
         return convert_strings_and_release(_handle, result, count);
     }
@@ -238,7 +240,10 @@ public:
         size_t count         = 0;
 
         const qdb_error_t err = qdb_suffix_get(*_handle, suffix.c_str(), max_count, &result, &count);
-        qdb_throw_if_error(err);
+        // don't throw if no suffix is found
+        if (err != qdb_e_alias_not_found) {
+          qdb_throw_if_error(err);
+        }
 
         return convert_strings_and_release(_handle, result, count);
     }
