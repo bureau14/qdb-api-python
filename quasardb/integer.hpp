@@ -47,24 +47,24 @@ public:
     qdb_int_t get()
     {
         qdb_int_t result;
-        qdb::qdb_throw_if_error(qdb_int_get(*_handle, _alias.c_str(), &result));
+        qdb::qdb_throw_if_error(*_handle, qdb_int_get(*_handle, _alias.c_str(), &result));
         return result;
     }
 
     void put(qdb_int_t integer, std::chrono::system_clock::time_point expiry = std::chrono::system_clock::time_point{})
     {
-        qdb::qdb_throw_if_error(qdb_int_put(*_handle, _alias.c_str(), integer, expirable_entry::from_time_point(expiry)));
+        qdb::qdb_throw_if_error(*_handle, qdb_int_put(*_handle, _alias.c_str(), integer, expirable_entry::from_time_point(expiry)));
     }
 
     void update(qdb_int_t integer, std::chrono::system_clock::time_point expiry = std::chrono::system_clock::time_point{})
     {
-        qdb::qdb_throw_if_error(qdb_int_update(*_handle, _alias.c_str(), integer, expirable_entry::from_time_point(expiry)));
+        qdb::qdb_throw_if_error(*_handle, qdb_int_update(*_handle, _alias.c_str(), integer, expirable_entry::from_time_point(expiry)));
     }
 
     qdb_int_t add(qdb_int_t integer)
     {
         qdb_int_t result;
-        qdb::qdb_throw_if_error(qdb_int_add(*_handle, _alias.c_str(), integer, &result));
+        qdb::qdb_throw_if_error(*_handle, qdb_int_add(*_handle, _alias.c_str(), integer, &result));
         return result;
     }
 };

@@ -65,7 +65,7 @@ public:
 
         // don't throw if no prefix is found
         const qdb_error_t err = qdb_direct_prefix_get(*_direct_handle, prefix.c_str(), max_count, &result, &count);
-        qdb_throw_if_error(err);
+        qdb_throw_if_error(*_handle, err);
 
         return convert_strings_and_release(_handle, result, count);
     }

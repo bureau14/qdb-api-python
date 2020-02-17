@@ -59,7 +59,7 @@ public:
 
     void connect(const std::string & uri)
     {
-        qdb::qdb_throw_if_error(qdb_connect(_handle, uri.c_str()));
+        qdb::qdb_throw_if_error(_handle, qdb_connect(_handle, uri.c_str()));
     }
 
     operator qdb_handle_t() const noexcept

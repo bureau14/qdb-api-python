@@ -48,7 +48,7 @@ public:
     qdb_int_t get()
     {
         qdb_int_t result;
-        qdb::qdb_throw_if_error(qdb_direct_int_get(*_direct_handle, _alias.c_str(), &result));
+        qdb::qdb_throw_if_error(nullptr, qdb_direct_int_get(*_direct_handle, _alias.c_str(), &result));
         return result;
     }
 

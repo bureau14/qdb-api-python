@@ -76,7 +76,7 @@ public:
         std::transform(
             ci.cbegin(), ci.cend(), converted.begin(), [](const batch_column_info & ci) -> qdb_ts_batch_column_info_t { return ci; });
 
-        qdb::qdb_throw_if_error(qdb_ts_batch_table_init(*_handle, converted.data(), converted.size(), &_batch_table));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_table_init(*_handle, converted.data(), converted.size(), &_batch_table));
 
         _logger.debug("initialized batch reader with %d columns", ci.size());
     }
@@ -98,45 +98,45 @@ public:
     void start_row(py::object ts)
     {
         const qdb_timespec_t converted = convert_timestamp(ts);
-        qdb::qdb_throw_if_error(qdb_ts_batch_start_row(_batch_table, &converted));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_start_row(_batch_table, &converted));
 
         ++_row_count;
     }
 
     void set_blob(std::size_t index, const std::string & blob)
     {
-        qdb::qdb_throw_if_error(qdb_ts_batch_row_set_blob(_batch_table, index, blob.data(), blob.size()));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_row_set_blob(_batch_table, index, blob.data(), blob.size()));
         ++_point_count;
     }
 
     void set_string(std::size_t index, const std::string & string)
     {
-        qdb::qdb_throw_if_error(qdb_ts_batch_row_set_string(_batch_table, index, string.data(), string.size()));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_row_set_string(_batch_table, index, string.data(), string.size()));
     }
 
     void set_double(std::size_t index, double v)
     {
-        qdb::qdb_throw_if_error(qdb_ts_batch_row_set_double(_batch_table, index, v));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_row_set_double(_batch_table, index, v));
         ++_point_count;
     }
 
     void set_int64(std::size_t index, std::int64_t v)
     {
-        qdb::qdb_throw_if_error(qdb_ts_batch_row_set_int64(_batch_table, index, v));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_row_set_int64(_batch_table, index, v));
         ++_point_count;
     }
 
     void set_timestamp(std::size_t index, py::object v)
     {
         const qdb_timespec_t converted = convert_timestamp(v);
-        qdb::qdb_throw_if_error(qdb_ts_batch_row_set_timestamp(_batch_table, index, &converted));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_row_set_timestamp(_batch_table, index, &converted));
         ++_point_count;
     }
 
     void push()
     {
         _logger.debug("pushing batch of %d rows with %d data points", _row_count, _point_count);
-        qdb::qdb_throw_if_error(qdb_ts_batch_push(_batch_table));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push(_batch_table));
         _logger.debug("pushed batch of %d rows with %d data points", _row_count, _point_count);
 
         _reset_counters();
@@ -145,7 +145,7 @@ public:
     void push_async()
     {
         _logger.debug("async pushing batch of %d rows with %d data points", _row_count, _point_count);
-        qdb::qdb_throw_if_error(qdb_ts_batch_push_async(_batch_table));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push_async(_batch_table));
         _logger.debug("async pushed batch of %d rows with %d data points", _row_count, _point_count);
 
         _reset_counters();
@@ -154,7 +154,7 @@ public:
     void push_fast()
     {
         _logger.debug("fast pushing batch of %d rows with %d data points", _row_count, _point_count);
-        qdb::qdb_throw_if_error(qdb_ts_batch_push_fast(_batch_table));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push_fast(_batch_table));
         _logger.debug("fast pushed batch of %d rows with %d data points", _row_count, _point_count);
 
         _reset_counters();

@@ -54,8 +54,9 @@ public:
     // We need a default constructor to due being copied as part of an iterator.
     ts_row() noexcept = default;
 
-    ts_row(qdb_local_table_t local_table) noexcept
-        : _local_table{local_table}
+    ts_row(handle_ptr handle, qdb_local_table_t local_table) noexcept
+        : _handle{handle},
+          _local_table{local_table}
     {}
 
     bool operator==(const ts_row & rhs) const noexcept
@@ -84,6 +85,7 @@ public:
     }
 
 protected:
+    handle_ptr _handle{nullptr};
     qdb_local_table_t _local_table{nullptr};
     qdb_timespec_t _timestamp;
 };
@@ -98,8 +100,8 @@ class ts_fast_row : public ts_row
 public:
     ts_fast_row() noexcept = default;
 
-    ts_fast_row(qdb_local_table_t local_table, const ts_columns_t & columns) noexcept
-        : ts_row(local_table)
+    ts_fast_row(handle_ptr handle, qdb_local_table_t local_table, const ts_columns_t & columns) noexcept
+        : ts_row(handle, local_table)
         , _columns(columns)
     {}
 
@@ -135,7 +137,7 @@ public:
             {
                 throw py::index_error();
             }
-            return py::cast(ts_value(_local_table, col_index, _columns.at(col_index).type), py::return_value_policy::move);
+            return py::cast(ts_value(_handle, _local_table, col_index, _columns.at(col_index).type), py::return_value_policy::move);
         }
     }
 
@@ -172,8 +174,8 @@ class ts_dict_row : public ts_row
 public:
     ts_dict_row() noexcept = default;
 
-    ts_dict_row(qdb_local_table_t local_table, const ts_columns_t & columns)
-        : ts_row(local_table)
+    ts_dict_row(handle_ptr handle, qdb_local_table_t local_table, const ts_columns_t & columns)
+        : ts_row(handle, local_table)
         , _indexed_columns(detail::index_columns(columns))
     {
         // We store '$timestamp' as a magic, uninitialized column. This column type
@@ -182,7 +184,7 @@ public:
     }
 
     ts_dict_row(const ts_dict_row & rhs) noexcept
-        : ts_row(rhs._local_table)
+        : ts_row(rhs._handle, rhs._local_table)
         , _indexed_columns(rhs._indexed_columns)
     {}
 
@@ -204,7 +206,7 @@ public:
                 res.insert(map_type::value_type(c.first, timestamp()));
             }
             else
-                res.insert(map_type::value_type(c.first, py::cast(ts_value(_local_table, index, c.second.type))));
+                res.insert(map_type::value_type(c.first, py::cast(ts_value(_handle, _local_table, index, c.second.type))));
         }
 
         return res;
@@ -226,7 +228,7 @@ public:
         }
         else
         {
-            return py::cast(ts_value(_local_table, indexed_column.index, indexed_column.type), py::return_value_policy::move);
+            return py::cast(ts_value(_handle, _local_table, indexed_column.index, indexed_column.type), py::return_value_policy::move);
         }
     }
 

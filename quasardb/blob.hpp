@@ -61,25 +61,25 @@ public:
         const void * content      = nullptr;
         qdb_size_t content_length = 0;
 
-        qdb::qdb_throw_if_error(qdb_blob_get(*_handle, _alias.c_str(), &content, &content_length));
+        qdb::qdb_throw_if_error(*_handle, qdb_blob_get(*_handle, _alias.c_str(), &content, &content_length));
 
         return convert_and_release_content(content, content_length);
     }
 
     void put(const std::string & data, std::chrono::system_clock::time_point expiry = std::chrono::system_clock::time_point{})
     {
-        qdb::qdb_throw_if_error(qdb_blob_put(*_handle, _alias.c_str(), data.data(), data.size(), expirable_entry::from_time_point(expiry)));
+        qdb::qdb_throw_if_error(*_handle, qdb_blob_put(*_handle, _alias.c_str(), data.data(), data.size(), expirable_entry::from_time_point(expiry)));
     }
 
     void update(const std::string & data, std::chrono::system_clock::time_point expiry = std::chrono::system_clock::time_point{})
     {
-        qdb::qdb_throw_if_error(
+        qdb::qdb_throw_if_error(*_handle,
             qdb_blob_update(*_handle, _alias.c_str(), data.data(), data.size(), expirable_entry::from_time_point(expiry)));
     }
 
     void remove_if(const std::string & comparand)
     {
-        qdb::qdb_throw_if_error(qdb_blob_remove_if(*_handle, _alias.c_str(), comparand.data(), comparand.size()));
+        qdb::qdb_throw_if_error(*_handle, qdb_blob_remove_if(*_handle, _alias.c_str(), comparand.data(), comparand.size()));
     }
 
     pybind11::bytes get_and_remove()
@@ -87,7 +87,7 @@ public:
         const void * content      = nullptr;
         qdb_size_t content_length = 0;
 
-        qdb::qdb_throw_if_error(qdb_blob_get_and_remove(*_handle, _alias.c_str(), &content, &content_length));
+        qdb::qdb_throw_if_error(*_handle, qdb_blob_get_and_remove(*_handle, _alias.c_str(), &content, &content_length));
 
         return convert_and_release_content(content, content_length);
     }
@@ -98,7 +98,7 @@ public:
         const void * content      = nullptr;
         qdb_size_t content_length = 0;
 
-        qdb::qdb_throw_if_error(qdb_blob_get_and_update(
+        qdb::qdb_throw_if_error(*_handle, qdb_blob_get_and_update(
             *_handle, _alias.c_str(), data.data(), data.size(), expirable_entry::from_time_point(expiry), &content, &content_length));
 
         return convert_and_release_content(content, content_length);
@@ -116,7 +116,7 @@ public:
 
         // we don't want to throw on "unmatching content", so we don't use the qdb::qdb_throw_if_error function
         if (QDB_FAILURE(err))  {
-          qdb_throw_if_error(err);
+          qdb_throw_if_error(*_handle, err);
         }
 
         return convert_and_release_content(content, content_length);

@@ -52,7 +52,7 @@ public:
             _handle = nullptr;
         }
     }
-    
+
     void connect(const handle_ptr handle, const std::string & uri)
     {
         _handle = qdb_direct_connect(*handle, uri.c_str());

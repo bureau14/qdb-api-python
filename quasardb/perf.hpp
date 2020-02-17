@@ -123,16 +123,16 @@ public:
     // provided to us
     using measurement = std::pair<std::string, std::chrono::nanoseconds>;
     using profile = std::pair<std::string, std::vector<measurement>>;
-    
+
     std::vector<profile> get_profiles() const
     {
         std::vector<profile> profiles;
-        
+
         qdb_perf_profile_t * qdb_profiles = nullptr;
         qdb_size_t count = 0;
 
-        qdb::qdb_throw_if_error(qdb_perf_get_profiles(*_handle, &qdb_profiles, &count));
-        
+        qdb::qdb_throw_if_error(*_handle, qdb_perf_get_profiles(*_handle, &qdb_profiles, &count));
+
         profiles.reserve(count);
         std::transform(qdb_profiles, qdb_profiles + count, std::back_inserter(profiles), [](const qdb_perf_profile_t & prof) {
             std::vector<measurement> measurements;
@@ -149,19 +149,19 @@ public:
 
     void clear_all_profiles() const
     {
-        qdb::qdb_throw_if_error(qdb_perf_clear_all_profiles(*_handle));
+        qdb::qdb_throw_if_error(*_handle, qdb_perf_clear_all_profiles(*_handle));
     }
-    
+
     void enable_client_tracking() const
     {
-        qdb::qdb_throw_if_error(qdb_perf_enable_client_tracking(*_handle));
+        qdb::qdb_throw_if_error(*_handle, qdb_perf_enable_client_tracking(*_handle));
     }
-    
+
     void disable_client_tracking() const
     {
-        qdb::qdb_throw_if_error(qdb_perf_disable_client_tracking(*_handle));
+        qdb::qdb_throw_if_error(*_handle, qdb_perf_disable_client_tracking(*_handle));
     }
-    
+
 private:
     qdb::handle_ptr _handle;
 };

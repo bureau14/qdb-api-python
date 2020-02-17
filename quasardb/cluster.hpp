@@ -135,7 +135,7 @@ public:
         const char * content      = nullptr;
         qdb_size_t content_length = 0;
 
-        qdb::qdb_throw_if_error(qdb_node_config(*_handle, uri.c_str(), &content, &content_length));
+        qdb::qdb_throw_if_error(*_handle, qdb_node_config(*_handle, uri.c_str(), &content, &content_length));
 
         return convert_to_json_and_release(content);
     }
@@ -145,7 +145,7 @@ public:
         const char * content      = nullptr;
         qdb_size_t content_length = 0;
 
-        qdb::qdb_throw_if_error(qdb_node_status(*_handle, uri.c_str(), &content, &content_length));
+        qdb::qdb_throw_if_error(*_handle, qdb_node_status(*_handle, uri.c_str(), &content, &content_length));
 
         return convert_to_json_and_release(content);
     }
@@ -155,7 +155,7 @@ public:
         const char * content      = nullptr;
         qdb_size_t content_length = 0;
 
-        qdb::qdb_throw_if_error(qdb_node_topology(*_handle, uri.c_str(), &content, &content_length));
+        qdb::qdb_throw_if_error(*_handle, qdb_node_topology(*_handle, uri.c_str(), &content, &content_length));
 
         return convert_to_json_and_release(content);
     }
@@ -206,7 +206,7 @@ public:
         const qdb_error_t err = qdb_prefix_get(*_handle, prefix.c_str(), max_count, &result, &count);
         // don't throw if no prefix is found
         if (err != qdb_e_alias_not_found) {
-          qdb_throw_if_error(err);
+          qdb_throw_if_error(*_handle, err);
         }
 
         return convert_strings_and_release(_handle, result, count);
@@ -217,7 +217,7 @@ public:
         qdb_uint_t count = 0;
 
         const qdb_error_t err = qdb_prefix_count(*_handle, prefix.c_str(), &count);
-        qdb_throw_if_error(err);
+        qdb_throw_if_error(*_handle, err);
 
         return count;
     }
@@ -242,7 +242,7 @@ public:
         const qdb_error_t err = qdb_suffix_get(*_handle, suffix.c_str(), max_count, &result, &count);
         // don't throw if no suffix is found
         if (err != qdb_e_alias_not_found) {
-          qdb_throw_if_error(err);
+          qdb_throw_if_error(*_handle, err);
         }
 
         return convert_strings_and_release(_handle, result, count);
@@ -253,7 +253,7 @@ public:
         qdb_uint_t count = 0;
 
         const qdb_error_t err = qdb_suffix_count(*_handle, suffix.c_str(), &count);
-        qdb_throw_if_error(err);
+        qdb_throw_if_error(*_handle, err);
 
         return count;
     }
@@ -261,22 +261,22 @@ public:
 public:
     void purge_all(std::chrono::milliseconds timeout_ms)
     {
-        qdb::qdb_throw_if_error(qdb_purge_all(*_handle, static_cast<int>(timeout_ms.count())));
+        qdb::qdb_throw_if_error(*_handle, qdb_purge_all(*_handle, static_cast<int>(timeout_ms.count())));
     }
 
     void purge_cache(std::chrono::milliseconds timeout_ms)
     {
-        qdb::qdb_throw_if_error(qdb_purge_cache(*_handle, static_cast<int>(timeout_ms.count())));
+        qdb::qdb_throw_if_error(*_handle, qdb_purge_cache(*_handle, static_cast<int>(timeout_ms.count())));
     }
 
     void wait_for_stabilization(std::chrono::milliseconds timeout_ms)
     {
-        qdb::qdb_throw_if_error(qdb_wait_for_stabilization(*_handle, static_cast<int>(timeout_ms.count())));
+        qdb::qdb_throw_if_error(*_handle, qdb_wait_for_stabilization(*_handle, static_cast<int>(timeout_ms.count())));
     }
 
     void trim_all(std::chrono::milliseconds timeout_ms)
     {
-        qdb::qdb_throw_if_error(qdb_trim_all(*_handle, static_cast<int>(timeout_ms.count())));
+        qdb::qdb_throw_if_error(*_handle, qdb_trim_all(*_handle, static_cast<int>(timeout_ms.count())));
     }
 
 public:
@@ -286,7 +286,7 @@ public:
         qdb_size_t count              = 0;
 
         const qdb_error_t err = qdb_cluster_endpoints(*_handle, &endpoints, &count);
-        qdb_throw_if_error(err);
+        qdb_throw_if_error(*_handle, err);
 
         std::vector<std::string> results;
         results.resize(count);

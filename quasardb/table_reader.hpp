@@ -62,14 +62,16 @@ public:
 
 public:
     table_reader_iterator()
-        : _local_table{nullptr}
-        , _the_row{_local_table, _columns}
+        : _handle{nullptr}
+        , _local_table{nullptr}
+        , _the_row{_handle, _local_table, _columns}
     {}
 
-    table_reader_iterator(qdb_local_table_t local_table, const ts_columns_t & columns)
-        : _local_table{local_table}
+    table_reader_iterator(handle_ptr h, qdb_local_table_t local_table, const ts_columns_t & columns)
+        : _handle{h}
+        , _local_table{local_table}
         , _columns{columns}
-        , _the_row{_local_table, _columns}
+        , _the_row{_handle, _local_table, _columns}
     {
         // Immediately try to move to the first row
         ++(*this);
@@ -97,13 +99,14 @@ public:
         }
         else
         {
-            qdb::qdb_throw_if_error(err);
+            qdb::qdb_throw_if_error(*_handle, err);
         }
 
         return *this;
     }
 
 private:
+    handle_ptr _handle;
     qdb_local_table_t _local_table;
     ts_columns_t _columns;
     value_type _the_row;
@@ -138,9 +141,9 @@ public:
     {
         auto c_columns = convert_columns(c);
 
-        qdb::qdb_throw_if_error(qdb_ts_local_table_init(*_handle, t.c_str(), c_columns.data(), c_columns.size(), &_local_table));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_local_table_init(*_handle, t.c_str(), c_columns.data(), c_columns.size(), &_local_table));
 
-        qdb::qdb_throw_if_error(qdb_ts_table_get_ranges(_local_table, r.data(), r.size()));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_table_get_ranges(_local_table, r.data(), r.size()));
     }
 
     // since our reader models a stateful generator, we prevent copies
@@ -168,7 +171,7 @@ public:
 
     constexpr iterator begin() const
     {
-        return iterator(_local_table, _columns);
+        return iterator(_handle, _local_table, _columns);
     }
 
     constexpr iterator end() const

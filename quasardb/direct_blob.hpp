@@ -52,7 +52,7 @@ public:
         const void * content      = nullptr;
         qdb_size_t content_length = 0;
 
-        qdb::qdb_throw_if_error(qdb_direct_blob_get(*_direct_handle, _alias.c_str(), &content, &content_length));
+        qdb::qdb_throw_if_error(nullptr, qdb_direct_blob_get(*_direct_handle, _alias.c_str(), &content, &content_length));
 
         return convert_and_release_content(content, content_length);
     }

@@ -125,7 +125,7 @@ struct no_op
 // (such as calls to `qdb_release`)
 // `pre_throw` defaults to a `no_op` functor that does nothing.
 template <typename PreThrowFtor = detail::no_op>
-void qdb_throw_if_error(qdb_error_t err, PreThrowFtor && pre_throw = detail::no_op{})
+void qdb_throw_if_error(qdb_handle_t h, qdb_error_t err, PreThrowFtor && pre_throw = detail::no_op{})
 {
     static_assert(noexcept(std::forward<PreThrowFtor &&>(pre_throw)()), "`pre_throw` argument must be noexcept");
 
@@ -138,7 +138,7 @@ void qdb_throw_if_error(qdb_error_t err, PreThrowFtor && pre_throw = detail::no_
     {
       qdb_string_t msg_;
       qdb_error_t  err_;
-      qdb_get_last_error(&err_, &msg_);
+      qdb_get_last_error(h, &err_, &msg_);
 
       if (err_ != err) {
         // Error context returned is not the same, which means this thread already made

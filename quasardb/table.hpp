@@ -56,13 +56,13 @@ public:
     void create(const std::vector<detail::column_info> & columns, std::chrono::milliseconds shard_size = std::chrono::hours{24})
     {
         const auto c_columns = detail::convert_columns(columns);
-        qdb::qdb_throw_if_error(qdb_ts_create(*_handle, _alias.c_str(), shard_size.count(), c_columns.data(), c_columns.size()));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_create(*_handle, _alias.c_str(), shard_size.count(), c_columns.data(), c_columns.size()));
     }
 
     void insert_columns(const std::vector<detail::column_info> & columns)
     {
         const auto c_columns = detail::convert_columns(columns);
-        qdb::qdb_throw_if_error(qdb_ts_insert_columns(*_handle, _alias.c_str(), c_columns.data(), c_columns.size()));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_insert_columns(*_handle, _alias.c_str(), c_columns.data(), c_columns.size()));
     }
 
     std::vector<detail::column_info> list_columns() const
@@ -70,7 +70,7 @@ public:
         qdb_ts_column_info_t * columns = nullptr;
         qdb_size_t count               = 0;
 
-        qdb::qdb_throw_if_error(qdb_ts_list_columns(*_handle, _alias.c_str(), &columns, &count));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_list_columns(*_handle, _alias.c_str(), &columns, &count));
 
         auto c_columns = detail::convert_columns(columns, count);
 
@@ -142,7 +142,7 @@ public:
 
         qdb_uint_t erased_count = 0;
 
-        qdb::qdb_throw_if_error(
+        qdb::qdb_throw_if_error(*_handle,
             qdb_ts_erase_ranges(*_handle, _alias.c_str(), column.c_str(), c_ranges.data(), c_ranges.size(), &erased_count));
 
         return erased_count;
@@ -152,31 +152,31 @@ public:
     void blob_insert(const std::string & column, const pybind11::array & timestamps, const pybind11::array & values)
     {
         const auto points = convert_values<qdb_ts_blob_point, const char *>{}(timestamps, values);
-        qdb::qdb_throw_if_error(qdb_ts_blob_insert(*_handle, _alias.c_str(), column.c_str(), points.data(), points.size()));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_blob_insert(*_handle, _alias.c_str(), column.c_str(), points.data(), points.size()));
     }
 
     void string_insert(const std::string & column, const pybind11::array & timestamps, const pybind11::array & values)
     {
         const auto points = convert_values<qdb_ts_string_point, const char *>{}(timestamps, values);
-        qdb::qdb_throw_if_error(qdb_ts_string_insert(*_handle, _alias.c_str(), column.c_str(), points.data(), points.size()));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_string_insert(*_handle, _alias.c_str(), column.c_str(), points.data(), points.size()));
     }
 
     void double_insert(const std::string & column, const pybind11::array & timestamps, const pybind11::array_t<double> & values)
     {
         const auto points = convert_values<qdb_ts_double_point, double>{}(timestamps, values);
-        qdb::qdb_throw_if_error(qdb_ts_double_insert(*_handle, _alias.c_str(), column.c_str(), points.data(), points.size()));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_double_insert(*_handle, _alias.c_str(), column.c_str(), points.data(), points.size()));
     }
 
     void int64_insert(const std::string & column, const pybind11::array & timestamps, const pybind11::array_t<std::int64_t> & values)
     {
         const auto points = convert_values<qdb_ts_int64_point, std::int64_t>{}(timestamps, values);
-        qdb::qdb_throw_if_error(qdb_ts_int64_insert(*_handle, _alias.c_str(), column.c_str(), points.data(), points.size()));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_int64_insert(*_handle, _alias.c_str(), column.c_str(), points.data(), points.size()));
     }
 
     void timestamp_insert(const std::string & column, const pybind11::array & timestamps, const pybind11::array_t<std::int64_t> & values)
     {
         const auto points = convert_values<qdb_ts_timestamp_point, std::int64_t>{}(timestamps, values);
-        qdb::qdb_throw_if_error(qdb_ts_timestamp_insert(*_handle, _alias.c_str(), column.c_str(), points.data(), points.size()));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_timestamp_insert(*_handle, _alias.c_str(), column.c_str(), points.data(), points.size()));
     }
 
 public:
@@ -187,7 +187,7 @@ public:
 
         const auto c_ranges = convert_ranges(ranges);
 
-        qdb::qdb_throw_if_error(
+        qdb::qdb_throw_if_error(*_handle,
             qdb_ts_blob_get_ranges(*_handle, _alias.c_str(), column.c_str(), c_ranges.data(), c_ranges.size(), &points, &count));
 
         const auto res = vectorize_result<qdb_ts_blob_point, const char *>{}(points, count);
@@ -204,7 +204,7 @@ public:
 
         const auto c_ranges = convert_ranges(ranges);
 
-        qdb::qdb_throw_if_error(
+        qdb::qdb_throw_if_error(*_handle,
             qdb_ts_string_get_ranges(*_handle, _alias.c_str(), column.c_str(), c_ranges.data(), c_ranges.size(), &points, &count));
 
         const auto res = vectorize_result<qdb_ts_string_point, const char *>{}(points, count);
@@ -222,7 +222,7 @@ public:
 
         const auto c_ranges = convert_ranges(ranges);
 
-        qdb::qdb_throw_if_error(
+        qdb::qdb_throw_if_error(*_handle,
             qdb_ts_double_get_ranges(*_handle, _alias.c_str(), column.c_str(), c_ranges.data(), c_ranges.size(), &points, &count));
 
         const auto res = vectorize_result<qdb_ts_double_point, double>{}(points, count);
@@ -239,7 +239,7 @@ public:
 
         const auto c_ranges = convert_ranges(ranges);
 
-        qdb::qdb_throw_if_error(
+        qdb::qdb_throw_if_error(*_handle,
             qdb_ts_int64_get_ranges(*_handle, _alias.c_str(), column.c_str(), c_ranges.data(), c_ranges.size(), &points, &count));
 
         const auto res = vectorize_result<qdb_ts_int64_point, std::int64_t>{}(points, count);
@@ -256,7 +256,7 @@ public:
 
         const auto c_ranges = convert_ranges(ranges);
 
-        qdb::qdb_throw_if_error(
+        qdb::qdb_throw_if_error(*_handle,
             qdb_ts_timestamp_get_ranges(*_handle, _alias.c_str(), column.c_str(), c_ranges.data(), c_ranges.size(), &points, &count));
 
         const auto res = vectorize_result<qdb_ts_timestamp_point, std::int64_t>{}(points, count);

@@ -48,7 +48,7 @@ public:
         const char ** aliases = nullptr;
         size_t count          = 0;
 
-        qdb::qdb_throw_if_error(qdb_get_tagged(*_handle, _alias.c_str(), &aliases, &count));
+        qdb::qdb_throw_if_error(*_handle, qdb_get_tagged(*_handle, _alias.c_str(), &aliases, &count));
 
         return convert_strings_and_release(_handle, aliases, count);
     }
@@ -57,7 +57,7 @@ public:
     {
         qdb_uint_t count = 0;
 
-        qdb::qdb_throw_if_error(qdb_get_tagged_count(*_handle, _alias.c_str(), &count));
+        qdb::qdb_throw_if_error(*_handle, qdb_get_tagged_count(*_handle, _alias.c_str(), &count));
 
         return count;
     }

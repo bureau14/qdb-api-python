@@ -57,8 +57,9 @@ public:
         , _type{qdb_ts_column_uninitialized}
     {}
 
-    ts_value(qdb_local_table_t local_table, int64_t index, qdb_ts_column_type_t type) noexcept
+  ts_value(handle_ptr handle, qdb_local_table_t local_table, int64_t index, qdb_ts_column_type_t type) noexcept
         : _logger("quasardb.reader.ts_value")
+        , _handle(handle)
         , _local_table{local_table}
         , _index{index}
         , _type{type}
@@ -66,6 +67,7 @@ public:
 
     ts_value(const ts_value & rhs) noexcept
         : _logger("quasardb.reader.ts_value")
+        , _handle(rhs._handle)
         , _local_table{rhs._local_table}
         , _index{rhs._index}
         , _type{rhs._type}
@@ -73,6 +75,7 @@ public:
 
     ts_value(ts_value && rhs) noexcept
         : _logger("quasardb.reader.ts_value")
+        , _handle(rhs._handle)
         , _local_table{rhs._local_table}
         , _index{rhs._index}
         , _type{rhs._type} {};
@@ -112,7 +115,7 @@ private:
             // notreached
         }
 
-        qdb::qdb_throw_if_error(res);
+        qdb::qdb_throw_if_error(*_handle, res);
 
         return PyLong_FromLongLong(v);
     }
@@ -129,7 +132,7 @@ private:
             // notreached
         }
 
-        qdb::qdb_throw_if_error(res);
+        qdb::qdb_throw_if_error(*_handle, res);
         return PyByteArray_FromStringAndSize(static_cast<const char *>(v), static_cast<Py_ssize_t>(l));
     }
 
@@ -145,7 +148,7 @@ private:
             // notreached
         }
 
-        qdb::qdb_throw_if_error(res);
+        qdb::qdb_throw_if_error(*_handle, res);
         return PyUnicode_FromStringAndSize(v, static_cast<Py_ssize_t>(l));
     }
 
@@ -159,7 +162,7 @@ private:
             // notreached
         }
 
-        qdb::qdb_throw_if_error(res);
+        qdb::qdb_throw_if_error(*_handle, res);
         return PyFloat_FromDouble(v);
     }
 
@@ -173,12 +176,13 @@ private:
             // notreached
         }
 
-        qdb::qdb_throw_if_error(res);
+        qdb::qdb_throw_if_error(*_handle, res);
         return qdb::numpy::datetime64(v);
     }
 
 private:
     qdb::logger _logger;
+    handle_ptr _handle;
     qdb_local_table_t _local_table;
     int64_t _index;
     qdb_ts_column_type_t _type;

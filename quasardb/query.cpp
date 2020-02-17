@@ -148,7 +148,7 @@ std::vector<std::string> coerce_column_names(qdb_query_result_t const & r)
 dict_query_result_t dict_query(qdb::handle_ptr h, std::string const & q, const py::object & blobs)
 {
     qdb_query_result_t * r;
-    qdb::qdb_throw_if_error(qdb_query(*h, q.c_str(), &r));
+    qdb::qdb_throw_if_error(*h, qdb_query(*h, q.c_str(), &r));
 
     qdb::dict_query_result_t ret;
     if (!r) return ret;
