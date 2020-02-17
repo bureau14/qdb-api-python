@@ -35,7 +35,7 @@ def _async_push(inserter):
     inserter.push_async()
     # Wait for push_async to complete
     # Ideally we could be able to get the proper flush interval
-    sleep(8)
+    sleep(15)
 
 
 def _fast_push(inserter):
@@ -110,7 +110,7 @@ def _test_with_table(
     # after push, there is everything
     push_method(inserter)
     if push_method == _async_push:
-        sleep(10)
+        sleep(20)
 
     results = table.double_get_ranges(
         tslib._double_col_name(table), [whole_range])
