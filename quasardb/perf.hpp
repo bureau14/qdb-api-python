@@ -122,14 +122,14 @@ public:
     // we use vectors of pairs instead of maps to keep the order as it is
     // provided to us
     using measurement = std::pair<std::string, std::chrono::nanoseconds>;
-    using profile = std::pair<std::string, std::vector<measurement>>;
+    using profile     = std::pair<std::string, std::vector<measurement>>;
 
     std::vector<profile> get_profiles() const
     {
         std::vector<profile> profiles;
 
         qdb_perf_profile_t * qdb_profiles = nullptr;
-        qdb_size_t count = 0;
+        qdb_size_t count                  = 0;
 
         qdb::qdb_throw_if_error(*_handle, qdb_perf_get_profiles(*_handle, &qdb_profiles, &count));
 
@@ -137,9 +137,10 @@ public:
         std::transform(qdb_profiles, qdb_profiles + count, std::back_inserter(profiles), [](const qdb_perf_profile_t & prof) {
             std::vector<measurement> measurements;
             measurements.reserve(prof.count);
-            std::transform(prof.measurements, prof.measurements + prof.count, std::back_inserter(measurements), [](const qdb_perf_measurement_t & mes) {
-                return std::make_pair(std::move(perf_label_name(mes.label)), std::chrono::nanoseconds{mes.elapsed});
-            });
+            std::transform(prof.measurements, prof.measurements + prof.count, std::back_inserter(measurements),
+                [](const qdb_perf_measurement_t & mes) {
+                    return std::make_pair(std::move(perf_label_name(mes.label)), std::chrono::nanoseconds{mes.elapsed});
+                });
             return std::make_pair(std::move(std::string{prof.name.data, prof.name.length}), std::move(measurements));
         });
         qdb_release(*_handle, qdb_profiles);
@@ -166,18 +167,17 @@ private:
     qdb::handle_ptr _handle;
 };
 
-
 template <typename Module>
 static inline void register_perf(Module & m)
 {
     namespace py = pybind11;
 
     py::class_<qdb::perf>(m, "Perf")
-        .def(py::init<qdb::handle_ptr>())                       //
-        .def("get", &qdb::perf::get_profiles)                   //
-        .def("clear", &qdb::perf::clear_all_profiles)           //
-        .def("enable", &qdb::perf::enable_client_tracking)      //
-        .def("disable", &qdb::perf::disable_client_tracking);   //
+        .def(py::init<qdb::handle_ptr>())                     //
+        .def("get", &qdb::perf::get_profiles)                 //
+        .def("clear", &qdb::perf::clear_all_profiles)         //
+        .def("enable", &qdb::perf::enable_client_tracking)    //
+        .def("disable", &qdb::perf::disable_client_tracking); //
 }
 
-}
+} // namespace qdb

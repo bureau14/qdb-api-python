@@ -39,8 +39,9 @@ namespace qdb
 class direct_integer_entry
 {
 public:
-    direct_integer_entry(direct_handle_ptr dh, std::string a) noexcept
-        : _direct_handle{dh}
+    direct_integer_entry(handle_ptr h, direct_handle_ptr dh, std::string a) noexcept
+        : _handle{h}
+        , _direct_handle{dh}
         , _alias{a}
     {}
 
@@ -48,11 +49,12 @@ public:
     qdb_int_t get()
     {
         qdb_int_t result;
-        qdb::qdb_throw_if_error(nullptr, qdb_direct_int_get(*_direct_handle, _alias.c_str(), &result));
+        qdb::qdb_throw_if_error(*_handle, qdb_direct_int_get(*_direct_handle, _alias.c_str(), &result));
         return result;
     }
 
 private:
+    handle_ptr _handle;
     direct_handle_ptr _direct_handle;
     std::string _alias;
 };
@@ -63,8 +65,8 @@ static inline void register_direct_integer(Module & m)
     namespace py = pybind11;
 
     py::class_<qdb::direct_integer_entry>(m, "DirectInteger")
-        .def(py::init<qdb::direct_handle_ptr, std::string>())
-        .def("get", &qdb::direct_integer_entry::get);                                                                                                                            //
+        .def(py::init<qdb::handle_ptr, qdb::direct_handle_ptr, std::string>())
+        .def("get", &qdb::direct_integer_entry::get); //
 }
 
 } // namespace qdb

@@ -34,10 +34,10 @@
 #include "utils.hpp"
 #include <qdb/query.h>
 #include <pybind11/numpy.h>
+#include <map>
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <map>
 
 namespace py = pybind11;
 
@@ -66,10 +66,9 @@ public:
 private:
     qdb::handle_ptr _handle;
     std::string _query_string;
-
 };
 
-typedef std::vector<std::map<std::string, py::handle> > dict_query_result_t;
+typedef std::vector<std::map<std::string, py::handle>> dict_query_result_t;
 dict_query_result_t dict_query(qdb::handle_ptr h, std::string const & query, const py::object & blobs);
 
 template <typename Module>
@@ -77,9 +76,9 @@ static inline void register_query(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::find_query>{m, "FindQuery"} //
-        .def(py::init<qdb::handle_ptr, const std::string &>())   //
-        .def("run", &qdb::find_query::run);                      //
+    py::class_<qdb::find_query>{m, "FindQuery"}                //
+        .def(py::init<qdb::handle_ptr, const std::string &>()) //
+        .def("run", &qdb::find_query::run);                    //
 
     m.def("dict_query", &qdb::dict_query);
 }

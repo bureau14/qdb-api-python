@@ -79,8 +79,9 @@ public:
     {
         const qdb_error_t err = qdb_attach_tag(*_handle, _alias.c_str(), tag.c_str());
 
-        if (err != qdb_e_tag_already_set) {
-          qdb_throw_if_error(*_handle, err);
+        if (err != qdb_e_tag_already_set)
+        {
+            qdb_throw_if_error(*_handle, err);
         }
         return err != qdb_e_tag_already_set;
     }
@@ -98,8 +99,9 @@ public:
     {
         const qdb_error_t err = qdb_detach_tag(*_handle, _alias.c_str(), tag.c_str());
 
-        if (err != qdb_e_tag_not_set) {
-          qdb_throw_if_error(*_handle, err);
+        if (err != qdb_e_tag_not_set)
+        {
+            qdb_throw_if_error(*_handle, err);
         }
 
         return err != qdb_e_tag_not_set;

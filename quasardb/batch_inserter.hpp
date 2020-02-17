@@ -30,8 +30,8 @@
  */
 #pragma once
 
-#include "logger.hpp"
 #include "entry.hpp"
+#include "logger.hpp"
 #include "table.hpp"
 
 namespace qdb
@@ -66,10 +66,10 @@ class batch_inserter
 
 public:
     batch_inserter(qdb::handle_ptr h, const std::vector<batch_column_info> & ci)
-      : _logger("quasardb.batch_inserter"),
-        _handle{h},
-        _row_count{0},
-        _point_count{0}
+        : _logger("quasardb.batch_inserter")
+        , _handle{h}
+        , _row_count{0}
+        , _point_count{0}
     {
         std::vector<qdb_ts_batch_column_info_t> converted(ci.size());
 
@@ -161,22 +161,19 @@ public:
     }
 
 private:
-
-    void _reset_counters() {
-        _row_count = 0;
+    void _reset_counters()
+    {
+        _row_count   = 0;
         _point_count = 0;
     }
 
-
 private:
-
     qdb::logger _logger;
     qdb::handle_ptr _handle;
     qdb_batch_table_t _batch_table{nullptr};
 
     int64_t _row_count;
     int64_t _point_count;
-
 };
 
 // don't use shared_ptr, let Python do the reference counting, otherwise you will have an undefined behavior
@@ -196,17 +193,18 @@ static inline void register_batch_inserter(Module & m)
         .def_readwrite("column", &qdb::batch_column_info::column)                            //
         .def_readwrite("elements_count_hint", &qdb::batch_column_info::elements_count_hint); //
 
-    py::class_<qdb::batch_inserter>{m, "TimeSeriesBatch"}                         //
-        .def(py::init<qdb::handle_ptr, const std::vector<batch_column_info> &>()) //
-        .def("start_row", &qdb::batch_inserter::start_row)                        //
-        .def("set_blob", &qdb::batch_inserter::set_blob)                          //
-        .def("set_string", &qdb::batch_inserter::set_string)                      //
-        .def("set_double", &qdb::batch_inserter::set_double)                      //
-        .def("set_int64", &qdb::batch_inserter::set_int64)                        //
-        .def("set_timestamp", &qdb::batch_inserter::set_timestamp)                //
-        .def("push", &qdb::batch_inserter::push, "Regular batch push") //
+    py::class_<qdb::batch_inserter>{m, "TimeSeriesBatch"}                                                                            //
+        .def(py::init<qdb::handle_ptr, const std::vector<batch_column_info> &>())                                                    //
+        .def("start_row", &qdb::batch_inserter::start_row)                                                                           //
+        .def("set_blob", &qdb::batch_inserter::set_blob)                                                                             //
+        .def("set_string", &qdb::batch_inserter::set_string)                                                                         //
+        .def("set_double", &qdb::batch_inserter::set_double)                                                                         //
+        .def("set_int64", &qdb::batch_inserter::set_int64)                                                                           //
+        .def("set_timestamp", &qdb::batch_inserter::set_timestamp)                                                                   //
+        .def("push", &qdb::batch_inserter::push, "Regular batch push")                                                               //
         .def("push_async", &qdb::batch_inserter::push_async, "Asynchronous batch push that buffers data inside the QuasarDB daemon") //
-        .def("push_fast", &qdb::batch_inserter::push_fast, "Fast, in-place batch push that is efficient when doing lots of small, incremental pushes.");
+        .def("push_fast", &qdb::batch_inserter::push_fast,
+            "Fast, in-place batch push that is efficient when doing lots of small, incremental pushes.");
 }
 
 } // namespace qdb

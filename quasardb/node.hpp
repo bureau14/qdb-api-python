@@ -30,12 +30,12 @@
  */
 #pragma once
 
-#include <memory>
-#include <iostream>
-#include "direct_handle.hpp"
 #include "direct_blob.hpp"
+#include "direct_handle.hpp"
 #include "direct_integer.hpp"
 #include "utils.hpp"
+#include <iostream>
+#include <memory>
 
 namespace qdb
 {
@@ -43,14 +43,15 @@ namespace qdb
 class node
 {
 public:
-    node(const handle_ptr h, const std::string & node_uri )
-    : _uri{node_uri}
-    , _handle{h}
-    , _direct_handle{make_direct_handle_ptr()}
+    node(const handle_ptr h, const std::string & node_uri)
+        : _uri{node_uri}
+        , _handle{h}
+        , _direct_handle{make_direct_handle_ptr()}
     {
         _direct_handle->connect(_handle, node_uri);
     }
-    ~node() {}
+    ~node()
+    {}
 
     void close()
     {
@@ -77,7 +78,7 @@ public:
 
     qdb::direct_integer_entry integer(const std::string & alias)
     {
-        return qdb::direct_integer_entry{_direct_handle, alias};
+        return qdb::direct_integer_entry{_handle, _direct_handle, alias};
     }
 
 private:
@@ -91,11 +92,11 @@ static inline void register_node(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::node>(m, "Node")                                                                                              //
-        // no constructor: use quasardb.Cluster(uri).node(node_uri) to initialise
+    py::class_<qdb::node>(m, "Node") //
+                                     // no constructor: use quasardb.Cluster(uri).node(node_uri) to initialise
         .def("prefix_get", &qdb::node::prefix_get)
         .def("blob", &qdb::node::blob)
-        .def("integer", &qdb::node::integer) ;
+        .def("integer", &qdb::node::integer);
 }
 
 } // namespace qdb

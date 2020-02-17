@@ -55,8 +55,8 @@ public:
     ts_row() noexcept = default;
 
     ts_row(handle_ptr handle, qdb_local_table_t local_table) noexcept
-        : _handle{handle},
-          _local_table{local_table}
+        : _handle{handle}
+        , _local_table{local_table}
     {}
 
     bool operator==(const ts_row & rhs) const noexcept

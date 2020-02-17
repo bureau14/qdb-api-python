@@ -52,12 +52,12 @@ class ts_value
 public:
     ts_value() noexcept
         : _logger("quasardb.reader.ts_value")
-        ,  _local_table{nullptr}
+        , _local_table{nullptr}
         , _index{-1}
         , _type{qdb_ts_column_uninitialized}
     {}
 
-  ts_value(handle_ptr handle, qdb_local_table_t local_table, int64_t index, qdb_ts_column_type_t type) noexcept
+    ts_value(handle_ptr handle, qdb_local_table_t local_table, int64_t index, qdb_ts_column_type_t type) noexcept
         : _logger("quasardb.reader.ts_value")
         , _handle(handle)
         , _local_table{local_table}

@@ -30,13 +30,13 @@
  */
 #pragma once
 
-#include "logger.hpp"
 #include "batch_inserter.hpp"
 #include "blob.hpp"
 #include "error.hpp"
 #include "handle.hpp"
-#include "node.hpp"
 #include "integer.hpp"
+#include "logger.hpp"
+#include "node.hpp"
 #include "options.hpp"
 #include "perf.hpp"
 #include "query.hpp"
@@ -49,8 +49,8 @@
 #include <qdb/prefix.h>
 #include <qdb/suffix.h>
 #include <pybind11/chrono.h>
-#include <pybind11/stl.h>
 #include <pybind11/operators.h>
+#include <pybind11/stl.h>
 #include <chrono>
 
 namespace qdb
@@ -73,8 +73,10 @@ public:
         // the one used during the build
         check_qdb_c_api_version(qdb_version());
         // must specify everything or nothing
-        if (user_name.empty() != user_private_key.empty()) throw qdb::exception{qdb_e_invalid_argument, "Either all security settings must be provided, or none at all"};
-        if (user_name.empty() != cluster_public_key.empty()) throw qdb::exception{qdb_e_invalid_argument, "Either all security settings must be provided, or none at all"};
+        if (user_name.empty() != user_private_key.empty())
+            throw qdb::exception{qdb_e_invalid_argument, "Either all security settings must be provided, or none at all"};
+        if (user_name.empty() != cluster_public_key.empty())
+            throw qdb::exception{qdb_e_invalid_argument, "Either all security settings must be provided, or none at all"};
 
         if (!user_name.empty())
         {
@@ -84,7 +86,6 @@ public:
 
         options().set_timeout(timeout);
 
-
         // HACKS(leon): we need to ensure there is always one callback active
         //              for qdb. Callbacks can be lost when the last active session
         //              gets closed. As such, the most pragmatic place to 'check'
@@ -93,8 +94,6 @@ public:
 
         _logger.info("Connecting to cluster %s", _uri);
         _handle->connect(_uri);
-
-
     }
 
 public:
@@ -121,13 +120,13 @@ private:
 public:
     cluster enter()
     {
-      // No-op, all initialization is done in the constructor.
-      return *this;
+        // No-op, all initialization is done in the constructor.
+        return *this;
     }
 
     void exit(pybind11::object type, pybind11::object value, pybind11::object traceback)
     {
-      return close();
+        return close();
     }
 
     pybind11::object node_config(const std::string & uri)
@@ -205,8 +204,9 @@ public:
 
         const qdb_error_t err = qdb_prefix_get(*_handle, prefix.c_str(), max_count, &result, &count);
         // don't throw if no prefix is found
-        if (err != qdb_e_alias_not_found) {
-          qdb_throw_if_error(*_handle, err);
+        if (err != qdb_e_alias_not_found)
+        {
+            qdb_throw_if_error(*_handle, err);
         }
 
         return convert_strings_and_release(_handle, result, count);
@@ -230,7 +230,7 @@ public:
 
     py::object query(const std::string & query_string, const py::object & blobs)
     {
-      return py::cast(qdb::dict_query(_handle, query_string, blobs));
+        return py::cast(qdb::dict_query(_handle, query_string, blobs));
     }
 
 public:
@@ -241,8 +241,9 @@ public:
 
         const qdb_error_t err = qdb_suffix_get(*_handle, suffix.c_str(), max_count, &result, &count);
         // don't throw if no suffix is found
-        if (err != qdb_e_alias_not_found) {
-          qdb_throw_if_error(*_handle, err);
+        if (err != qdb_e_alias_not_found)
+        {
+            qdb_throw_if_error(*_handle, err);
         }
 
         return convert_strings_and_release(_handle, result, count);
@@ -291,9 +292,8 @@ public:
         std::vector<std::string> results;
         results.resize(count);
 
-        std::transform(endpoints, endpoints + count, std::begin(results), [](auto const & endpoint) {
-            return std::string{endpoint.address} + ":" + std::to_string(endpoint.port);
-        });
+        std::transform(endpoints, endpoints + count, std::begin(results),
+            [](auto const & endpoint) { return std::string{endpoint.address} + ":" + std::to_string(endpoint.port); });
 
         qdb_release(*_handle, endpoints);
 
@@ -314,24 +314,24 @@ static inline void register_cluster(Module & m)
     namespace py = pybind11;
 
     py::class_<qdb::cluster>(m, "Cluster",
-                             "Represents a connection to the QuasarDB cluster. ")                                                                                              //
+        "Represents a connection to the QuasarDB cluster. ")                                                                            //
         .def(py::init<const std::string &, const std::string &, const std::string &, const std::string &, std::chrono::milliseconds>(), //
             py::arg("uri"),                                                                                                             //
             py::arg("user_name")          = std::string{},                                                                              //
             py::arg("user_private_key")   = std::string{},                                                                              //
             py::arg("cluster_public_key") = std::string{},                                                                              //
-            py::arg("timeout")            = std::chrono::minutes{1})                                                                    //
+            py::arg("timeout")            = std::chrono::minutes{1})                                                                               //
         .def("__enter__", &qdb::cluster::enter)                                                                                         //
-        .def("__exit__", &qdb::cluster::exit)                                                                                           //                                                                   //
-        .def("node", &qdb::cluster::node)                                                                                               //
-        .def("options", &qdb::cluster::options)                                                                                         //
-        .def("perf", &qdb::cluster::perf)                                                                                               //
-        .def("node_status", &qdb::cluster::node_status)                                                                                 //
-        .def("node_config", &qdb::cluster::node_config)                                                                                 //
-        .def("node_topology", &qdb::cluster::node_topology)                                                                             //
-        .def("tag", &qdb::cluster::tag)                                                                                                 //
-        .def("blob", &qdb::cluster::blob)                                                                                               //
-        .def("integer", &qdb::cluster::integer)                                                                                         //
+        .def("__exit__", &qdb::cluster::exit)               //                                                                   //
+        .def("node", &qdb::cluster::node)                   //
+        .def("options", &qdb::cluster::options)             //
+        .def("perf", &qdb::cluster::perf)                   //
+        .def("node_status", &qdb::cluster::node_status)     //
+        .def("node_config", &qdb::cluster::node_config)     //
+        .def("node_topology", &qdb::cluster::node_topology) //
+        .def("tag", &qdb::cluster::tag)                     //
+        .def("blob", &qdb::cluster::blob)                   //
+        .def("integer", &qdb::cluster::integer)             //
         // backwards compatibility, can be removed in the future
         .def("ts", &qdb::cluster::table)    //
         .def("table", &qdb::cluster::table) //
@@ -340,8 +340,8 @@ static inline void register_cluster(Module & m)
         .def("inserter", &qdb::cluster::inserter)         //
         .def("find", &qdb::cluster::find)                 //
         .def("query", &qdb::cluster::query,               //
-             py::arg("query"),                            //
-             py::arg("blobs") = false)                    //
+            py::arg("query"),                             //
+            py::arg("blobs") = false)                     //
         .def("prefix_get", &qdb::cluster::prefix_get)     //
         .def("prefix_count", &qdb::cluster::prefix_count) //
         .def("suffix_get", &qdb::cluster::suffix_get)     //

@@ -142,8 +142,8 @@ public:
 
         qdb_uint_t erased_count = 0;
 
-        qdb::qdb_throw_if_error(*_handle,
-            qdb_ts_erase_ranges(*_handle, _alias.c_str(), column.c_str(), c_ranges.data(), c_ranges.size(), &erased_count));
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_ts_erase_ranges(*_handle, _alias.c_str(), column.c_str(), c_ranges.data(), c_ranges.size(), &erased_count));
 
         return erased_count;
     }
@@ -187,8 +187,8 @@ public:
 
         const auto c_ranges = convert_ranges(ranges);
 
-        qdb::qdb_throw_if_error(*_handle,
-            qdb_ts_blob_get_ranges(*_handle, _alias.c_str(), column.c_str(), c_ranges.data(), c_ranges.size(), &points, &count));
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_ts_blob_get_ranges(*_handle, _alias.c_str(), column.c_str(), c_ranges.data(), c_ranges.size(), &points, &count));
 
         const auto res = vectorize_result<qdb_ts_blob_point, const char *>{}(points, count);
 
@@ -200,7 +200,7 @@ public:
     std::pair<pybind11::array, pybind11::array> string_get_ranges(const std::string & column, const time_ranges & ranges)
     {
         qdb_ts_string_point * points = nullptr;
-        qdb_size_t count           = 0;
+        qdb_size_t count             = 0;
 
         const auto c_ranges = convert_ranges(ranges);
 
@@ -213,7 +213,6 @@ public:
 
         return res;
     }
-
 
     std::pair<pybind11::array, pybind11::array_t<double>> double_get_ranges(const std::string & column, const time_ranges & ranges)
     {
@@ -239,8 +238,8 @@ public:
 
         const auto c_ranges = convert_ranges(ranges);
 
-        qdb::qdb_throw_if_error(*_handle,
-            qdb_ts_int64_get_ranges(*_handle, _alias.c_str(), column.c_str(), c_ranges.data(), c_ranges.size(), &points, &count));
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_ts_int64_get_ranges(*_handle, _alias.c_str(), column.c_str(), c_ranges.data(), c_ranges.size(), &points, &count));
 
         const auto res = vectorize_result<qdb_ts_int64_point, std::int64_t>{}(points, count);
 
@@ -280,12 +279,12 @@ static inline void register_table(Module & m)
         .value("Uninitialized", qdb_ts_column_uninitialized)                          //
         .value("Double", qdb_ts_column_double)                                        //
         .value("Blob", qdb_ts_column_blob)                                            //
-        .value("String", qdb_ts_column_string)                                          //
+        .value("String", qdb_ts_column_string)                                        //
         .value("Int64", qdb_ts_column_int64)                                          //
         .value("Timestamp", qdb_ts_column_timestamp);                                 //
 
     py::class_<qdb::table, qdb::entry>{m, "Table", "Table representation"} //
-        .def(py::init<qdb::handle_ptr, std::string>())                                     //
+        .def(py::init<qdb::handle_ptr, std::string>())                     //
         .def("__repr__", &qdb::table::repr)
         .def("create", &qdb::table::create, py::arg("columns"), py::arg("shard_size") = std::chrono::hours{24}) //
         .def("get_name", &qdb::table::get_name)                                                                 //
@@ -302,12 +301,12 @@ static inline void register_table(Module & m)
 
         .def("erase_ranges", &qdb::table::erase_ranges)                                                                       //
         .def("blob_insert", &qdb::table::blob_insert)                                                                         //
-        .def("string_insert", &qdb::table::string_insert)                                                                         //
+        .def("string_insert", &qdb::table::string_insert)                                                                     //
         .def("double_insert", &qdb::table::double_insert)                                                                     //
         .def("int64_insert", &qdb::table::int64_insert)                                                                       //
         .def("timestamp_insert", &qdb::table::timestamp_insert)                                                               //
         .def("blob_get_ranges", &qdb::table::blob_get_ranges, py::arg("column"), py::arg("ranges") = all_ranges())            //
-        .def("string_get_ranges", &qdb::table::string_get_ranges, py::arg("column"), py::arg("ranges") = all_ranges())            //
+        .def("string_get_ranges", &qdb::table::string_get_ranges, py::arg("column"), py::arg("ranges") = all_ranges())        //
         .def("double_get_ranges", &qdb::table::double_get_ranges, py::arg("column"), py::arg("ranges") = all_ranges())        //
         .def("int64_get_ranges", &qdb::table::int64_get_ranges, py::arg("column"), py::arg("ranges") = all_ranges())          //
         .def("timestamp_get_ranges", &qdb::table::timestamp_get_ranges, py::arg("column"), py::arg("ranges") = all_ranges()); //
