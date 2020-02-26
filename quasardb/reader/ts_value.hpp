@@ -88,6 +88,9 @@ public:
     {
         switch (_type)
         {
+        case qdb_ts_column_uninitialized:
+            break;
+
         case qdb_ts_column_double:
             return double_();
         case qdb_ts_column_blob:
