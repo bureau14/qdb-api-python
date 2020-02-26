@@ -72,23 +72,32 @@ include_directories(${CMAKE_SOURCE_DIR})
 get_filename_component(QDB_API_LIB_REAL ${QDB_API_LIB} REALPATH)
 get_filename_component(QDB_API_LIB_REAL_NAME ${QDB_API_LIB_REAL} NAME)
 
+set(FILES_TO_COPY)
+
 if(WIN32)
-  file(COPY "${QDB_API_DIR}/bin/qdb_api.dll"
-       DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+  list(APPEND FILES_TO_COPY "${QDB_API_DIR}/bin/qdb_api.dll")
 elseif(APPLE)
-  file(COPY "${QDB_API_LIB_REAL}" "${QDB_API_DIR}/lib/libc++.1.dylib"
-            "${QDB_API_DIR}/lib/libc++abi.1.dylib"
-       DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+  file(
+    GLOB SO_LIBS
+    LIST_DIRECTORIES false
+    "${QDB_API_DIR}/lib/libc[x+][x+]*.dylib")
+
+  list(APPEND FILES_TO_COPY "${QDB_API_LIB_REAL}"${SO_LIBS})
 elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "FreeBSD")
-  file(COPY "${QDB_API_LIB_REAL}" "${QDB_API_DIR}/lib/libc++.so"
-            "${QDB_API_DIR}/lib/libc++abi.so"
-       DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+  file(
+    GLOB SO_LIBS
+    LIST_DIRECTORIES false
+    "${QDB_API_DIR}/lib/libc[x+][x+]*.so*")
+
+  list(APPEND FILES_TO_COPY "${QDB_API_LIB_REAL}" ${SO_LIBS})
 else()
-  file(COPY "${QDB_API_LIB_REAL}"
-       DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-  file(RENAME "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${QDB_API_LIB_REAL_NAME}"
-       "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libqdb_api.so")
+  list(APPEND FILES_TO_COPY "${QDB_API_LIB_REAL}")
+  # Is there a case where the C API library is not called libqdb_api.so?
+  # file(RENAME "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${QDB_API_LIB_REAL_NAME}"
+  # "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libqdb_api.so")
 endif()
+
+file(COPY ${FILES_TO_COPY} DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 
 # for Apple we need to change the id otherwise we won't be able to load the
 # extension
