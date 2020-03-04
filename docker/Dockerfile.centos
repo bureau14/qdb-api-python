@@ -1,0 +1,46 @@
+FROM centos:7 AS build
+
+RUN yum install -y \
+
+        # For recent GCC
+        centos-release-scl \
+
+        # For cmake3
+        epel-release
+
+RUN yum install -y devtoolset-7-gcc-c++ cmake3 make python3-devel python3-wheel git
+
+
+RUN alternatives --install /usr/bin/cmake cmake /usr/bin/cmake3 10
+
+
+# CentOS 7 comes with very old Python modules
+RUN python3 -m pip install --upgrade setuptools wheel
+
+# We now have all our build tools in place, we're now going to check out the
+# python API
+
+RUN python3 -m pip download quasardb==3.5.0
+RUN tar -xzf /quasardb-3.5.0.tar.gz
+
+# QuasarDB Python module has a special understanding of the 'qdb/' subdirectory, where
+# it will look for the C API dependency. We'll extract version 3.5.0 of the C API in
+# this directory.
+#
+# You can alternatively choose to just yum install our .rpm packages in the global
+# namespace as well, this will also work fine.
+ADD https://download.quasardb.net/quasardb/3.5/3.5.0/api/c/qdb-3.5.0-linux-64bit-c-api.tar.gz /quasardb-3.5.0/qdb/
+RUN cd /quasardb-3.5.0/qdb/ && tar -xzf qdb-3.5.0-linux-64bit-c-api.tar.gz
+
+
+# Create the binary package!
+RUN cd /quasardb-3.5.0 && scl enable devtoolset-7 "python3 setup.py bdist_wheel"
+
+FROM centos:7 AS runtime
+
+COPY --from=build /quasardb-3.5.0/dist/quasardb-3.5.0-cp36-cp36m-linux_x86_64.whl /
+RUN yum install -y python3 python3-wheel
+RUN python3 -m pip install /quasardb-3.5.0-cp36-cp36m-linux_x86_64.whl
+
+# Smoketest, if this prints '3.5.0' it means the Python module is working!
+RUN printf "import quasardb\nprint(quasardb.version())\n" | python3
