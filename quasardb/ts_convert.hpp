@@ -232,7 +232,9 @@ struct convert_values<qdb_ts_string_point, const char *>
 
             points[i].timestamp      = convert_timestamp(t(i));
             points[i].content_length = utf8.size();
-            points[i].content        = strndup(utf8.c_str(), utf8.size());
+
+            points[i].content = (char const *)malloc(utf8.size());
+            memcpy((void *)(points[i].content), utf8.c_str(), utf8.size());
         }
 
         return points;
