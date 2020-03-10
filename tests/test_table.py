@@ -28,12 +28,21 @@ def _generate_timestamp_ts(start_time, start_val, count):
 
 def _generate_blob_ts(start_time, count):
     dates = _generate_dates(start_time, count)
-    values = np.array([(b"content_" + bytes(item)) for item in range(count)])
+    values = np.array(list(np.random.bytes(np.random.randint(16, 32)) for i in range(count)),
+                      'O')
+    return (dates, values)
+
+def _generate_string_ts(start_time, count):
+    dates = _generate_dates(start_time, count)
+    values = np.array([("content_" + str(item)) for item in range(count)],
+                      'U')
+
     return (dates, values)
 
 
 def _check_ts_results(results, generated, count):
     assert len(results) == 2
+
     np.testing.assert_array_equal(results[0][:count], generated[0][:count])
     np.testing.assert_array_equal(results[1][:count], generated[1][:count])
 
@@ -458,3 +467,71 @@ def test_blob_erase_ranges(table, intervals):
         _start_time(intervals), _start_time(intervals) + np.timedelta64(10, 's'))])
 
     assert len(results[0]) == 0
+
+###
+# Blob tests
+#
+
+def test_string_get_ranges__when_timeseries_is_empty(table, intervals):
+    results = table.string_get_ranges(_blob_col_name(table), intervals)
+    assert len(results) == 2
+    assert len(results[0]) == 0
+    assert len(results[1]) == 0
+
+
+def test_string_erase_ranges__when_timeseries_is_empty(table, intervals):
+    erased_count = table.erase_ranges(_string_col_name(table), intervals)
+    assert erased_count == 0
+
+
+def test_string_get_ranges(table, intervals):
+    inserted_string_data = _generate_string_ts(_start_time(intervals), 25)
+    table.string_insert(_string_col_name(table),
+                        inserted_string_data[0],
+                        inserted_string_data[1])
+
+    results = table.string_get_ranges(_string_col_name(table), [(
+        _start_time(intervals), _start_time(intervals) + np.timedelta64(10, 's'))])
+
+    _check_ts_results(results, inserted_string_data, 10)
+
+    results = table.string_get_ranges(_string_col_name(table),
+                                    [(_start_time(intervals),
+                                      _start_time(intervals) + np.timedelta64(10, 's')),
+                                     (_start_time(intervals) + np.timedelta64(10, 's'),
+                                      _start_time(intervals) + np.timedelta64(20, 's'))])
+
+    _check_ts_results(results, inserted_string_data, 20)
+
+    # Everything
+    results = table.string_get_ranges(_string_col_name(table))
+    _check_ts_results(results, inserted_string_data, 25)
+
+    # empty result
+    out_of_time = _start_time(intervals) + np.timedelta64(10, 'h')
+    results = table.string_get_ranges(_string_col_name(
+        table), [(out_of_time, out_of_time + np.timedelta64(10, 's'))])
+    assert len(results) == 2
+    assert len(results[0]) == 0
+    assert len(results[1]) == 0
+
+    # error: column doesn't exist
+    with pytest.raises(quasardb.Error):
+        table.string_get_ranges("lolilol", [(_start_time(
+            intervals), _start_time(intervals) + np.timedelta64(10, 's'))])
+
+    with pytest.raises(quasardb.Error):
+        table.string_insert(
+            "lolilol",
+            inserted_string_data[0],
+            inserted_string_data[1])
+
+    with pytest.raises(TypeError):
+        table.int64_get_ranges(_string_col_name, [(_start_time(
+            intervals), _start_time(intervals) + np.timedelta64(10, 's'))])
+
+    with pytest.raises(TypeError):
+        table.int64_insert(
+            _string_col_name(table),
+            inserted_string_data[0],
+            inserted_string_data[1])

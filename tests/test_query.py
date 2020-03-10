@@ -213,16 +213,18 @@ def test_returns_count_data_with_sum_select(
 def test_returns_inserted_multi_data_with_star_select(
         qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(table, start_time, 10)
-    inserted_blob_data = _insert_blob_points(table, start_time, 10)
-    inserted_int64_data = _insert_int64_points(table, start_time, 10)
-    inserted_timestamp_data = _insert_timestamp_points(table, start_time, 10)
+    inserted_double_data = _insert_double_points(table, start_time, 100)
+    inserted_blob_data = _insert_blob_points(table, start_time, 100)
+    inserted_int64_data = _insert_int64_points(table, start_time, 100)
+    inserted_timestamp_data = _insert_timestamp_points(table, start_time, 100)
 
     query = "select * from " + table.get_name() + \
         " in range(" + str(tslib._start_year(intervals)) + ", +100d)"
     res = qdbd_connection.query(query, blobs=['the_blob'])
 
-    assert len(res) == 10
+    assert len(res) == 100
+
+    print("blobs: ", type(inserted_blob_data[1][0]))
 
     for row, double, blob, int64, ts in zip(res,
                                             inserted_double_data[1],

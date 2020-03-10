@@ -104,16 +104,7 @@ py::handle coerce_point(qdb_point_result_t p, bool parse_blob)
 
     case qdb_query_result_blob:
     {
-        if (parse_blob == true)
-        {
-            return PyBytes_FromStringAndSize(
-                static_cast<char const *>(p.payload.blob.content), static_cast<Py_ssize_t>(p.payload.blob.content_length));
-        }
-        else
-        {
-            return PyUnicode_FromStringAndSize(
-                static_cast<char const *>(p.payload.blob.content), static_cast<Py_ssize_t>(p.payload.blob.content_length));
-        }
+      return PyBytes_FromStringAndSize(static_cast<char const *>(p.payload.blob.content), static_cast<Py_ssize_t>(p.payload.blob.content_length));
     }
 
     case qdb_query_result_string:

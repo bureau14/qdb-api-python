@@ -62,6 +62,14 @@ _dtype_map = {
     np.dtype('M8[ns]'): quasardb.ColumnType.Timestamp
 }
 
+# Based on QuasarDB column types, which dtype do we want?
+_dtypes_map_flip = {
+    quasardb.ColumnType.String: np.dtype('unicode'),
+    quasardb.ColumnType.Int64: np.dtype('int64'),
+    quasardb.ColumnType.Double: np.dtype('float64'),
+    quasardb.ColumnType.Blob: np.dtype('object'),
+    quasardb.ColumnType.Timestamp: np.dtype('datetime64[ns]')
+}
 
 def read_series(table, col_name, ranges=None):
     """
@@ -128,9 +136,11 @@ def write_series(series, table, col_name):
 
     t = table.column_type_by_id(col_name)
 
+
+    xs = series.to_numpy(_dtypes_map_flip[t])
     logger.debug("writing Series to column %s.%s with type %s", table.get_name(), col_name, t)
 
-    (write_with[t])(col_name, series.index.to_numpy(), series.to_numpy())
+    (write_with[t])(col_name, series.index.to_numpy(), xs)
 
 
 def query(cluster, query, blobs=False):

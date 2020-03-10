@@ -13,10 +13,10 @@ def gen_df(start_time, count):
 
     return pd.DataFrame(data={"the_double": np.random.uniform(-100.0, 100.0, count),
                               "the_int64": np.random.randint(-100, 100, count),
-                              "the_blob": np.array([(b"content_" + bytes(item))
-                                                    for item in range(count)]),
+                              "the_blob": np.array(list(np.random.bytes(np.random.randint(16, 32)) for i in range(count)),
+                                                   'O'),
                               "the_string": np.array([("content_" + str(item))
-                                                      for item in range(count)]),
+                                                      for item in range(count)], 'U'),
                               "the_ts": np.array([
                                   (start_time + np.timedelta64(i, 's'))
                                   for i in range(count)]).astype('datetime64[ns]')},
@@ -30,9 +30,11 @@ def gen_series(start_time, count):
                                     index=idx),
             "the_int64": pd.Series(np.random.randint(-100, 100, count),
                                    index=idx),
-            "the_blob": pd.Series(np.array([(b"content_" + bytes(item)) for item in range(count)]),
+            "the_blob": pd.Series(np.array(list(np.random.bytes(np.random.randint(16, 32)) for i in range(count)),
+                                           'O'),
                                   index=idx),
-            "the_string": pd.Series(np.array([("content_" + str(item)) for item in range(count)]),
+            "the_string": pd.Series(np.array([("content_" + str(item)) for item in range(count)],
+                                             'U'),
                                     index=idx),
             "the_ts": pd.Series(np.array([(start_time + np.timedelta64(i, 's'))
                                           for i in range(count)]).astype('datetime64[ns]'),
