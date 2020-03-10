@@ -34,8 +34,8 @@
 #include <qdb/ts.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>
-#include <iostream>
 #include <codecvt>
+#include <iostream>
 #include <locale>
 
 namespace py = pybind11;
@@ -160,16 +160,17 @@ struct convert_values<qdb_ts_blob_point, const char *>
         if ((timestamps.ndim() != 1) || (values.ndim() != 1))
             throw qdb::exception{qdb_e_invalid_argument, "Only single-dimension numpy arrays are supported"};
 
-        if (values.dtype().kind() != 'O') {
-          std::string error = std::string("Blob arrays must be a numpy array with dtype 'O' (Object), got: '");
-          error.push_back(values.dtype().kind());
-          error.push_back('\'');
-          throw qdb::incompatible_type_exception{error};
+        if (values.dtype().kind() != 'O')
+        {
+            std::string error = std::string("Blob arrays must be a numpy array with dtype 'O' (Object), got: '");
+            error.push_back(values.dtype().kind());
+            error.push_back('\'');
+            throw qdb::incompatible_type_exception{error};
         }
 
         std::vector<qdb_ts_blob_point> points(timestamps.size());
 
-        auto t           = timestamps.template unchecked<std::int64_t, 1>();
+        auto t                 = timestamps.template unchecked<std::int64_t, 1>();
         const py::object * ptr = static_cast<const py::object *>(values.data());
 
         for (size_t i = 0; i < points.size(); ++i, ptr += 1)
@@ -177,12 +178,10 @@ struct convert_values<qdb_ts_blob_point, const char *>
             points[i].timestamp = convert_timestamp(t(i));
 
             // As with string, use low level API to write directly into our buffers.
-            if (PYBIND11_BYTES_AS_STRING_AND_SIZE(ptr->ptr(),
-                                                  (char **)(&points[i].content),
-                                                  (Py_ssize_t *)(&points[i].content_length))) {
+            if (PYBIND11_BYTES_AS_STRING_AND_SIZE(ptr->ptr(), (char **)(&points[i].content), (Py_ssize_t *)(&points[i].content_length)))
+            {
                 throw qdb::incompatible_type_exception{};
             }
-
         }
 
         return points;
@@ -198,17 +197,17 @@ struct convert_values<qdb_ts_string_point, const char *>
         if ((timestamps.ndim() != 1) || (values.ndim() != 1))
             throw qdb::exception{qdb_e_invalid_argument, "Only single-dimension numpy arrays are supported"};
 
-        if (values.dtype().kind() != 'U') {
-          std::string error = std::string("String arrays must be a numpy array with dtype 'U' (Unicode), got: '");
-          error.push_back(values.dtype().kind());
-          error.push_back('\'');
-          throw qdb::incompatible_type_exception{error};
+        if (values.dtype().kind() != 'U')
+        {
+            std::string error = std::string("String arrays must be a numpy array with dtype 'U' (Unicode), got: '");
+            error.push_back(values.dtype().kind());
+            error.push_back('\'');
+            throw qdb::incompatible_type_exception{error};
         }
 
-
         std::vector<qdb_ts_string_point> points(timestamps.size());
-        auto t                = timestamps.template unchecked<std::int64_t, 1>();
-        const wchar_t * ptr   = static_cast<const wchar_t *>(values.data());
+        auto t              = timestamps.template unchecked<std::int64_t, 1>();
+        const wchar_t * ptr = static_cast<const wchar_t *>(values.data());
 
         // The follwing took a good amount of code archeology to figure out:
         //
@@ -221,18 +220,19 @@ struct convert_values<qdb_ts_string_point, const char *>
         size_t stride_size = values.itemsize() / 4;
         std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> ucs4conv;
 
-        for (size_t i = 0; i < points.size(); ++i, ptr += stride_size) {
+        for (size_t i = 0; i < points.size(); ++i, ptr += stride_size)
+        {
 
-             // TODO(leon): we might be able to get rid of copies here, perhaps
-             //             we can also make use of Python's native facilities to convert
-             //             to UTF-8, but then we need to re-construct a py::str object
-             //             which is inaccessible from Numpy.
-             std::wstring tmp (ptr, wcsnlen(ptr, stride_size));
-             std::string utf8 = ucs4conv.to_bytes(tmp);
+            // TODO(leon): we might be able to get rid of copies here, perhaps
+            //             we can also make use of Python's native facilities to convert
+            //             to UTF-8, but then we need to re-construct a py::str object
+            //             which is inaccessible from Numpy.
+            std::wstring tmp(ptr, wcsnlen(ptr, stride_size));
+            std::string utf8 = ucs4conv.to_bytes(tmp);
 
-             points[i].timestamp = convert_timestamp(t(i));
-             points[i].content_length = utf8.size();
-             points[i].content = strndup(utf8.c_str(), utf8.size());
+            points[i].timestamp      = convert_timestamp(t(i));
+            points[i].content_length = utf8.size();
+            points[i].content        = strndup(utf8.c_str(), utf8.size());
         }
 
         return points;
@@ -315,8 +315,7 @@ struct vectorize_result<qdb_ts_blob_point, const char *>
     result_type operator()(const qdb_ts_blob_point * points, size_t count) const
     {
         size_t item_size = max_length(points, count);
-        result_type res{pybind11::array{"datetime64[ns]", {count}},
-                        pybind11::array{"O", {count}}};
+        result_type res{pybind11::array{"datetime64[ns]", {count}}, pybind11::array{"O", {count}}};
 
         auto ts_dest = res.first.template mutable_unchecked<std::int64_t, 1>();
         auto v_dest  = res.second.template mutable_unchecked<pybind11::object, 1>();
@@ -324,8 +323,7 @@ struct vectorize_result<qdb_ts_blob_point, const char *>
         for (size_t i = 0; i < count; ++i)
         {
             ts_dest(i) = convert_timestamp(points[i].timestamp);
-            v_dest(i) = py::bytes(static_cast<char const *>(points[i].content),
-                                  points[i].content_length);
+            v_dest(i)  = py::bytes(static_cast<char const *>(points[i].content), points[i].content_length);
         }
 
         return res;

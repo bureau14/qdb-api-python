@@ -105,11 +105,9 @@ public:
 
     void set_blob(std::size_t index, const py::bytes & blob)
     {
-      std::string tmp = static_cast<std::string>(blob);
-      qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_row_set_blob(_batch_table,
-                                                                  index,
-                                                                  static_cast<void const *>(tmp.c_str()),
-                                                                  tmp.length()));
+        std::string tmp = static_cast<std::string>(blob);
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_ts_batch_row_set_blob(_batch_table, index, static_cast<void const *>(tmp.c_str()), tmp.length()));
         ++_point_count;
     }
 
