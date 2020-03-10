@@ -103,9 +103,11 @@ public:
         ++_row_count;
     }
 
-    void set_blob(std::size_t index, const std::string & blob)
+    void set_blob(std::size_t index, const py::bytes & blob)
     {
-        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_row_set_blob(_batch_table, index, blob.data(), blob.size()));
+        std::string tmp = static_cast<std::string>(blob);
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_ts_batch_row_set_blob(_batch_table, index, static_cast<void const *>(tmp.c_str()), tmp.length()));
         ++_point_count;
     }
 

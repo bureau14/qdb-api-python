@@ -79,6 +79,10 @@ public:
     incompatible_type_exception() noexcept
         : exception(qdb_e_incompatible_type, std::string("Incompatible type"))
     {}
+
+    incompatible_type_exception(std::string const & what) noexcept
+        : exception(qdb_e_incompatible_type, what)
+    {}
 };
 
 class alias_already_exists_exception : public exception

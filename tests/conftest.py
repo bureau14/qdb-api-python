@@ -83,8 +83,7 @@ def entry_name(random_string):
 
 @pytest.fixture
 def random_blob(random_string):
-    return random_string.encode('UTF-8')
-
+    return np.random.bytes(16)
 
 @pytest.fixture
 def random_integer():
