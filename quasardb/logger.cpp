@@ -23,8 +23,8 @@ void qdb::native::swap_callback()
     error = qdb_log_add_callback(_callback, &local_callback_id);
     if (error)
     {
-        fprintf(stderr, "unable to add new callback: %s (%#x)\n", qdb_error(error), error);
-        fflush(stderr);
+        // fprintf(stderr, "unable to add new callback: %s (%#x)\n", qdb_error(error), error);
+        // fflush(stderr);
     }
 
     _logger = qdb::logger("quasardb.native");
