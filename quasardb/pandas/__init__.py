@@ -321,7 +321,7 @@ def _create_table_from_df(df, table, blobs):
     cols = list()
 
     for c in df.columns:
-        ct = _dtype_to_column_type(df[c].dtype)
+        ct = _dtype_to_column_type(df[c].dtype, pd.api.types.infer_dtype(df[c].values))
         if ct is quasardb.ColumnType.String:
             if blobs is True:
                 ct = quasardb.ColumnType.Blob
@@ -341,9 +341,12 @@ def _create_table_from_df(df, table, blobs):
 
     return table
 
-def _dtype_to_column_type(dt):
 
-    res = _dtype_map.get(dt, None)
+def _dtype_to_column_type(dt, inferred):
+    res = _dtype_map.get(inferred, None)
+    if res is None:
+        res = _dtype_map.get(dt, None)
+
     if res is None:
         raise ValueError("Incompatible data type: ", dt)
 
