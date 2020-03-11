@@ -206,8 +206,12 @@ struct convert_values<qdb_ts_string_point, const char *>
         }
 
         std::vector<qdb_ts_string_point> points(timestamps.size());
+
+        typedef std::u32string string_type;
+        typedef string_type::value_type char_type;
+
         auto t              = timestamps.template unchecked<std::int64_t, 1>();
-        const wchar_t * ptr = static_cast<const wchar_t *>(values.data());
+        const char_type * ptr = static_cast<const char_type *>(values.data());
 
         // The follwing took a good amount of code archeology to figure out:
         //
@@ -218,7 +222,9 @@ struct convert_values<qdb_ts_string_point, const char *>
         //
         // See also: https://github.com/numpy/numpy/blob/2d1e8f38e973f88aeb29dc51caa0f57ab86efc67/numpy/core/src/multiarray/common.c#L156
         size_t stride_size = values.itemsize() / 4;
-        std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> ucs4conv;
+
+        std::wstring_convert<std::codecvt_utf8<char_type>, char_type> ucs4conv;
+
 
         for (size_t i = 0; i < points.size(); ++i, ptr += stride_size)
         {
@@ -227,13 +233,22 @@ struct convert_values<qdb_ts_string_point, const char *>
             //             we can also make use of Python's native facilities to convert
             //             to UTF-8, but then we need to re-construct a py::str object
             //             which is inaccessible from Numpy.
-            std::wstring tmp(ptr, wcsnlen(ptr, stride_size));
+            string_type tmp(ptr, stride_size);
+
+            // Stride_size can be well beyond the end of the string.
+            // TODO(leon): optimize?
+            while(tmp.back() == '\0') {
+              tmp.pop_back();
+
+            }
+
             std::string utf8 = ucs4conv.to_bytes(tmp);
+
 
             points[i].timestamp      = convert_timestamp(t(i));
             points[i].content_length = utf8.size();
 
-            points[i].content = (char const *)malloc(utf8.size());
+            points[i].content = (char const *)malloc(utf8.size() + 1);
             memcpy((void *)(points[i].content), utf8.c_str(), utf8.size());
         }
 
