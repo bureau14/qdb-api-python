@@ -233,7 +233,8 @@ struct convert_values<qdb_ts_string_point, const char *>
             //             we can also make use of Python's native facilities to convert
             //             to UTF-8, but then we need to re-construct a py::str object
             //             which is inaccessible from Numpy.
-            string_type tmp(ptr, stride_size);
+            //
+            string_type tmp(ptr, stride_size); // one copy
 
             // Stride_size can be well beyond the end of the string.
             // TODO(leon): optimize?
@@ -242,14 +243,14 @@ struct convert_values<qdb_ts_string_point, const char *>
 
             }
 
-            std::string utf8 = ucs4conv.to_bytes(tmp);
+            std::string utf8 = ucs4conv.to_bytes(tmp); // two copy
 
 
             points[i].timestamp      = convert_timestamp(t(i));
             points[i].content_length = utf8.size();
 
             points[i].content = (char const *)malloc(utf8.size() + 1);
-            memcpy((void *)(points[i].content), utf8.c_str(), utf8.size());
+            memcpy((void *)(points[i].content), utf8.c_str(), utf8.size()); // three copy
         }
 
         return points;
