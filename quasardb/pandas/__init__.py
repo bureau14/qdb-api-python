@@ -318,10 +318,6 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
         logger.debug("pushed %d rows in %s seconds", len(current_df.index), (time.time() - start))
 
 def _create_table_from_df(df, table, blobs):
-
-    for col in df.columns:
-        npa = df[col].to_numpy()
-
     cols = list()
 
     for c in df.columns:
