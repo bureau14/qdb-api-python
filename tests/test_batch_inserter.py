@@ -74,7 +74,7 @@ def _test_with_table(
 
     doubles = np.random.uniform(-100.0, 100.0, count)
     integers = np.random.randint(-100, 100, count)
-    blobs = np.array(list(np.random.bytes(i) for i in range(count)), 'O')
+    blobs = np.array(list(np.random.bytes(np.random.randint(8, 16)) for i in range(count)), 'O')
     strings = np.array([("content_" + str(item)) for item in range(count)])
     timestamps = tslib._generate_dates(
         start_time + np.timedelta64('1', 'D'), count)

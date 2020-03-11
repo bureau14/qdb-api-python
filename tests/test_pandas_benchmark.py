@@ -35,6 +35,20 @@ def test_bench_blob_series(qdbd_connection, table, many_intervals, benchmark):
     benchmark(qdbpd.read_series, table, "the_blob")
 
 
+def test_bench_string_series(qdbd_connection, table, many_intervals, benchmark):
+    inserter = qdbd_connection.inserter(
+        batchlib._make_inserter_info(table))
+
+    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
+        inserter,
+        table,
+        many_intervals,
+        batchlib._row_insertion_method,
+        batchlib._regular_push)
+
+    benchmark(qdbpd.read_series, table, "the_string")
+
+
 def test_bench_int64_series(qdbd_connection, table, many_intervals, benchmark):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
