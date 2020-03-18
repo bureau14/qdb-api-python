@@ -30,6 +30,7 @@
  */
 #pragma once
 
+#include "utils.hpp"
 #include "entry.hpp"
 #include "logger.hpp"
 #include "table.hpp"
@@ -70,8 +71,10 @@ public:
         , _handle{h}
         , _row_count{0}
         , _point_count{0}
+        , _min_max_ts {qdb_min_timespec, qdb_min_timespec}
     {
         std::vector<qdb_ts_batch_column_info_t> converted(ci.size());
+
 
         std::transform(
             ci.cbegin(), ci.cend(), converted.begin(), [](const batch_column_info & ci) -> qdb_ts_batch_column_info_t { return ci; });
@@ -99,6 +102,22 @@ public:
     {
         const qdb_timespec_t converted = convert_timestamp(ts);
         qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_start_row(_batch_table, &converted));
+
+        // The block below is only necessary for insert_truncate, and even then if someone
+        // does not explicitly provide a time range. It shouldn't be *too* much of a performance
+        // impact, but maybe we can somehow optimize this away?
+        if (_min_max_ts.begin == qdb_min_timespec &&
+            _min_max_ts.end == qdb_min_timespec) {
+          assert(_row_count == 0); // sanity check
+
+          // First row
+          _min_max_ts.begin = converted;
+          _min_max_ts.end = converted;
+        } else {
+          assert(_row_count > 0);
+          _min_max_ts.begin = std::min(converted, _min_max_ts.begin);
+          _min_max_ts.end = std::max(converted, _min_max_ts.end);
+        }
 
         ++_row_count;
     }
@@ -162,11 +181,33 @@ public:
         _reset_counters();
     }
 
+    void push_truncate()
+    {
+        if(_row_count == 0) {
+            throw qdb::invalid_argument_exception{"Batch inserter is empty: you did not provide any rows to push."};
+        }
+
+        qdb_ts_range_t tr = _min_max_ts;
+
+        // our range is end-exclusive, so let's move the pointer one nanosecond
+        // *after* the last element in this batch.
+        tr.end.tv_nsec++;
+
+        _logger.debug("truncate pushing batch of %d rows with %d data points, start timestamp = %d.%d, end timestamp = %d.%d", _row_count, _point_count, tr.begin.tv_sec, tr.begin.tv_nsec, tr.end.tv_sec, tr.end.tv_nsec);
+
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push_truncate(_batch_table, &tr, 1));
+        _logger.debug("truncate pushed batch of %d rows with %d data points", _row_count, _point_count);
+
+        _reset_counters();
+    }
+
 private:
     void _reset_counters()
     {
-        _row_count   = 0;
-        _point_count = 0;
+        _row_count        = 0;
+        _point_count      = 0;
+        _min_max_ts.begin = qdb_min_timespec;
+        _min_max_ts.end   = qdb_min_timespec;
     }
 
 private:
@@ -176,6 +217,9 @@ private:
 
     int64_t _row_count;
     int64_t _point_count;
+
+    qdb_ts_range_t _min_max_ts;
+
 };
 
 // don't use shared_ptr, let Python do the reference counting, otherwise you will have an undefined behavior
@@ -206,7 +250,9 @@ static inline void register_batch_inserter(Module & m)
         .def("push", &qdb::batch_inserter::push, "Regular batch push")                                                               //
         .def("push_async", &qdb::batch_inserter::push_async, "Asynchronous batch push that buffers data inside the QuasarDB daemon") //
         .def("push_fast", &qdb::batch_inserter::push_fast,
-            "Fast, in-place batch push that is efficient when doing lots of small, incremental pushes.");
+            "Fast, in-place batch push that is efficient when doing lots of small, incremental pushes.")
+        .def("push_truncate", &qdb::batch_inserter::push_truncate,
+            "Before inserting data, truncates any existing data. This is useful when you want your insertions to be idempotent, e.g. in case of a retry.");
 }
 
 } // namespace qdb

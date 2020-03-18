@@ -39,6 +39,23 @@
 #include <string>
 #include <vector>
 
+
+static inline bool
+operator<(qdb_timespec_t const & lhs, qdb_timespec_t const & rhs) {
+  if (lhs.tv_sec < rhs.tv_sec) {
+    return true;
+  } else if (lhs.tv_sec == rhs.tv_sec) {
+    return lhs.tv_nsec < rhs.tv_nsec;
+  } else {
+    return false;
+  }
+}
+
+static inline bool
+operator==(qdb_timespec_t const & lhs, qdb_timespec_t const & rhs) {
+  return lhs.tv_sec == rhs.tv_sec && lhs.tv_nsec == rhs.tv_nsec;
+}
+
 namespace qdb
 {
 static inline std::vector<std::string> convert_strings_and_release(qdb::handle_ptr h, const char ** ss, size_t c)

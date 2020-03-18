@@ -85,6 +85,18 @@ public:
     {}
 };
 
+class invalid_argument_exception : public exception
+{
+public:
+    invalid_argument_exception() noexcept
+        : exception(qdb_e_invalid_argument, std::string("Invalid argument"))
+    {}
+
+    invalid_argument_exception(std::string const & what) noexcept
+        : exception(qdb_e_invalid_argument, what)
+    {}
+};
+
 class alias_already_exists_exception : public exception
 {
 public:

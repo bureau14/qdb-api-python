@@ -81,6 +81,36 @@ def _set_batch_inserter_data(inserter, intervals, data):
         inserter.set_int64(3, integers[i])
         inserter.set_timestamp(4, timestamps[i])
 
+def _assert_results(table, intervals, data):
+    (doubles, integers, blobs, strings, timestamps) = data
+
+    whole_range = (intervals[0], intervals[-1:][0] + np.timedelta64(2, 's'))
+    results = table.double_get_ranges(
+        tslib._double_col_name(table), [whole_range])
+
+    np.testing.assert_array_equal(results[0], intervals)
+    np.testing.assert_array_equal(results[1], doubles)
+
+    results = table.blob_get_ranges(tslib._blob_col_name(table), [whole_range])
+    np.testing.assert_array_equal(results[0], intervals)
+    np.testing.assert_array_equal(results[1], blobs)
+
+    results = table.string_get_ranges(tslib._string_col_name(table), [whole_range])
+    np.testing.assert_array_equal(results[0], intervals)
+    np.testing.assert_array_equal(results[1], strings)
+
+    results = table.int64_get_ranges(
+        tslib._int64_col_name(table), [whole_range])
+    np.testing.assert_array_equal(results[0], intervals)
+    np.testing.assert_array_equal(results[1], integers)
+
+    results = table.timestamp_get_ranges(
+        tslib._ts_col_name(table), [whole_range])
+    np.testing.assert_array_equal(results[0], intervals)
+    np.testing.assert_array_equal(results[1], timestamps)
+
+
+
 
 def _test_with_table(
         inserter,
@@ -123,29 +153,7 @@ def _test_with_table(
     if push_method == _async_push:
         sleep(20)
 
-    results = table.double_get_ranges(
-        tslib._double_col_name(table), [whole_range])
-
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], doubles)
-
-    results = table.blob_get_ranges(tslib._blob_col_name(table), [whole_range])
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], blobs)
-
-    results = table.string_get_ranges(tslib._string_col_name(table), [whole_range])
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], strings)
-
-    results = table.int64_get_ranges(
-        tslib._int64_col_name(table), [whole_range])
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], integers)
-
-    results = table.timestamp_get_ranges(
-        tslib._ts_col_name(table), [whole_range])
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], timestamps)
+    _assert_results(table, intervals, data)
 
     return doubles, blobs, strings, integers, timestamps
 
@@ -191,3 +199,46 @@ def test_failed_local_table_with_wrong_columns(qdbd_connection, entry_name):
     columns = [quasardb.BatchColumnInfo(entry_name, "1000flavorsofwrong", 10)]
     with pytest.raises(quasardb.Error):
         qdbd_connection.inserter(columns)
+
+
+def test_push_truncate(qdbd_connection, table, many_intervals):
+
+    whole_range = (many_intervals[0], many_intervals[-1:][0] + np.timedelta64(2, 's'))
+
+    # Generate our dataset
+    data = _generate_data(len(many_intervals))
+    (doubles, integers, blobs, strings, timestamps) = data
+
+    # Insert once
+    inserter = qdbd_connection.inserter(_make_inserter_info(table))
+    _set_batch_inserter_data(inserter, many_intervals, data)
+    inserter.push()
+
+    # Compare results, should be equal
+    results = table.double_get_ranges(
+        tslib._double_col_name(table), [whole_range])
+
+    np.testing.assert_array_equal(results[0], many_intervals)
+    np.testing.assert_array_equal(results[1], doubles)
+
+    # Insert regular, twice
+    _set_batch_inserter_data(inserter, many_intervals, data)
+    inserter.push()
+
+    # Compare results, should now have the same data twice
+    results = table.double_get_ranges(
+        tslib._double_col_name(table), [whole_range])
+
+    assert len(results[1]) == 2 * len(doubles)
+
+    # Insert truncate, should now have original data again
+    _set_batch_inserter_data(inserter, many_intervals, data)
+    inserter.push_truncate()
+
+    # Verify results, truncating should now make things the same
+    # as the beginning again.
+    results = table.double_get_ranges(
+        tslib._double_col_name(table), [whole_range])
+
+    np.testing.assert_array_equal(results[0], many_intervals)
+    np.testing.assert_array_equal(results[1], doubles)
