@@ -58,19 +58,8 @@ def test_non_existing_bulk_insert(qdbd_connection, entry_name):
         qdbd_connection.inserter(
             [quasardb.BatchColumnInfo(entry_name, "col", 10)])
 
-
-def _test_with_table(
-        inserter,
-        table,
-        intervals,
-        insertion_method,
-        push_method=_regular_push):
+def _generate_data(count):
     start_time = np.datetime64('2017-01-01', 'ns')
-
-    count = len(intervals)
-
-    # range is right exclusive, so the timestamp has to be beyond
-    whole_range = (intervals[0], intervals[-1:][0] + np.timedelta64(2, 's'))
 
     doubles = np.random.uniform(-100.0, 100.0, count)
     integers = np.random.randint(-100, 100, count)
@@ -79,14 +68,36 @@ def _test_with_table(
     timestamps = tslib._generate_dates(
         start_time + np.timedelta64('1', 'D'), count)
 
-    insertion_method(
+    return (doubles, integers, blobs, strings, timestamps)
+
+def _set_batch_inserter_data(inserter, intervals, data):
+    (doubles, integers, blobs, strings, timestamps) = data
+
+    for i in range(len(intervals)):
+        inserter.start_row(intervals[i])
+        inserter.set_double(0, doubles[i])
+        inserter.set_blob(1, blobs[i])
+        inserter.set_string(2, strings[i])
+        inserter.set_int64(3, integers[i])
+        inserter.set_timestamp(4, timestamps[i])
+
+
+def _test_with_table(
         inserter,
+        table,
         intervals,
-        doubles,
-        blobs,
-        strings,
-        integers,
-        timestamps)
+        push_method=_regular_push,
+        data=None):
+
+    if data is None:
+        data = _generate_data(len(intervals))
+
+    # range is right exclusive, so the timestamp has to be beyond
+    whole_range = (intervals[0], intervals[-1:][0] + np.timedelta64(2, 's'))
+
+    (doubles, integers, blobs, strings, timestamps) = data
+
+    _set_batch_inserter_data(inserter, intervals, data)
 
     # before the push, there is nothing
     results = table.double_get_ranges(
@@ -146,7 +157,6 @@ def test_successful_bulk_row_insert(qdbd_connection, table, many_intervals):
         inserter,
         table,
         many_intervals,
-        _row_insertion_method,
         _regular_push)
 
 
@@ -161,7 +171,6 @@ def test_successful_async_bulk_row_insert(
         inserter,
         table,
         many_intervals,
-        _row_insertion_method,
         _async_push)
 
 
@@ -175,7 +184,6 @@ def test_successful_fast_bulk_row_insert(
         inserter,
         table,
         many_intervals,
-        _row_insertion_method,
         _fast_push)
 
 
