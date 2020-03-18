@@ -181,18 +181,28 @@ public:
         _reset_counters();
     }
 
-    void push_truncate()
+    void push_truncate(py::kwargs args)
     {
-        if(_row_count == 0) {
-            throw qdb::invalid_argument_exception{"Batch inserter is empty: you did not provide any rows to push."};
-        }
+      // As we are actively removing data, let's add an additional check to ensure the user
+      // doesn't accidentally truncate his whole database without inserting anything.
+      if(_row_count == 0) {
+        throw qdb::invalid_argument_exception{"Batch inserter is empty: you did not provide any rows to push."};
+      }
 
-        qdb_ts_range_t tr = _min_max_ts;
+      qdb_ts_range_t tr;
 
+      if (args.contains("range")) {
+        auto range = py::cast<py::tuple>(args["range"]);
+        _logger.debug("using explicit range for truncate: %s", range);
+        time_range input = prep_range(py::cast<obj_time_range>(range));
+        tr = convert_range(input);
+      } else {
+        tr =  _min_max_ts;
         // our range is end-exclusive, so let's move the pointer one nanosecond
         // *after* the last element in this batch.
         tr.end.tv_nsec++;
 
+      }
         _logger.debug("truncate pushing batch of %d rows with %d data points, start timestamp = %d.%d, end timestamp = %d.%d", _row_count, _point_count, tr.begin.tv_sec, tr.begin.tv_nsec, tr.end.tv_sec, tr.end.tv_nsec);
 
         qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push_truncate(_batch_table, &tr, 1));
@@ -241,7 +251,7 @@ static inline void register_batch_inserter(Module & m)
 
     py::class_<qdb::batch_inserter>{m, "TimeSeriesBatch"}                                                                            //
         .def(py::init<qdb::handle_ptr, const std::vector<batch_column_info> &>())                                                    //
-        .def("start_row", &qdb::batch_inserter::start_row)                                                                           //
+        .def("start_row", &qdb::batch_inserter::start_row, "Calling this function marks the beginning of processing a new row.")                                                                           //
         .def("set_blob", &qdb::batch_inserter::set_blob)                                                                             //
         .def("set_string", &qdb::batch_inserter::set_string)                                                                         //
         .def("set_double", &qdb::batch_inserter::set_double)                                                                         //

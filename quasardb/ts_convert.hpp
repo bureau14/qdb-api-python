@@ -107,16 +107,20 @@ static inline std::vector<qdb_ts_range_t> convert_ranges(const time_ranges & ran
     return res;
 }
 
+
+static inline time_range prep_range(const obj_time_range & tr)
+{
+  auto x = prep_datetime(tr.first);
+  auto y = prep_datetime(tr.second);
+
+  return time_range{x, y};
+}
+
 static inline time_ranges prep_ranges(const obj_time_ranges & ranges)
 {
     time_ranges res(ranges.size());
 
-    std::transform(ranges.cbegin(), ranges.cend(), res.begin(), [](const obj_time_range & tr) {
-        auto x = prep_datetime(tr.first);
-        auto y = prep_datetime(tr.second);
-
-        return time_range{x, y};
-    });
+    std::transform(ranges.cbegin(), ranges.cend(), res.begin(), prep_range);
 
     return res;
 }

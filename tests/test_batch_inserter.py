@@ -58,22 +58,20 @@ def test_non_existing_bulk_insert(qdbd_connection, entry_name):
         qdbd_connection.inserter(
             [quasardb.BatchColumnInfo(entry_name, "col", 10)])
 
-def _generate_data(count):
-    start_time = np.datetime64('2017-01-01', 'ns')
-
+def _generate_data(count, start=np.datetime64('2017-01-01', 'ns')):
     doubles = np.random.uniform(-100.0, 100.0, count)
     integers = np.random.randint(-100, 100, count)
     blobs = np.array(list(np.random.bytes(np.random.randint(8, 16)) for i in range(count)), 'O')
     strings = np.array([("content_" + str(item)) for item in range(count)])
     timestamps = tslib._generate_dates(
-        start_time + np.timedelta64('1', 'D'), count)
+        start + np.timedelta64('1', 'D'), count)
 
     return (doubles, integers, blobs, strings, timestamps)
 
-def _set_batch_inserter_data(inserter, intervals, data):
+def _set_batch_inserter_data(inserter, intervals, data, start=0):
     (doubles, integers, blobs, strings, timestamps) = data
 
-    for i in range(len(intervals)):
+    for i in range(start, len(intervals)):
         inserter.start_row(intervals[i])
         inserter.set_double(0, doubles[i])
         inserter.set_blob(1, blobs[i])
@@ -201,7 +199,7 @@ def test_failed_local_table_with_wrong_columns(qdbd_connection, entry_name):
         qdbd_connection.inserter(columns)
 
 
-def test_push_truncate(qdbd_connection, table, many_intervals):
+def test_push_truncate_implicit_range(qdbd_connection, table, many_intervals):
 
     whole_range = (many_intervals[0], many_intervals[-1:][0] + np.timedelta64(2, 's'))
 
@@ -242,3 +240,60 @@ def test_push_truncate(qdbd_connection, table, many_intervals):
 
     np.testing.assert_array_equal(results[0], many_intervals)
     np.testing.assert_array_equal(results[1], doubles)
+
+def test_push_truncate_explicit_range(qdbd_connection, table, many_intervals):
+
+    whole_range = (many_intervals[0], many_intervals[-1:][0] + np.timedelta64(2, 's'))
+
+    # Generate our dataset
+    data = _generate_data(len(many_intervals))
+    (doubles, integers, blobs, strings, timestamps) = data
+
+    inserter = qdbd_connection.inserter(_make_inserter_info(table))
+
+    # Insert once
+    truncate_range = (whole_range[0],
+                      whole_range[1] + np.timedelta64(1, 'ns'))
+
+    _set_batch_inserter_data(inserter, many_intervals, data)
+    inserter.push()
+
+    # Verify results, truncating should now make things the same
+    # as the beginning again.
+    results = table.double_get_ranges(
+        tslib._double_col_name(table), [whole_range])
+
+    np.testing.assert_array_equal(results[0], many_intervals)
+    np.testing.assert_array_equal(results[1], doubles)
+
+    # If we now set the same data, skip the first element, but keep
+    # the same time range, the first element will *not* be present in
+    # the resulting dataset.
+    _set_batch_inserter_data(inserter, many_intervals, data, start=1)
+    inserter.push_truncate(range=truncate_range)
+
+    # Verify results, truncating should now make things the same
+    # as the beginning again.
+    results = table.double_get_ranges(
+        tslib._double_col_name(table), [whole_range])
+
+    np.testing.assert_array_equal(results[0], many_intervals[1:])
+    np.testing.assert_array_equal(results[1], doubles[1:])
+
+def test_push_truncate_throws_error_on_invalid_range(qdbd_connection, table, many_intervals):
+    whole_range = (many_intervals[0], many_intervals[-1:][0] + np.timedelta64(2, 's'))
+
+    # Generate our dataset
+    data = _generate_data(len(many_intervals))
+    (doubles, integers, blobs, strings, timestamps) = data
+
+    # Insert truncate with explicit timerange, we point the start right after the
+    # first element in our dataset. This means that the range does not overlap all
+    # the data anymore.
+    truncate_range = (whole_range[0] + np.timedelta64(1, 'ns'),
+                      whole_range[1] + np.timedelta64(1, 'ns'))
+
+    inserter = qdbd_connection.inserter(_make_inserter_info(table))
+    _set_batch_inserter_data(inserter, many_intervals, data)
+    with pytest.raises(quasardb.Error):
+        inserter.push_truncate(range=truncate_range)
