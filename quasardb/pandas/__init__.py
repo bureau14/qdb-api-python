@@ -224,7 +224,7 @@ def read_dataframe(table, row_index=False, columns=None, ranges=None):
     return DataFrame(data=xs, columns=columns)
 
 
-def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, chunk_size=50000, blobs=False):
+def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, truncate=True, chunk_size=50000, blobs=False):
     """
     Store a dataframe into a table.
 
@@ -283,39 +283,39 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
     logger.debug("writing dataframe, splitting into chunks of %d rows", chunk_size)
 
     # Split the dataframe in chunks that equal our batch size
-    dfs = [df[i:i+chunk_size] for i in range(0, df.shape[0], chunk_size)]
+    # dfs = [df[i:i+chunk_size] for i in range(0, df.shape[0], chunk_size)]
+    # logger.debug("split dataframe into %d chunks", len(dfs))
 
-    logger.debug("split dataframe into %d chunks", len(dfs))
+    # TODO(leon): use pinned columns so we can write entire numpy arrays
+    for row in df.itertuples(index=True):
+        if pd.isnull(row[0]):
+            raise RuntimeError(
+                "Index must be a valid timestamp, found: " + str(row[0]))
 
-    for current_df in dfs:
-        # TODO(leon): use pinned columns so we can write entire numpy arrays
-        for row in current_df.itertuples(index=True):
-            if pd.isnull(row[0]):
-                raise RuntimeError(
-                    "Index must be a valid timestamp, found: " + str(row[0]))
+        batch.start_row(np.datetime64(row[0], 'ns'))
 
-            batch.start_row(np.datetime64(row[0], 'ns'))
+        for i in range(len(df.columns)):
+            v = row[i + 1]
 
-            for i in range(len(current_df.columns)):
-                v = row[i + 1]
+            if not pd.isnull(v):
+                ct = ctypes_indexed[i]
+                fn = write_with[ct]
+                fn(i, v)
 
-                if not pd.isnull(v):
-                    ct = ctypes_indexed[i]
-                    fn = write_with[ct]
-                    fn(i, v)
+    start = time.time()
 
-        start = time.time()
+    logger.debug("push chunk of %d rows, fast?=%s, async?=%s", len(df.index), fast, _async)
 
-        logger.debug("push chunk of %d rows, fast?=%s, async?=%s", len(current_df.index), fast, _async)
+    if fast is True:
+        batch.push_fast()
+    elif truncate is True:
+        batch.push_truncate()
+    elif _async is True:
+        batch.push_async()
+    else:
+        batch.push()
 
-        if fast is True:
-            batch.push_fast()
-        if _async is True:
-            batch.push_async()
-        else:
-            batch.push()
-
-        logger.debug("pushed %d rows in %s seconds", len(current_df.index), (time.time() - start))
+    logger.debug("pushed %d rows in %s seconds", len(df.index), (time.time() - start))
 
 def _create_table_from_df(df, table, blobs):
     cols = list()

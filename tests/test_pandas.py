@@ -109,6 +109,29 @@ def test_write_dataframe(qdbd_connection, table):
     for col in df1.columns:
         np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
 
+def test_write_dataframe_push_fast(qdbd_connection, table):
+    # Ensures that we can do a full-circle write and read of a dataframe
+    df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
+    qdbpd.write_dataframe(df1, qdbd_connection, table, fast=True)
+
+    df2 = qdbpd.read_dataframe(table)
+
+    assert len(df1.columns) == len(df2.columns)
+    for col in df1.columns:
+        np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
+
+def test_write_dataframe_push_truncate(qdbd_connection, table):
+    # Ensures that we can do a full-circle write and read of a dataframe
+    df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
+    qdbpd.write_dataframe(df1, qdbd_connection, table, truncate=True)
+    qdbpd.write_dataframe(df1, qdbd_connection, table, truncate=True)
+
+    df2 = qdbpd.read_dataframe(table)
+
+    assert len(df1.columns) == len(df2.columns)
+    for col in df1.columns:
+        np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
+
 
 def test_write_dataframe_create_table(qdbd_connection, entry_name):
     table = qdbd_connection.ts(entry_name)
