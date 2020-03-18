@@ -15,7 +15,6 @@ def test_bench_double_series(qdbd_connection, table, many_intervals, benchmark):
         inserter,
         table,
         many_intervals,
-        batchlib._row_insertion_method,
         batchlib._regular_push)
 
     benchmark(qdbpd.read_series, table, "the_double")
@@ -29,7 +28,6 @@ def test_bench_blob_series(qdbd_connection, table, many_intervals, benchmark):
         inserter,
         table,
         many_intervals,
-        batchlib._row_insertion_method,
         batchlib._regular_push)
 
     benchmark(qdbpd.read_series, table, "the_blob")
@@ -43,7 +41,6 @@ def test_bench_string_series(qdbd_connection, table, many_intervals, benchmark):
         inserter,
         table,
         many_intervals,
-        batchlib._row_insertion_method,
         batchlib._regular_push)
 
     benchmark(qdbpd.read_series, table, "the_string")
@@ -57,7 +54,6 @@ def test_bench_int64_series(qdbd_connection, table, many_intervals, benchmark):
         inserter,
         table,
         many_intervals,
-        batchlib._row_insertion_method,
         batchlib._regular_push)
 
     benchmark(qdbpd.read_series, table, "the_int64")
@@ -71,7 +67,6 @@ def test_bench_timestamp_series(qdbd_connection, table, many_intervals, benchmar
         inserter,
         table,
         many_intervals,
-        batchlib._row_insertion_method,
         batchlib._regular_push)
 
     benchmark(qdbpd.read_series, table, "the_ts")

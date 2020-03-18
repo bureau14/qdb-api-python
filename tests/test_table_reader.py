@@ -19,7 +19,6 @@ def test_reader_returns_correct_results(
         inserter,
         table,
         many_intervals,
-        batchlib._row_insertion_method,
         batchlib._regular_push)
 
     offset = 0
@@ -47,7 +46,6 @@ def test_reader_iterator_returns_reference(
         inserter,
         table,
         many_intervals,
-        batchlib._row_insertion_method,
         batchlib._regular_push)
 
     rows = []
@@ -75,7 +73,6 @@ def test_reader_can_copy_rows(qdbd_connection, table, many_intervals):
         inserter,
         table,
         many_intervals,
-        batchlib._row_insertion_method,
         batchlib._regular_push)
 
     rows = []
@@ -103,7 +100,6 @@ def test_reader_can_select_columns(qdbd_connection, table, many_intervals):
         inserter,
         table,
         many_intervals,
-        batchlib._row_insertion_method,
         batchlib._regular_push)
 
     offset = 0
@@ -125,7 +121,6 @@ def test_reader_can_request_ranges(qdbd_connection, table, many_intervals):
         inserter,
         table,
         many_intervals,
-        batchlib._row_insertion_method,
         batchlib._regular_push)
 
     first_range = (many_intervals[0], many_intervals[1])
@@ -154,7 +149,6 @@ def test_reader_raises_error_on_invalid_datetime_ranges(qdbd_connection, table, 
         inserter,
         table,
         many_intervals,
-        batchlib._row_insertion_method,
         batchlib._regular_push)
 
     ns1 = many_intervals[0]
@@ -184,7 +178,6 @@ def test_reader_can_read_dicts(qdbd_connection, table, many_intervals):
         inserter,
         table,
         many_intervals,
-        batchlib._row_insertion_method,
         batchlib._regular_push)
 
     offset = 0
@@ -211,7 +204,6 @@ def test_reader_can_copy_dict_rows(qdbd_connection, table, many_intervals):
         inserter,
         table,
         many_intervals,
-        batchlib._row_insertion_method,
         batchlib._regular_push)
 
     offset = 0

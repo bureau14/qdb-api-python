@@ -32,7 +32,6 @@ def test_client_query_buf_size_error(qdbd_connection, table, many_intervals):
         inserter,
         table,
         many_intervals,
-        batchlib._row_insertion_method,
         batchlib._regular_push)
 
     res = qdbd_connection.query(
