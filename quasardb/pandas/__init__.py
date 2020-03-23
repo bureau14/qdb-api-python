@@ -224,7 +224,7 @@ def read_dataframe(table, row_index=False, columns=None, ranges=None):
     return DataFrame(data=xs, columns=columns)
 
 
-def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, truncate=True, chunk_size=50000, blobs=False):
+def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, truncate=False, chunk_size=50000, blobs=False):
     """
     Store a dataframe into a table.
 
