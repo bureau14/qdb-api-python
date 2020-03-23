@@ -8,3 +8,4 @@ pytest-runner == 5.2
 pytest-benchmark == 3.2.2
 pytz
 pandas >= 0.24.0
+teamcity-messages == 1.27
