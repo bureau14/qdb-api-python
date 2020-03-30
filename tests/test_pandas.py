@@ -216,14 +216,26 @@ def test_query(qdbd_connection, table):
     for col in df1.columns:
         np.testing.assert_array_equal(df1[col].to_numpy(), res[col].to_numpy())
 
-def _gen_floating(n):
-    return np.random.uniform(-100.0, 100.0, n)
-
+def _gen_floating(n, low=-100.0, high=100.0):
+    return np.random.uniform(low, high, n)
 
 def _gen_integer(n):
     return np.random.randint(-100, 100, n)
 
-@pytest.mark.parametrize("input_gen", [_gen_floating, _gen_integer])
+def _gen_string(n):
+    # Slightly hacks, but for testing purposes we'll ensure that we are generating
+    # blobs that can be cast to other types as well.
+    return list(str(x) for x in _gen_floating(n, low=0))
+
+def _gen_blob(n):
+    return list(x.encode("utf-8") for x in _gen_string(n))
+
+def _gen_timestamp(n):
+    start_time = np.datetime64('2017-01-01', 'ns')
+    return np.array([(start_time + np.timedelta64(i, 's'))
+                     for i in range(n)]).astype('datetime64[ns]')
+
+@pytest.mark.parametrize("input_gen", [_gen_floating, _gen_integer, _gen_blob, _gen_string, _gen_timestamp])
 @pytest.mark.parametrize("column_type", [quasardb.ColumnType.Int64,
                                          quasardb.ColumnType.Double,
                                          quasardb.ColumnType.Blob,

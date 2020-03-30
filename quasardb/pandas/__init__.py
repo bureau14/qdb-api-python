@@ -284,12 +284,17 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
 
 
     if infer_types is True:
+        def string_to_timestamp(x):
+            return np.datetime64(datetime.utcfromtimestamp(int(float(x))), 'ns')
+
+
         _infer_with = {
             quasardb.ColumnType.Int64: {
                 'floating': np.int64,
                 'integer': lambda x: x,
-                'string': np.int64,
-                'bytes': lambda x: np.int64(x.decode("utf-8")),
+                'string': lambda x: np.float64(x).astype(np.int64),
+                'bytes': lambda x: np.float64(x.decode("utf-8")).astype(np.int64),
+                'datetime64': lambda x: np.int64(x.nanosecond),
                 '_': np.int64
             },
             quasardb.ColumnType.Double: {
@@ -297,6 +302,7 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
                 'integer': np.float64,
                 'string': np.float64,
                 'bytes': lambda x: np.float64(x.decode("utf-8")),
+                'datetime64': lambda x: np.float64(x.nanosecond),
                 '_': np.float64
             },
             quasardb.ColumnType.Blob: {
@@ -316,8 +322,8 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
             quasardb.ColumnType.Timestamp: {
                 'floating': lambda x: np.datetime64(datetime.utcfromtimestamp(x), 'ns'),
                 'integer': lambda x: np.datetime64(datetime.utcfromtimestamp(x), 'ns'),
-                'string': lambda x: np.datetime64(x, 'ns'),
-                'bytes': lambda x: np.datetime64(x.decode("utf-8"), 'ns'),
+                'string': string_to_timestamp,
+                'bytes': lambda x: string_to_timestamp(x.decode("utf-8")),
                 'datetime64': lambda x: np.datetime64(x, 'ns'),
                 '_': lambda x: np.datetime64(x, 'ns')
             }
@@ -329,6 +335,8 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
             c = df.columns[i]
             ct = ctypes_indexed[i]
             dt = pd.api.types.infer_dtype(df[c].values)
+
+            logger.debug("Inferred type of column %s to be %s", c, dt)
 
             fn = None
             try:
