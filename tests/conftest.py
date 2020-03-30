@@ -101,6 +101,10 @@ def integer_entry(qdbd_connection, entry_name):
 
 
 @pytest.fixture
+def table_name(entry_name):
+    return entry_name
+
+@pytest.fixture
 def table(qdbd_connection, entry_name):
 
     ts = qdbd_connection.ts(entry_name)

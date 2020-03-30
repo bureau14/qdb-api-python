@@ -2,7 +2,9 @@
 
 import numpy as np
 import pandas as pd
+import pytest
 
+import quasardb
 import quasardb.pandas as qdbpd
 
 ROW_COUNT = 1000
@@ -213,3 +215,29 @@ def test_query(qdbd_connection, table):
 
     for col in df1.columns:
         np.testing.assert_array_equal(df1[col].to_numpy(), res[col].to_numpy())
+
+def _gen_floating(n):
+    return np.random.uniform(-100.0, 100.0, n)
+
+
+def _gen_integer(n):
+    return np.random.randint(-100, 100, n)
+
+@pytest.mark.parametrize("input_gen", [_gen_floating, _gen_integer])
+@pytest.mark.parametrize("column_type", [quasardb.ColumnType.Int64,
+                                         quasardb.ColumnType.Double,
+                                         quasardb.ColumnType.Blob,
+                                         quasardb.ColumnType.String,
+                                         quasardb.ColumnType.Timestamp])
+def test_inference(qdbd_connection, table_name, input_gen, column_type):
+
+    # Create table
+    t = qdbd_connection.ts(table_name)
+    t.create([quasardb.ColumnInfo(column_type, "x")])
+
+
+    n = 100
+    idx = pd.date_range(np.datetime64('2017-01-01'), periods=n, freq='S')
+    df = pd.DataFrame(data={"x": input_gen(n)}, index=idx)
+
+    qdbpd.write_dataframe(df, qdbd_connection, t)

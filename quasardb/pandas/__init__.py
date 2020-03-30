@@ -30,7 +30,9 @@
 import quasardb
 import logging
 import time
+from datetime import datetime
 from functools import partial
+
 
 logger = logging.getLogger('quasardb.pandas')
 
@@ -268,8 +270,7 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
         quasardb.ColumnType.Blob: batch.set_blob,
         quasardb.ColumnType.String: batch.set_string,
         quasardb.ColumnType.Int64: batch.set_int64,
-        quasardb.ColumnType.Timestamp: lambda i, x: batch.set_timestamp(
-            i, np.datetime64(x, 'ns'))
+        quasardb.ColumnType.Timestamp: lambda i, x: batch.set_timestamp(i, np.datetime64(x, 'ns'))
     }
 
     # We derive our column types from our table.
@@ -280,6 +281,7 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
     # Performance improvement: avoid a expensive dict lookups by indexing
     # the column types by relative offset within the df.
     ctypes_indexed = list(ctypes[c] for c in df.columns)
+
 
     if infer_types is True:
         _infer_with = {
@@ -312,6 +314,8 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
                 '_': str
             },
             quasardb.ColumnType.Timestamp: {
+                'floating': lambda x: np.datetime64(datetime.utcfromtimestamp(x), 'ns'),
+                'integer': lambda x: np.datetime64(datetime.utcfromtimestamp(x), 'ns'),
                 'string': lambda x: np.datetime64(x, 'ns'),
                 'bytes': lambda x: np.datetime64(x.decode("utf-8"), 'ns'),
                 'datetime64': lambda x: np.datetime64(x, 'ns'),
