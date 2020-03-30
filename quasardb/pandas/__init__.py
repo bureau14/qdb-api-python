@@ -30,6 +30,7 @@
 import quasardb
 import logging
 import time
+from functools import partial
 
 logger = logging.getLogger('quasardb.pandas')
 
@@ -223,8 +224,7 @@ def read_dataframe(table, row_index=False, columns=None, ranges=None):
 
     return DataFrame(data=xs, columns=columns)
 
-
-def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, truncate=False, chunk_size=50000, blobs=False):
+def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, truncate=False, chunk_size=50000, blobs=False, infer_types=True):
     """
     Store a dataframe into a table.
 
@@ -280,7 +280,68 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
     # Performance improvement: avoid a expensive dict lookups by indexing
     # the column types by relative offset within the df.
     ctypes_indexed = list(ctypes[c] for c in df.columns)
-    logger.debug("writing dataframe, splitting into chunks of %d rows", chunk_size)
+
+    if infer_types is True:
+        _infer_with = {
+            quasardb.ColumnType.Int64: {
+                'floating': np.int64,
+                'integer': lambda x: x,
+                'string': np.int64,
+                'bytes': lambda x: np.int64(x.decode("utf-8")),
+                '_': np.int64
+            },
+            quasardb.ColumnType.Double: {
+                'floating': lambda x: x,
+                'integer': np.float64,
+                'string': np.float64,
+                'bytes': lambda x: np.float64(x.decode("utf-8")),
+                '_': np.float64
+            },
+            quasardb.ColumnType.Blob: {
+                'floating': lambda x: str(x).encode("utf-8"),
+                'integer': lambda x: str(x).encode("utf-8"),
+                'string': lambda x: x.encode("utf-8"),
+                'bytes': lambda x: x,
+                '_': lambda x: str(x).encode("utf-8"),
+            },
+            quasardb.ColumnType.String: {
+                'floating': str,
+                'integer': str,
+                'string': lambda x: x,
+                'bytes': lambda x: x.decode("utf-8"),
+                '_': str
+            },
+            quasardb.ColumnType.Timestamp: {
+                'string': lambda x: np.datetime64(x, 'ns'),
+                'bytes': lambda x: np.datetime64(x.decode("utf-8"), 'ns'),
+                'datetime64': lambda x: np.datetime64(x, 'ns'),
+                '_': lambda x: np.datetime64(x, 'ns')
+            }
+        }
+
+        start = time.time()
+        logger.info("Automatically inferring types of %d columns", len(df.columns))
+        for i in range(len(df.columns)):
+            c = df.columns[i]
+            ct = ctypes_indexed[i]
+            dt = pd.api.types.infer_dtype(df[c].values)
+
+            fn = None
+            try:
+                fn = _infer_with[ct][dt]
+            except KeyError:
+                # Fallback default
+                fn = _infer_with[ct]['_']
+
+            try:
+                df[c] = df[c].apply(fn)
+            except:
+                logger.exception("Unable to infer type of column %s: probed dtype %s, target column type %s", c, dt, ct)
+                raise
+
+        logger.debug("inferred types of %d columns in %s seconds", len(df.columns), (time.time() - start))
+
+
 
     # Split the dataframe in chunks that equal our batch size
     # dfs = [df[i:i+chunk_size] for i in range(0, df.shape[0], chunk_size)]
@@ -304,6 +365,9 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
                 try:
                     fn(i, v)
                 except TypeError:
+                    logger.exception("An error occured while setting column value: %s = %s", df.columns[i], v)
+                    raise
+                except ValueError:
                     logger.exception("An error occured while setting column value: %s = %s", df.columns[i], v)
                     raise
 
