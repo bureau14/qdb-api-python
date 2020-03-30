@@ -300,7 +300,12 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
             if not pd.isnull(v):
                 ct = ctypes_indexed[i]
                 fn = write_with[ct]
-                fn(i, v)
+
+                try:
+                    fn(i, v)
+                except TypeError:
+                    logger.exception("An error occured while setting column value: %s = %s", df.columns[i], v)
+                    raise
 
     start = time.time()
 
