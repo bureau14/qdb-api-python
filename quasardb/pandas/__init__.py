@@ -291,7 +291,7 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
         _infer_with = {
             quasardb.ColumnType.Int64: {
                 'floating': np.int64,
-                'integer': lambda x: x,
+                'integer':  np.int64,
                 'string': lambda x: np.float64(x).astype(np.int64),
                 'bytes': lambda x: np.float64(x.decode("utf-8")).astype(np.int64),
                 'datetime64': lambda x: np.int64(x.nanosecond),
@@ -308,14 +308,14 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
             quasardb.ColumnType.Blob: {
                 'floating': lambda x: str(x).encode("utf-8"),
                 'integer': lambda x: str(x).encode("utf-8"),
-                'string': lambda x: x.encode("utf-8"),
+                'string': lambda x: str(x).encode("utf-8"),
                 'bytes': lambda x: x,
                 '_': lambda x: str(x).encode("utf-8"),
             },
             quasardb.ColumnType.String: {
                 'floating': str,
                 'integer': str,
-                'string': lambda x: x,
+                'string': str,
                 'bytes': lambda x: x.decode("utf-8"),
                 '_': str
             },
