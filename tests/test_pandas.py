@@ -1,6 +1,7 @@
 # pylint: disable=missing-module-docstring,missing-function-docstring,not-an-iterable,invalid-name
 
 import numpy as np
+import numpy.ma as ma
 import pandas as pd
 import pytest
 
@@ -235,13 +236,27 @@ def _gen_timestamp(n):
     return np.array([(start_time + np.timedelta64(i, 's'))
                      for i in range(n)]).astype('datetime64[ns]')
 
-@pytest.mark.parametrize("input_gen", [_gen_floating, _gen_integer, _gen_blob, _gen_string, _gen_timestamp])
+
+def _sparsify(xs):
+    # Randomly make a bunch of elements null, we make use of Numpy's masked
+    # arrays for this: keep track of a separate boolean 'mask' array, which
+    # determines whether or not an item in the array is None.
+    mask = np.random.choice(a=[True, False], size=len(xs))
+    return ma.masked_array(data=xs,
+                           mask=mask)
+
+@pytest.mark.parametrize("sparse", [True, False])
+@pytest.mark.parametrize("input_gen", [_gen_floating,
+                                       _gen_integer,
+                                       _gen_blob,
+                                       _gen_string,
+                                       _gen_timestamp])
 @pytest.mark.parametrize("column_type", [quasardb.ColumnType.Int64,
                                          quasardb.ColumnType.Double,
                                          quasardb.ColumnType.Blob,
                                          quasardb.ColumnType.String,
                                          quasardb.ColumnType.Timestamp])
-def test_inference(qdbd_connection, table_name, input_gen, column_type):
+def test_inference(qdbd_connection, table_name, input_gen, column_type, sparse):
 
     # Create table
     t = qdbd_connection.ts(table_name)
@@ -250,6 +265,12 @@ def test_inference(qdbd_connection, table_name, input_gen, column_type):
 
     n = 100
     idx = pd.date_range(np.datetime64('2017-01-01'), periods=n, freq='S')
-    df = pd.DataFrame(data={"x": input_gen(n)}, index=idx)
+    xs = input_gen(n)
+    if sparse is True:
+        xs = _sparsify(xs)
 
+    df = pd.DataFrame(data={"x": xs}, index=idx)
+
+    # Note that there are no tests; we effectively only test whether it doesn't
+    # throw.
     qdbpd.write_dataframe(df, qdbd_connection, t)
