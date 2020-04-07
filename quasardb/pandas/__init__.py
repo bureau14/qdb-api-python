@@ -226,6 +226,69 @@ def read_dataframe(table, row_index=False, columns=None, ranges=None):
 
     return DataFrame(data=xs, columns=columns)
 
+def string_to_timestamp(x):
+    return np.datetime64(datetime.utcfromtimestamp(int(float(x))), 'ns')
+
+def fnil(f, x):
+    "Utility function, only apply f to x if x is not nillable"
+
+    if pd.isnull(x):
+        return None
+
+    if x == b'nan' or x == 'nan':
+        return None
+
+    return f(x)
+
+_infer_with = {
+    quasardb.ColumnType.Int64: {
+        'floating': np.int64,
+        'integer':  np.int64,
+        'string': lambda x: np.float64(x).astype(np.int64),
+        'bytes': lambda x: np.float64(x.decode("utf-8")).astype(np.int64),
+        'datetime64': lambda x: np.int64(x.nanosecond),
+        '_': lambda x: np.float64(x).astype(np.int64)
+    },
+    quasardb.ColumnType.Double: {
+        'floating': lambda x: x,
+        'integer': np.float64,
+        'string': np.float64,
+        'bytes': lambda x: np.float64(x.decode("utf-8")),
+        'datetime64': lambda x: np.float64(x.nanosecond),
+        '_': np.float64
+    },
+    quasardb.ColumnType.Blob: {
+        'floating': lambda x: str(x).encode("utf-8"),
+        'integer': lambda x: str(x).encode("utf-8"),
+        'string': lambda x: str(x).encode("utf-8"),
+        'bytes': lambda x: x,
+        '_': lambda x: str(x).encode("utf-8"),
+    },
+    quasardb.ColumnType.String: {
+        'floating': str,
+        'integer': str,
+        'string': str,
+        'bytes': lambda x: x.decode("utf-8"),
+        '_': str
+    },
+    quasardb.ColumnType.Timestamp: {
+        'floating': lambda x: np.datetime64(datetime.utcfromtimestamp(x), 'ns'),
+        'integer': lambda x: np.datetime64(datetime.utcfromtimestamp(x), 'ns'),
+        'string': string_to_timestamp,
+        'bytes': lambda x: string_to_timestamp(x.decode("utf-8")),
+        'datetime64': lambda x: np.datetime64(x, 'ns'),
+        '_': lambda x: np.datetime64(datetime.utcfromtimestamp(np.float64(x)), 'ns')
+    }
+}
+
+
+# Update all function pointers to wrap them in _fnil, so that we don't
+# accidentally convert e.g. None into string 'None'
+for ct in _infer_with:
+    for dt in _infer_with[ct]:
+        f = _infer_with[ct][dt]
+        _infer_with[ct][dt] = partial(fnil, f)
+
 def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, truncate=False, chunk_size=50000, blobs=False, infer_types=True):
     """
     Store a dataframe into a table.
@@ -277,87 +340,22 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
     ctypes = dict()
     for c in table.list_columns():
         ctypes[c.name] = c.type
-
     # Performance improvement: avoid a expensive dict lookups by indexing
     # the column types by relative offset within the df.
     ctypes_indexed = list(ctypes[c] for c in df.columns)
 
-
+    dtypes = dict()
+    dtypes_indexed = list()
     if infer_types is True:
-        def string_to_timestamp(x):
-            return np.datetime64(datetime.utcfromtimestamp(int(float(x))), 'ns')
-
-
-        _infer_with = {
-            quasardb.ColumnType.Int64: {
-                'floating': np.int64,
-                'integer':  np.int64,
-                'string': lambda x: np.float64(x).astype(np.int64),
-                'bytes': lambda x: np.float64(x.decode("utf-8")).astype(np.int64),
-                'datetime64': lambda x: np.int64(x.nanosecond),
-                '_': np.int64
-            },
-            quasardb.ColumnType.Double: {
-                'floating': lambda x: x,
-                'integer': np.float64,
-                'string': np.float64,
-                'bytes': lambda x: np.float64(x.decode("utf-8")),
-                'datetime64': lambda x: np.float64(x.nanosecond),
-                '_': np.float64
-            },
-            quasardb.ColumnType.Blob: {
-                'floating': lambda x: str(x).encode("utf-8"),
-                'integer': lambda x: str(x).encode("utf-8"),
-                'string': lambda x: str(x).encode("utf-8"),
-                'bytes': lambda x: x,
-                '_': lambda x: str(x).encode("utf-8"),
-            },
-            quasardb.ColumnType.String: {
-                'floating': str,
-                'integer': str,
-                'string': str,
-                'bytes': lambda x: x.decode("utf-8"),
-                '_': str
-            },
-            quasardb.ColumnType.Timestamp: {
-                'floating': lambda x: np.datetime64(datetime.utcfromtimestamp(x), 'ns'),
-                'integer': lambda x: np.datetime64(datetime.utcfromtimestamp(x), 'ns'),
-                'string': string_to_timestamp,
-                'bytes': lambda x: string_to_timestamp(x.decode("utf-8")),
-                'datetime64': lambda x: np.datetime64(x, 'ns'),
-                '_': lambda x: np.datetime64(x, 'ns')
-            }
-        }
-
-        start = time.time()
-        logger.info("Automatically inferring types of %d columns", len(df.columns))
         for i in range(len(df.columns)):
             c = df.columns[i]
-            ct = ctypes_indexed[i]
             dt = pd.api.types.infer_dtype(df[c].values)
+            logger.debug("Determined dtype of column %s to be %s", c, df)
+            dtypes[c] = dt
 
-            logger.debug("Inferred type of column %s to be %s", c, dt)
-
-            fn = None
-            try:
-                fn = _infer_with[ct][dt]
-            except KeyError:
-                # Fallback default
-                fn = _infer_with[ct]['_']
-
-            try:
-                df[c] = df[c].apply(fn)
-            except:
-                logger.exception("Unable to infer type of column %s: probed dtype %s, target column type %s", c, dt, ct)
-                raise
-
-        logger.debug("inferred types of %d columns in %s seconds", len(df.columns), (time.time() - start))
-
-
-
-    # Split the dataframe in chunks that equal our batch size
-    # dfs = [df[i:i+chunk_size] for i in range(0, df.shape[0], chunk_size)]
-    # logger.debug("split dataframe into %d chunks", len(dfs))
+        # Performance improvement: avoid a expensive dict lookups by indexing
+        # the column types by relative offset within the df.
+        dtypes_indexed = list(dtypes[c] for c in df.columns)
 
     # TODO(leon): use pinned columns so we can write entire numpy arrays
     for row in df.itertuples(index=True):
@@ -369,9 +367,20 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
 
         for i in range(len(df.columns)):
             v = row[i + 1]
+            ct = ctypes_indexed[i]
 
-            if not pd.isnull(v):
-                ct = ctypes_indexed[i]
+            if infer_types is True:
+                dt = dtypes_indexed[i]
+                try:
+                    fn = _infer_with[ct][dt]
+                except KeyError:
+                    # Fallback default
+                    fn = _infer_with[ct]['_']
+
+                v = fn(v)
+
+            if not pd.isnull(v) and not pd.isna(v):
+
                 fn = write_with[ct]
 
                 try:
