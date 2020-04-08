@@ -350,7 +350,7 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
         for i in range(len(df.columns)):
             c = df.columns[i]
             dt = pd.api.types.infer_dtype(df[c].values)
-            logger.debug("Determined dtype of column %s to be %s", c, df)
+            logger.debug("Determined dtype of column %s to be %s", c, dt)
             dtypes[c] = dt
 
         # Performance improvement: avoid a expensive dict lookups by indexing
