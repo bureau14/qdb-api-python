@@ -1,11 +1,12 @@
-wheel
-setuptools_git >= 0.3
-xmlrunner
-future
+wheel == 0.34.2
+setuptools_git == 1.2
+xmlrunner == 1.7.7
+future == 0.18.2
 numpy == 1.17.4
+pdoc3 == 0.7.5
 pytest == 5.3.1
 pytest-runner == 5.2
 pytest-benchmark == 3.2.2
-pytz
-pandas >= 0.24.0
+pytz == 2019.3
+pandas == 1.0.3
 teamcity-messages == 1.27
