@@ -5,5 +5,3 @@ FROM python:${PYTHON_VERSION}
 RUN apt-get update \
         && apt-get install -y cmake \
         && apt-get clean
-
-RUN pip install pipenv pdoc3==0.7.5 pandas
