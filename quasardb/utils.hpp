@@ -39,7 +39,6 @@
 #include <string>
 #include <vector>
 
-
 static inline bool
 operator<(qdb_timespec_t const & lhs, qdb_timespec_t const & rhs) {
   if (lhs.tv_sec < rhs.tv_sec) {
@@ -58,6 +57,44 @@ operator==(qdb_timespec_t const & lhs, qdb_timespec_t const & rhs) {
 
 namespace qdb
 {
+
+/**
+ * Simple guard class which always releases tracked objects back to qdb api.
+ */
+template <typename T> class release_guard {
+public:
+  release_guard(handle_ptr handle) noexcept
+    : _handle(handle)
+    , _obj(nullptr) {
+  }
+
+  release_guard(handle_ptr handle, T obj) noexcept
+    : _handle(handle)
+    , _obj(obj) {
+  }
+
+  ~release_guard() {
+    qdb_release(*_handle, _obj);
+  }
+
+  T get() const noexcept {
+    return _obj;
+  }
+
+  T * ptr() noexcept {
+    return &_obj;
+  }
+
+  T const * ptr() const noexcept {
+    return &_obj;
+  }
+
+private:
+  handle_ptr _handle;
+  T _obj;
+};
+
+
 static inline std::vector<std::string> convert_strings_and_release(qdb::handle_ptr h, const char ** ss, size_t c)
 {
     std::vector<std::string> res(c);

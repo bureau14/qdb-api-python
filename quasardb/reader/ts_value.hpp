@@ -125,10 +125,10 @@ private:
 
     py::handle blob() const
     {
-        const void * v = nullptr;
+        qdb::release_guard<const void *> v (_handle);
         qdb_size_t l   = 0;
 
-        auto res = qdb_ts_row_get_blob(_local_table, _index, &v, &l);
+        auto res = qdb_ts_row_get_blob(_local_table, _index, v.ptr(), &l);
         if (res == qdb_e_element_not_found)
         {
             Py_RETURN_NONE;
@@ -136,15 +136,16 @@ private:
         }
 
         qdb::qdb_throw_if_error(*_handle, res);
-        return PyByteArray_FromStringAndSize(static_cast<const char *>(v), static_cast<Py_ssize_t>(l));
+        return PyByteArray_FromStringAndSize(static_cast<const char *>(v.get()),
+                                             static_cast<Py_ssize_t>(l));
     }
 
     py::handle string() const
     {
-        const char * v = nullptr;
+        qdb::release_guard<const char *> v (_handle);
         qdb_size_t l   = 0;
 
-        auto res = qdb_ts_row_get_string(_local_table, _index, &v, &l);
+        auto res = qdb_ts_row_get_string(_local_table, _index, v.ptr(), &l);
         if (res == qdb_e_element_not_found)
         {
             Py_RETURN_NONE;
@@ -152,7 +153,7 @@ private:
         }
 
         qdb::qdb_throw_if_error(*_handle, res);
-        return PyUnicode_FromStringAndSize(v, static_cast<Py_ssize_t>(l));
+        return PyUnicode_FromStringAndSize(v.get(), static_cast<Py_ssize_t>(l));
     }
 
     py::handle double_() const
