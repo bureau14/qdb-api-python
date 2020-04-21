@@ -124,11 +124,14 @@ def test_write_dataframe_push_fast(qdbd_connection, table):
     for col in df1.columns:
         np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
 
-def test_write_dataframe_push_truncate(qdbd_connection, table):
+@pytest.mark.parametrize("truncate", [True,
+                                      (np.datetime64('2017-01-01', 'ns'),
+                                       np.datetime64('2017-01-02', 'ns'))])
+def test_write_dataframe_push_truncate(truncate, qdbd_connection, table):
     # Ensures that we can do a full-circle write and read of a dataframe
     df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
-    qdbpd.write_dataframe(df1, qdbd_connection, table, truncate=True)
-    qdbpd.write_dataframe(df1, qdbd_connection, table, truncate=True)
+    qdbpd.write_dataframe(df1, qdbd_connection, table, truncate=truncate)
+    qdbpd.write_dataframe(df1, qdbd_connection, table, truncate=truncate)
 
     df2 = qdbpd.read_dataframe(table)
 

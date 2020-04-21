@@ -429,6 +429,8 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
         batch.push_fast()
     elif truncate is True:
         batch.push_truncate()
+    elif type(truncate) == tuple:
+        batch.push_truncate(range=truncate)
     elif _async is True:
         batch.push_async()
     else:
