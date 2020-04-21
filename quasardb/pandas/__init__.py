@@ -62,7 +62,15 @@ _dtype_map = {
     np.dtype('int32'): quasardb.ColumnType.Int64,
     np.dtype('float64'): quasardb.ColumnType.Double,
     np.dtype('object'): quasardb.ColumnType.String,
-    np.dtype('M8[ns]'): quasardb.ColumnType.Timestamp
+    np.dtype('M8[ns]'): quasardb.ColumnType.Timestamp,
+
+    'int64': quasardb.ColumnType.Int64,
+    'int32': quasardb.ColumnType.Int64,
+    'float32': quasardb.ColumnType.Double,
+    'float64': quasardb.ColumnType.Double,
+    'timestamp': quasardb.ColumnType.Timestamp,
+    'string': quasardb.ColumnType.String,
+    'bytes': quasardb.ColumnType.Blob
 }
 
 # Based on QuasarDB column types, which dtype do we want?
@@ -289,7 +297,7 @@ for ct in _infer_with:
         f = _infer_with[ct][dt]
         _infer_with[ct][dt] = partial(fnil, f)
 
-def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, truncate=False, chunk_size=50000, blobs=False, infer_types=True):
+def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, truncate=False, infer_types=True):
     """
     Store a dataframe into a table.
 
@@ -307,13 +315,33 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
     create: optional bool
       Whether to create the table. Defaults to false.
 
-    blobs: optional bool or List
-      When create = True, which columns should be interpreted as blobs. If true, all columns
-      with dtype 'object' will be interpreted as blobs. If string, only the column with that
-      name will be interpreted as blob. If list, only those columns specified will be interpreted
-      as blobs.
+    infer_types: optional bool
+      If true, will attemp to convert types from Python to QuasarDB natives types if
+      the provided dataframe has incompatible types. For example, a dataframe with integers
+      will automatically convert these to doubles if the QuasarDB table expects it.
 
-      Defaults to False, which means all Python objects will be interpreted as Strings.
+      Defaults to True. For production use cases where you want to avoid implicit conversions,
+      we recommend setting this to False.
+
+    truncate: optional bool
+      Truncate (also referred to as upsert) the data in-place. Will detect time range to truncate
+      from the time range inside the dataframe.
+
+      Defaults to False.
+
+    _async: optional bool
+      If true, uses asynchronous insertion API where commits are buffered server-side and
+      acknowledged before they are written to disk. If you insert to the same table from
+      multiple processes, setting this to True may improve performance.
+
+      Defaults to False.
+
+    fast: optional bool
+      Whether to use 'fast push'. If you incrementally add small batches of data to table,
+      you may see better performance if you set this to True.
+
+      Defaults to False.
+
     """
 
     # Acquire reference to table if string is provided
@@ -321,11 +349,11 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
         table = cluster.table(table)
 
     if create:
-        _create_table_from_df(df, table, blobs)
+        _create_table_from_df(df, table)
 
     # Create batch column info from dataframe
     col_info = list(quasardb.BatchColumnInfo(
-        table.get_name(), c, chunk_size) for c in df.columns)
+        table.get_name(), c, df.shape[0]) for c in df.columns)
     batch = cluster.inserter(col_info)
 
     write_with = {
@@ -379,6 +407,7 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
 
                 v = fn(v)
 
+
             if not pd.isnull(v) and not pd.isna(v):
 
                 fn = write_with[ct]
@@ -407,19 +436,13 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
 
     logger.debug("pushed %d rows in %s seconds", len(df.index), (time.time() - start))
 
-def _create_table_from_df(df, table, blobs):
+def _create_table_from_df(df, table):
     cols = list()
 
     for c in df.columns:
-        ct = _dtype_to_column_type(df[c].dtype, pd.api.types.infer_dtype(df[c].values))
-        if ct is quasardb.ColumnType.String:
-            if blobs is True:
-                ct = quasardb.ColumnType.Blob
-            elif isinstance(blobs, str) and c == blobs:
-                ct = quasardb.ColumnType.Blob
-            elif isinstance(blobs, list) and c in blobs:
-                ct = quasardb.ColumnType.Blob
-
+        dt = pd.api.types.infer_dtype(df[c].values)
+        ct = _dtype_to_column_type(df[c].dtype, dt)
+        logger.debug("probed pandas dtype %s to inferred dtype %s and map to quasardb column type %s", df[c].dtype, dt, ct)
         cols.append(quasardb.ColumnInfo(ct, c))
 
 

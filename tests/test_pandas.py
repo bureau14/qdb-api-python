@@ -1,5 +1,6 @@
 # pylint: disable=missing-module-docstring,missing-function-docstring,not-an-iterable,invalid-name
 
+import logging
 import numpy as np
 import numpy.ma as ma
 import pandas as pd
@@ -104,7 +105,7 @@ def test_dataframe_can_read_ranges(qdbd_connection, table):
 def test_write_dataframe(qdbd_connection, table):
     # Ensures that we can do a full-circle write and read of a dataframe
     df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
-    qdbpd.write_dataframe(df1, qdbd_connection, table, chunk_size=4)
+    qdbpd.write_dataframe(df1, qdbd_connection, table)
 
     df2 = qdbpd.read_dataframe(table)
 
@@ -136,10 +137,11 @@ def test_write_dataframe_push_truncate(qdbd_connection, table):
         np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
 
 
-def test_write_dataframe_create_table(qdbd_connection, entry_name):
+def test_write_dataframe_create_table(caplog, qdbd_connection, entry_name):
+    caplog.set_level(logging.DEBUG)
     table = qdbd_connection.ts(entry_name)
     df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
-    qdbpd.write_dataframe(df1, qdbd_connection, table, create=True, blobs='the_blob')
+    qdbpd.write_dataframe(df1, qdbd_connection, table, create=True)
 
     df2 = qdbpd.read_dataframe(table)
 
