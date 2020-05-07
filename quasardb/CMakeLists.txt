@@ -82,7 +82,7 @@ elseif(APPLE)
     LIST_DIRECTORIES false
     "${QDB_API_DIR}/lib/libc[x+][x+]*.dylib")
 
-  list(APPEND FILES_TO_COPY "${QDB_API_LIB_REAL}"${SO_LIBS})
+  list(APPEND FILES_TO_COPY "${QDB_API_LIB_REAL}" ${SO_LIBS})
 elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "FreeBSD")
   file(
     GLOB SO_LIBS
