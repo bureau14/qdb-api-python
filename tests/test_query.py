@@ -92,9 +92,7 @@ def sanity_check(ts_name, scanned_point_count, res, rows_count, columns_count):
 
 def test_returns_empty_result(qdbd_connection, table):
     res = qdbd_connection.query(
-        "select * from " +
-        table.get_name() +
-        " in range(2016-01-01 , 2016-12-12)")
+        "select * from \"" + table.get_name() + "\" in range(2016-01-01 , 2016-12-12)")
     assert len(res) == 0
 
 
@@ -102,13 +100,13 @@ def test_returns_table_as_string(
         qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
     inserted_double_data = _insert_double_points(table, start_time, 10)
-    query = "select * from " + table.get_name() + \
-        " in range(" + str(tslib._start_year(intervals)) + ", +100d)"
+    query = "select * from \"" + table.get_name() + "\" in range(" + \
+        str(tslib._start_year(intervals)) + ", +100d)"
     res = qdbd_connection.query(query)
 
     assert len(res) == 10
 
-    for row, v in zip(res, inserted_double_data[1]):
+    for row, _ in zip(res, inserted_double_data[1]):
         assert row['$table'] == table.get_name()
 
 
@@ -116,13 +114,13 @@ def test_returns_table_as_blob(
         qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
     inserted_double_data = _insert_double_points(table, start_time, 10)
-    query = "select * from " + table.get_name() + \
-        " in range(" + str(tslib._start_year(intervals)) + ", +100d)"
+    query = "select * from \"" + table.get_name() + "\" in range(" + \
+        str(tslib._start_year(intervals)) + ", +100d)"
     res = qdbd_connection.query(query, blobs=['$table'])
 
     assert len(res) == 10
 
-    for row, v in zip(res, inserted_double_data[1]):
+    for row, _ in zip(res, inserted_double_data[1]):
         assert row['$table'] == table.get_name()
 
 
@@ -130,8 +128,8 @@ def test_returns_inserted_data_with_star_select(
         qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
     inserted_double_data = _insert_double_points(table, start_time, 10)
-    query = "select * from " + table.get_name() + \
-        " in range(" + str(tslib._start_year(intervals)) + ", +100d)"
+    query = "select * from \"" + table.get_name() + "\" in range(" + \
+        str(tslib._start_year(intervals)) + ", +100d)"
     res = qdbd_connection.query(query)
 
     assert len(res) == 10
@@ -150,8 +148,9 @@ def test_returns_inserted_data_with_column_select(
         qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
     inserted_double_data = _insert_double_points(table, start_time, 10)
-    query = "select " + tslib._double_col_name(table) + " from " + table.get_name() + \
-        " in range(" + str(tslib._start_year(intervals)) + ", +100d)"
+    query = "select " + tslib._double_col_name(table) + \
+        " from \"" + table.get_name() + "\" in range(" + \
+        str(tslib._start_year(intervals)) + ", +100d)"
     res = qdbd_connection.query(query)
 
     assert len(res) == 10
@@ -170,8 +169,9 @@ def test_returns_inserted_data_with_specific_select(
         qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
     inserted_double_data = _insert_double_points(table, start_time, 10)
-    query = "select $timestamp, $table, " + tslib._double_col_name(table) + " from " + table.get_name() + \
-        " in range(" + str(tslib._start_year(intervals)) + ", +100d)"
+    query = "select $timestamp, $table, " + tslib._double_col_name(table) + \
+        " from \"" + table.get_name() + "\" in range(" + \
+        str(tslib._start_year(intervals)) + ", +100d)"
     res = qdbd_connection.query(query)
 
     assert len(res) == 10
@@ -188,9 +188,9 @@ def test_returns_inserted_data_with_specific_select(
 def test_returns_count_data_with_count_select(
         qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(table, start_time, 10)
-    query = "select count(" + tslib._double_col_name(table) + ") from " + table.get_name() + \
-        " in range(" + str(tslib._start_year(intervals)) + ", +100d)"
+    _ = _insert_double_points(table, start_time, 10)
+    query = "select count(" + tslib._double_col_name(table) + ") from \"" + table.get_name() + \
+        "\" in range(" + str(tslib._start_year(intervals)) + ", +100d)"
     res = qdbd_connection.query(query)
 
     assert len(res) == 1
@@ -201,8 +201,8 @@ def test_returns_count_data_with_sum_select(
         qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
     inserted_double_data = _insert_double_points(table, start_time, 10)
-    query = "select sum(" + tslib._double_col_name(table) + ") from " + table.get_name() + \
-        " in range(" + str(tslib._start_year(intervals)) + ", +100d)"
+    query = "select sum(" + tslib._double_col_name(table) + ") from \"" + table.get_name() + \
+        "\" in range(" + str(tslib._start_year(intervals)) + ", +100d)"
     res = qdbd_connection.query(query)
 
     assert len(res) == 1
@@ -218,8 +218,8 @@ def test_returns_inserted_multi_data_with_star_select(
     inserted_int64_data = _insert_int64_points(table, start_time, 100)
     inserted_timestamp_data = _insert_timestamp_points(table, start_time, 100)
 
-    query = "select * from " + table.get_name() + \
-        " in range(" + str(tslib._start_year(intervals)) + ", +100d)"
+    query = "select * from \"" + table.get_name() + \
+        "\" in range(" + str(tslib._start_year(intervals)) + ", +100d)"
     res = qdbd_connection.query(query, blobs=['the_blob'])
 
     assert len(res) == 100
@@ -245,5 +245,5 @@ def test_returns_inserted_multi_data_with_star_select(
 
 
 def test_create_table(qdbd_connection, entry_name):
-    query = "create table {} (col int64)".format(entry_name)
-    res = qdbd_connection.query(query)
+    query = "create table \"{}\" (col int64)".format(entry_name)
+    _ = qdbd_connection.query(query)

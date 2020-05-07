@@ -113,6 +113,7 @@ def test_write_dataframe(qdbd_connection, table):
     for col in df1.columns:
         np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
 
+
 def test_write_dataframe_push_fast(qdbd_connection, table):
     # Ensures that we can do a full-circle write and read of a dataframe
     df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
@@ -123,6 +124,7 @@ def test_write_dataframe_push_fast(qdbd_connection, table):
     assert len(df1.columns) == len(df2.columns)
     for col in df1.columns:
         np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
+
 
 @pytest.mark.parametrize("truncate", [True,
                                       (np.datetime64('2017-01-01', 'ns'),
@@ -216,25 +218,30 @@ def test_query(qdbd_connection, table):
     df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
     qdbpd.write_dataframe(df1, qdbd_connection, table)
 
-    res = qdbpd.query(qdbd_connection, "SELECT * FROM " +
-                      table.get_name(), blobs=['the_blob'])
+    res = qdbpd.query(qdbd_connection, "SELECT * FROM \"" +
+                      table.get_name() + "\"", blobs=['the_blob'])
 
     for col in df1.columns:
         np.testing.assert_array_equal(df1[col].to_numpy(), res[col].to_numpy())
 
+
 def _gen_floating(n, low=-100.0, high=100.0):
     return np.random.uniform(low, high, n)
 
+
 def _gen_integer(n):
     return np.random.randint(-100, 100, n)
+
 
 def _gen_string(n):
     # Slightly hacks, but for testing purposes we'll ensure that we are generating
     # blobs that can be cast to other types as well.
     return list(str(x) for x in _gen_floating(n, low=0))
 
+
 def _gen_blob(n):
     return list(x.encode("utf-8") for x in _gen_string(n))
+
 
 def _gen_timestamp(n):
     start_time = np.datetime64('2017-01-01', 'ns')
@@ -249,6 +256,7 @@ def _sparsify(xs):
     mask = np.random.choice(a=[True, False], size=len(xs))
     return ma.masked_array(data=xs,
                            mask=mask)
+
 
 @pytest.mark.parametrize("sparse", [True, False])
 @pytest.mark.parametrize("input_gen", [_gen_floating,
@@ -266,7 +274,6 @@ def test_inference(qdbd_connection, table_name, input_gen, column_type, sparse):
     # Create table
     t = qdbd_connection.ts(table_name)
     t.create([quasardb.ColumnInfo(column_type, "x")])
-
 
     n = 100
     idx = pd.date_range(np.datetime64('2017-01-01'), periods=n, freq='S')
