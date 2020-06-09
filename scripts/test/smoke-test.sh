@@ -20,7 +20,7 @@ rm -f ./Pipfile ./Pipfile.lock
 
 ${PIPENV} clean
 ${PIPENV} install ${FILE}
-${PIPENV} run python ${DIR}/smoke-test.py
+${PIPENV} run ${PYTHON_EXECUTABLE} ${DIR}/smoke-test.py
 ${PIPENV} uninstall quasardb
 
 rm -f ./Pipfile ./Pipfile.lock
