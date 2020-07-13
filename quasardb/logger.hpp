@@ -142,7 +142,12 @@ private:
         /**
          * Calls Python function, reflection kicks in, relatively slow.
          */
-        level(msg, std::forward<Args>(args)...);
+        char const * errors = NULL;
+        PyObject * buf = PyUnicode_DecodeLatin1(msg.data(), msg.size(), errors);
+        assert(buf != NULL);
+        assert(errors == NULL);
+
+        level(py::str(buf), std::forward<Args>(args)...);
     }
 
 private:
