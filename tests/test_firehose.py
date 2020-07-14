@@ -34,7 +34,7 @@ def test_subscribe_single_table(qdbd_connection, table, many_intervals):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    xs = qdbfh.subscribe(qdbd_connection, table)
+    xs = table.subscribe(qdbd_connection)
 
     doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
         inserter,

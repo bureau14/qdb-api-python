@@ -27,16 +27,16 @@ def _get_transactions_since(conn, table_name, last):
 
     return conn.query(q)
 
-def _get_transaction_data(conn, table, begin, end):
+def _get_transaction_data(conn, table_name, begin, end):
     """
     Gets all data from a certain table.
     """
     print("end = ", str(type(end)))
-    q = "SELECT * FROM \"{}\" IN RANGE ({}, {}) ".format(table.get_name(), begin, end)
+    q = "SELECT * FROM \"{}\" IN RANGE ({}, {}) ".format(table_name, begin, end)
     return conn.query(q)
 
 
-def _get_next(conn, table, state):
+def _get_next(conn, table_name, state):
 
     # Our flow to retrieve new data is as follows:
     # 1. Based on the state's last processed transaction, retrieve all transactions
@@ -45,7 +45,7 @@ def _get_next(conn, table, state):
     # 3. For each of the transactions, pull in all data
     # 4. Concatenate all this data (in order of quasardb transaction)
 
-    txs = _get_transactions_since(conn, table.get_name(), state['last'])
+    txs = _get_transactions_since(conn, table_name, state['last'])
 
     xs = list()
     for tx in txs:
@@ -59,7 +59,7 @@ def _get_next(conn, table, state):
 
         if not txid in state['seen']:
             xs = xs + _get_transaction_data(conn,
-                                            table,
+                                            table_name,
                                             tx['begin'],
                                             # The firehose logs transaction `end` span as
                                             # end inclusive, while our bulk reader and/or query
@@ -76,7 +76,7 @@ def _get_next(conn, table, state):
     return (state, xs)
 
 
-def subscribe(conn, table):
+def subscribe(conn, table_name):
     state = _init()
 
     while True:
@@ -87,7 +87,7 @@ def subscribe(conn, table):
         # At a later point, we could choose to provide the user
         # direct access to this 'state' object, so that they can
         # implement e.g. mechanisms to replay from a certain checkpoint.
-        (state, xs) = _get_next(conn, table, state)
+        (state, xs) = _get_next(conn, table_name, state)
 
         for x in xs:
             yield x
