@@ -31,7 +31,6 @@ def _get_transaction_data(conn, table_name, begin, end):
     """
     Gets all data from a certain table.
     """
-    print("end = ", str(type(end)))
     q = "SELECT * FROM \"{}\" IN RANGE ({}, {}) ".format(table_name, begin, end)
     return conn.query(q)
 
