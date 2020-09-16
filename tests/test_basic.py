@@ -14,7 +14,5 @@ def test_version():
     build = quasardb.version()
     assert len(build) > 0
 
-
-def test_purge_all_throws_exception__when_disabled_by_default(qdbd_connection):
-    with pytest.raises(quasardb.Error):
-        qdbd_connection.purge_all(datetime.timedelta(minutes=1))
+def test_can_purge_all(qdbd_secure_connection):
+    qdbd_secure_connection.purge_all(datetime.timedelta(minutes=1))
