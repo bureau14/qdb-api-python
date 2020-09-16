@@ -44,8 +44,24 @@ def qdbd_connection(qdbd_settings):
     return connect(qdbd_settings.get("uri").get("insecure"))
 
 @pytest.fixture
+def qdbd_secure_connection(qdbd_settings):
+    return quasardb.Cluster(
+        uri=qdbd_settings.get("uri").get("secure"),
+        user_name=qdbd_settings.get("security").get("user_name"),
+        user_private_key=qdbd_settings.get("security").get("user_private_key"),
+        cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"))
+
+
+@pytest.fixture
 def qdbd_direct_connection(qdbd_settings, qdbd_connection):
     return direct_connect(qdbd_connection, qdbd_settings.get("uri").get("insecure").replace("qdb://", ""))
+
+
+@pytest.fixture
+def qdbd_direct_secure_connection(qdbd_settings, qdbd_secure_connection):
+    return direct_connect(qdbd_secure_connection,
+                          qdbd_settings.get("uri").get("secure").replace("qdb://", ""))
+
 
 @pytest.fixture
 def random_identifier():
@@ -104,19 +120,26 @@ def integer_entry(qdbd_connection, entry_name):
 def table_name(entry_name):
     return entry_name
 
-@pytest.fixture
-def table(qdbd_connection, entry_name):
-
-    ts = qdbd_connection.ts(entry_name)
+def _create_table(c, table_name):
+    t = c.table(table_name)
     double_col = quasardb.ColumnInfo(quasardb.ColumnType.Double, "the_double")
     blob_col = quasardb.ColumnInfo(quasardb.ColumnType.Blob, "the_blob")
     string_col = quasardb.ColumnInfo(quasardb.ColumnType.String, "the_string")
     int64_col = quasardb.ColumnInfo(quasardb.ColumnType.Int64, "the_int64")
     ts_col = quasardb.ColumnInfo(quasardb.ColumnType.Timestamp, "the_ts")
 
-    ts.create([double_col, blob_col, string_col, int64_col, ts_col])
-    return ts
+    t.create([double_col, blob_col, string_col, int64_col, ts_col])
+    return t
 
+
+@pytest.fixture
+def table(qdbd_connection, entry_name):
+    return _create_table(qdbd_connection, entry_name)
+
+
+@pytest.fixture
+def secure_table(qdbd_secure_connection, entry_name):
+    return _create_table(qdbd_secure_connection, entry_name)
 
 @pytest.fixture
 def intervals():
@@ -124,8 +147,10 @@ def intervals():
     return [(start_time, start_time + np.timedelta64(1, 's'))]
 
 
-@pytest.fixture
-def many_intervals():
+def create_many_intervals():
     start_time = np.datetime64('2017-01-01', 'ns')
     return np.array([(start_time + np.timedelta64(i, 's'))
                      for i in range(10000)]).astype('datetime64[ns]')
+@pytest.fixture
+def many_intervals():
+    return create_many_intervals()
