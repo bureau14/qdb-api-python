@@ -165,6 +165,16 @@ def test_successful_bulk_row_insert(qdbd_connection, table, many_intervals):
         many_intervals,
         _regular_push)
 
+def test_successful_secure_bulk_row_insert(qdbd_secure_connection, secure_table, many_intervals):
+    inserter = qdbd_secure_connection.inserter(_make_inserter_info(secure_table))
+
+    _test_with_table(
+        inserter,
+        secure_table,
+        many_intervals,
+        _regular_push)
+
+
 
 def test_successful_async_bulk_row_insert(
         qdbd_connection, table, many_intervals):
