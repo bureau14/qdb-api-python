@@ -3,6 +3,7 @@ import re
 import pytest
 import quasardb
 import quasardb.stats as qdbst
+import pprint
 
 import test_batch_inserter as batchlib
 import conftest
@@ -57,6 +58,9 @@ def test_stats_by_node (qdbd_secure_connection,
     assert(len(_expected_cumulative_stats) > len(_expected_user_stats))
     _ensure_stats(qdbd_secure_connection, secure_table)
     xs = qdbst.by_node(qdbd_secure_connection)
+
+    pp = pprint.PrettyPrinter(indent=4)
+    # pp.pprint(xs['127.0.0.1:2838']['cumulative'])
 
     assert len(xs) == 1
 
