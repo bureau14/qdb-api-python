@@ -41,7 +41,8 @@ def _get_stat(dconn, k):
     try:
         return dconn.integer(k).get()
     except quasardb.quasardb.Error:
-        return str(dconn.blob(k).get(), 'utf-8')
+        blob = dconn.blob(k).get()
+        return blob.decode('utf-8', 'replace')
 
 def _by_uid(stats):
     xs = {}
