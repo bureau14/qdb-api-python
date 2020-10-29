@@ -72,7 +72,7 @@ struct column_info
 
     operator qdb_ts_column_info_ex_t() const noexcept
     {
-        qdb_ts_column_info_t res;
+        qdb_ts_column_info_ex_t res;
 
         // WARNING(leon): we assume that the lifetime of `this` is longer
         // than `res`, and that the string does not need to be deep-copied.
