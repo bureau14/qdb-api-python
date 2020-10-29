@@ -401,9 +401,11 @@ struct vectorize_result<qdb_ts_string_point, const char *>
 template <>
 struct vectorize_result<qdb_ts_symbol_point, const char *>
 {
+    using vectorizer_type = vectorize_result<qdb_ts_string_point, const char *>;
+    using result_type     = vectorizer_type::result_type;
+
     result_type operator()(const qdb_ts_symbol_point * points, size_t count) const
     {
-        using vectorizer_type = vectorize_result<qdb_ts_string_point, const char *>;
         return vectorizer_type::do_conversion(points, count);
     }
 }
