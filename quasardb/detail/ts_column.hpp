@@ -42,13 +42,18 @@ struct column_info
 {
     column_info() = default;
 
-    column_info(qdb_ts_column_type_t t, const std::string & n)
+    column_info(qdb_ts_column_type_t t, const std::string & n, const std::string & s)
         : type{t}
         , name{n}
+        , symtable{s}
     {}
 
     column_info(const qdb_ts_column_info_t & ci)
         : column_info{ci.type, ci.name}
+    {}
+
+    column_info(const qdb_ts_column_info_ex_t & ci)
+        : column_info{ci.type, ci.name, ci.symtable}
     {}
 
     operator qdb_ts_column_info_t() const noexcept
@@ -65,15 +70,31 @@ struct column_info
         return res;
     }
 
+    operator qdb_ts_column_info_ex_t() const noexcept
+    {
+        qdb_ts_column_info_t res;
+
+        // WARNING(leon): we assume that the lifetime of `this` is longer
+        // than `res`, and that the string does not need to be deep-copied.
+        //
+        // In our current code, this is the case.
+        res.type     = type;
+        res.name     = name.c_str();
+        res.symtable = symtable.c_str();
+
+        return res;
+    }
+
     qdb_ts_column_type_t type{qdb_ts_column_uninitialized};
     std::string name;
+    std::string symtable;
 };
 
-static std::vector<qdb_ts_column_info_t> convert_columns(const std::vector<column_info> & columns)
+static std::vector<qdb_ts_column_info_ex_t> convert_columns(const std::vector<column_info> & columns)
 {
-    std::vector<qdb_ts_column_info_t> res(columns.size());
+    std::vector<qdb_ts_column_info_ex_t> res(columns.size());
 
-    std::transform(columns.cbegin(), columns.cend(), res.begin(), [](const column_info & ci) -> qdb_ts_column_info_t { return ci; });
+    std::transform(columns.cbegin(), columns.cend(), res.begin(), [](const column_info & ci) -> qdb_ts_column_info_ex_t { return ci; });
 
     return res;
 }
@@ -83,6 +104,15 @@ static std::vector<column_info> convert_columns(const qdb_ts_column_info_t * col
     std::vector<column_info> res(count);
 
     std::transform(columns, columns + count, res.begin(), [](const qdb_ts_column_info_t & ci) { return column_info{ci}; });
+
+    return res;
+}
+
+static std::vector<column_info> convert_columns(const qdb_ts_column_info_ex_t * columns, size_t count)
+{
+    std::vector<column_info> res(count);
+
+    std::transform(columns, columns + count, res.begin(), [](const qdb_ts_column_info_ex_t & ci) { return column_info{ci}; });
 
     return res;
 }
@@ -100,17 +130,15 @@ struct indexed_column_info
 {
     indexed_column_info() noexcept = default;
 
-    indexed_column_info(qdb_ts_column_type_t t, qdb_size_t i) noexcept
+    indexed_column_info(qdb_ts_column_type_t t, qdb_size_t i, const std::string & s) noexcept
         : type{t}
         , index{i}
-    {}
-
-    indexed_column_info(const indexed_column_info & ici) noexcept
-        : indexed_column_info{ici.type, ici.index}
+        , symtable{s}
     {}
 
     qdb_ts_column_type_t type{qdb_ts_column_uninitialized};
     qdb_size_t index;
+    std::string symtable;
 };
 
 using indexed_columns_t = std::map<std::string, indexed_column_info>;
@@ -121,7 +149,7 @@ static indexed_columns_t index_columns(const std::vector<ColumnType> & columns)
     indexed_columns_t i_columns;
     for (qdb_size_t i = 0; i < columns.size(); ++i)
     {
-        i_columns.insert(indexed_columns_t::value_type(columns[i].name, {columns[i].type, i}));
+        i_columns.insert(indexed_columns_t::value_type(columns[i].name, {columns[i].type, i, columns[i].symtable}));
     }
 
     return i_columns;
@@ -135,12 +163,14 @@ static inline void register_ts_column(Module & m)
     py::class_<column_info>{m, "ColumnInfo"}                        //
         .def(py::init<qdb_ts_column_type_t, const std::string &>()) //
         .def_readwrite("type", &column_info::type)                  //
-        .def_readwrite("name", &column_info::name);                 //
+        .def_readwrite("name", &column_info::name)                  //
+        .def_readwrite("symtable", &column_info::symtable);         //
 
-    py::class_<indexed_column_info>{m, "IndexedColumnInfo"}  //
-        .def(py::init<qdb_ts_column_type_t, qdb_size_t &>()) //
-        .def_readonly("type", &indexed_column_info::type)    //
-        .def_readonly("index", &indexed_column_info::index); //
+    py::class_<indexed_column_info>{m, "IndexedColumnInfo"}        //
+        .def(py::init<qdb_ts_column_type_t, qdb_size_t &>())       //
+        .def_readonly("type", &indexed_column_info::type)          //
+        .def_readonly("index", &indexed_column_info::index)        //
+        .def_readonly("symtable", &indexed_column_info::symtable); //
 }
 
 } // namespace detail
