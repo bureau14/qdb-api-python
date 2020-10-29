@@ -49,7 +49,7 @@ struct column_info
     {}
 
     column_info(const qdb_ts_column_info_t & ci)
-        : column_info{ci.type, ci.name}
+        : column_info{ci.type, ci.name, {}}
     {}
 
     column_info(const qdb_ts_column_info_ex_t & ci)
