@@ -408,6 +408,6 @@ struct vectorize_result<qdb_ts_symbol_point, const char *>
     {
         return vectorizer_type::do_conversion(points, count);
     }
-}
+};
 
 } // namespace qdb
