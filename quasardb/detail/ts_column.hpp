@@ -31,6 +31,7 @@
 #pragma once
 
 #include <qdb/ts.h>
+#include <cassert>
 
 namespace qdb
 {
@@ -42,11 +43,13 @@ struct column_info
 {
     column_info() = default;
 
-    column_info(qdb_ts_column_type_t t, const std::string & n, const std::string & s)
+    column_info(qdb_ts_column_type_t t, const std::string & n, const std::string & s = {})
         : type{t}
         , name{n}
         , symtable{s}
-    {}
+    {
+        assert((t != qdb_ts_column_symbol) == s.empty());
+    }
 
     column_info(const qdb_ts_column_info_t & ci)
         : column_info{ci.type, ci.name, {}}
@@ -138,11 +141,13 @@ struct indexed_column_info
 {
     indexed_column_info() noexcept = default;
 
-    indexed_column_info(qdb_ts_column_type_t t, qdb_size_t i, const std::string & s) noexcept
+    indexed_column_info(qdb_ts_column_type_t t, qdb_size_t i, const std::string & s = {}) noexcept
         : type{t}
         , index{i}
         , symtable{s}
-    {}
+    {
+        assert((t != qdb_ts_column_symbol) == s.empty());
+    }
 
     qdb_ts_column_type_t type{qdb_ts_column_uninitialized};
     qdb_size_t index;
@@ -169,12 +174,14 @@ static inline void register_ts_column(Module & m)
     namespace py = pybind11;
 
     py::class_<column_info>{m, "ColumnInfo"}                                             //
+        .def(py::init<qdb_ts_column_type_t, const std::string &>())                      //
         .def(py::init<qdb_ts_column_type_t, const std::string &, const std::string &>()) //
         .def_readwrite("type", &column_info::type)                                       //
         .def_readwrite("name", &column_info::name)                                       //
         .def_readwrite("symtable", &column_info::symtable);                              //
 
     py::class_<indexed_column_info>{m, "IndexedColumnInfo"}                     //
+        .def(py::init<qdb_ts_column_type_t, qdb_size_t>())                      //
         .def(py::init<qdb_ts_column_type_t, qdb_size_t, const std::string &>()) //
         .def_readonly("type", &indexed_column_info::type)                       //
         .def_readonly("index", &indexed_column_info::index)                     //
