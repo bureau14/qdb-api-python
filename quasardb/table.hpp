@@ -55,13 +55,13 @@ public:
 
     void create(const std::vector<detail::column_info> & columns, std::chrono::milliseconds shard_size = std::chrono::hours{24})
     {
-        const auto c_columns = detail::convert_columns(columns);
+        const auto c_columns = detail::convert_columns_ex(columns);
         qdb::qdb_throw_if_error(*_handle, qdb_ts_create_ex(*_handle, _alias.c_str(), shard_size.count(), c_columns.data(), c_columns.size()));
     }
 
     void insert_columns(const std::vector<detail::column_info> & columns)
     {
-        const auto c_columns = detail::convert_columns(columns);
+        const auto c_columns = detail::convert_columns_ex(columns);
         qdb::qdb_throw_if_error(*_handle, qdb_ts_insert_columns_ex(*_handle, _alias.c_str(), c_columns.data(), c_columns.size()));
     }
 
@@ -124,7 +124,8 @@ public:
             // This transformation can probably be optimized, but it's only invoked when constructing
             // the reader so it's unlikely to be a performance bottleneck.
             std::transform(std::cbegin(columns), std::cend(columns), std::back_inserter(c_columns), [this](const auto & col) {
-                return detail::column_info{this->column_type_by_id(col), col};
+                const auto& info = column_info_by_id(col);
+                return detail::column_info{info.type, col, info.symtable};
             });
         }
 

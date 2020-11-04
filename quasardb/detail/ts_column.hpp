@@ -90,7 +90,15 @@ struct column_info
     std::string symtable;
 };
 
-static std::vector<qdb_ts_column_info_ex_t> convert_columns(const std::vector<column_info> & columns)
+static std::vector<qdb_ts_column_info_t> convert_columns(const std::vector<column_info> & columns)
+{
+    std::vector<qdb_ts_column_info_t> res(columns.size());
+
+    std::transform(columns.cbegin(), columns.cend(), res.begin(), [](const column_info & ci) -> qdb_ts_column_info_t { return ci; });
+
+    return res;
+}
+static std::vector<qdb_ts_column_info_ex_t> convert_columns_ex(const std::vector<column_info> & columns)
 {
     std::vector<qdb_ts_column_info_ex_t> res(columns.size());
 
