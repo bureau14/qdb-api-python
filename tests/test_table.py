@@ -41,6 +41,10 @@ def _generate_string_ts(start_time, count):
     return (dates, values)
 
 
+def _generate_symbol_ts(start_time, count):
+    return _generate_string_ts(start_time, count)
+
+
 def _check_ts_results(results, generated, count):
     assert len(results) == 2
 
@@ -137,6 +141,9 @@ def test_table_layout(table):
     assert col_list[4].name == "the_ts"
     assert col_list[4].type == quasardb.ColumnType.Timestamp
 
+    assert col_list[5].name == "the_symbol"
+    assert col_list[5].type == quasardb.ColumnType.Symbol
+
 
 def test_column_lookup(table):
     assert table.column_index_by_id("the_double") == 0
@@ -144,6 +151,7 @@ def test_column_lookup(table):
     assert table.column_index_by_id("the_string") == 2
     assert table.column_index_by_id("the_int64") == 3
     assert table.column_index_by_id("the_ts") == 4
+    assert table.column_index_by_id("the_symbol") == 5
 
     with pytest.raises(quasardb.Error):
         table.column_index_by_id('foobar')
@@ -179,6 +187,10 @@ def _int64_col_name(table):
 
 def _ts_col_name(table):
     return table.list_columns()[4].name
+
+
+def _symbol_col_name(table):
+    return table.list_columns()[5].name
 
 
 def _start_time(intervals):
@@ -472,7 +484,7 @@ def test_blob_erase_ranges(table, intervals):
     assert len(results[0]) == 0
 
 ###
-# Blob tests
+# String tests
 #
 
 
@@ -539,3 +551,72 @@ def test_string_get_ranges(table, intervals):
             _string_col_name(table),
             inserted_string_data[0],
             inserted_string_data[1])
+
+###
+# Symbol tests
+#
+
+
+def test_symbol_get_ranges__when_timeseries_is_empty(table, intervals):
+    results = table.symbol_get_ranges(_blob_col_name(table), intervals)
+    assert len(results) == 2
+    assert len(results[0]) == 0
+    assert len(results[1]) == 0
+
+
+def test_symbol_erase_ranges__when_timeseries_is_empty(table, intervals):
+    erased_count = table.erase_ranges(_symbol_col_name(table), intervals)
+    assert erased_count == 0
+
+
+def test_symbol_get_ranges(table, intervals):
+    inserted_symbol_data = _generate_symbol_ts(_start_time(intervals), 25)
+    table.symbol_insert(_symbol_col_name(table),
+                        inserted_symbol_data[0],
+                        inserted_symbol_data[1])
+
+    results = table.symbol_get_ranges(_symbol_col_name(table), [(
+        _start_time(intervals), _start_time(intervals) + np.timedelta64(10, 's'))])
+
+    _check_ts_results(results, inserted_symbol_data, 10)
+
+    results = table.symbol_get_ranges(_symbol_col_name(table),
+                                      [(_start_time(intervals),
+                                        _start_time(intervals) + np.timedelta64(10, 's')),
+                                       (_start_time(intervals) + np.timedelta64(10, 's'),
+                                          _start_time(intervals) + np.timedelta64(20, 's'))])
+
+    _check_ts_results(results, inserted_symbol_data, 20)
+
+    # Everything
+    results = table.symbol_get_ranges(_symbol_col_name(table))
+    _check_ts_results(results, inserted_symbol_data, 25)
+
+    # empty result
+    out_of_time = _start_time(intervals) + np.timedelta64(10, 'h')
+    results = table.symbol_get_ranges(_symbol_col_name(
+        table), [(out_of_time, out_of_time + np.timedelta64(10, 's'))])
+    assert len(results) == 2
+    assert len(results[0]) == 0
+    assert len(results[1]) == 0
+
+    # error: column doesn't exist
+    with pytest.raises(quasardb.Error):
+        table.symbol_get_ranges("lolilol", [(_start_time(
+            intervals), _start_time(intervals) + np.timedelta64(10, 's'))])
+
+    with pytest.raises(quasardb.Error):
+        table.symbol_insert(
+            "lolilol",
+            inserted_symbol_data[0],
+            inserted_symbol_data[1])
+
+    with pytest.raises(TypeError):
+        table.int64_get_ranges(_symbol_col_name, [(_start_time(
+            intervals), _start_time(intervals) + np.timedelta64(10, 's'))])
+
+    with pytest.raises(TypeError):
+        table.int64_insert(
+            _symbol_col_name(table),
+            inserted_symbol_data[0],
+            inserted_symbol_data[1])

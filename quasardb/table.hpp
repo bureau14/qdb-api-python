@@ -56,11 +56,6 @@ public:
     void create(const std::vector<detail::column_info> & columns, std::chrono::milliseconds shard_size = std::chrono::hours{24})
     {
         const auto c_columns = detail::convert_columns_ex(columns);
-        std::cerr << "ts_create_ex(" << _alias.c_str() << ", " << shard_size.count() << ", { ";
-        for (const auto& col : c_columns) {
-            std::cerr << "col(" << col.type << "," << col.name << "," << col.symtable << "), ";
-        }
-        std::cerr << " }" << std::endl;
         qdb::qdb_throw_if_error(*_handle, qdb_ts_create_ex(*_handle, _alias.c_str(), shard_size.count(), c_columns.data(), c_columns.size()));
     }
 

@@ -17,7 +17,8 @@ def _row_insertion_method(
         blobs,
         strings,
         integers,
-        timestamps):
+        timestamps,
+        symbols):
     for i in range(len(dates)):
         inserter.start_row(dates[i])
         inserter.set_double(0, doubles[i])
@@ -25,6 +26,7 @@ def _row_insertion_method(
         inserter.set_string(2, strings[i])
         inserter.set_int64(3, integers[i])
         inserter.set_timestamp(4, timestamps[i])
+        inserter.set_symbol(5, symbols[i])
 
 
 def _regular_push(inserter):
@@ -50,7 +52,9 @@ def _make_inserter_info(table):
                 table.get_name(), tslib._string_col_name(table), 100),
             quasardb.BatchColumnInfo(
                 table.get_name(), tslib._int64_col_name(table), 100),
-            quasardb.BatchColumnInfo(table.get_name(), tslib._ts_col_name(table), 100)]
+            quasardb.BatchColumnInfo(table.get_name(), tslib._ts_col_name(table), 100),
+            quasardb.BatchColumnInfo(
+                table.get_name(), tslib._symbol_col_name(table), 100)]
 
 
 def test_non_existing_bulk_insert(qdbd_connection, entry_name):
@@ -67,12 +71,13 @@ def _generate_data(count, start=np.datetime64('2017-01-01', 'ns')):
     strings = np.array([("content_" + str(item)) for item in range(count)])
     timestamps = tslib._generate_dates(
         start + np.timedelta64('1', 'D'), count)
+    symbols = np.array([("content_" + str(item)) for item in range(count)])
 
-    return (doubles, integers, blobs, strings, timestamps)
+    return (doubles, integers, blobs, strings, timestamps, symbols)
 
 
 def _set_batch_inserter_data(inserter, intervals, data, start=0):
-    (doubles, integers, blobs, strings, timestamps) = data
+    (doubles, integers, blobs, strings, timestamps, symbols) = data
 
     for i in range(start, len(intervals)):
         inserter.start_row(intervals[i])
@@ -81,10 +86,11 @@ def _set_batch_inserter_data(inserter, intervals, data, start=0):
         inserter.set_string(2, strings[i])
         inserter.set_int64(3, integers[i])
         inserter.set_timestamp(4, timestamps[i])
+        inserter.set_symbol(5, symbols[i])
 
 
 def _assert_results(table, intervals, data):
-    (doubles, integers, blobs, strings, timestamps) = data
+    (doubles, integers, blobs, strings, timestamps, symbols) = data
 
     whole_range = (intervals[0], intervals[-1:][0] + np.timedelta64(2, 's'))
     results = table.double_get_ranges(
@@ -112,6 +118,11 @@ def _assert_results(table, intervals, data):
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], timestamps)
 
+    results = table.symbol_get_ranges(
+        tslib._ts_col_name(table), [whole_range])
+    np.testing.assert_array_equal(results[0], intervals)
+    np.testing.assert_array_equal(results[1], symbols)
+
 
 def _test_with_table(
         inserter,
@@ -126,7 +137,7 @@ def _test_with_table(
     # range is right exclusive, so the timestamp has to be beyond
     whole_range = (intervals[0], intervals[-1:][0] + np.timedelta64(2, 's'))
 
-    (doubles, integers, blobs, strings, timestamps) = data
+    (doubles, integers, blobs, strings, timestamps, symbols) = data
 
     _set_batch_inserter_data(inserter, intervals, data)
 
@@ -150,6 +161,10 @@ def _test_with_table(
         tslib._ts_col_name(table), [whole_range])
     assert len(results[0]) == 0
 
+    results = table.symbol_get_ranges(
+        tslib._ts_col_name(table), [whole_range])
+    assert len(results[0]) == 0
+
     # after push, there is everything
     push_method(inserter)
     if push_method == _async_push:
@@ -157,7 +172,7 @@ def _test_with_table(
 
     _assert_results(table, intervals, data)
 
-    return doubles, blobs, strings, integers, timestamps
+    return doubles, blobs, strings, integers, timestamps, symbols
 
 
 def test_successful_bulk_row_insert(qdbd_connection, table, many_intervals):
@@ -267,7 +282,7 @@ def test_push_truncate_explicit_range(qdbd_connection, table, many_intervals):
     # Generate our dataset
     data = _generate_data(len(many_intervals))
     # (doubles, integers, blobs, strings, timestamps) = data
-    (doubles, _, _, _, _) = data
+    (doubles, _, _, _, _, _) = data
 
     inserter = qdbd_connection.inserter(_make_inserter_info(table))
 
@@ -308,7 +323,7 @@ def test_push_truncate_throws_error_on_invalid_range(qdbd_connection, table, man
     # Generate our dataset
     data = _generate_data(len(many_intervals))
     # (doubles, integers, blobs, strings, timestamps) = data
-    (_, _, _, _, _) = data
+    (_, _, _, _, _, _) = data
 
     # Insert truncate with explicit timerange, we point the start right after the
     # first element in our dataset. This means that the range does not overlap all
