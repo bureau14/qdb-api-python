@@ -1,6 +1,14 @@
 import pytest
 import quasardb
 
+def test_node_wrong_leading_qdb_in_uri(qdbd_connection, qdbd_settings):
+    with pytest.raises(quasardb.Error, match=r'The (handle|argument) is invalid'):
+        # With check in connect, node() throws.
+        direct_conn = qdbd_connection.node(
+            qdbd_settings.get("uri").get("insecure"))
+        # Without it, C API should return an error in prefix_get.
+        direct_conn.prefix_get("$qdb", 10)
+
 def test_node_empty_prefix(qdbd_direct_connection):
     res = qdbd_direct_connection.prefix_get("testazeazeaze", 10)
     assert len(res) == 0
