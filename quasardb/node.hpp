@@ -50,14 +50,6 @@ public:
     {
         _direct_handle->connect(_handle, node_uri);
     }
-    ~node()
-    {}
-
-    void close()
-    {
-        _handle.reset();
-        _direct_handle.reset();
-    }
 
     std::vector<std::string> prefix_get(const std::string & prefix, qdb_int_t max_count)
     {
