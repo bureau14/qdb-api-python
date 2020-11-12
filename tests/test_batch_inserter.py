@@ -236,8 +236,8 @@ def test_push_truncate_implicit_range(qdbd_connection, table, many_intervals):
 
     # Generate our dataset
     data = _generate_data(len(many_intervals))
-    # (doubles, integers, blobs, strings, timestamps) = data
-    (doubles, _, _, _, _) = data
+    # (doubles, integers, blobs, strings, timestamps, symbols) = data
+    (doubles, _, _, _, _, _) = data
 
     # Insert once
     inserter = qdbd_connection.inserter(_make_inserter_info(table))
