@@ -274,19 +274,42 @@ def _sparsify(xs):
                                        _gen_integer,
                                        _gen_blob,
                                        _gen_string,
-                                       _gen_timestamp,
-                                       _gen_symbol])
+                                       _gen_timestamp])
 @pytest.mark.parametrize("column_type", [quasardb.ColumnType.Int64,
                                          quasardb.ColumnType.Double,
                                          quasardb.ColumnType.Blob,
                                          quasardb.ColumnType.String,
-                                         quasardb.ColumnType.Timestamp,
-                                         quasardb.ColumnType.Symbol])
+                                         quasardb.ColumnType.Timestamp])
 def test_inference(qdbd_connection, table_name, input_gen, column_type, sparse):
 
     # Create table
     t = qdbd_connection.ts(table_name)
     t.create([quasardb.ColumnInfo(column_type, "x")])
+
+    n = 100
+    idx = pd.date_range(np.datetime64('2017-01-01'), periods=n, freq='S')
+    xs = input_gen(n)
+    if sparse is True:
+        xs = _sparsify(xs)
+
+    df = pd.DataFrame(data={"x": xs}, index=idx)
+
+    # Note that there are no tests; we effectively only test whether it doesn't
+    # throw.
+    qdbpd.write_dataframe(df, qdbd_connection, t)
+
+
+@pytest.mark.parametrize("sparse", [True, False])
+@pytest.mark.parametrize("input_gen", [_gen_floating,
+                                       _gen_integer,
+                                       _gen_blob,
+                                       _gen_string,
+                                       _gen_timestamp])
+def test_symbols(qdbd_connection, table_name, input_gen, sparse):
+
+    # Create table
+    t = qdbd_connection.ts(table_name)
+    t.create([quasardb.ColumnInfo(quasardb.ColumnType.Symbol, "x", "symtable")])
 
     n = 100
     idx = pd.date_range(np.datetime64('2017-01-01'), periods=n, freq='S')
