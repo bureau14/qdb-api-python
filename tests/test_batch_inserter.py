@@ -26,6 +26,7 @@ def _row_insertion_method(
         inserter.set_string(2, strings[i])
         inserter.set_int64(3, integers[i])
         inserter.set_timestamp(4, timestamps[i])
+        print("@ insert {}: {}".format(type(symbols[i]), symbols[i]))
         inserter.set_symbol(5, symbols[i])
 
 
@@ -86,6 +87,7 @@ def _set_batch_inserter_data(inserter, intervals, data, start=0):
         inserter.set_string(2, strings[i])
         inserter.set_int64(3, integers[i])
         inserter.set_timestamp(4, timestamps[i])
+        print("@ set {}: {}".format(type(symbols[i]), symbols[i]))
         inserter.set_symbol(5, symbols[i])
 
 
