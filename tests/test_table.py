@@ -558,7 +558,7 @@ def test_string_get_ranges(table, intervals):
 
 
 def test_symbol_get_ranges__when_timeseries_is_empty(table, intervals):
-    results = table.symbol_get_ranges(_blob_col_name(table), intervals)
+    results = table.symbol_get_ranges(_symbol_col_name(table), intervals)
     assert len(results) == 2
     assert len(results[0]) == 0
     assert len(results[1]) == 0

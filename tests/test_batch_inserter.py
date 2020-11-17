@@ -119,7 +119,7 @@ def _assert_results(table, intervals, data):
     np.testing.assert_array_equal(results[1], timestamps)
 
     results = table.symbol_get_ranges(
-        tslib._ts_col_name(table), [whole_range])
+        tslib._symbol_col_name(table), [whole_range])
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], symbols)
 
@@ -162,7 +162,7 @@ def _test_with_table(
     assert len(results[0]) == 0
 
     results = table.symbol_get_ranges(
-        tslib._ts_col_name(table), [whole_range])
+        tslib._symbol_col_name(table), [whole_range])
     assert len(results[0]) == 0
 
     # after push, there is everything
