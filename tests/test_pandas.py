@@ -46,7 +46,8 @@ def gen_series(start_time, count):
                                           for i in range(count)]).astype('datetime64[ns]'),
                                 index=idx),
             "the_symbol": pd.Series(np.array([("sym_" + str(item)) for item in range(count)],
-                                             'U')}
+                                             'U'),
+                                    index=idx)}
 
 
 def test_series_read_write(table):
