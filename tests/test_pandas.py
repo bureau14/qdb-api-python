@@ -25,7 +25,7 @@ def gen_df(start_time, count):
                                   (start_time + np.timedelta64(i, 's'))
                                   for i in range(count)]).astype('datetime64[ns]'),
                               "the_symbol": np.array([("sym_" + str(item))
-                                                      for item in range(count)], 'U')}
+                                                      for item in range(count)], 'U')},
                         index=idx)
 
 
