@@ -23,7 +23,9 @@ def gen_df(start_time, count):
                                                       for item in range(count)], 'U'),
                               "the_ts": np.array([
                                   (start_time + np.timedelta64(i, 's'))
-                                  for i in range(count)]).astype('datetime64[ns]')},
+                                  for i in range(count)]).astype('datetime64[ns]'),
+                              "the_symbol": np.array([("sym_" + str(item))
+                                                      for item in range(count)], 'U')}
                         index=idx)
 
 
@@ -42,7 +44,9 @@ def gen_series(start_time, count):
                                     index=idx),
             "the_ts": pd.Series(np.array([(start_time + np.timedelta64(i, 's'))
                                           for i in range(count)]).astype('datetime64[ns]'),
-                                index=idx)}
+                                index=idx),
+            "the_symbol": pd.Series(np.array([("sym_" + str(item)) for item in range(count)],
+                                             'U')}
 
 
 def test_series_read_write(table):
@@ -249,6 +253,12 @@ def _gen_timestamp(n):
                      for i in range(n)]).astype('datetime64[ns]')
 
 
+def _gen_symbol(n):
+    # Slightly hacks, but for testing purposes we'll ensure that we are generating
+    # blobs that can be cast to other types as well.
+    return list(str(x) for x in _gen_floating(n, low=0))
+
+
 def _sparsify(xs):
     # Randomly make a bunch of elements null, we make use of Numpy's masked
     # arrays for this: keep track of a separate boolean 'mask' array, which
@@ -263,12 +273,14 @@ def _sparsify(xs):
                                        _gen_integer,
                                        _gen_blob,
                                        _gen_string,
-                                       _gen_timestamp])
+                                       _gen_timestamp,
+                                       _gen_symbol])
 @pytest.mark.parametrize("column_type", [quasardb.ColumnType.Int64,
                                          quasardb.ColumnType.Double,
                                          quasardb.ColumnType.Blob,
                                          quasardb.ColumnType.String,
-                                         quasardb.ColumnType.Timestamp])
+                                         quasardb.ColumnType.Timestamp,
+                                         quasardb.ColumnType.Symbol])
 def test_inference(qdbd_connection, table_name, input_gen, column_type, sparse):
 
     # Create table
