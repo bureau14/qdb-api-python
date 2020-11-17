@@ -71,7 +71,7 @@ def _generate_data(count, start=np.datetime64('2017-01-01', 'ns')):
     strings = np.array([("content_" + str(item)) for item in range(count)])
     timestamps = tslib._generate_dates(
         start + np.timedelta64('1', 'D'), count)
-    symbols = np.array([("content_" + str(item)) for item in range(count)])
+    symbols = np.array([("sym_" + str(item)) for item in range(count)])
 
     return (doubles, integers, blobs, strings, timestamps, symbols)
 
@@ -237,10 +237,11 @@ def test_push_truncate_implicit_range(qdbd_connection, table, many_intervals):
     # Generate our dataset
     data = _generate_data(len(many_intervals))
     # (doubles, integers, blobs, strings, timestamps, symbols) = data
-    (doubles, _, _, _, _, _) = data
+    (doubles, _, _, _, _, syms) = data
 
     # Insert once
     inserter = qdbd_connection.inserter(_make_inserter_info(table))
+    print("SYMBOLS 1: {}".format(syms))
     _set_batch_inserter_data(inserter, many_intervals, data)
     inserter.push()
 
@@ -252,6 +253,7 @@ def test_push_truncate_implicit_range(qdbd_connection, table, many_intervals):
     np.testing.assert_array_equal(results[1], doubles)
 
     # Insert regular, twice
+    print("SYMBOLS 2: {}".format(syms))
     _set_batch_inserter_data(inserter, many_intervals, data)
     inserter.push()
 

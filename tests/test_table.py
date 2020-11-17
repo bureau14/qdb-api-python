@@ -124,25 +124,31 @@ def test_create_with_shard_size_of_more_than_1_year(
 
 def test_table_layout(table):
     col_list = table.list_columns()
-    assert len(col_list) == 5
+    assert len(col_list) == 6
 
     assert col_list[0].name == "the_double"
     assert col_list[0].type == quasardb.ColumnType.Double
+    assert col_list[0].symtable == ""
 
     assert col_list[1].name == "the_blob"
     assert col_list[1].type == quasardb.ColumnType.Blob
+    assert col_list[1].symtable == ""
 
     assert col_list[2].name == "the_string"
     assert col_list[2].type == quasardb.ColumnType.String
+    assert col_list[2].symtable == ""
 
     assert col_list[3].name == "the_int64"
     assert col_list[3].type == quasardb.ColumnType.Int64
+    assert col_list[3].symtable == ""
 
     assert col_list[4].name == "the_ts"
     assert col_list[4].type == quasardb.ColumnType.Timestamp
+    assert col_list[4].symtable == ""
 
     assert col_list[5].name == "the_symbol"
     assert col_list[5].type == quasardb.ColumnType.Symbol
+    assert col_list[5].symtable == "symtable"
 
 
 def test_column_lookup(table):
