@@ -7,7 +7,7 @@ import test_table as tslib
 
 
 def test_string_get_ranges__when_timeseries_is_empty(table, intervals):
-    results = table.string_get_ranges(_blob_col_name(table), intervals)
+    results = table.string_get_ranges(_string_col_name(table), intervals)
     assert len(results) == 2
     assert len(results[0]) == 0
     assert len(results[1]) == 0
@@ -64,7 +64,7 @@ def test_string_get_ranges(table, intervals):
     with pytest.raises(quasardb.IncompatibleTypeError):
         table.int64_get_ranges(column_name, [(start_time, start_time + np.timedelta64(10, 's'))])
 
-    with pytest.raises(quasardb.IncompatibleTypeError):
+    with pytest.raises(TypeError):
         table.int64_insert(
             column_name,
             inserted_string_data[0],

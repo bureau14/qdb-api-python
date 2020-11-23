@@ -19,7 +19,7 @@ def test_int64_erase_ranges__when_timeseries_is_empty(table, intervals):
 
 
 def test_int64_get_ranges(table, intervals):
-    start_time = tsib._start_time(intervals)
+    start_time = tslib._start_time(intervals)
     column_name = tslib._int64_col_name(table)
 
     inserted_int64_data = tslib._generate_int64_ts(start_time, 1000)
@@ -64,7 +64,7 @@ def test_int64_get_ranges(table, intervals):
     with pytest.raises(quasardb.IncompatibleTypeError):
         table.blob_get_ranges(column_name, [(start_time, start_time + np.timedelta64(10, 's'))])
 
-    with pytest.raises(quasardb.IncompatibleTypeError):
+    with pytest.raises(TypeError):
         table.blob_insert(
             column_name,
             inserted_int64_data[0],
@@ -72,7 +72,7 @@ def test_int64_get_ranges(table, intervals):
 
 
 def test_int64_erase_ranges(table, intervals):
-    start_time = tsib._start_time(intervals)
+    start_time = tslib._start_time(intervals)
     column_name = tslib._int64_col_name(table)
 
     inserted_int64_data = tslib._generate_int64_ts(start_time, 1000)

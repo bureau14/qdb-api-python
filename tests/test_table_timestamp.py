@@ -64,7 +64,7 @@ def test_timestamp_get_ranges(table, intervals):
     with pytest.raises(quasardb.IncompatibleTypeError):
         table.blob_get_ranges(column_name, [(start_time, start_time + np.timedelta64(10, 's'))])
 
-    with pytest.raises(quasardb.IncompatibleTypeError):
+    with pytest.raises(TypeError):
         table.blob_insert(
             column_name,
             inserted_timestamp_data[0],
