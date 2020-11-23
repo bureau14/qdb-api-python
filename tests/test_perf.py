@@ -9,16 +9,8 @@ def test_perf_disable(qdbd_connection):
 def test_perf_enable(qdbd_connection):
     qdbd_connection.perf().enable()
 
-
-def test_perf_enable_fail_if_performance_is_not_enabled(qdbd_settings):
-    cluster = quasardb.Cluster(
-        uri=qdbd_settings.get("uri").get("secure"),
-        user_name=qdbd_settings.get("security").get("user_name"),
-        user_private_key=qdbd_settings.get("security").get("user_private_key"),
-        cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"))
-    with pytest.raises(quasardb.Error):
-        cluster.perf().enable()
-
+def test_perf_enable_secure_conn(qdbd_secure_connection):
+    qdbd_secure_connection.perf().enable()
 
 def test_perf_get__when_empty(qdbd_connection):
     profiles = qdbd_connection.perf().get()

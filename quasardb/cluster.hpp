@@ -196,6 +196,10 @@ public:
         return qdb::perf{_handle};
     }
 
+    std::string const & uri() {
+        return _uri;
+    }
+
 public:
     std::vector<std::string> prefix_get(const std::string & prefix, qdb_int_t max_count)
     {
@@ -323,6 +327,7 @@ static inline void register_cluster(Module & m)
             py::arg("timeout")            = std::chrono::minutes{1})                                                                               //
         .def("__enter__", &qdb::cluster::enter)                                                                                         //
         .def("__exit__", &qdb::cluster::exit)               //                                                                   //
+        .def("uri", &qdb::cluster::uri)                     //
         .def("node", &qdb::cluster::node)                   //
         .def("options", &qdb::cluster::options)             //
         .def("perf", &qdb::cluster::perf)                   //

@@ -40,7 +40,7 @@ def test_client_query_buf_size_error(qdbd_connection, table, many_intervals):
 
     assert len(res) == 10000
 
-    qdbd_connection.options().set_client_max_in_buf_size(1024)
+    qdbd_connection.options().set_client_max_in_buf_size(1500)
 
     with pytest.raises(quasardb.InputBufferTooSmallError, match=r'consider increasing the buffer size'):
         qdbd_connection.query("select * from \"" + table.get_name() + "\"")

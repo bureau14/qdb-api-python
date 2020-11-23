@@ -143,7 +143,7 @@ public:
 
         qdb::qdb_throw_if_error(*_handle, qdb_ts_local_table_init(*_handle, t.c_str(), c_columns.data(), c_columns.size(), &_local_table));
 
-        qdb::qdb_throw_if_error(*_handle, qdb_ts_table_get_ranges(_local_table, r.data(), r.size()));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_table_stream_ranges(_local_table, r.data(), r.size()));
     }
 
     // since our reader models a stateful generator, we prevent copies
