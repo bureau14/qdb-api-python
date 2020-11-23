@@ -117,6 +117,18 @@ public:
         return buf_size;
     }
 
+    void set_client_max_parallelism(size_t max_parallelism)
+    {
+        qdb::qdb_throw_if_error(*_handle, qdb_option_set_client_max_parallelism(*_handle, max_parallelism));
+    }
+
+    size_t get_client_max_parallelism()
+    {
+        size_t max_parallelism = 0;
+        qdb::qdb_throw_if_error(*_handle, qdb_option_get_client_max_parallelism(*_handle, &max_parallelism));
+        return max_parallelism;
+    }
+
 private:
     qdb::handle_ptr _handle;
 };
@@ -138,19 +150,22 @@ static inline void register_options(Module & m)
         .value("Disabled", qdb_crypt_none)                                            //
         .value("AES256GCM", qdb_crypt_aes_gcm_256);                                   //
 
-    o.def(py::init<qdb::handle_ptr>())                                                   //
-        .def("set_timeout", &qdb::options::set_timeout)                                  //
-        .def("get_timeout", &qdb::options::get_timeout)                                  //
-        .def("set_stabilization_max_wait", &qdb::options::set_stabilization_max_wait)    //
-        .def("get_stabilization_max_wait", &qdb::options::get_stabilization_max_wait)    //
-        .def("set_max_cardinality", &qdb::options::set_max_cardinality)                  //
-        .def("set_compression", &qdb::options::set_compression)                          //
-        .def("set_encryption", &qdb::options::set_encryption)                            //
-        .def("set_cluster_public_key", &qdb::options::set_cluster_public_key)            //
-        .def("set_user_credentials", &qdb::options::set_user_credentials)                //
-        .def("set_client_max_in_buf_size", &qdb::options::set_client_max_in_buf_size)    //
-        .def("get_client_max_in_buf_size", &qdb::options::get_client_max_in_buf_size)    //
-        .def("get_cluster_max_in_buf_size", &qdb::options::get_cluster_max_in_buf_size); //
+    o.def(py::init<qdb::handle_ptr>())                                                  //
+        .def("set_timeout", &qdb::options::set_timeout)                                 //
+        .def("get_timeout", &qdb::options::get_timeout)                                 //
+        .def("set_stabilization_max_wait", &qdb::options::set_stabilization_max_wait)   //
+        .def("get_stabilization_max_wait", &qdb::options::get_stabilization_max_wait)   //
+        .def("set_max_cardinality", &qdb::options::set_max_cardinality)                 //
+        .def("set_compression", &qdb::options::set_compression)                         //
+        .def("set_encryption", &qdb::options::set_encryption)                           //
+        .def("set_cluster_public_key", &qdb::options::set_cluster_public_key)           //
+        .def("set_user_credentials", &qdb::options::set_user_credentials)               //
+        .def("set_client_max_in_buf_size", &qdb::options::set_client_max_in_buf_size)   //
+        .def("get_client_max_in_buf_size", &qdb::options::get_client_max_in_buf_size)   //
+        .def("get_cluster_max_in_buf_size", &qdb::options::get_cluster_max_in_buf_size) //
+        .def("set_client_max_parallelism", &qdb::options::set_client_max_parallelism)   //
+        .def("get_client_max_parallelism", &qdb::options::get_client_max_parallelism)   //
+        ;
 }
 
 } // namespace qdb
