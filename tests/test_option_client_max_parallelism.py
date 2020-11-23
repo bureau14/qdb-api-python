@@ -11,7 +11,7 @@ def test_get_client_max_parallelism(qdbd_connection):
 
 
 def test_set_client_max_parallelism_negative(qdbd_connection):
-    with pytest.raises(quasardb.Error):
+    with pytest.raises(TypeError):
         qdbd_connection.options().set_client_max_parallelism(-1)
 
 
