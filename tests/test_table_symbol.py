@@ -7,14 +7,14 @@ import test_table as tslib
 
 
 def test_symbol_get_ranges__when_timeseries_is_empty(table, intervals):
-    results = table.symbol_get_ranges(_symbol_col_name(table), intervals)
+    results = table.symbol_get_ranges(tslib._symbol_col_name(table), intervals)
     assert len(results) == 2
     assert len(results[0]) == 0
     assert len(results[1]) == 0
 
 
 def test_symbol_erase_ranges__when_timeseries_is_empty(table, intervals):
-    erased_count = table.erase_ranges(_symbol_col_name(table), intervals)
+    erased_count = table.erase_ranges(tslib._symbol_col_name(table), intervals)
     assert erased_count == 0
 
 

@@ -64,7 +64,7 @@ def test_int64_get_ranges(table, intervals):
     with pytest.raises(quasardb.IncompatibleTypeError):
         table.blob_get_ranges(column_name, [(start_time, start_time + np.timedelta64(10, 's'))])
 
-    with pytest.raises(TypeError):
+    with pytest.raises(quasardb.IncompatibleTypeError):
         table.blob_insert(
             column_name,
             inserted_int64_data[0],
