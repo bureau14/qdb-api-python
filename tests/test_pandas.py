@@ -23,7 +23,9 @@ def gen_df(start_time, count):
                                                       for item in range(count)], 'U'),
                               "the_ts": np.array([
                                   (start_time + np.timedelta64(i, 's'))
-                                  for i in range(count)]).astype('datetime64[ns]')},
+                                  for i in range(count)]).astype('datetime64[ns]'),
+                              "the_symbol": np.array([("sym_" + str(item))
+                                                      for item in range(count)], 'U')},
                         index=idx)
 
 
@@ -42,7 +44,10 @@ def gen_series(start_time, count):
                                     index=idx),
             "the_ts": pd.Series(np.array([(start_time + np.timedelta64(i, 's'))
                                           for i in range(count)]).astype('datetime64[ns]'),
-                                index=idx)}
+                                index=idx),
+            "the_symbol": pd.Series(np.array([("sym_" + str(item)) for item in range(count)],
+                                             'U'),
+                                    index=idx)}
 
 
 def test_series_read_write(table):
@@ -249,6 +254,12 @@ def _gen_timestamp(n):
                      for i in range(n)]).astype('datetime64[ns]')
 
 
+def _gen_symbol(n):
+    # Slightly hacks, but for testing purposes we'll ensure that we are generating
+    # blobs that can be cast to other types as well.
+    return list(str(x) for x in _gen_floating(n, low=0))
+
+
 def _sparsify(xs):
     # Randomly make a bunch of elements null, we make use of Numpy's masked
     # arrays for this: keep track of a separate boolean 'mask' array, which
@@ -274,6 +285,31 @@ def test_inference(qdbd_connection, table_name, input_gen, column_type, sparse):
     # Create table
     t = qdbd_connection.ts(table_name)
     t.create([quasardb.ColumnInfo(column_type, "x")])
+
+    n = 100
+    idx = pd.date_range(np.datetime64('2017-01-01'), periods=n, freq='S')
+    xs = input_gen(n)
+    if sparse is True:
+        xs = _sparsify(xs)
+
+    df = pd.DataFrame(data={"x": xs}, index=idx)
+
+    # Note that there are no tests; we effectively only test whether it doesn't
+    # throw.
+    qdbpd.write_dataframe(df, qdbd_connection, t)
+
+
+@pytest.mark.parametrize("sparse", [True, False])
+@pytest.mark.parametrize("input_gen", [_gen_floating,
+                                       _gen_integer,
+                                       _gen_blob,
+                                       _gen_string,
+                                       _gen_timestamp])
+def test_symbols(qdbd_connection, table_name, input_gen, sparse):
+
+    # Create table
+    t = qdbd_connection.ts(table_name)
+    t.create([quasardb.ColumnInfo(quasardb.ColumnType.Symbol, "x", "symtable")])
 
     n = 100
     idx = pd.date_range(np.datetime64('2017-01-01'), periods=n, freq='S')

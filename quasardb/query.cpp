@@ -111,6 +111,10 @@ py::handle coerce_point(qdb_point_result_t p, bool parse_blob)
         return PyUnicode_FromStringAndSize(
             static_cast<char const *>(p.payload.string.content), static_cast<Py_ssize_t>(p.payload.string.content_length));
 
+    case qdb_query_result_symbol:
+        return PyUnicode_FromStringAndSize(
+            static_cast<char const *>(p.payload.symbol.content), static_cast<Py_ssize_t>(p.payload.symbol.content_length));
+
     case qdb_query_result_int64:
         return PyLong_FromLongLong(p.payload.int64_.value);
 

@@ -127,8 +127,9 @@ def _create_table(c, table_name):
     string_col = quasardb.ColumnInfo(quasardb.ColumnType.String, "the_string")
     int64_col = quasardb.ColumnInfo(quasardb.ColumnType.Int64, "the_int64")
     ts_col = quasardb.ColumnInfo(quasardb.ColumnType.Timestamp, "the_ts")
+    symbol_col = quasardb.ColumnInfo(quasardb.ColumnType.Symbol, "the_symbol", "symtable")
 
-    t.create([double_col, blob_col, string_col, int64_col, ts_col])
+    t.create([double_col, blob_col, string_col, int64_col, ts_col, symbol_col])
     return t
 
 

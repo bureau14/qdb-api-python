@@ -135,6 +135,11 @@ public:
         qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_row_set_string(_batch_table, index, string.data(), string.size()));
     }
 
+    void set_symbol(std::size_t index, const std::string & symbol)
+    {
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_row_set_symbol(_batch_table, index, symbol.data(), symbol.size()));
+    }
+
     void set_double(std::size_t index, double v)
     {
         qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_row_set_double(_batch_table, index, v));
@@ -251,9 +256,10 @@ static inline void register_batch_inserter(Module & m)
 
     py::class_<qdb::batch_inserter>{m, "TimeSeriesBatch"}                                                                            //
         .def(py::init<qdb::handle_ptr, const std::vector<batch_column_info> &>())                                                    //
-        .def("start_row", &qdb::batch_inserter::start_row, "Calling this function marks the beginning of processing a new row.")                                                                           //
+        .def("start_row", &qdb::batch_inserter::start_row, "Calling this function marks the beginning of processing a new row.")     //
         .def("set_blob", &qdb::batch_inserter::set_blob)                                                                             //
         .def("set_string", &qdb::batch_inserter::set_string)                                                                         //
+        .def("set_symbol", &qdb::batch_inserter::set_symbol)                                                                         //
         .def("set_double", &qdb::batch_inserter::set_double)                                                                         //
         .def("set_int64", &qdb::batch_inserter::set_int64)                                                                           //
         .def("set_timestamp", &qdb::batch_inserter::set_timestamp)                                                                   //

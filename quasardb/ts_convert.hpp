@@ -195,7 +195,8 @@ struct convert_values<qdb_ts_blob_point, const char *>
 template <>
 struct convert_values<qdb_ts_string_point, const char *>
 {
-    std::vector<qdb_ts_string_point> operator()(const pybind11::array & timestamps, const pybind11::array & values) const
+    template <class Point>
+    static std::vector<Point> do_conversion(const pybind11::array & timestamps, const pybind11::array & values)
     {
         if (timestamps.size() != values.size()) throw qdb::exception{qdb_e_invalid_argument, "Timestamps size must match values size"};
         if ((timestamps.ndim() != 1) || (values.ndim() != 1))
@@ -209,7 +210,7 @@ struct convert_values<qdb_ts_string_point, const char *>
             throw qdb::incompatible_type_exception{error};
         }
 
-        std::vector<qdb_ts_string_point> points(timestamps.size());
+        std::vector<Point> points(timestamps.size());
 
         typedef std::u32string string_type;
         typedef string_type::value_type char_type;
@@ -258,6 +259,21 @@ struct convert_values<qdb_ts_string_point, const char *>
         }
 
         return points;
+    }
+
+    std::vector<qdb_ts_string_point> operator()(const pybind11::array & timestamps, const pybind11::array & values) const
+    {
+        return do_conversion<qdb_ts_string_point>(timestamps, values);
+    }
+};
+
+template <>
+struct convert_values<qdb_ts_symbol_point, const char *>
+{
+    std::vector<qdb_ts_symbol_point> operator()(const pybind11::array & timestamps, const pybind11::array & values) const
+    {
+        using string_converter = convert_values<qdb_ts_string_point, const char *>;
+        return string_converter::do_conversion<qdb_ts_symbol_point>(timestamps, values);
     }
 };
 
@@ -357,7 +373,8 @@ struct vectorize_result<qdb_ts_string_point, const char *>
 {
     using result_type = std::pair<pybind11::array, pybind11::array>;
 
-    result_type operator()(const qdb_ts_string_point * points, size_t count) const
+    template <class Point>
+    static result_type do_conversion(const Point * points, size_t count)
     {
         size_t item_size = max_length(points, count);
 
@@ -373,6 +390,23 @@ struct vectorize_result<qdb_ts_string_point, const char *>
         }
 
         return res;
+    }
+
+    result_type operator()(const qdb_ts_string_point * points, size_t count) const
+    {
+        return do_conversion(points, count);
+    }
+};
+
+template <>
+struct vectorize_result<qdb_ts_symbol_point, const char *>
+{
+    using vectorizer_type = vectorize_result<qdb_ts_string_point, const char *>;
+    using result_type     = vectorizer_type::result_type;
+
+    result_type operator()(const qdb_ts_symbol_point * points, size_t count) const
+    {
+        return vectorizer_type::do_conversion(points, count);
     }
 };
 

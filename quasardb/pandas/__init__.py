@@ -79,7 +79,8 @@ _dtypes_map_flip = {
     quasardb.ColumnType.Int64: np.dtype('int64'),
     quasardb.ColumnType.Double: np.dtype('float64'),
     quasardb.ColumnType.Blob: np.dtype('object'),
-    quasardb.ColumnType.Timestamp: np.dtype('datetime64[ns]')
+    quasardb.ColumnType.Timestamp: np.dtype('datetime64[ns]'),
+    quasardb.ColumnType.Symbol: np.dtype('unicode')
 }
 
 def read_series(table, col_name, ranges=None):
@@ -102,6 +103,7 @@ def read_series(table, col_name, ranges=None):
         quasardb.ColumnType.String: table.string_get_ranges,
         quasardb.ColumnType.Int64: table.int64_get_ranges,
         quasardb.ColumnType.Timestamp: table.timestamp_get_ranges,
+        quasardb.ColumnType.Symbol: table.symbol_get_ranges,
     }
 
     kwargs = {
@@ -142,7 +144,8 @@ def write_series(series, table, col_name):
         quasardb.ColumnType.Blob: table.blob_insert,
         quasardb.ColumnType.String: table.string_insert,
         quasardb.ColumnType.Int64: table.int64_insert,
-        quasardb.ColumnType.Timestamp: table.timestamp_insert
+        quasardb.ColumnType.Timestamp: table.timestamp_insert,
+        quasardb.ColumnType.Symbol: table.symbol_insert
     }
 
     t = table.column_type_by_id(col_name)
@@ -286,6 +289,13 @@ _infer_with = {
         'bytes': lambda x: string_to_timestamp(x.decode("utf-8")),
         'datetime64': lambda x: np.datetime64(x, 'ns'),
         '_': lambda x: np.datetime64(datetime.utcfromtimestamp(np.float64(x)), 'ns')
+    },
+    quasardb.ColumnType.Symbol: {
+        'floating': str,
+        'integer': str,
+        'string': str,
+        'bytes': lambda x: x.decode("utf-8"),
+        '_': str
     }
 }
 
@@ -361,7 +371,8 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
         quasardb.ColumnType.Blob: batch.set_blob,
         quasardb.ColumnType.String: batch.set_string,
         quasardb.ColumnType.Int64: batch.set_int64,
-        quasardb.ColumnType.Timestamp: lambda i, x: batch.set_timestamp(i, np.datetime64(x, 'ns'))
+        quasardb.ColumnType.Timestamp: lambda i, x: batch.set_timestamp(i, np.datetime64(x, 'ns')),
+        quasardb.ColumnType.Symbol: batch.set_symbol
     }
 
     # We derive our column types from our table.

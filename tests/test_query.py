@@ -38,6 +38,15 @@ def _insert_timestamp_points(table, start_time, points=10):
                            inserted_timestamp_data[1])
     return inserted_timestamp_data
 
+
+def _insert_symbol_points(table, start_time, points=10):
+    inserted_symbol_data = tslib._generate_symbol_ts(
+        start_time, points)
+    table.symbol_insert(tslib._ts_col_name(table),
+                           inserted_symbol_data[0],
+                           inserted_symbol_data[1])
+    return inserted_symbol_data
+
 ##
 # Query failure tests
 

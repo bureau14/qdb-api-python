@@ -15,7 +15,7 @@ def test_reader_returns_correct_results(
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
+    doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,
@@ -28,6 +28,7 @@ def test_reader_returns_correct_results(
         assert row[3] == strings[offset]
         assert row[4] == integers[offset]
         assert row[5] == timestamps[offset]
+        assert row[6] == symbols[offset]
 
         offset = offset + 1
 
@@ -43,7 +44,7 @@ def test_reader_iterator_returns_reference(
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
+    doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,
@@ -71,7 +72,7 @@ def test_reader_can_copy_rows(qdbd_connection, table, many_intervals):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
+    doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,
@@ -98,7 +99,7 @@ def test_reader_can_select_columns(qdbd_connection, table, many_intervals):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
+    doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,
@@ -120,7 +121,7 @@ def test_reader_can_request_ranges(qdbd_connection, table, many_intervals):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, string, integers, timestamps = batchlib._test_with_table(
+    doubles, blobs, string, integers, timestamps, symbols = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,
@@ -149,7 +150,7 @@ def test_reader_raises_error_on_invalid_datetime_ranges(qdbd_connection, table, 
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
+    doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,
@@ -179,7 +180,7 @@ def test_reader_can_read_dicts(qdbd_connection, table, many_intervals):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
+    doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,
@@ -193,6 +194,7 @@ def test_reader_can_read_dicts(qdbd_connection, table, many_intervals):
         assert row['the_string'] == strings[offset]
         assert row['the_int64'] == integers[offset]
         assert row['the_ts'] == timestamps[offset]
+        assert row['the_symbol'] == symbols[offset]
 
         with pytest.raises(KeyError):
             print(str(row['nothere']))
@@ -206,7 +208,7 @@ def test_reader_can_copy_dict_rows(qdbd_connection, table, many_intervals):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
+    doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,
@@ -225,6 +227,7 @@ def test_reader_can_copy_dict_rows(qdbd_connection, table, many_intervals):
         assert row['the_string'] == strings[offset]
         assert row['the_int64'] == integers[offset]
         assert row['the_ts'] == timestamps[offset]
+        assert row['the_symbol'] == symbols[offset]
 
         with pytest.raises(KeyError):
             print(str(row['nothere']))
