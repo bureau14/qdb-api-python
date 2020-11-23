@@ -44,16 +44,14 @@ def test_double_get_ranges(table, intervals):
 
     # empty result
     out_of_time = start_time + np.timedelta64(10, 'h')
-    results = table.double_get_ranges(_double_col_name(
-        table), [(out_of_time, out_of_time + np.timedelta64(10, 's'))])
+    results = table.double_get_ranges(column_name, [(out_of_time, out_of_time + np.timedelta64(10, 's'))])
     assert len(results) == 2
     assert len(results[0]) == 0
     assert len(results[1]) == 0
 
     # error: column doesn't exist
     with pytest.raises(quasardb.Error):
-        table.double_get_ranges("lolilol", [(_start_time(
-            intervals), start_time + np.timedelta64(10, 's'))])
+        table.double_get_ranges("lolilol", [(start_time, start_time + np.timedelta64(10, 's'))])
 
     with pytest.raises(quasardb.Error):
         table.double_insert(
@@ -62,8 +60,7 @@ def test_double_get_ranges(table, intervals):
             inserted_double_data[1])
 
     with pytest.raises(TypeError):
-        table.blob_get_ranges(_double_col_name, [(_start_time(
-            intervals), start_time + np.timedelta64(10, 's'))])
+        table.blob_get_ranges(column_name, [(start_time, start_time + np.timedelta64(10, 's'))])
 
     with pytest.raises(quasardb.IncompatibleTypeError):
         table.blob_insert(
