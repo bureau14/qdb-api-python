@@ -8,19 +8,41 @@ import test_batch_inserter as batchlib
 import time
 import itertools
 import multiprocessing
+from sys import platform
 
 def _ensure_timeout(f, timeout=3):
-    p = multiprocessing.Process(target=f)
-    p.start()
+    # HACKS(leon): apparently there is no reliable way to do this kind of stuff
+    # on Windows or OSX, due to the way threading works.
+    #
+    # For now, this check always returns true on non-Linux OS'es, so that at least
+    # we do have this check somewhere.
+    #
+    # The problem is inherently related to Python's single threaded-ness:
+    # - if we use a thread-based approach (such as with python's `stopit` library),
+    #   it also invalidates the cursor/iterator because we interrupt it.
+    # - signals are not available under non-Unix OS'es, so we cannot us ethat either
+    #   (and again, we would have to interrupt the next() function call somehow)
+    # - if we use the multiprocess as defined below, it cannot be pickled correctly
+    #   under any non-Linux OS.
+    #
+    # This test is useful, so if you know how to fix this under e.g. Windows, let's
+    # fix it!
+    if platform == "linux" or platform == "linux2":
+        p = multiprocessing.Process(target=f)
+        p.start()
 
-    p.join(timeout)
+        p.join(timeout)
 
-    if not p.is_alive():
-        return False
+        if not p.is_alive():
+            return False
 
-    p.terminate()
-    p.join()
-    return True
+        p.terminate()
+        p.join()
+        return True
+
+    else:
+        # Non-linux OS
+        return True
 
 
 def test_subscribe_single_table(qdbd_connection, table, many_intervals):
