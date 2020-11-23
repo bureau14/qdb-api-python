@@ -6,8 +6,8 @@ import pytest
 import test_batch_inserter as batchlib
 
 
-def test_get_cluster_max_parallelism(qdbd_connection):
-    assert qdbd_connection.options().get_cluster_max_parallelism() > 0
+def test_get_client_max_parallelism(qdbd_connection):
+    assert qdbd_connection.options().get_client_max_parallelism() > 0
 
 
 def test_set_client_max_parallelism_negative(qdbd_connection):
