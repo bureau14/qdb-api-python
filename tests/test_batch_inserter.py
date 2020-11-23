@@ -26,7 +26,6 @@ def _row_insertion_method(
         inserter.set_string(2, strings[i])
         inserter.set_int64(3, integers[i])
         inserter.set_timestamp(4, timestamps[i])
-        print("@ insert {}: {}".format(type(symbols[i]), symbols[i]))
         inserter.set_symbol(5, symbols[i])
 
 
@@ -87,7 +86,6 @@ def _set_batch_inserter_data(inserter, intervals, data, start=0):
         inserter.set_string(2, strings[i])
         inserter.set_int64(3, integers[i])
         inserter.set_timestamp(4, timestamps[i])
-        print("@ set {}: {}".format(type(symbols[i]), symbols[i]))
         inserter.set_symbol(5, symbols[i])
 
 
@@ -239,11 +237,10 @@ def test_push_truncate_implicit_range(qdbd_connection, table, many_intervals):
     # Generate our dataset
     data = _generate_data(len(many_intervals))
     # (doubles, integers, blobs, strings, timestamps, symbols) = data
-    (doubles, _, _, _, _, syms) = data
+    (doubles, _, _, _, _, _) = data
 
     # Insert once
     inserter = qdbd_connection.inserter(_make_inserter_info(table))
-    print("SYMBOLS 1: {}".format(syms))
     _set_batch_inserter_data(inserter, many_intervals, data)
     inserter.push()
 
@@ -255,7 +252,6 @@ def test_push_truncate_implicit_range(qdbd_connection, table, many_intervals):
     np.testing.assert_array_equal(results[1], doubles)
 
     # Insert regular, twice
-    print("SYMBOLS 2: {}".format(syms))
     _set_batch_inserter_data(inserter, many_intervals, data)
     inserter.push()
 
