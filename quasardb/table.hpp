@@ -50,7 +50,7 @@ public:
 public:
     std::string repr() const
     {
-        return "<quasardb.TimeSeries name='" + get_name() + "'>";
+        return "<quasardb.Table name='" + get_name() + "'>";
     }
 
     void create(const std::vector<detail::column_info> & columns, std::chrono::milliseconds shard_size = std::chrono::hours{24})
@@ -265,6 +265,12 @@ public:
         return res;
     }
 
+    py::object subscribe(py::object conn) {
+      auto firehose = py::module::import("quasardb.firehose");
+      auto xs = firehose.attr("subscribe")(conn, get_name());
+      return xs;
+    }
+
 private:
     mutable bool _has_indexed_columns;
     mutable detail::indexed_columns_t _indexed_columns;
@@ -298,7 +304,7 @@ static inline void register_table(Module & m)
         // arguments, and we need it to call qdb::table::list_columns().
         .def("reader", &qdb::table::reader, py::arg("columns") = std::vector<std::string>(), py::arg("ranges") = all_ranges(),
             py::arg("dict") = false)
-
+        .def("subscribe", &qdb::table::subscribe)                                                                             //
         .def("erase_ranges", &qdb::table::erase_ranges)                                                                       //
         .def("blob_insert", &qdb::table::blob_insert)                                                                         //
         .def("string_insert", &qdb::table::string_insert)                                                                     //
