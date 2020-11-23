@@ -61,11 +61,11 @@ def test_symbol_get_ranges(table, intervals):
             inserted_symbol_data[0],
             inserted_symbol_data[1])
 
-    with pytest.raises(TypeError):
-        table.symbol_get_ranges(column_name, [(start_time, start_time + np.timedelta64(10, 's'))])
+    with pytest.raises(quasardb.IncompatibleTypeError):
+        table.int64_get_ranges(column_name, [(start_time, start_time + np.timedelta64(10, 's'))])
 
-    with pytest.raises(TypeError):
-        table.symbol_insert(
+    with pytest.raises(quasardb.IncompatibleTypeError):
+        table.int64_insert(
             column_name,
             inserted_symbol_data[0],
             inserted_symbol_data[1])

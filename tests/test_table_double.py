@@ -59,11 +59,11 @@ def test_double_get_ranges(table, intervals):
             inserted_double_data[0],
             inserted_double_data[1])
 
-    with pytest.raises(TypeError):
-        table.double_get_ranges(column_name, [(start_time, start_time + np.timedelta64(10, 's'))])
+    with pytest.raises(quasardb.IncompatibleTypeError):
+        table.blob_get_ranges(column_name, [(start_time, start_time + np.timedelta64(10, 's'))])
 
     with pytest.raises(quasardb.IncompatibleTypeError):
-        table.double_insert(
+        table.blob_insert(
             column_name,
             inserted_double_data[0],
             inserted_double_data[1])
