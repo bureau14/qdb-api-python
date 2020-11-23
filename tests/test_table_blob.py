@@ -62,10 +62,10 @@ def test_blob_get_ranges(table, intervals):
             inserted_blob_data[1])
 
     with pytest.raises(TypeError):
-        table.int64_get_ranges(column_name, [(start_time, start_time + np.timedelta64(10, 's'))])
+        table.blob_get_ranges(column_name, [(start_time, start_time + np.timedelta64(10, 's'))])
 
     with pytest.raises(TypeError):
-        table.int64_insert(
+        table.blob_insert(
             column_name,
             inserted_blob_data[0],
             inserted_blob_data[1])
