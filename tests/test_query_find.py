@@ -3,8 +3,7 @@ import pytest
 import quasardb
 
 
-def test_types(qdbd_connection, blob_entry, random_blob, tag_name):
-
+def test_types_tag(qdbd_connection, blob_entry, random_blob, tag_name):
     blob_entry.put(random_blob)
     blob_entry.attach_tag(tag_name)
 
@@ -23,7 +22,7 @@ def test_types(qdbd_connection, blob_entry, random_blob, tag_name):
     assert len(res) == 0
 
 
-def test_types(qdbd_connection, blob_entry, random_blob, tag_names):
+def test_types_tags(qdbd_connection, blob_entry, random_blob, tag_names):
     blob_entry.put(random_blob)
     blob_entry.attach_tags(tag_names)
 

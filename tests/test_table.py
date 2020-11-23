@@ -32,6 +32,7 @@ def _generate_blob_ts(start_time, count):
                       dtype=np.object_)
     return (dates, values)
 
+
 def _generate_string_ts(start_time, count):
     dates = _generate_dates(start_time, count)
     values = np.array([("content_" + str(item)) for item in range(count)],
@@ -60,8 +61,8 @@ def test_insert_throws_when_timeseries_does_not_exist(
 
     with pytest.raises(quasardb.Error):
         table.double_insert("the_double",
-                         np.array(np.datetime64('2011-01-01', 'ns')),
-                         np.array([1.0]))
+                            np.array(np.datetime64('2011-01-01', 'ns')),
+                            np.array([1.0]))
 
 
 def test_get_ranges_throws_when_timeseries_does_not_exist(
@@ -167,8 +168,10 @@ def _double_col_name(table):
 def _blob_col_name(table):
     return table.list_columns()[1].name
 
+
 def _string_col_name(table):
     return table.list_columns()[2].name
+
 
 def _int64_col_name(table):
     return table.list_columns()[3].name
@@ -472,6 +475,7 @@ def test_blob_erase_ranges(table, intervals):
 # Blob tests
 #
 
+
 def test_string_get_ranges__when_timeseries_is_empty(table, intervals):
     results = table.string_get_ranges(_blob_col_name(table), intervals)
     assert len(results) == 2
@@ -496,10 +500,10 @@ def test_string_get_ranges(table, intervals):
     _check_ts_results(results, inserted_string_data, 10)
 
     results = table.string_get_ranges(_string_col_name(table),
-                                    [(_start_time(intervals),
-                                      _start_time(intervals) + np.timedelta64(10, 's')),
-                                     (_start_time(intervals) + np.timedelta64(10, 's'),
-                                      _start_time(intervals) + np.timedelta64(20, 's'))])
+                                      [(_start_time(intervals),
+                                        _start_time(intervals) + np.timedelta64(10, 's')),
+                                       (_start_time(intervals) + np.timedelta64(10, 's'),
+                                          _start_time(intervals) + np.timedelta64(20, 's'))])
 
     _check_ts_results(results, inserted_string_data, 20)
 

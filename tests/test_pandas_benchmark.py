@@ -11,7 +11,8 @@ def test_bench_double_series(qdbd_connection, table, many_intervals, benchmark):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
+    # doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
+    _, _, _, _, _ = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,
@@ -24,7 +25,8 @@ def test_bench_blob_series(qdbd_connection, table, many_intervals, benchmark):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
+    # doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
+    _, _, _, _, _ = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,
@@ -37,7 +39,8 @@ def test_bench_string_series(qdbd_connection, table, many_intervals, benchmark):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
+    # doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
+    _, _, _, _, _ = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,
@@ -50,7 +53,8 @@ def test_bench_int64_series(qdbd_connection, table, many_intervals, benchmark):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
+    # doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
+    _, _, _, _, _ = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,
@@ -63,7 +67,8 @@ def test_bench_timestamp_series(qdbd_connection, table, many_intervals, benchmar
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
+    # doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
+    _, _, _, _, _ = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,

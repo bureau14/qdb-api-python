@@ -56,6 +56,12 @@ public:
     void connect(const handle_ptr handle, const std::string & uri)
     {
         _handle = qdb_direct_connect(*handle, uri.c_str());
+        if (_handle == nullptr)
+        {
+            // Throw here to detect an error as soon as possible.
+            // Otherwise, C API would throw only when using the null handle.
+            qdb_throw_if_error(*handle, qdb_e_invalid_argument);
+        }
     }
 
     operator qdb_direct_handle_t() const noexcept
