@@ -22,7 +22,7 @@ def test_timestamp_get_ranges(table, intervals):
     start_time = tslib._start_time(intervals)
     column_name = tslib._ts_col_name(table)
 
-    inserted_timestamp_data = tslib._generate_timestamp_ts(start_time, 1000)
+    inserted_timestamp_data = tslib._generate_timestamp_ts(start_time, start_time, 1000)
     table.timestamp_insert(column_name,
                        inserted_timestamp_data[0],
                        inserted_timestamp_data[1])
@@ -75,7 +75,7 @@ def test_timestamp_erase_ranges(table, intervals):
     start_time = tslib._start_time(intervals)
     column_name = tslib._ts_col_name(table)
 
-    inserted_timestamp_data = tslib._generate_timestamp_ts(start_time, 1000)
+    inserted_timestamp_data = tslib._generate_timestamp_ts(start_time, start_time, 1000)
     table.timestamp_insert(
         column_name,
         inserted_timestamp_data[0],
