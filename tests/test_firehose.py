@@ -58,7 +58,7 @@ def test_subscribe_single_table(qdbd_connection, table, many_intervals):
 
     xs = table.subscribe(qdbd_connection)
 
-    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
+    doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
         inserter,
         table,
         many_intervals,
@@ -79,6 +79,7 @@ def test_subscribe_single_table(qdbd_connection, table, many_intervals):
         assert row['the_string'] == strings[offset]
         assert row['the_int64'] == integers[offset]
         assert row['the_ts'] == timestamps[offset]
+        assert row['the_symbol'] == symbols[offset]
         offset = offset + 1
 
     def next_row():
@@ -95,7 +96,7 @@ def test_subscribe_single_table(qdbd_connection, table, many_intervals):
     for x in many_intervals:
         many_intervals_.append(x + np.timedelta64(365, 'D'))
 
-    doubles, blobs, strings, integers, timestamps = batchlib._test_with_table(
+    doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
         inserter,
         table,
         many_intervals_,
@@ -111,6 +112,7 @@ def test_subscribe_single_table(qdbd_connection, table, many_intervals):
         assert row['the_string'] == strings[offset]
         assert row['the_int64'] == integers[offset]
         assert row['the_ts'] == timestamps[offset]
+        assert row['the_symbol'] == symbols[offset]
         offset = offset + 1
 
 
