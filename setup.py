@@ -159,7 +159,7 @@ setup(name=package_name,
           "pytest-runner == 5.2",
           "pytest-benchmark == 3.2.2",
           "pytz >= 2018.9",
-          "pandas >= 0.24.0, < 1.0.0"],
+          "pandas"],
       install_requires=[
           "xmlrunner >= 1.7.7",
           "future >= 0.17.1",
