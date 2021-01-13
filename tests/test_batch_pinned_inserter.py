@@ -25,15 +25,78 @@ def test_non_existing_pinned_insert(qdbd_connection, entry_name):
         qdbd_connection.pinned_inserter(
             [quasardb.BatchColumnInfo(entry_name, "col", 10)])
 
-def test_successful_bulk_row_insert(qdbd_connection, table, many_intervals):
+def test_successful_bulk_row_insert_data_ordered_single_shard(qdbd_connection, table, many_intervals):
     pinned_inserter = qdbd_connection.pinned_inserter(_make_inserter_info(table))
 
-    pinned_inserter.start_row(np.datetime64('2020-01-02', 'ns'))
-    pinned_inserter.set_value(0, 2)
-    pinned_inserter.start_row(np.datetime64('2020-01-01', 'ns'))
-    pinned_inserter.set_value(0, 1)
+    timestamps = [np.datetime64('2020-01-01T00:00:00', 'ns'), np.datetime64('2020-01-01T00:00:01', 'ns')]
+    values = [0,1]
+
+    pinned_inserter.start_row(timestamps[0])
+    pinned_inserter.set_value(0, values[0])
+    pinned_inserter.start_row(timestamps[1])
+    pinned_inserter.set_value(0, values[1])
 
     pinned_inserter.push()
     
-    res = qdbd_connection.query('select * from ' + table.get_name())
-    print("res: {}".format(res))
+    res = qdbd_connection.query('SELECT "$timestamp","the_int64" FROM "{}"'.format(table.get_name()))
+    for idx, row in enumerate(res):
+        assert row['$timestamp'] == timestamps[idx]
+        assert row['the_int64'] == values[idx]
+
+def test_successful_bulk_row_insert_data_ordered_multiple_shards(qdbd_connection, table, many_intervals):
+    pinned_inserter = qdbd_connection.pinned_inserter(_make_inserter_info(table))
+
+    timestamps = [np.datetime64('2020-01-01', 'ns'), np.datetime64('2020-01-02', 'ns')]
+    values = [0,1]
+
+    pinned_inserter.start_row(timestamps[0])
+    pinned_inserter.set_value(0, values[0])
+    pinned_inserter.start_row(timestamps[1])
+    pinned_inserter.set_value(0, values[1])
+
+    pinned_inserter.push()
+    
+    res = qdbd_connection.query('SELECT "$timestamp","the_int64" FROM "{}"'.format(table.get_name()))
+    for idx, row in enumerate(res):
+        assert row['$timestamp'] == timestamps[idx]
+        assert row['the_int64'] == values[idx]
+
+def test_successful_bulk_row_insert_data_unordered_single_shard(qdbd_connection, table, many_intervals):
+    pinned_inserter = qdbd_connection.pinned_inserter(_make_inserter_info(table))
+
+    timestamps = [np.datetime64('2020-01-01T00:00:01', 'ns'), np.datetime64('2020-01-01T00:00:00', 'ns')]
+    values = [0,1]
+
+    pinned_inserter.start_row(timestamps[0])
+    pinned_inserter.set_value(0, values[0])
+    pinned_inserter.start_row(timestamps[1])
+    pinned_inserter.set_value(0, values[1])
+
+    pinned_inserter.push()
+    
+    res = qdbd_connection.query('SELECT "$timestamp","the_int64" FROM "{}"'.format(table.get_name()))
+    
+    assert res[0]['$timestamp'] == timestamps[1]
+    assert res[0]['the_int64'] == values[1]
+    assert res[1]['$timestamp'] == timestamps[0]
+    assert res[1]['the_int64'] == values[0]
+
+def test_successful_bulk_row_insert_data_unordered_multiple_shards(qdbd_connection, table, many_intervals):
+    pinned_inserter = qdbd_connection.pinned_inserter(_make_inserter_info(table))
+
+    timestamps = [np.datetime64('2020-01-02', 'ns'), np.datetime64('2020-01-01', 'ns')]
+    values = [0,1]
+
+    pinned_inserter.start_row(timestamps[0])
+    pinned_inserter.set_value(0, values[0])
+    pinned_inserter.start_row(timestamps[1])
+    pinned_inserter.set_value(0, values[1])
+
+    pinned_inserter.push()
+    
+    res = qdbd_connection.query('SELECT "$timestamp","the_int64" FROM "{}"'.format(table.get_name()))
+
+    assert res[0]['$timestamp'] == timestamps[1]
+    assert res[0]['the_int64'] == values[1]
+    assert res[1]['$timestamp'] == timestamps[0]
+    assert res[1]['the_int64'] == values[0]

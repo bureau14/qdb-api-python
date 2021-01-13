@@ -62,7 +62,5 @@ class TimeseriesPinnedBatch:
         self.inserter.pinned_push()
         self._reset_batch()
 
-
-    
 def make_pinned_writer(inserter, column_count):
     return TimeseriesPinnedBatch(inserter, column_count)
