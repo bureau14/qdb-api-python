@@ -240,18 +240,22 @@ public:
 private:
     template <typename T>
     std::pair<std::vector<qdb_timespec_t>, std::vector<T>> _convert_column(
-        const std::vector<py::object> & timestamps, const pybind11::array_t<T> & values)
+        const pybind11::array_t<std::int64_t> & timestamps, const pybind11::array_t<T> & values)
     {
-        std::vector<qdb_timespec_t> ts;
-        ts.reserve(std::size(timestamps));
-        std::transform(std::cbegin(timestamps), std::cend(timestamps), std::back_inserter(ts),
-            [](const auto & timestamp) { return convert_timestamp(timestamp); });
+        assert(timestamps.size() == values.size());
+
+        std::vector<qdb_timespec_t> ts(timestamps.size());
         std::vector<std::int64_t> vs(values.size());
+
+        auto t = timestamps.template unchecked<1>();
         auto v = values.template unchecked<1>();
+
         for (size_t i = 0; i < values.size(); ++i)
         {
+            ts[i] = convert_timestamp(t(i));
             vs[i] = v(i);
         }
+
         return std::make_pair(std::move(ts), std::move(vs));
     }
 
@@ -290,7 +294,7 @@ private:
     }
 
 public:
-    void set_pinned_int64_column(std::size_t index, const std::vector<py::object> & ts, const pybind11::array_t<qdb_int_t> & vs)
+    void set_pinned_int64_column(std::size_t index, const pybind11::array_t<std::int64_t> & ts, const pybind11::array_t<qdb_int_t> & vs)
     {
         auto [timestamps, values] = _convert_column(ts, vs);
         _sort_column(timestamps, values);
