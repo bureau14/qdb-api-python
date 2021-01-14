@@ -93,7 +93,7 @@ public:
         {
             // take the shard size from any table
             // as all tables shall have the same
-            qdb_ts_shard_size(*_handle, ci[0].timeseries.c_str(), &_shard_size);
+            qdb_ts_shard_size(*_handle, ci[0].timeseries.c_str(), reinterpret_cast<qdb_uint_t *>(&_shard_size));
         }
 
         _logger.debug("initialized batch reader with %d columns", ci.size());
@@ -237,8 +237,10 @@ public:
         _reset_counters();
     }
 
-    void set_pinned_int64_column(
-        std::size_t index, const std::vector<py::object> & timestamps, const pybind11::array_t<std::int64_t> & values)
+private:
+    template <typename T>
+    std::pair<std::vector<qdb_timespec_t>, std::vector<T>> _convert_column(
+        const std::vector<py::object> & timestamps, const pybind11::array_t<T> & values)
     {
         std::vector<qdb_timespec_t> ts;
         ts.reserve(std::size(timestamps));
@@ -250,7 +252,49 @@ public:
         {
             vs[i] = v(i);
         }
-        _pinned_columns[index] = std::make_pair(std::move(ts), std::move(vs));
+        return std::make_pair(std::move(ts), std::move(vs));
+    }
+
+    template <typename T>
+    static void _sort_column(std::vector<qdb_timespec_t> & timestamps, std::vector<T> & values)
+    {
+        std::sort(make_zip_iterator(std::begin(timestamps), std::begin(values)), make_zip_iterator(std::end(timestamps), std::end(values)),
+            [](const auto & a, const auto & b) { return std::get<0>(a) < std::get<0>(b); });
+    }
+
+    template <typename PinColumn, typename T>
+    void _pin_column(std::size_t index, std::vector<qdb_timespec_t> & timestamps, std::vector<T> & values, PinColumn && pin_column)
+    {
+        auto begin     = make_zip_iterator(std::begin(timestamps), std::begin(values));
+        auto end       = make_zip_iterator(std::end(timestamps), std::end(values));
+        auto base_time = qdb_ts_bucket_base_time(*std::get<0>(begin), _shard_size);
+        for (; begin < end;)
+        {
+            auto it = std::find_if(begin, end, [shard_size = _shard_size, base_time](const auto & val) {
+                return base_time != qdb_ts_bucket_base_time(std::get<0>(val), shard_size);
+            });
+            // copy begin to it
+            qdb_time_t * timeoffsets;
+            T * data;
+            qdb_size_t capacity = static_cast<qdb_size_t>(std::distance(begin, it));
+            auto err            = pin_column(_batch_table, index, capacity, &(*std::get<0>(begin)), &timeoffsets, &data);
+            size_t idx          = 0;
+            for (; begin < it; ++begin)
+            {
+                timeoffsets[idx] = qdb_ts_bucket_offset(*std::get<0>(begin), _shard_size);
+                data[idx]        = *std::get<1>(begin);
+                ++idx;
+            }
+            base_time = qdb_ts_bucket_base_time(*std::get<0>(it), _shard_size);
+        }
+    }
+
+public:
+    void set_pinned_int64_column(std::size_t index, const std::vector<py::object> & ts, const pybind11::array_t<qdb_int_t> & vs)
+    {
+        auto [timestamps, values] = _convert_column(ts, vs);
+        _sort_column(timestamps, values);
+        _pin_column(index, timestamps, values, &qdb_ts_batch_pin_int64_column);
     }
 
     void set_pinned_double_column(std::size_t index, const pybind11::array_t<std::int64_t> & values)
@@ -258,54 +302,10 @@ public:
 
     void pinned_push()
     {
-        size_t index = 0;
-        for (auto & col : _pinned_columns)
-        {
-            std::visit(  //
-                overload{//
-                    [shard_size = static_cast<qdb_duration_t>(_shard_size), &table = _batch_table, index](pinned_int64_column & col) {
-                        _sort_column(col);
-
-                        auto begin     = make_zip_iterator(std::begin(col.first), std::begin(col.second));
-                        auto end       = make_zip_iterator(std::end(col.first), std::end(col.second));
-                        auto base_time = qdb_ts_bucket_base_time(*std::get<0>(begin), shard_size);
-                        for (; begin < end;)
-                        {
-                            auto it = std::find_if(begin, end, [shard_size, base_time](const auto & val) {
-                                return base_time != qdb_ts_bucket_base_time(std::get<0>(val), shard_size);
-                            });
-                            // copy begin to it
-                            qdb_time_t * timeoffsets;
-                            qdb_int_t * data;
-                            qdb_size_t capacity = static_cast<qdb_size_t>(std::distance(begin, it));
-
-                            auto err   = qdb_ts_batch_pin_int64_column(table, index, capacity, &(*std::get<0>(begin)), &timeoffsets, &data);
-                            size_t idx = 0;
-                            for (; begin < it; ++begin)
-                            {
-                                timeoffsets[idx] = qdb_ts_bucket_offset(*std::get<0>(begin), shard_size);
-                                data[idx]        = *std::get<1>(begin);
-                                ++idx;
-                            }
-                            base_time = qdb_ts_bucket_base_time(*std::get<0>(it), shard_size);
-                        }
-                    }, //
-                    [](const auto & /*col*/) {}},
-                col);
-            ++index;
-        }
         push();
     }
 
 private:
-    template <typename Column>
-    static void _sort_column(Column & col)
-    {
-        std::sort(make_zip_iterator(std::begin(col.first), std::begin(col.second)),
-            make_zip_iterator(std::end(col.first), std::end(col.second)),
-            [](const auto & a, const auto & b) { return std::get<0>(a) < std::get<0>(b); });
-    }
-
     void _reset_counters()
     {
         _row_count        = 0;
@@ -319,7 +319,7 @@ private:
     qdb::handle_ptr _handle;
     qdb_batch_table_t _batch_table{nullptr};
 
-    qdb_size_t _shard_size;
+    qdb_duration_t _shard_size;
     std::vector<pinned_column_type> _pinned_columns;
 
     int64_t _row_count;
