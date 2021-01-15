@@ -3,15 +3,6 @@ import logging
 import numpy as np
 import sys
 
-_column_type_names = {
-    quasardb.ColumnType.Double: 'double',
-    quasardb.ColumnType.Blob: 'blob',
-    quasardb.ColumnType.String: 'string',
-    quasardb.ColumnType.Int64: 'int64',
-    quasardb.ColumnType.Timestamp: 'timestamp',
-    quasardb.ColumnType.Symbol: 'symbol',
-}
-
 class TimeseriesPinnedValueBatch:
     columns = []
     timestamp = 0
