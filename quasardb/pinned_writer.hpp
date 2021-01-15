@@ -42,17 +42,86 @@
 
 namespace qdb
 {
-
-class batch_inserter
+class pinned_writer
 {
+
+    using int64_column     = std::pair<std::vector<qdb_timespec_t>, std::vector<qdb_int_t>>;
+    using double_column    = std::pair<std::vector<qdb_timespec_t>, std::vector<double>>;
+    using timestamp_column = std::pair<std::vector<qdb_timespec_t>, std::vector<qdb_timespec_t>>;
+    using blob_like_column = std::pair<std::vector<qdb_timespec_t>, std::vector<std::string>>;
+    using any_column       = std::variant<int64_column, double_column, timestamp_column, blob_like_column>;
+
+    any_column make_column(qdb_ts_column_type_t type)
+    {
+        switch (type)
+        {
+        case qdb_ts_column_int64:
+            return int64_column{};
+        case qdb_ts_column_double:
+            return double_column{};
+        case qdb_ts_column_timestamp:
+            return timestamp_column{};
+        case qdb_ts_column_blob:
+            return blob_like_column{};
+        case qdb_ts_column_string:
+            return blob_like_column{};
+        case qdb_ts_column_symbol:
+            return blob_like_column{};
+        case qdb_ts_column_uninitialized:
+            throw "uninitialized column type";
+        }
+        return {};
+    }
+
+    constexpr const char * column_type_name(qdb_ts_column_type_t type)
+    {
+        switch (type)
+        {
+        case qdb_ts_column_int64:
+            return "int64";
+        case qdb_ts_column_double:
+            return "double";
+        case qdb_ts_column_timestamp:
+            return "timestamp";
+        case qdb_ts_column_blob:
+            return "blob";
+        case qdb_ts_column_string:
+            return "string";
+        case qdb_ts_column_symbol:
+            return "symbol";
+        case qdb_ts_column_uninitialized:
+            throw "uninitialized column type";
+        }
+        return "";
+    }
+
+    template <qdb_ts_column_type_t Expect>
+    void check_column_type(qdb_ts_column_type_t type)
+    {
+        if (Expect != type)
+        {
+            throw qdb::exception{qdb_e_invalid_argument, "Expected another column type"};
+        }
+    }
+
 public:
-    batch_inserter(qdb::handle_ptr h, const std::vector<batch_column_info> & ci)
-        : _logger("quasardb.batch_inserter")
+    pinned_writer(qdb::handle_ptr h, const std::vector<table> & tables)
+        : _logger("quasardb.pinned_writer")
         , _handle{h}
         , _row_count{0}
         , _point_count{0}
         , _min_max_ts{qdb_min_timespec, qdb_min_timespec}
     {
+        std::vector<batch_column_info> ci;
+        for (const auto & tbl : tables)
+        {
+            for (const auto & col : tbl.list_columns())
+            {
+                ci.push_back(batch_column_info{tbl.get_name(), col.name, 1});
+                _column_types.push_back(col.type);
+                _columns.push_back(make_column(col.type));
+            }
+        }
         std::vector<qdb_ts_batch_column_info_t> converted(ci.size());
 
         std::transform(
@@ -72,9 +141,9 @@ public:
 
     // prevent copy because of the table object, use a unique_ptr of the batch in cluster
     // to return the object
-    batch_inserter(const batch_inserter &) = delete;
+    pinned_writer(const pinned_writer &) = delete;
 
-    ~batch_inserter()
+    ~pinned_writer()
     {
         if (_handle && _batch_table)
         {
@@ -84,10 +153,15 @@ public:
     }
 
 public:
+    const std::vector<qdb_ts_column_type_t> & column_types() const
+    {
+        return _column_types;
+    }
+
     void start_row(py::object ts)
     {
         const qdb_timespec_t converted = convert_timestamp(ts);
-        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_start_row(_batch_table, &converted));
+        _timestamp                     = converted;
 
         // The block below is only necessary for insert_truncate, and even then if someone
         // does not explicitly provide a time range. It shouldn't be *too* much of a performance
@@ -112,43 +186,63 @@ public:
 
     void set_blob(std::size_t index, const py::bytes & blob)
     {
+        check_column_type<qdb_ts_column_blob>(_column_types[index]);
         std::string tmp = static_cast<std::string>(blob);
-        qdb::qdb_throw_if_error(
-            *_handle, qdb_ts_batch_row_set_blob(_batch_table, index, static_cast<void const *>(tmp.c_str()), tmp.length()));
+        auto & col      = std::get<blob_like_column>(_columns[index]);
+        col.first.push_back(_timestamp);
+        col.second.push_back(std::move(tmp));
         ++_point_count;
     }
 
     void set_string(std::size_t index, const std::string & string)
     {
-        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_row_set_string(_batch_table, index, string.data(), string.size()));
+        check_column_type<qdb_ts_column_string>(_column_types[index]);
+        auto & col = std::get<blob_like_column>(_columns[index]);
+        col.first.push_back(_timestamp);
+        col.second.push_back(string);
+        ++_point_count;
     }
 
     void set_symbol(std::size_t index, const std::string & symbol)
     {
-        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_row_set_symbol(_batch_table, index, symbol.data(), symbol.size()));
+        check_column_type<qdb_ts_column_symbol>(_column_types[index]);
+        auto & col = std::get<blob_like_column>(_columns[index]);
+        col.first.push_back(_timestamp);
+        col.second.push_back(symbol);
+        ++_point_count;
     }
 
     void set_double(std::size_t index, double v)
     {
-        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_row_set_double(_batch_table, index, v));
+        check_column_type<qdb_ts_column_double>(_column_types[index]);
+        auto & col = std::get<double_column>(_columns[index]);
+        col.first.push_back(_timestamp);
+        col.second.push_back(v);
         ++_point_count;
     }
 
     void set_int64(std::size_t index, std::int64_t v)
     {
-        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_row_set_int64(_batch_table, index, v));
+        check_column_type<qdb_ts_column_int64>(_column_types[index]);
+        auto * col = reinterpret_cast<int64_column *>(&_columns[index]);
+        col->first.push_back(_timestamp);
+        col->second.push_back(v);
         ++_point_count;
     }
 
     void set_timestamp(std::size_t index, py::object v)
     {
         const qdb_timespec_t converted = convert_timestamp(v);
-        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_row_set_timestamp(_batch_table, index, &converted));
+        check_column_type<qdb_ts_column_timestamp>(_column_types[index]);
+        auto & col = std::get<timestamp_column>(_columns[index]);
+        col.first.push_back(_timestamp);
+        col.second.push_back(converted);
         ++_point_count;
     }
 
     void push()
     {
+        flush_columns();
         _logger.debug("pushing batch of %d rows with %d data points", _row_count, _point_count);
         qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push(_batch_table));
         _logger.debug("pushed batch of %d rows with %d data points", _row_count, _point_count);
@@ -158,6 +252,7 @@ public:
 
     void push_async()
     {
+        flush_columns();
         _logger.debug("async pushing batch of %d rows with %d data points", _row_count, _point_count);
         qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push_async(_batch_table));
         _logger.debug("async pushed batch of %d rows with %d data points", _row_count, _point_count);
@@ -167,6 +262,7 @@ public:
 
     void push_fast()
     {
+        flush_columns();
         _logger.debug("fast pushing batch of %d rows with %d data points", _row_count, _point_count);
         qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push_fast(_batch_table));
         _logger.debug("fast pushed batch of %d rows with %d data points", _row_count, _point_count);
@@ -176,6 +272,7 @@ public:
 
     void push_truncate(py::kwargs args)
     {
+        flush_columns();
         // As we are actively removing data, let's add an additional check to ensure the user
         // doesn't accidentally truncate his whole database without inserting anything.
         if (_row_count == 0)
@@ -284,6 +381,18 @@ private:
         }
     }
 
+    void flush_columns()
+    {
+        for (size_t idx = 0; idx < _columns.size(); ++idx)
+        {
+            auto * col        = std::get_if<int64_column>(&_columns[idx]);
+            auto & timestamps = col->first;
+            auto & values     = col->second;
+            _sort_column(timestamps, values);
+            _pin_column(idx, timestamps, values, &qdb_ts_batch_pin_int64_column);
+        }
+    }
+
 public:
     void set_pinned_int64_column(std::size_t index, const std::vector<std::int64_t> & ts, const std::vector<qdb_int_t> & vs)
     {
@@ -369,7 +478,10 @@ private:
     qdb::logger _logger;
     qdb::handle_ptr _handle;
     qdb_batch_table_t _batch_table{nullptr};
+    std::vector<qdb_ts_column_type_t> _column_types;
+    std::vector<any_column> _columns;
 
+    qdb_timespec_t _timestamp;
     qdb_duration_t _shard_size;
 
     int64_t _row_count;
@@ -379,34 +491,36 @@ private:
 };
 
 // don't use shared_ptr, let Python do the reference counting, otherwise you will have an undefined behavior
-using batch_inserter_ptr = std::unique_ptr<batch_inserter>;
+using pinned_writer_ptr = std::unique_ptr<pinned_writer>;
 
 template <typename Module>
-static inline void register_batch_inserter(Module & m)
+static inline void register_pinned_writer(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::batch_inserter>{m, "TimeSeriesBatch"}                                                                            //
-        .def(py::init<qdb::handle_ptr, const std::vector<batch_column_info> &>())                                                    //
-        .def("start_row", &qdb::batch_inserter::start_row, "Calling this function marks the beginning of processing a new row.")     //
-        .def("set_blob", &qdb::batch_inserter::set_blob)                                                                             //
-        .def("set_string", &qdb::batch_inserter::set_string)                                                                         //
-        .def("set_symbol", &qdb::batch_inserter::set_symbol)                                                                         //
-        .def("set_double", &qdb::batch_inserter::set_double)                                                                         //
-        .def("set_int64", &qdb::batch_inserter::set_int64)                                                                           //
-        .def("set_timestamp", &qdb::batch_inserter::set_timestamp)                                                                   //
-        .def("set_pinned_blob_column", &qdb::batch_inserter::set_pinned_blob_column)                                                 //
-        .def("set_pinned_double_column", &qdb::batch_inserter::set_pinned_double_column)                                             //
-        .def("set_pinned_int64_column", &qdb::batch_inserter::set_pinned_int64_column)                                               //
-        .def("set_pinned_string_column", &qdb::batch_inserter::set_pinned_string_column)                                             //
-        .def("set_pinned_symbol_column", &qdb::batch_inserter::set_pinned_symbol_column)                                             //
-        .def("set_pinned_timestamp_column", &qdb::batch_inserter::set_pinned_timestamp_column)                                       //
-        .def("pinned_push", &qdb::batch_inserter::pinned_push)                                                                       //
-        .def("push", &qdb::batch_inserter::push, "Regular batch push")                                                               //
-        .def("push_async", &qdb::batch_inserter::push_async, "Asynchronous batch push that buffers data inside the QuasarDB daemon") //
-        .def("push_fast", &qdb::batch_inserter::push_fast,
+    py::class_<qdb::pinned_writer>{m, "PinnedWriter"}                                                                           //
+        .def(py::init<qdb::handle_ptr, const std::vector<table> &>())                                                           //
+        .def("column_types", &qdb::pinned_writer::column_types)                                                                 //
+        .def("start_row", &qdb::pinned_writer::start_row, "Calling this function marks the beginning of processing a new row.") //
+        .def("set_blob", &qdb::pinned_writer::set_blob)                                                                         //
+        .def("set_string", &qdb::pinned_writer::set_string)                                                                     //
+        .def("set_symbol", &qdb::pinned_writer::set_symbol)                                                                     //
+        .def("set_double", &qdb::pinned_writer::set_double)                                                                     //
+        .def("set_int64", &qdb::pinned_writer::set_int64)                                                                       //
+        .def("set_timestamp", &qdb::pinned_writer::set_timestamp)                                                               //
+        .def("set_pinned_blob_column", &qdb::pinned_writer::set_pinned_blob_column)                                             //
+        .def("set_pinned_double_column", &qdb::pinned_writer::set_pinned_double_column)                                         //
+        .def("set_pinned_int64_column", &qdb::pinned_writer::set_pinned_int64_column)                                           //
+        .def("set_pinned_string_column", &qdb::pinned_writer::set_pinned_string_column)                                         //
+        .def("set_pinned_symbol_column", &qdb::pinned_writer::set_pinned_symbol_column)                                         //
+        .def("set_pinned_timestamp_column", &qdb::pinned_writer::set_pinned_timestamp_column)                                   //
+        .def("pinned_push", &qdb::pinned_writer::pinned_push)                                                                   //
+        .def("push", &qdb::pinned_writer::push, "Regular batch push")                                                           //
+        .def("push_async", &qdb::pinned_writer::push_async,
+            "Asynchronous batch push that buffers data inside the QuasarDB daemon") //
+        .def("push_fast", &qdb::pinned_writer::push_fast,
             "Fast, in-place batch push that is efficient when doing lots of small, incremental pushes.")
-        .def("push_truncate", &qdb::batch_inserter::push_truncate,
+        .def("push_truncate", &qdb::pinned_writer::push_truncate,
             "Before inserting data, truncates any existing data. This is useful when you want your insertions to be idempotent, e.g. in "
             "case of a retry.");
 }

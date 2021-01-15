@@ -39,6 +39,7 @@
 #include "node.hpp"
 #include "options.hpp"
 #include "perf.hpp"
+#include "pinned_writer.hpp"
 #include "query.hpp"
 #include "table.hpp"
 #include "table_reader.hpp"
@@ -186,18 +187,35 @@ public:
         return std::make_unique<qdb::batch_inserter>(_handle, ci);
     }
 
-    py::object pinned_inserter(const std::vector<batch_column_info> & ci)
+    // the batch_inserter_ptr is non-copyable
+    qdb::pinned_writer_ptr pinned_writer(const std::vector<qdb::table> & tables)
     {
-        auto pinned_inserter     = py::module::import("quasardb.batch_pinned_inserter");
-        auto make_pinned_writter = pinned_inserter.attr("make_pinned_writer");
-        return make_pinned_writter(inserter(ci), ci.size());
+        return std::make_unique<qdb::pinned_writer>(_handle, tables);
     }
 
-    py::object pinned_value_inserter(const std::vector<batch_column_info> & ci)
+    py::object pinned_inserter(const std::vector<batch_column_info> & ci)
     {
-        auto pinned_inserter     = py::module::import("quasardb.batch_pinned_value_inserter");
-        auto make_pinned_writter = pinned_inserter.attr("make_pinned_writer");
-        return make_pinned_writter(inserter(ci), ci.size());
+        auto pinned_inserter    = py::module::import("quasardb.batch_pinned_inserter");
+        auto make_pinned_writer = pinned_inserter.attr("make_pinned_writer");
+        return make_pinned_writer(inserter(ci), ci.size());
+    }
+
+    py::object pinned_value_inserter(const std::vector<qdb::table> & tables)
+    {
+        std::vector<batch_column_info> ci;
+        std::vector<qdb_ts_column_type_t> ct;
+        for (const auto & tbl : tables)
+        {
+            for (const auto & col : tbl.list_columns())
+            {
+                ci.push_back(batch_column_info{tbl.get_name(), col.name, 1});
+                ct.push_back(col.type);
+            }
+        }
+        auto pinned_inserter    = py::module::import("quasardb.batch_pinned_value_inserter");
+        auto make_pinned_writer = pinned_inserter.attr("make_pinned_writer");
+
+        return make_pinned_writer(inserter(ci), ct);
     }
 
     qdb::options options()
@@ -358,6 +376,7 @@ static inline void register_cluster(Module & m)
         // backwards compatibility, can be removed in the future
         .def("ts_batch", &qdb::cluster::inserter)                           //
         .def("inserter", &qdb::cluster::inserter)                           //
+        .def("pinned_writer", &qdb::cluster::pinned_writer)                 //
         .def("pinned_inserter", &qdb::cluster::pinned_inserter)             //
         .def("pinned_value_inserter", &qdb::cluster::pinned_value_inserter) //
         .def("find", &qdb::cluster::find)                                   //
