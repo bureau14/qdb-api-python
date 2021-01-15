@@ -68,10 +68,6 @@ struct batch_column_info
 
 class batch_inserter
 {
-    using pinned_int64_column  = std::pair<std::vector<qdb_timespec_t>, std::vector<std::int64_t>>;
-    using pinned_double_column = std::pair<std::vector<qdb_timespec_t>, std::vector<double>>;
-    using pinned_column_type   = std::variant<pinned_int64_column, pinned_double_column>;
-
 public:
     batch_inserter(qdb::handle_ptr h, const std::vector<batch_column_info> & ci)
         : _logger("quasardb.batch_inserter")
@@ -86,8 +82,6 @@ public:
             ci.cbegin(), ci.cend(), converted.begin(), [](const batch_column_info & ci) -> qdb_ts_batch_column_info_t { return ci; });
 
         qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_table_init(*_handle, converted.data(), converted.size(), &_batch_table));
-
-        _pinned_columns.resize(ci.size());
 
         if (!ci.empty())
         {
@@ -240,22 +234,42 @@ public:
 private:
     template <typename T>
     std::pair<std::vector<qdb_timespec_t>, std::vector<T>> _convert_column(
-        const pybind11::array_t<std::int64_t> & timestamps, const pybind11::array_t<T> & values)
+        const std::vector<std::int64_t> & timestamps, const std::vector<T> & values)
     {
-        assert(timestamps.size() == values.size());
+        std::vector<qdb_timespec_t> ts;
+        ts.reserve(std::size(timestamps));
+        std::transform(std::cbegin(timestamps), std::cend(timestamps), std::back_inserter(ts),
+            [](const auto & timestamp) { return convert_timestamp(timestamp); });
+        return std::make_pair(std::move(ts), values);
+    }
 
-        std::vector<qdb_timespec_t> ts(timestamps.size());
-        std::vector<std::int64_t> vs(values.size());
+    std::pair<std::vector<qdb_timespec_t>, std::vector<qdb_timespec_t>> _convert_timestamp_column(
+        const std::vector<std::int64_t> & timestamps, const std::vector<std::int64_t> & values)
+    {
+        std::vector<qdb_timespec_t> ts;
+        ts.reserve(std::size(timestamps));
+        std::transform(std::cbegin(timestamps), std::cend(timestamps), std::back_inserter(ts),
+            [](const auto & timestamp) { return convert_timestamp(timestamp); });
+        std::vector<qdb_timespec_t> vs;
+        vs.reserve(std::size(values));
+        std::transform(std::cbegin(values), std::cend(values), std::back_inserter(vs),
+            [](const auto & timestamp) { return convert_timestamp(timestamp); });
+        return std::make_pair(std::move(ts), std::move(vs));
+    }
 
-        auto t = timestamps.template unchecked<1>();
-        auto v = values.template unchecked<1>();
-
-        for (size_t i = 0; i < values.size(); ++i)
-        {
-            ts[i] = convert_timestamp(t(i));
-            vs[i] = v(i);
-        }
-
+    template <typename R>
+    std::pair<std::vector<qdb_timespec_t>, std::vector<R>> _convert_blob_like_column(
+        const std::vector<std::int64_t> & timestamps, const std::vector<const char *> & values)
+    {
+        std::vector<qdb_timespec_t> ts;
+        ts.reserve(std::size(timestamps));
+        std::transform(std::cbegin(timestamps), std::cend(timestamps), std::back_inserter(ts),
+            [](const auto & timestamp) { return convert_timestamp(timestamp); });
+        std::vector<R> vs;
+        vs.reserve(std::size(values));
+        std::transform(std::cbegin(values), std::cend(values), std::back_inserter(vs), [](const auto & val) {
+            return R{val, std::strlen(val)};
+        });
         return std::make_pair(std::move(ts), std::move(vs));
     }
 
@@ -294,15 +308,71 @@ private:
     }
 
 public:
-    void set_pinned_int64_column(std::size_t index, const pybind11::array_t<std::int64_t> & ts, const pybind11::array_t<qdb_int_t> & vs)
+    void set_pinned_int64_column(std::size_t index, const std::vector<std::int64_t> & ts, const std::vector<qdb_int_t> & vs)
     {
+        if (ts.size() != vs.size())
+        {
+            throw qdb::invalid_argument_exception{"timestamps array length does not match values array length."};
+        }
         auto [timestamps, values] = _convert_column(ts, vs);
         _sort_column(timestamps, values);
         _pin_column(index, timestamps, values, &qdb_ts_batch_pin_int64_column);
     }
 
-    void set_pinned_double_column(std::size_t index, const pybind11::array_t<std::int64_t> & values)
-    {}
+    void set_pinned_timestamp_column(std::size_t index, const std::vector<std::int64_t> & ts, const std::vector<std::int64_t> & vs)
+    {
+        if (ts.size() != vs.size())
+        {
+            throw qdb::invalid_argument_exception{"timestamps array length does not match values array length."};
+        }
+        auto [timestamps, values] = _convert_timestamp_column(ts, vs);
+        _sort_column(timestamps, values);
+        _pin_column(index, timestamps, values, &qdb_ts_batch_pin_timestamp_column);
+    }
+
+    void set_pinned_double_column(std::size_t index, const std::vector<std::int64_t> & ts, const std::vector<double> & vs)
+    {
+        if (ts.size() != vs.size())
+        {
+            throw qdb::invalid_argument_exception{"timestamps array length does not match values array length."};
+        }
+        auto [timestamps, values] = _convert_column(ts, vs);
+        _sort_column(timestamps, values);
+        _pin_column(index, timestamps, values, &qdb_ts_batch_pin_double_column);
+    }
+
+    void set_pinned_blob_column(std::size_t index, const std::vector<std::int64_t> & ts, const std::vector<const char *> & vs)
+    {
+        if (ts.size() != vs.size())
+        {
+            throw qdb::invalid_argument_exception{"timestamps array length does not match values array length."};
+        }
+        auto [timestamps, values] = _convert_blob_like_column<qdb_blob_t>(ts, vs);
+        _sort_column(timestamps, values);
+        _pin_column(index, timestamps, values, &qdb_ts_batch_pin_blob_column);
+    }
+
+    void set_pinned_string_column(std::size_t index, const std::vector<std::int64_t> & ts, const std::vector<const char *> & vs)
+    {
+        if (ts.size() != vs.size())
+        {
+            throw qdb::invalid_argument_exception{"timestamps array length does not match values array length."};
+        }
+        auto [timestamps, values] = _convert_blob_like_column<qdb_string_t>(ts, vs);
+        _sort_column(timestamps, values);
+        _pin_column(index, timestamps, values, &qdb_ts_batch_pin_string_column);
+    }
+
+    void set_pinned_symbol_column(std::size_t index, const std::vector<std::int64_t> & ts, const std::vector<const char *> & vs)
+    {
+        if (ts.size() != vs.size())
+        {
+            throw qdb::invalid_argument_exception{"timestamps array length does not match values array length."};
+        }
+        auto [timestamps, values] = _convert_blob_like_column<qdb_string_t>(ts, vs);
+        _sort_column(timestamps, values);
+        _pin_column(index, timestamps, values, &qdb_ts_batch_pin_symbol_column);
+    }
 
     void pinned_push()
     {
@@ -324,7 +394,6 @@ private:
     qdb_batch_table_t _batch_table{nullptr};
 
     qdb_duration_t _shard_size;
-    std::vector<pinned_column_type> _pinned_columns;
 
     int64_t _row_count;
     int64_t _point_count;
@@ -358,7 +427,12 @@ static inline void register_batch_inserter(Module & m)
         .def("set_double", &qdb::batch_inserter::set_double)                                                                         //
         .def("set_int64", &qdb::batch_inserter::set_int64)                                                                           //
         .def("set_timestamp", &qdb::batch_inserter::set_timestamp)                                                                   //
+        .def("set_pinned_blob_column", &qdb::batch_inserter::set_pinned_blob_column)                                                 //
+        .def("set_pinned_double_column", &qdb::batch_inserter::set_pinned_double_column)                                             //
         .def("set_pinned_int64_column", &qdb::batch_inserter::set_pinned_int64_column)                                               //
+        .def("set_pinned_string_column", &qdb::batch_inserter::set_pinned_string_column)                                             //
+        .def("set_pinned_symbol_column", &qdb::batch_inserter::set_pinned_symbol_column)                                             //
+        .def("set_pinned_timestamp_column", &qdb::batch_inserter::set_pinned_timestamp_column)                                       //
         .def("pinned_push", &qdb::batch_inserter::pinned_push)                                                                       //
         .def("push", &qdb::batch_inserter::push, "Regular batch push")                                                               //
         .def("push_async", &qdb::batch_inserter::push_async, "Asynchronous batch push that buffers data inside the QuasarDB daemon") //
