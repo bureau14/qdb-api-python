@@ -90,7 +90,7 @@ class pinned_writer
         case qdb_ts_column_symbol:
             return "symbol";
         case qdb_ts_column_uninitialized:
-            throw "uninitialized column type";
+            return "uninitialized";
         }
         return "";
     }
@@ -332,9 +332,10 @@ public:
 
     void push()
     {
-        flush_columns();
+        _logger.debug("flushing columns...");
+        _flush_columns();
         _logger.debug("pushing batch of %d rows with %d data points", _row_count, _point_count);
-        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push(_batch_table));
+        // qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push(_batch_table));
         _logger.debug("pushed batch of %d rows with %d data points", _row_count, _point_count);
 
         _reset_counters();
@@ -342,7 +343,7 @@ public:
 
     void push_async()
     {
-        flush_columns();
+        _flush_columns();
         _logger.debug("async pushing batch of %d rows with %d data points", _row_count, _point_count);
         qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push_async(_batch_table));
         _logger.debug("async pushed batch of %d rows with %d data points", _row_count, _point_count);
@@ -352,7 +353,7 @@ public:
 
     void push_fast()
     {
-        flush_columns();
+        _flush_columns();
         _logger.debug("fast pushing batch of %d rows with %d data points", _row_count, _point_count);
         qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push_fast(_batch_table));
         _logger.debug("fast pushed batch of %d rows with %d data points", _row_count, _point_count);
@@ -362,7 +363,7 @@ public:
 
     void push_truncate(py::kwargs args)
     {
-        flush_columns();
+        _flush_columns();
         // As we are actively removing data, let's add an additional check to ensure the user
         // doesn't accidentally truncate his whole database without inserting anything.
         if (_row_count == 0)
@@ -442,11 +443,15 @@ private:
             [](const auto & a, const auto & b) { return std::get<0>(a) < std::get<0>(b); });
     }
 
-    template <typename PinColumn, typename T>
+    template <typename QdbColumnType, typename PinColumn, typename T>
     void _pin_column(std::size_t index, std::vector<qdb_timespec_t> & timestamps, std::vector<T> & values, PinColumn && pin_column)
     {
-        auto begin     = make_zip_iterator(std::begin(timestamps), std::begin(values));
-        auto end       = make_zip_iterator(std::end(timestamps), std::end(values));
+        auto begin = make_zip_iterator(std::begin(timestamps), std::begin(values));
+        auto end   = make_zip_iterator(std::end(timestamps), std::end(values));
+        if (begin >= end)
+        {
+            return;
+        }
         auto base_time = qdb_ts_bucket_base_time(*std::get<0>(begin), _shard_size);
         for (; begin < end;)
         {
@@ -455,29 +460,70 @@ private:
             });
             // copy begin to it
             qdb_time_t * timeoffsets;
-            T * data;
+            QdbColumnType * data;
             qdb_size_t capacity = static_cast<qdb_size_t>(std::distance(begin, it));
             auto err            = pin_column(_batch_table, index, capacity, &(*std::get<0>(begin)), &timeoffsets, &data);
             size_t idx          = 0;
             for (; begin < it; ++begin)
             {
                 timeoffsets[idx] = qdb_ts_bucket_offset(*std::get<0>(begin), _shard_size);
-                data[idx]        = *std::get<1>(begin);
+                auto & v         = *std::get<1>(begin);
+                if constexpr (std::is_same_v<QdbColumnType, qdb_blob_t>)
+                {
+                    data[idx].content        = v.c_str();
+                    data[idx].content_length = v.size();
+                }
+                else if constexpr (std::is_same_v<QdbColumnType, qdb_string_t>)
+                {
+                    data[idx].data   = v.c_str();
+                    data[idx].length = v.size();
+                }
+                else
+                {
+                    data[idx] = v;
+                }
+
                 ++idx;
             }
             base_time = qdb_ts_bucket_base_time(*std::get<0>(it), _shard_size);
         }
     }
 
-    void flush_columns()
+    template <typename ColumnType, typename QdbColumnType, typename PinColumn>
+    void _flush_column(size_t index, PinColumn && pin_column)
     {
-        for (size_t idx = 0; idx < _columns.size(); ++idx)
+        auto * col        = reinterpret_cast<ColumnType *>(&_columns[index]);
+        auto & timestamps = col->first;
+        auto & values     = col->second;
+        _sort_column(timestamps, values);
+        _pin_column<QdbColumnType>(index, timestamps, values, std::forward<PinColumn>(pin_column));
+    }
+
+    void _flush_columns()
+    {
+        for (size_t index = 0; index < _columns.size(); ++index)
         {
-            auto * col        = std::get_if<int64_column>(&_columns[idx]);
-            auto & timestamps = col->first;
-            auto & values     = col->second;
-            _sort_column(timestamps, values);
-            _pin_column(idx, timestamps, values, &qdb_ts_batch_pin_int64_column);
+            switch (_column_types[index])
+            {
+            case qdb_ts_column_int64:
+                return _flush_column<int64_column, qdb_int_t>(index, &qdb_ts_batch_pin_int64_column);
+            case qdb_ts_column_double:
+                return _flush_column<double_column, double>(index, &qdb_ts_batch_pin_double_column);
+            case qdb_ts_column_timestamp:
+                return _flush_column<timestamp_column, qdb_timespec_t>(index, &qdb_ts_batch_pin_timestamp_column);
+            case qdb_ts_column_blob:
+                return _flush_column<blob_like_column, qdb_blob_t>(index, &qdb_ts_batch_pin_blob_column);
+            case qdb_ts_column_string:
+                return _flush_column<blob_like_column, qdb_string_t>(index, &qdb_ts_batch_pin_string_column);
+            case qdb_ts_column_symbol:
+                return _flush_column<blob_like_column, qdb_string_t>(index, &qdb_ts_batch_pin_symbol_column);
+            case qdb_ts_column_uninitialized: {
+                std::string str{"Uninitialized column at index: "};
+                str += std::to_string(index);
+                str += ".";
+                throw qdb::invalid_argument_exception{str};
+            }
+            }
         }
     }
 
