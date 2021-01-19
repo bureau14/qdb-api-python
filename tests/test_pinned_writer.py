@@ -30,6 +30,7 @@ def test_successful_bulk_row_insert_data_ordered_single_shard(qdbd_connection, t
     pinned_writer.push()
     
     res = qdbd_connection.query('SELECT "$timestamp","the_int64" FROM "{}"'.format(table.get_name()))
+    assert len(res) == 2
     for idx, row in enumerate(res):
         assert row['$timestamp'] == timestamps[idx]
         assert row['the_int64'] == values[idx]
@@ -48,6 +49,7 @@ def test_successful_bulk_row_insert_data_ordered_multiple_shards(qdbd_connection
     pinned_writer.push()
     
     res = qdbd_connection.query('SELECT "$timestamp","the_int64" FROM "{}"'.format(table.get_name()))
+    assert len(res) == 2
     for idx, row in enumerate(res):
         assert row['$timestamp'] == timestamps[idx]
         assert row['the_int64'] == values[idx]
@@ -56,7 +58,7 @@ def test_successful_bulk_row_insert_data_unordered_single_shard(qdbd_connection,
     pinned_writer = qdbd_connection.pinned_writer([table])
 
     timestamps = [np.datetime64('2020-01-01T00:00:01', 'ns'), np.datetime64('2020-01-01T00:00:00', 'ns')]
-    values = [0,1]
+    values = [1,0]
 
     pinned_writer.start_row(timestamps[0])
     pinned_writer.set_int64(3, values[0])
@@ -76,7 +78,7 @@ def test_successful_bulk_row_insert_data_unordered_multiple_shards(qdbd_connecti
     pinned_writer = qdbd_connection.pinned_writer([table])
 
     timestamps = [np.datetime64('2020-01-02', 'ns'), np.datetime64('2020-01-01', 'ns')]
-    values = [0,1]
+    values = [2,1]
 
     pinned_writer.start_row(timestamps[0])
     pinned_writer.set_int64(3, values[0])
