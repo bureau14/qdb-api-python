@@ -193,29 +193,11 @@ public:
         return std::make_unique<qdb::pinned_writer>(_handle, tables);
     }
 
-    py::object pinned_inserter(const std::vector<batch_column_info> & ci)
+    py::object pinned_writer_wrapper(const std::vector<qdb::table> & tables)
     {
-        auto pinned_inserter    = py::module::import("quasardb.batch_pinned_inserter");
-        auto make_pinned_writer = pinned_inserter.attr("make_pinned_writer");
-        return make_pinned_writer(inserter(ci), ci.size());
-    }
-
-    py::object pinned_value_inserter(const std::vector<qdb::table> & tables)
-    {
-        std::vector<batch_column_info> ci;
-        std::vector<qdb_ts_column_type_t> ct;
-        for (const auto & tbl : tables)
-        {
-            for (const auto & col : tbl.list_columns())
-            {
-                ci.push_back(batch_column_info{tbl.get_name(), col.name, 1});
-                ct.push_back(col.type);
-            }
-        }
-        auto pinned_inserter    = py::module::import("quasardb.batch_pinned_value_inserter");
-        auto make_pinned_writer = pinned_inserter.attr("make_pinned_writer");
-
-        return make_pinned_writer(inserter(ci), ct);
+        auto writer      = py::module::import("quasardb.pinned_writer_wrapper");
+        auto make_writer = writer.attr("make_pinned_writer_wrapper");
+        return make_writer(pinned_writer(tables));
     }
 
     qdb::options options()
@@ -377,8 +359,7 @@ static inline void register_cluster(Module & m)
         .def("ts_batch", &qdb::cluster::inserter)                           //
         .def("inserter", &qdb::cluster::inserter)                           //
         .def("pinned_writer", &qdb::cluster::pinned_writer)                 //
-        .def("pinned_inserter", &qdb::cluster::pinned_inserter)             //
-        .def("pinned_value_inserter", &qdb::cluster::pinned_value_inserter) //
+        .def("pinned_writer_wrapper", &qdb::cluster::pinned_writer_wrapper) //
         .def("find", &qdb::cluster::find)                                   //
         .def("query", &qdb::cluster::query,                                 //
             py::arg("query"),                                               //

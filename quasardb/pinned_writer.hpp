@@ -153,11 +153,6 @@ public:
     }
 
 public:
-    const std::vector<qdb_ts_column_type_t> & column_types() const
-    {
-        return _column_types;
-    }
-
     void start_row(py::object ts)
     {
         const qdb_timespec_t converted = convert_timestamp(ts);
@@ -398,6 +393,11 @@ public:
 
         _clear_columns();
         _reset_counters();
+    }
+
+    const std::vector<qdb_ts_column_type_t> & column_types() const
+    {
+        return _column_types;
     }
 
 private:
