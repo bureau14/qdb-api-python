@@ -338,6 +338,7 @@ public:
         qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push(_batch_table));
         _logger.debug("pushed batch of %d rows with %d data points", _row_count, _point_count);
 
+        _clear_columns();
         _reset_counters();
     }
 
@@ -348,6 +349,7 @@ public:
         qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push_async(_batch_table));
         _logger.debug("async pushed batch of %d rows with %d data points", _row_count, _point_count);
 
+        _clear_columns();
         _reset_counters();
     }
 
@@ -358,6 +360,7 @@ public:
         qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push_fast(_batch_table));
         _logger.debug("fast pushed batch of %d rows with %d data points", _row_count, _point_count);
 
+        _clear_columns();
         _reset_counters();
     }
 
@@ -393,6 +396,7 @@ public:
         qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push_truncate(_batch_table, &tr, 1));
         _logger.debug("truncate pushed batch of %d rows with %d data points", _row_count, _point_count);
 
+        _clear_columns();
         _reset_counters();
     }
 
@@ -529,6 +533,19 @@ private:
             case qdb_ts_column_uninitialized:
                 throw qdb::invalid_argument_exception{std::string{"Uninitialized column at index "} + std::to_string(index)};
             }
+        }
+    }
+
+    void _clear_columns()
+    {
+        for (auto & column : _columns)
+        {
+            std::visit(
+                [](auto & col) {
+                    col.first.clear();
+                    col.second.clear();
+                },
+                column);
         }
     }
 
