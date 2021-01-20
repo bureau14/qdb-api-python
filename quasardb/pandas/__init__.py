@@ -449,6 +449,107 @@ def write_dataframe(df, cluster, table, create=False, _async=False, fast=False, 
 
     logger.debug("pushed %d rows in %s seconds", len(df.index), (time.time() - start))
 
+def write_pinned_dataframe(df, cluster, table, create=False, _async=False, fast=False, truncate=False, infer_types=True):
+    """
+    Store a dataframe into a table with the pin column API.
+
+    Parameters:
+    df: pandas.DataFrame
+      The pandas dataframe to store.
+
+    cluster: quasardb.Cluster
+      Active connection to the QuasarDB cluster
+
+    table: quasardb.Timeseries or str
+      Either a string or a reference to a QuasarDB Timeseries table object.
+      For example, 'my_table' or cluster.table('my_table') are both valid values.
+
+    create: optional bool
+      Whether to create the table. Defaults to false.
+
+    infer_types: optional bool
+      If true, will attemp to convert types from Python to QuasarDB natives types if
+      the provided dataframe has incompatible types. For example, a dataframe with integers
+      will automatically convert these to doubles if the QuasarDB table expects it.
+
+      Defaults to True. For production use cases where you want to avoid implicit conversions,
+      we recommend setting this to False.
+
+    truncate: optional bool
+      Truncate (also referred to as upsert) the data in-place. Will detect time range to truncate
+      from the time range inside the dataframe.
+
+      Defaults to False.
+
+    _async: optional bool
+      If true, uses asynchronous insertion API where commits are buffered server-side and
+      acknowledged before they are written to disk. If you insert to the same table from
+      multiple processes, setting this to True may improve performance.
+
+      Defaults to False.
+
+    fast: optional bool
+      Whether to use 'fast push'. If you incrementally add small batches of data to table,
+      you may see better performance if you set this to True.
+
+      Defaults to False.
+
+    """
+
+    # Acquire reference to table if string is provided
+    if isinstance(table, str):
+        table = cluster.table(table)
+
+    if create:
+        _create_table_from_df(df, table)
+
+    # Create batch column info from dataframe
+    writer = cluster.pinned_writer([table])
+
+    write_with = {
+        quasardb.ColumnType.Double: writer.set_double_column,
+        quasardb.ColumnType.Blob: writer.set_blob_column,
+        quasardb.ColumnType.String: writer.set_string_column,
+        quasardb.ColumnType.Int64: writer.set_int64_column,
+        quasardb.ColumnType.Timestamp: writer.set_timestamp_column,
+        quasardb.ColumnType.Symbol: writer.set_symbol_column,
+    }
+
+    pin_dtypes_map_flip = {
+        quasardb.ColumnType.String: np.dtype('unicode'),
+        quasardb.ColumnType.Int64: np.dtype('int64'),
+        quasardb.ColumnType.Double: np.dtype('float64'),
+        quasardb.ColumnType.Blob: np.dtype('object'),
+        quasardb.ColumnType.Timestamp: np.dtype('int64'),
+        quasardb.ColumnType.Symbol: np.dtype('unicode')
+    }
+
+    ctypes_indexed = writer.column_types()
+
+    for i in range(len(df.columns)):
+        ct = ctypes_indexed[i]
+        dt = pin_dtypes_map_flip[ct]
+        tmp = df.iloc[:, i]
+        tmp = tmp[tmp.isnull() == False]
+        timestamps = tmp.index.astype(np.dtype('int64')).tolist()
+        values = tmp.astype(dt).tolist()
+        write_with[ct](i, timestamps, values)
+
+    start = time.time()
+    logger.debug("push chunk of %d rows, fast?=%s, async?=%s", len(df.index), fast, _async)
+    if fast is True:
+        writer.push_fast()
+    elif truncate is True:
+        writer.push_truncate()
+    elif type(truncate) == tuple:
+        writer.push_truncate(range=truncate)
+    elif _async is True:
+        writer.push_async()
+    else:
+        writer.push()
+
+    logger.debug("pushed %d rows in %s seconds", len(df.index), (time.time() - start))
+
 def _create_table_from_df(df, table):
     cols = list()
 
