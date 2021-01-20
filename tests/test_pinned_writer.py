@@ -131,29 +131,6 @@ def test_successful_type_timestamp(qdbd_connection, table):
     assert res[0]['$timestamp'] == timestamp
     assert res[0]['the_ts'] == value
 
-def test_incorrect_type_symbol(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer([table])
-    pinned_writer.start_row(np.datetime64('2020-01-01T00:00:00', 'ns'))
-    for idx in range(6):
-        if idx == 5:
-            continue
-        with pytest.raises(quasardb.Error):
-            pinned_writer.set_symbol(idx, 'aaa')
-
-def test_successful_type_symbol(qdbd_connection, table):
-    timestamp = np.datetime64('2020-01-01T00:00:00', 'ns')
-    value = 'aaa'
-
-    pinned_writer = qdbd_connection.pinned_writer([table])
-    pinned_writer.start_row(timestamp)
-    pinned_writer.set_symbol(5, value)
-    pinned_writer.push()
-
-    res = qdbd_connection.query('SELECT "$timestamp","the_symbol" FROM "{}"'.format(table.get_name()))
-    assert len(res) == 1
-    assert res[0]['$timestamp'] == timestamp
-    assert res[0]['the_symbol'] == value
-
 def test_successful_bulk_row_insert_data_ordered_single_shard(qdbd_connection, table):
     pinned_writer = qdbd_connection.pinned_writer([table])
 
