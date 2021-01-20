@@ -112,31 +112,30 @@ public:
         , _point_count{0}
         , _min_max_ts{qdb_min_timespec, qdb_min_timespec}
     {
-        std::vector<batch_column_info> ci;
         for (const auto & tbl : tables)
         {
             for (const auto & col : tbl.list_columns())
             {
-                ci.push_back(batch_column_info{tbl.get_name(), col.name, 1});
+                _batch_columns.push_back(batch_column_info{tbl.get_name(), col.name, 1});
                 _column_types.push_back(col.type);
                 _columns.push_back(make_column(col.type));
             }
         }
-        std::vector<qdb_ts_batch_column_info_t> converted(ci.size());
+        std::vector<qdb_ts_batch_column_info_t> converted(_batch_columns.size());
 
-        std::transform(
-            ci.cbegin(), ci.cend(), converted.begin(), [](const batch_column_info & ci) -> qdb_ts_batch_column_info_t { return ci; });
+        std::transform(_batch_columns.cbegin(), _batch_columns.cend(), converted.begin(),
+            [](const batch_column_info & ci) -> qdb_ts_batch_column_info_t { return ci; });
 
         qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_table_init(*_handle, converted.data(), converted.size(), &_batch_table));
 
-        if (!ci.empty())
+        if (!_batch_columns.empty())
         {
             // take the shard size from any table
             // as all tables shall have the same
-            qdb_ts_shard_size(*_handle, ci[0].timeseries.c_str(), reinterpret_cast<qdb_uint_t *>(&_shard_size));
+            qdb_ts_shard_size(*_handle, _batch_columns[0].timeseries.c_str(), reinterpret_cast<qdb_uint_t *>(&_shard_size));
         }
 
-        _logger.debug("initialized batch reader with %d columns", ci.size());
+        _logger.debug("initialized batch reader with %d columns", _batch_columns.size());
     }
 
     // prevent copy because of the table object, use a unique_ptr of the batch in cluster
@@ -623,6 +622,7 @@ private:
     qdb_batch_table_t _batch_table{nullptr};
     std::vector<qdb_ts_column_type_t> _column_types;
     std::vector<any_column> _columns;
+    std::vector<batch_column_info> _batch_columns;
 
     qdb_timespec_t _timestamp;
     qdb_duration_t _shard_size;
