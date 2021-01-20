@@ -530,7 +530,7 @@ def write_pinned_dataframe(df, cluster, table, create=False, _async=False, fast=
         ct = ctypes_indexed[i]
         dt = pin_dtypes_map_flip[ct]
         tmp = df.iloc[:, i]
-        tmp = tmp[tmp.isnull() == False]
+        tmp = tmp[tmp.notnull()]
         timestamps = tmp.index.astype(np.dtype('int64')).tolist()
         values = tmp.astype(dt).tolist()
         write_with[ct](i, timestamps, values)
