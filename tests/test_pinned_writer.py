@@ -19,7 +19,7 @@ def _generate_data(count, start=np.datetime64('2017-01-01', 'ns')):
 def test_incorrect_type_double(qdbd_connection, table):
     pinned_writer = qdbd_connection.pinned_writer([table])
     pinned_writer.start_row(np.datetime64('2020-01-01T00:00:00', 'ns'))
-    for idx in range(6):
+    for idx in range(5):
         if idx == 0:
             continue
         with pytest.raises(quasardb.Error):
@@ -42,7 +42,7 @@ def test_successful_type_double(qdbd_connection, table):
 def test_incorrect_type_blob(qdbd_connection, table):
     pinned_writer = qdbd_connection.pinned_writer([table])
     pinned_writer.start_row(np.datetime64('2020-01-01T00:00:00', 'ns'))
-    for idx in range(6):
+    for idx in range(5):
         if idx == 1:
             continue
         with pytest.raises(quasardb.Error):
@@ -65,7 +65,7 @@ def test_successful_type_blob(qdbd_connection, table):
 def test_incorrect_type_string(qdbd_connection, table):
     pinned_writer = qdbd_connection.pinned_writer([table])
     pinned_writer.start_row(np.datetime64('2020-01-01T00:00:00', 'ns'))
-    for idx in range(6):
+    for idx in range(5):
         if idx == 2:
             continue
         with pytest.raises(quasardb.Error):
@@ -88,7 +88,7 @@ def test_successful_type_string(qdbd_connection, table):
 def test_incorrect_type_int64(qdbd_connection, table):
     pinned_writer = qdbd_connection.pinned_writer([table])
     pinned_writer.start_row(np.datetime64('2020-01-01T00:00:00', 'ns'))
-    for idx in range(6):
+    for idx in range(5):
         if idx == 3:
             continue
         with pytest.raises(quasardb.Error):
@@ -111,7 +111,7 @@ def test_successful_type_int64(qdbd_connection, table):
 def test_incorrect_type_timestamp(qdbd_connection, table):
     pinned_writer = qdbd_connection.pinned_writer([table])
     pinned_writer.start_row(np.datetime64('2020-01-01T00:00:00', 'ns'))
-    for idx in range(6):
+    for idx in range(5):
         if idx == 4:
             continue
         with pytest.raises(quasardb.Error):
