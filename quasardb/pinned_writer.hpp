@@ -179,6 +179,16 @@ public:
         ++_row_count;
     }
 
+    void append_blob(std::size_t index, const py::bytes & blob)
+    {
+        set_blob(index, blob);
+    }
+
+    void append_blob(std::size_t index, const std::vector<py::object> & ts, const std::vector<py::bytes> & vs)
+    {
+        set_blob_column(index, ts, vs);
+    }
+
     void set_blob(std::size_t index, const py::bytes & blob)
     {
         check_column_type<qdb_ts_column_blob>(_column_types[index]);
@@ -202,6 +212,16 @@ public:
             std::end(col->first), std::make_move_iterator(std::begin(timestamps)), std::make_move_iterator(std::end(timestamps)));
         col->second.insert(std::end(col->second), std::make_move_iterator(std::begin(values)), std::make_move_iterator(std::end(values)));
         _point_count += std::size(col->first);
+    }
+
+    void append_string(std::size_t index, const std::string & blob)
+    {
+        set_string(index, blob);
+    }
+
+    void append_string(std::size_t index, const std::vector<py::object> & ts, const std::vector<std::string> & vs)
+    {
+        set_string_column(index, ts, vs);
     }
 
     void set_string(std::size_t index, const std::string & string)
@@ -228,6 +248,16 @@ public:
         _point_count += std::size(col->first);
     }
 
+    void append_symbol(std::size_t index, const std::string & blob)
+    {
+        set_symbol(index, blob);
+    }
+
+    void append_symbol(std::size_t index, const std::vector<py::object> & ts, const std::vector<std::string> & vs)
+    {
+        set_symbol_column(index, ts, vs);
+    }
+
     void set_symbol(std::size_t index, const std::string & symbol)
     {
         check_column_type<qdb_ts_column_symbol>(_column_types[index]);
@@ -250,6 +280,16 @@ public:
             std::end(col->first), std::make_move_iterator(std::begin(timestamps)), std::make_move_iterator(std::end(timestamps)));
         col->second.insert(std::end(col->second), std::make_move_iterator(std::begin(values)), std::make_move_iterator(std::end(values)));
         _point_count += std::size(col->first);
+    }
+
+    void append_double(std::size_t index, double blob)
+    {
+        set_double(index, blob);
+    }
+
+    void append_double(std::size_t index, const std::vector<py::object> & ts, const std::vector<double> & vs)
+    {
+        set_double_column(index, ts, vs);
     }
 
     void set_double(std::size_t index, double v)
@@ -276,6 +316,16 @@ public:
         _point_count += std::size(col->first);
     }
 
+    void append_int64(std::size_t index, qdb_int_t blob)
+    {
+        set_int64(index, blob);
+    }
+
+    void append_int64(std::size_t index, const std::vector<py::object> & ts, const std::vector<qdb_int_t> & vs)
+    {
+        set_int64_column(index, ts, vs);
+    }
+
     void set_int64(std::size_t index, qdb_int_t v)
     {
         check_column_type<qdb_ts_column_int64>(_column_types[index]);
@@ -298,6 +348,16 @@ public:
             std::end(col->first), std::make_move_iterator(std::begin(timestamps)), std::make_move_iterator(std::end(timestamps)));
         col->second.insert(std::end(col->second), std::make_move_iterator(std::begin(values)), std::make_move_iterator(std::end(values)));
         _point_count += std::size(col->first);
+    }
+
+    void append_timestamp(std::size_t index, py::object blob)
+    {
+        set_timestamp(index, blob);
+    }
+
+    void append_timestamp(std::size_t index, const std::vector<py::object> & ts, const std::vector<py::object> & vs)
+    {
+        set_timestamp_column(index, ts, vs);
     }
 
     void set_timestamp(std::size_t index, py::object v)
@@ -585,19 +645,37 @@ static inline void register_pinned_writer(Module & m)
         .def(py::init<qdb::handle_ptr, const std::vector<table> &>())                                                           //
         .def("column_types", &qdb::pinned_writer::column_types)                                                                 //
         .def("start_row", &qdb::pinned_writer::start_row, "Calling this function marks the beginning of processing a new row.") //
-        .def("set_blob", &qdb::pinned_writer::set_blob)                                                                         //
-        .def("set_string", &qdb::pinned_writer::set_string)                                                                     //
-        .def("set_symbol", &qdb::pinned_writer::set_symbol)                                                                     //
-        .def("set_double", &qdb::pinned_writer::set_double)                                                                     //
-        .def("set_int64", &qdb::pinned_writer::set_int64)                                                                       //
-        .def("set_timestamp", &qdb::pinned_writer::set_timestamp)                                                               //
-        .def("set_blob_column", &qdb::pinned_writer::set_blob_column)                                                           //
-        .def("set_double_column", &qdb::pinned_writer::set_double_column)                                                       //
-        .def("set_int64_column", &qdb::pinned_writer::set_int64_column)                                                         //
-        .def("set_string_column", &qdb::pinned_writer::set_string_column)                                                       //
-        .def("set_symbol_column", &qdb::pinned_writer::set_symbol_column)                                                       //
-        .def("set_timestamp_column", &qdb::pinned_writer::set_timestamp_column)                                                 //
-        .def("push", &qdb::pinned_writer::push, "Regular batch push")                                                           //
+        .def("append_blob", py::overload_cast<size_t, const py::bytes &>(&qdb::pinned_writer::append_blob))                     //
+        .def("append_blob", py::overload_cast<std::size_t, const std::vector<py::object> &, const std::vector<py::bytes> &>(
+                                &qdb::pinned_writer::append_blob))                                                     //
+        .def("append_string", py::overload_cast<std::size_t, const std::string &>(&qdb::pinned_writer::append_string)) //
+        .def("append_string", py::overload_cast<std::size_t, const std::vector<py::object> &, const std::vector<std::string> &>(
+                                  &qdb::pinned_writer::append_string))                                                 //
+        .def("append_symbol", py::overload_cast<std::size_t, const std::string &>(&qdb::pinned_writer::append_symbol)) //
+        .def("append_symbol", py::overload_cast<std::size_t, const std::vector<py::object> &, const std::vector<std::string> &>(
+                                  &qdb::pinned_writer::append_symbol))                                    //
+        .def("append_double", py::overload_cast<std::size_t, double>(&qdb::pinned_writer::append_double)) //
+        .def("append_double", py::overload_cast<std::size_t, const std::vector<py::object> &, const std::vector<double> &>(
+                                  &qdb::pinned_writer::append_double))                                     //
+        .def("append_int64", py::overload_cast<std::size_t, qdb_int_t>(&qdb::pinned_writer::append_int64)) //
+        .def("append_int64", py::overload_cast<std::size_t, const std::vector<py::object> &, const std::vector<qdb_int_t> &>(
+                                 &qdb::pinned_writer::append_int64))                                                //
+        .def("append_timestamp", py::overload_cast<std::size_t, py::object>(&qdb::pinned_writer::append_timestamp)) //
+        .def("append_timestamp", py::overload_cast<std::size_t, const std::vector<py::object> &, const std::vector<py::object> &>(
+                                     &qdb::pinned_writer::append_timestamp))    //
+        .def("set_blob", &qdb::pinned_writer::set_blob)                         //
+        .def("set_string", &qdb::pinned_writer::set_string)                     //
+        .def("set_symbol", &qdb::pinned_writer::set_symbol)                     //
+        .def("set_double", &qdb::pinned_writer::set_double)                     //
+        .def("set_int64", &qdb::pinned_writer::set_int64)                       //
+        .def("set_timestamp", &qdb::pinned_writer::set_timestamp)               //
+        .def("set_blob_column", &qdb::pinned_writer::set_blob_column)           //
+        .def("set_double_column", &qdb::pinned_writer::set_double_column)       //
+        .def("set_int64_column", &qdb::pinned_writer::set_int64_column)         //
+        .def("set_string_column", &qdb::pinned_writer::set_string_column)       //
+        .def("set_symbol_column", &qdb::pinned_writer::set_symbol_column)       //
+        .def("set_timestamp_column", &qdb::pinned_writer::set_timestamp_column) //
+        .def("push", &qdb::pinned_writer::push, "Regular batch push")           //
         .def("push_async", &qdb::pinned_writer::push_async,
             "Asynchronous batch push that buffers data inside the QuasarDB daemon") //
         .def("push_fast", &qdb::pinned_writer::push_fast,
