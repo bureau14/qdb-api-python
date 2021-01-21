@@ -193,13 +193,6 @@ public:
         return std::make_unique<qdb::pinned_writer>(_handle, tables);
     }
 
-    py::object pinned_writer_wrapper(const std::vector<qdb::table> & tables)
-    {
-        auto writer      = py::module::import("quasardb.pinned_writer_wrapper");
-        auto make_writer = writer.attr("make_pinned_writer_wrapper");
-        return make_writer(pinned_writer(tables));
-    }
-
     qdb::options options()
     {
         return qdb::options{_handle};
@@ -359,7 +352,6 @@ static inline void register_cluster(Module & m)
         .def("ts_batch", &qdb::cluster::inserter)                           //
         .def("inserter", &qdb::cluster::inserter)                           //
         .def("pinned_writer", &qdb::cluster::pinned_writer)                 //
-        .def("pinned_writer_wrapper", &qdb::cluster::pinned_writer_wrapper) //
         .def("find", &qdb::cluster::find)                                   //
         .def("query", &qdb::cluster::query,                                 //
             py::arg("query"),                                               //
