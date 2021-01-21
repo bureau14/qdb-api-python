@@ -587,7 +587,6 @@ def write_pinned_dataframe_with_none(df, cluster, table, create=False, _async=Fa
         quasardb.ColumnType.String: writer.set_string_column_with_none,
         quasardb.ColumnType.Int64: writer.set_int64_column_with_none,
         quasardb.ColumnType.Timestamp: writer.set_timestamp_column_with_none,
-        quasardb.ColumnType.Symbol: writer.set_symbol_column_with_none,
     }
 
     pin_dtypes_map_flip = {
@@ -596,7 +595,6 @@ def write_pinned_dataframe_with_none(df, cluster, table, create=False, _async=Fa
         quasardb.ColumnType.Double: np.dtype('float64'),
         quasardb.ColumnType.Blob: np.dtype('object'),
         quasardb.ColumnType.Timestamp: np.dtype('int64'),
-        quasardb.ColumnType.Symbol: np.dtype('unicode')
     }
 
     ctypes_indexed = writer.column_types()

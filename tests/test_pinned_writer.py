@@ -567,14 +567,13 @@ def test_push_truncate_throws_error_on_invalid_range(qdbd_connection, table, man
         writer.push_truncate(range=truncate_range)
 
 def _set_batch_writer_column_data(writer, intervals, data, start=0):
-    (doubles, integers, blobs, strings, timestamps, symbols) = data
+    (doubles, integers, blobs, strings, timestamps) = data
 
     writer.set_double_column(0, intervals[start:], doubles[start:])
     writer.set_blob_column(1, intervals[start:], blobs[start:])
     writer.set_string_column(2, intervals[start:], strings[start:])
     writer.set_int64_column(3, intervals[start:], integers[start:])
     writer.set_timestamp_column(4, intervals[start:], timestamps[start:])
-    writer.set_symbol_column(5, intervals[start:], symbols[start:])
 
 
 def test_successful_bulk_row_insert_column(qdbd_connection, table, many_intervals):
@@ -634,7 +633,7 @@ def test_push_truncate_column_implicit_range(qdbd_connection, table, many_interv
 
     # Generate our dataset
     data = _generate_data(len(many_intervals))
-    # (doubles, integers, blobs, strings, timestamps, symbols) = data
+    # (doubles, integers, blobs, strings, timestamps) = data
     (doubles, _, _, _, _, _) = data
 
     # Insert once
