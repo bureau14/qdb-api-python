@@ -33,7 +33,6 @@
 #include "batch_column.hpp"
 #include "entry.hpp"
 #include "logger.hpp"
-#include "overload.hpp"
 #include "table.hpp"
 #include "utils.hpp"
 #include "zip_iterator.hpp"
