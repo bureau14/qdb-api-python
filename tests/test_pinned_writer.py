@@ -162,7 +162,7 @@ def test_successful_type_timestamp(qdbd_connection, table):
     assert res[0]['$timestamp'] == timestamp
     assert res[0]['the_ts'] == value
 
-def test_successful_bulk_row_insert_data_ordered_single_shard(qdbd_connection, table):
+def test_insert_data_ordered_single_shard(qdbd_connection, table):
     pinned_writer = qdbd_connection.pinned_writer([table])
 
     timestamps = [np.datetime64('2020-01-01T00:00:00', 'ns'), np.datetime64('2020-01-01T00:00:01', 'ns')]
@@ -181,7 +181,7 @@ def test_successful_bulk_row_insert_data_ordered_single_shard(qdbd_connection, t
         assert row['$timestamp'] == timestamps[idx]
         assert row['the_int64'] == values[idx]
 
-def test_successful_bulk_row_insert_data_ordered_multiple_shards(qdbd_connection, table):
+def test_insert_data_ordered_multiple_shards(qdbd_connection, table):
     pinned_writer = qdbd_connection.pinned_writer([table])
 
     timestamps = [np.datetime64('2020-01-01', 'ns'), np.datetime64('2020-01-02', 'ns')]
@@ -200,7 +200,7 @@ def test_successful_bulk_row_insert_data_ordered_multiple_shards(qdbd_connection
         assert row['$timestamp'] == timestamps[idx]
         assert row['the_int64'] == values[idx]
 
-def test_successful_bulk_row_insert_data_unordered_single_shard(qdbd_connection, table):
+def test_insert_data_unordered_single_shard(qdbd_connection, table):
     pinned_writer = qdbd_connection.pinned_writer([table])
 
     timestamps = [np.datetime64('2020-01-01T00:00:01', 'ns'), np.datetime64('2020-01-01T00:00:00', 'ns')]
@@ -220,7 +220,7 @@ def test_successful_bulk_row_insert_data_unordered_single_shard(qdbd_connection,
     assert res[1]['$timestamp'] == timestamps[0]
     assert res[1]['the_int64'] == values[0]
 
-def test_successful_bulk_row_insert_data_unordered_multiple_shards(qdbd_connection, table):
+def test_insert_data_unordered_multiple_shards(qdbd_connection, table):
     pinned_writer = qdbd_connection.pinned_writer([table])
 
     timestamps = [np.datetime64('2020-01-02', 'ns'), np.datetime64('2020-01-01', 'ns')]
@@ -240,7 +240,7 @@ def test_successful_bulk_row_insert_data_unordered_multiple_shards(qdbd_connecti
     assert res[1]['$timestamp'] == timestamps[0]
     assert res[1]['the_int64'] == values[0]
 
-def test_successful_bulk_row_insert_data_ordered_single_shard_two_push(qdbd_connection, table):
+def test_insert_data_ordered_single_shard_two_push(qdbd_connection, table):
     pinned_writer = qdbd_connection.pinned_writer([table])
 
     timestamps = [np.datetime64('2020-01-01T00:00:00', 'ns'), np.datetime64('2020-01-01T00:00:01', 'ns')]
@@ -260,7 +260,7 @@ def test_successful_bulk_row_insert_data_ordered_single_shard_two_push(qdbd_conn
         assert row['$timestamp'] == timestamps[idx]
         assert row['the_int64'] == values[idx]
 
-def test_successful_bulk_row_insert_data_ordered_multiple_shards_two_push(qdbd_connection, table):
+def test_insert_data_ordered_multiple_shards_two_push(qdbd_connection, table):
     pinned_writer = qdbd_connection.pinned_writer([table])
 
     timestamps = [np.datetime64('2020-01-01', 'ns'), np.datetime64('2020-01-02', 'ns')]
@@ -413,7 +413,7 @@ def _test_with_table(
     return doubles, blobs, strings, integers, timestamps
 
 
-def test_successful_bulk_row_insert(qdbd_connection, table, many_intervals):
+def test_insert(qdbd_connection, table, many_intervals):
     writer = qdbd_connection.pinned_writer([table])
 
     _test_with_table(
@@ -423,7 +423,7 @@ def test_successful_bulk_row_insert(qdbd_connection, table, many_intervals):
         _regular_push)
 
 
-def test_successful_secure_bulk_row_insert(qdbd_secure_connection, secure_table, many_intervals):
+def test_insert_secure(qdbd_secure_connection, secure_table, many_intervals):
     writer = qdbd_secure_connection.pinned_writer([secure_table])
 
     _test_with_table(
@@ -433,10 +433,10 @@ def test_successful_secure_bulk_row_insert(qdbd_secure_connection, secure_table,
         _regular_push)
 
 
-def test_successful_async_bulk_row_insert(
+def test_insert_async(
         qdbd_connection, table, many_intervals):
 
-    # Same test as `test_successful_bulk_row_insert` but using `push_async` to push the entries
+    # Same test as `test_insert` but using `push_async` to push the entries
     # This allows us to test the `push_async` feature
 
     writer = qdbd_connection.pinned_writer([table])
@@ -447,10 +447,10 @@ def test_successful_async_bulk_row_insert(
         _async_push)
 
 
-def test_successful_fast_bulk_row_insert(
+def test_insert_fast(
         qdbd_connection, table, many_intervals):
-    # Same test as `test_successful_bulk_row_insert` but using `push_async` to push the entries
-    # This allows us to test the `push_async` feature
+    # Same test as `test_insert` but using `push_fast` to push the entries
+    # This allows us to test the `push_fast` feature
 
     writer = qdbd_connection.pinned_writer([table])
     _test_with_table(
@@ -459,7 +459,7 @@ def test_successful_fast_bulk_row_insert(
         many_intervals,
         _fast_push)
 
-def test_push_truncate_implicit_range(qdbd_connection, table, many_intervals):
+def test_insert_truncate_implicit_range(qdbd_connection, table, many_intervals):
 
     whole_range = (
         many_intervals[0], many_intervals[-1:][0] + np.timedelta64(2, 's'))
@@ -504,7 +504,7 @@ def test_push_truncate_implicit_range(qdbd_connection, table, many_intervals):
     np.testing.assert_array_equal(results[1], doubles)
 
 
-def test_push_truncate_explicit_range(qdbd_connection, table, many_intervals):
+def test_insert_truncate_explicit_range(qdbd_connection, table, many_intervals):
 
     whole_range = (
         many_intervals[0], many_intervals[-1:][0] + np.timedelta64(2, 's'))
@@ -546,7 +546,7 @@ def test_push_truncate_explicit_range(qdbd_connection, table, many_intervals):
     np.testing.assert_array_equal(results[1], doubles[1:])
 
 
-def test_push_truncate_throws_error_on_invalid_range(qdbd_connection, table, many_intervals):
+def test_insert_truncate_throws_error_on_invalid_range(qdbd_connection, table, many_intervals):
     whole_range = (
         many_intervals[0], many_intervals[-1:][0] + np.timedelta64(2, 's'))
 
@@ -576,7 +576,7 @@ def _set_batch_writer_column_data(writer, intervals, data, start=0):
     writer.set_timestamp_column(4, intervals[start:], timestamps[start:])
 
 
-def test_successful_bulk_row_insert_column(qdbd_connection, table, many_intervals):
+def test_insert_column(qdbd_connection, table, many_intervals):
     writer = qdbd_connection.pinned_writer([table])
 
     _test_with_table(
@@ -587,7 +587,7 @@ def test_successful_bulk_row_insert_column(qdbd_connection, table, many_interval
         _set_batch_writer_column_data)
 
 
-def test_successful_secure_bulk_row_insert_column(qdbd_secure_connection, secure_table, many_intervals):
+def test_insert_column_secure(qdbd_secure_connection, secure_table, many_intervals):
     writer = qdbd_secure_connection.pinned_writer([secure_table])
 
     _test_with_table(
@@ -598,10 +598,10 @@ def test_successful_secure_bulk_row_insert_column(qdbd_secure_connection, secure
         _set_batch_writer_column_data)
 
 
-def test_successful_async_bulk_row_insert_column(
+def test_insert_column_async(
         qdbd_connection, table, many_intervals):
 
-    # Same test as `test_successful_bulk_row_insert` but using `push_async` to push the entries
+    # Same test as `test_insert_column` but using `push_async` to push the entries
     # This allows us to test the `push_async` feature
 
     writer = qdbd_connection.pinned_writer([table])
@@ -613,10 +613,10 @@ def test_successful_async_bulk_row_insert_column(
         _set_batch_writer_column_data)
 
 
-def test_successful_fast_bulk_row_insert_column(
+def test_insert_column_fast(
         qdbd_connection, table, many_intervals):
-    # Same test as `test_successful_bulk_row_insert` but using `push_async` to push the entries
-    # This allows us to test the `push_async` feature
+    # Same test as `test_insert_column` but using `push_fast` to push the entries
+    # This allows us to test the `push_fast` feature
 
     writer = qdbd_connection.pinned_writer([table])
     _test_with_table(
@@ -626,7 +626,7 @@ def test_successful_fast_bulk_row_insert_column(
         _fast_push,
         _set_batch_writer_column_data)
 
-def test_push_truncate_column_implicit_range(qdbd_connection, table, many_intervals):
+def test_insert_column_truncate_implicit_range(qdbd_connection, table, many_intervals):
 
     whole_range = (
         many_intervals[0], many_intervals[-1:][0] + np.timedelta64(2, 's'))
@@ -671,7 +671,7 @@ def test_push_truncate_column_implicit_range(qdbd_connection, table, many_interv
     np.testing.assert_array_equal(results[1], doubles)
 
 
-def test_push_truncate_column_explicit_range(qdbd_connection, table, many_intervals):
+def test_insert_column_truncate_explicit_range(qdbd_connection, table, many_intervals):
 
     whole_range = (
         many_intervals[0], many_intervals[-1:][0] + np.timedelta64(2, 's'))
@@ -713,7 +713,7 @@ def test_push_truncate_column_explicit_range(qdbd_connection, table, many_interv
     np.testing.assert_array_equal(results[1], doubles[1:])
 
 
-def test_push_truncate_column_throws_error_on_invalid_range(qdbd_connection, table, many_intervals):
+def test_insert_column_truncate_throws_error_on_invalid_range(qdbd_connection, table, many_intervals):
     whole_range = (
         many_intervals[0], many_intervals[-1:][0] + np.timedelta64(2, 's'))
 
