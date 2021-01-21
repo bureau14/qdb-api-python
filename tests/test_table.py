@@ -28,8 +28,13 @@ def _generate_timestamp_ts(start_time, start_val, count):
 
 def _generate_blob_ts(start_time, count):
     dates = _generate_dates(start_time, count)
-    values = np.array(list(np.random.bytes(np.random.randint(16, 32)) for i in range(count)),
-                      dtype=np.object_)
+    values = np.array(
+        list(
+            np.random.bytes(
+                np.random.randint(
+                    16,
+                    32)) for i in range(count)),
+        dtype=np.object_)
     return (dates, values)
 
 

@@ -7,11 +7,16 @@ import quasardb.pandas as qdbpd
 row_count = 10000
 
 
-def test_bench_double_series(qdbd_connection, table, many_intervals, benchmark):
+def test_bench_double_series(
+        qdbd_connection,
+        table,
+        many_intervals,
+        benchmark):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    # doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
+    # doubles, blobs, strings, integers, timestamps, symbols =
+    # batchlib._test_with_table(
     _, _, _, _, _, _ = batchlib._test_with_table(
         inserter,
         table,
@@ -25,7 +30,8 @@ def test_bench_blob_series(qdbd_connection, table, many_intervals, benchmark):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    # doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
+    # doubles, blobs, strings, integers, timestamps, symbols =
+    # batchlib._test_with_table(
     _, _, _, _, _, _ = batchlib._test_with_table(
         inserter,
         table,
@@ -35,11 +41,16 @@ def test_bench_blob_series(qdbd_connection, table, many_intervals, benchmark):
     benchmark(qdbpd.read_series, table, "the_blob")
 
 
-def test_bench_string_series(qdbd_connection, table, many_intervals, benchmark):
+def test_bench_string_series(
+        qdbd_connection,
+        table,
+        many_intervals,
+        benchmark):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    # doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
+    # doubles, blobs, strings, integers, timestamps, symbols =
+    # batchlib._test_with_table(
     _, _, _, _, _, _ = batchlib._test_with_table(
         inserter,
         table,
@@ -53,7 +64,8 @@ def test_bench_int64_series(qdbd_connection, table, many_intervals, benchmark):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    # doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
+    # doubles, blobs, strings, integers, timestamps, symbols =
+    # batchlib._test_with_table(
     _, _, _, _, _, _ = batchlib._test_with_table(
         inserter,
         table,
@@ -63,11 +75,16 @@ def test_bench_int64_series(qdbd_connection, table, many_intervals, benchmark):
     benchmark(qdbpd.read_series, table, "the_int64")
 
 
-def test_bench_timestamp_series(qdbd_connection, table, many_intervals, benchmark):
+def test_bench_timestamp_series(
+        qdbd_connection,
+        table,
+        many_intervals,
+        benchmark):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    # doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
+    # doubles, blobs, strings, integers, timestamps, symbols =
+    # batchlib._test_with_table(
     _, _, _, _, _, _ = batchlib._test_with_table(
         inserter,
         table,
@@ -77,11 +94,16 @@ def test_bench_timestamp_series(qdbd_connection, table, many_intervals, benchmar
     benchmark(qdbpd.read_series, table, "the_ts")
 
 
-def test_bench_symbol_series(qdbd_connection, table, many_intervals, benchmark):
+def test_bench_symbol_series(
+        qdbd_connection,
+        table,
+        many_intervals,
+        benchmark):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
-    # doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
+    # doubles, blobs, strings, integers, timestamps, symbols =
+    # batchlib._test_with_table(
     _, _, _, _, _, _ = batchlib._test_with_table(
         inserter,
         table,

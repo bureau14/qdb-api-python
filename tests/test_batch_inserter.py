@@ -185,7 +185,10 @@ def test_successful_bulk_row_insert(qdbd_connection, table, many_intervals):
         _regular_push)
 
 
-def test_successful_secure_bulk_row_insert(qdbd_secure_connection, secure_table, many_intervals):
+def test_successful_secure_bulk_row_insert(
+        qdbd_secure_connection,
+        secure_table,
+        many_intervals):
     inserter = qdbd_secure_connection.inserter(
         _make_inserter_info(secure_table))
 
@@ -316,7 +319,8 @@ def test_push_truncate_explicit_range(qdbd_connection, table, many_intervals):
     np.testing.assert_array_equal(results[1], doubles[1:])
 
 
-def test_push_truncate_throws_error_on_invalid_range(qdbd_connection, table, many_intervals):
+def test_push_truncate_throws_error_on_invalid_range(
+        qdbd_connection, table, many_intervals):
     whole_range = (
         many_intervals[0], many_intervals[-1:][0] + np.timedelta64(2, 's'))
 

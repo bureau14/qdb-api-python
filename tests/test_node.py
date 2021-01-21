@@ -24,11 +24,11 @@ def test_node_find_prefixes(qdbd_direct_connection):
 def test_node_blob_get(qdbd_direct_connection):
     entry = qdbd_direct_connection.blob("$qdb.statistics.node_id")
     got = entry.get()
-    assert type(got) is bytes and len(got) > 0
+    assert isinstance(got, bytes) and len(got) > 0
 
 
 def test_node_integer_get(qdbd_direct_connection):
     entry = qdbd_direct_connection.integer("$qdb.statistics.cpu.system")
     got = entry.get()
 
-    assert type(got) is int and got > 0
+    assert isinstance(got, int) and got > 0
