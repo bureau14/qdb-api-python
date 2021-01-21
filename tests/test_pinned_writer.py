@@ -467,7 +467,7 @@ def test_push_truncate_implicit_range(qdbd_connection, table, many_intervals):
     # Generate our dataset
     data = _generate_data(len(many_intervals))
     # (doubles, integers, blobs, strings, timestamps) = data
-    (doubles, _, _, _, _, _) = data
+    (doubles, _, _, _, _) = data
 
     # Insert once
     writer = qdbd_connection.pinned_writer([table])
@@ -512,7 +512,7 @@ def test_push_truncate_explicit_range(qdbd_connection, table, many_intervals):
     # Generate our dataset
     data = _generate_data(len(many_intervals))
     # (doubles, integers, blobs, strings, timestamps) = data
-    (doubles, _, _, _, _, _) = data
+    (doubles, _, _, _, _) = data
 
     writer = qdbd_connection.pinned_writer([table])
 
@@ -553,7 +553,7 @@ def test_push_truncate_throws_error_on_invalid_range(qdbd_connection, table, man
     # Generate our dataset
     data = _generate_data(len(many_intervals))
     # (doubles, integers, blobs, strings, timestamps) = data
-    (_, _, _, _, _, _) = data
+    (_, _, _, _, _) = data
 
     # Insert truncate with explicit timerange, we point the start right after the
     # first element in our dataset. This means that the range does not overlap all
@@ -634,7 +634,7 @@ def test_push_truncate_column_implicit_range(qdbd_connection, table, many_interv
     # Generate our dataset
     data = _generate_data(len(many_intervals))
     # (doubles, integers, blobs, strings, timestamps) = data
-    (doubles, _, _, _, _, _) = data
+    (doubles, _, _, _, _) = data
 
     # Insert once
     writer = qdbd_connection.pinned_writer([table])
@@ -679,7 +679,7 @@ def test_push_truncate_column_explicit_range(qdbd_connection, table, many_interv
     # Generate our dataset
     data = _generate_data(len(many_intervals))
     # (doubles, integers, blobs, strings, timestamps) = data
-    (doubles, _, _, _, _, _) = data
+    (doubles, _, _, _, _) = data
 
     writer = qdbd_connection.pinned_writer([table])
 
@@ -720,7 +720,7 @@ def test_push_truncate_column_throws_error_on_invalid_range(qdbd_connection, tab
     # Generate our dataset
     data = _generate_data(len(many_intervals))
     # (doubles, integers, blobs, strings, timestamps) = data
-    (_, _, _, _, _, _) = data
+    (_, _, _, _, _) = data
 
     # Insert truncate with explicit timerange, we point the start right after the
     # first element in our dataset. This means that the range does not overlap all
