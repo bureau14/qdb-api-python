@@ -16,6 +16,37 @@ def _generate_data(count, start=np.datetime64('2017-01-01', 'ns')):
 
     return (integers, timestamps)
 
+def test_rows_with_none_values(qdbd_connection, table_name):
+    table = qdbd_connection.table(table_name)
+    node_id = quasardb.ColumnInfo(quasardb.ColumnType.Int64, "node_id")
+    x = quasardb.ColumnInfo(quasardb.ColumnType.Int64, "x")
+    y = quasardb.ColumnInfo(quasardb.ColumnType.Int64, "y")
+
+    table.create([node_id, x, y])
+
+    pinned_writer = qdbd_connection.pinned_writer([table])
+
+    timestamps = [np.datetime64('2020-01-01T00:00:00', 'ns'), np.datetime64('2020-01-01T00:00:00', 'ns')]
+    node_id = [10, 12]
+    x = [None, 1]
+    y = [2, None]
+
+    pinned_writer.set_int64_column_with_none(0, timestamps, node_id)
+    pinned_writer.set_int64_column_with_none(1, timestamps, x)
+    pinned_writer.set_int64_column_with_none(2, timestamps, y)
+
+    pinned_writer.push()
+
+    res = qdbd_connection.query('SELECT "$timestamp","node_id","x","y" FROM "{}"'.format(table.get_name()))
+    
+    assert len(res) == 2
+    for idx, row in enumerate(res):
+        assert row['$timestamp'] == timestamps[idx]
+        assert row['node_id'] == node_id[idx]
+        assert row['x'] == x[idx]
+        assert row['y'] == y[idx]
+
+
 def test_incorrect_type_double(qdbd_connection, table):
     pinned_writer = qdbd_connection.pinned_writer([table])
     pinned_writer.start_row(np.datetime64('2020-01-01T00:00:00', 'ns'))
