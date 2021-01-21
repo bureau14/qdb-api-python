@@ -159,6 +159,9 @@ static dict_query_result_t convert_query_results(
         ret.push_back(row);
     }
 
+    // all values are copied, it's ok to release
+    qdb_release(*h, r);
+
     return ret;
 }
 
