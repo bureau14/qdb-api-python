@@ -444,7 +444,7 @@ private:
         std::vector<T> vs;
         vs.reserve(std::size(values));
         std::transform(std::cbegin(values), std::cend(values), std::back_inserter(vs),
-            [](const auto & val) { return (val == py::none() ? null_value<T>() : val.cast<T>()); });
+            [](const py::object & val) { return (val.is(py::none()) ? null_value<T>() : val.cast<T>()); });
         return std::make_pair(std::move(ts), std::move(vs));
     }
 
@@ -484,7 +484,7 @@ private:
         std::vector<qdb_timespec_t> vs;
         vs.reserve(std::size(values));
         std::transform(std::cbegin(values), std::cend(values), std::back_inserter(vs),
-            [](const auto & timestamp) { return (timestamp == py::none() ? null_value<qdb_timespec_t>() : convert_timestamp(timestamp)); });
+            [](const py::object & val) { return (val.is(py::none()) ? null_value<qdb_timespec_t>() : convert_timestamp(val)); });
         return std::make_pair(std::move(ts), std::move(vs));
     }
 
