@@ -271,3 +271,301 @@ def test_successful_bulk_row_insert_data_ordered_multiple_shards_two_push(qdbd_c
     for idx, row in enumerate(res):
         assert row['$timestamp'] == timestamps[idx]
         assert row['the_int64'] == values[idx]
+
+# generative tests
+def _row_insertion_method(
+        writer,
+        dates,
+        doubles,
+        blobs,
+        strings,
+        integers,
+        timestamps,
+        symbols):
+    for i in range(len(dates)):
+        writer.start_row(dates[i])
+        writer.set_double(0, doubles[i])
+        writer.set_blob(1, blobs[i])
+        writer.set_string(2, strings[i])
+        writer.set_int64(3, integers[i])
+        writer.set_timestamp(4, timestamps[i])
+        writer.set_symbol(5, symbols[i])
+
+
+def _regular_push(writer):
+    writer.push()
+
+
+def _async_push(writer):
+    writer.push_async()
+    # Wait for push_async to complete
+    # Ideally we could be able to get the proper flush interval
+    sleep(15)
+
+
+def _fast_push(writer):
+    writer.push_fast()
+
+def _generate_data(count, start=np.datetime64('2017-01-01', 'ns')):
+    doubles = np.random.uniform(-100.0, 100.0, count)
+    integers = np.random.randint(-100, 100, count)
+    blobs = np.array(list(np.random.bytes(np.random.randint(8, 16))
+                          for i in range(count)), 'O')
+    strings = np.array([("content_" + str(item)) for item in range(count)])
+    timestamps = tslib._generate_dates(
+        start + np.timedelta64('1', 'D'), count)
+    symbols = np.array([("sym_" + str(item)) for item in range(count)])
+
+    return (doubles, integers, blobs, strings, timestamps, symbols)
+
+
+def _set_batch_writer_data(writer, intervals, data, start=0):
+    (doubles, integers, blobs, strings, timestamps, symbols) = data
+
+    for i in range(start, len(intervals)):
+        writer.start_row(intervals[i])
+        writer.set_double(0, doubles[i])
+        writer.set_blob(1, blobs[i])
+        writer.set_string(2, strings[i])
+        writer.set_int64(3, integers[i])
+        writer.set_timestamp(4, timestamps[i])
+        writer.set_symbol(5, symbols[i])
+
+def _assert_results(table, intervals, data):
+    (doubles, integers, blobs, strings, timestamps, symbols) = data
+
+    whole_range = (intervals[0], intervals[-1:][0] + np.timedelta64(2, 's'))
+    results = table.double_get_ranges(
+        tslib._double_col_name(table), [whole_range])
+
+    np.testing.assert_array_equal(results[0], intervals)
+    np.testing.assert_array_equal(results[1], doubles)
+
+    results = table.blob_get_ranges(tslib._blob_col_name(table), [whole_range])
+    np.testing.assert_array_equal(results[0], intervals)
+    np.testing.assert_array_equal(results[1], blobs)
+
+    results = table.string_get_ranges(
+        tslib._string_col_name(table), [whole_range])
+    np.testing.assert_array_equal(results[0], intervals)
+    np.testing.assert_array_equal(results[1], strings)
+
+    results = table.int64_get_ranges(
+        tslib._int64_col_name(table), [whole_range])
+    np.testing.assert_array_equal(results[0], intervals)
+    np.testing.assert_array_equal(results[1], integers)
+
+    results = table.timestamp_get_ranges(
+        tslib._ts_col_name(table), [whole_range])
+    np.testing.assert_array_equal(results[0], intervals)
+    np.testing.assert_array_equal(results[1], timestamps)
+
+    results = table.symbol_get_ranges(
+        tslib._symbol_col_name(table), [whole_range])
+    np.testing.assert_array_equal(results[0], intervals)
+    np.testing.assert_array_equal(results[1], symbols)
+
+
+def _test_with_table(
+        writer,
+        table,
+        intervals,
+        push_method=_regular_push,
+        data=None):
+
+    if data is None:
+        data = _generate_data(len(intervals))
+
+    # range is right exclusive, so the timestamp has to be beyond
+    whole_range = (intervals[0], intervals[-1:][0] + np.timedelta64(2, 's'))
+
+    (doubles, integers, blobs, strings, timestamps, symbols) = data
+
+    _set_batch_writer_data(writer, intervals, data)
+
+    # before the push, there is nothing
+    results = table.double_get_ranges(
+        tslib._double_col_name(table), [whole_range])
+    assert len(results[0]) == 0
+
+    results = table.blob_get_ranges(tslib._blob_col_name(table), [whole_range])
+    assert len(results[0]) == 0
+
+    results = table.string_get_ranges(
+        tslib._string_col_name(table), [whole_range])
+    assert len(results[0]) == 0
+
+    results = table.int64_get_ranges(
+        tslib._int64_col_name(table), [whole_range])
+    assert len(results[0]) == 0
+
+    results = table.timestamp_get_ranges(
+        tslib._ts_col_name(table), [whole_range])
+    assert len(results[0]) == 0
+
+    results = table.symbol_get_ranges(
+        tslib._symbol_col_name(table), [whole_range])
+    assert len(results[0]) == 0
+
+    # after push, there is everything
+    push_method(writer)
+    if push_method == _async_push:
+        sleep(20)
+
+    _assert_results(table, intervals, data)
+
+    return doubles, blobs, strings, integers, timestamps, symbols
+
+
+def test_successful_bulk_row_insert(qdbd_connection, table, many_intervals):
+    writer = qdbd_connection.pinned_writer([table])
+
+    _test_with_table(
+        writer,
+        table,
+        many_intervals,
+        _regular_push)
+
+
+def test_successful_secure_bulk_row_insert(qdbd_secure_connection, secure_table, many_intervals):
+    writer = qdbd_secure_connection.pinned_writer([secure_table])
+
+    _test_with_table(
+        writer,
+        secure_table,
+        many_intervals,
+        _regular_push)
+
+
+def test_successful_async_bulk_row_insert(
+        qdbd_connection, table, many_intervals):
+
+    # Same test as `test_successful_bulk_row_insert` but using `push_async` to push the entries
+    # This allows us to test the `push_async` feature
+
+    writer = qdbd_connection.pinned_writer([table])
+    _test_with_table(
+        writer,
+        table,
+        many_intervals,
+        _async_push)
+
+
+def test_successful_fast_bulk_row_insert(
+        qdbd_connection, table, many_intervals):
+    # Same test as `test_successful_bulk_row_insert` but using `push_async` to push the entries
+    # This allows us to test the `push_async` feature
+
+    writer = qdbd_connection.pinned_writer([table])
+    _test_with_table(
+        writer,
+        table,
+        many_intervals,
+        _fast_push)
+
+def test_push_truncate_implicit_range(qdbd_connection, table, many_intervals):
+
+    whole_range = (
+        many_intervals[0], many_intervals[-1:][0] + np.timedelta64(2, 's'))
+
+    # Generate our dataset
+    data = _generate_data(len(many_intervals))
+    # (doubles, integers, blobs, strings, timestamps, symbols) = data
+    (doubles, _, _, _, _, _) = data
+
+    # Insert once
+    writer = qdbd_connection.pinned_writer([table])
+    _set_batch_writer_data(writer, many_intervals, data)
+    writer.push()
+
+    # Compare results, should be equal
+    results = table.double_get_ranges(
+        tslib._double_col_name(table), [whole_range])
+
+    np.testing.assert_array_equal(results[0], many_intervals)
+    np.testing.assert_array_equal(results[1], doubles)
+
+    # Insert regular, twice
+    _set_batch_writer_data(writer, many_intervals, data)
+    writer.push()
+
+    # Compare results, should now have the same data twice
+    results = table.double_get_ranges(
+        tslib._double_col_name(table), [whole_range])
+
+    assert len(results[1]) == 2 * len(doubles)
+
+    # Insert truncate, should now have original data again
+    _set_batch_writer_data(writer, many_intervals, data)
+    writer.push_truncate()
+
+    # Verify results, truncating should now make things the same
+    # as the beginning again.
+    results = table.double_get_ranges(
+        tslib._double_col_name(table), [whole_range])
+
+    np.testing.assert_array_equal(results[0], many_intervals)
+    np.testing.assert_array_equal(results[1], doubles)
+
+
+def test_push_truncate_explicit_range(qdbd_connection, table, many_intervals):
+
+    whole_range = (
+        many_intervals[0], many_intervals[-1:][0] + np.timedelta64(2, 's'))
+
+    # Generate our dataset
+    data = _generate_data(len(many_intervals))
+    # (doubles, integers, blobs, strings, timestamps) = data
+    (doubles, _, _, _, _, _) = data
+
+    writer = qdbd_connection.pinned_writer([table])
+
+    # Insert once
+    truncate_range = (whole_range[0],
+                      whole_range[1] + np.timedelta64(1, 'ns'))
+
+    _set_batch_writer_data(writer, many_intervals, data)
+    writer.push()
+
+    # Verify results, truncating should now make things the same
+    # as the beginning again.
+    results = table.double_get_ranges(
+        tslib._double_col_name(table), [whole_range])
+
+    np.testing.assert_array_equal(results[0], many_intervals)
+    np.testing.assert_array_equal(results[1], doubles)
+
+    # If we now set the same data, skip the first element, but keep
+    # the same time range, the first element will *not* be present in
+    # the resulting dataset.
+    _set_batch_writer_data(writer, many_intervals, data, start=1)
+    writer.push_truncate(range=truncate_range)
+
+    # Verify results, truncating should now make things the same
+    # as the beginning again.
+    results = table.double_get_ranges(
+        tslib._double_col_name(table), [whole_range])
+
+    np.testing.assert_array_equal(results[0], many_intervals[1:])
+    np.testing.assert_array_equal(results[1], doubles[1:])
+
+
+def test_push_truncate_throws_error_on_invalid_range(qdbd_connection, table, many_intervals):
+    whole_range = (
+        many_intervals[0], many_intervals[-1:][0] + np.timedelta64(2, 's'))
+
+    # Generate our dataset
+    data = _generate_data(len(many_intervals))
+    # (doubles, integers, blobs, strings, timestamps) = data
+    (_, _, _, _, _, _) = data
+
+    # Insert truncate with explicit timerange, we point the start right after the
+    # first element in our dataset. This means that the range does not overlap all
+    # the data anymore.
+    truncate_range = (whole_range[0] + np.timedelta64(1, 'ns'),
+                      whole_range[1] + np.timedelta64(1, 'ns'))
+
+    writer = qdbd_connection.pinned_writer([table])
+    _set_batch_writer_data(writer, many_intervals, data)
+    with pytest.raises(quasardb.Error):
+        writer.push_truncate(range=truncate_range)
