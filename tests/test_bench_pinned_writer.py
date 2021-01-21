@@ -32,6 +32,7 @@ def make_batch_columns():
     batch_columns = [quasardb.BatchColumnInfo('table_{}'.format(tbl_idx), 'col_{}'.format(col_idx) , 1) for tbl_idx in range(table_count) for col_idx in range(column_count)]
     return batch_columns
 
+@pytest.mark.skip(reason="Skip unless you're benching the pinned writer")
 def test_batch_insert(qdbd_connection):
     table_creation_time, _ = make_tables(qdbd_connection)
 
@@ -74,6 +75,7 @@ def test_batch_insert(qdbd_connection):
     print(f'  - total insert time:   {total_insertion_time}s')
     print(f'  - rows inserted: {res[0]}')
 
+@pytest.mark.skip(reason="Skip unless you're benching the pinned writer")
 def test_pinned_writer_wrapper_value_insertion(qdbd_connection):
     table_creation_time, tables = make_tables(qdbd_connection)
 
@@ -115,6 +117,7 @@ def test_pinned_writer_wrapper_value_insertion(qdbd_connection):
     print(f'  - total insert time:   {total_insertion_time}s')
     print(f'  - rows inserted: {res[0]}')
 
+@pytest.mark.skip(reason="Skip unless you're benching the pinned writer")
 def test_pinned_writer_wrapper_column_insertion(qdbd_connection):
     table_creation_time, tables = make_tables(qdbd_connection)
 
@@ -167,6 +170,7 @@ def test_pinned_writer_wrapper_column_insertion(qdbd_connection):
     print(f'  - total insert time:   {total_insertion_time}s')
     print(f'  - rows inserted: {res[0]}')
 
+@pytest.mark.skip(reason="Skip unless you're benching the pinned writer")
 def test_pinned_writer(qdbd_connection):
     table_creation_time, tables = make_tables(qdbd_connection)
 
@@ -208,7 +212,7 @@ def test_pinned_writer(qdbd_connection):
     print(f'  - total insert time:   {total_insertion_time}s')
     print(f'  - rows inserted: {res[0]}')
 
-
+@pytest.mark.skip(reason="Skip unless you're benching the pinned writer")
 def test_pinned_writer_column(qdbd_connection):
     table_creation_time, tables = make_tables(qdbd_connection)
 

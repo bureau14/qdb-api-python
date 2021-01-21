@@ -106,6 +106,7 @@ def _import_df(df, conn, table_name):
             attemps_left -= 1
             time.sleep(3)
 
+@pytest.mark.skip(reason="Skip unless you're benching the pinned writer")
 def test_process_file(qdbd_connection):
     prefix = 'test'
     create_table_start = time.time()
