@@ -9,6 +9,7 @@ import quasardb.pandas as qdbpd
 import pyarrow.parquet as pq
 import multiprocessing as mp
 import hashlib
+import pytest
 
 cols = None
 shard_size = None
@@ -99,7 +100,7 @@ def _import_df(df, conn, table_name):
     attemps_left = 10
     while attemps_left >= 0:
         try:
-            qdbpd.write_pinned_dataframe(df, conn, table_name, fast=True)
+            qdbpd.write_pinned_dataframe_with_none(df, conn, table_name, fast=True)
             break
         except Exception as e:
             print("Error:", e)
