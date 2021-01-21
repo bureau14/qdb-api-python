@@ -228,7 +228,7 @@ public:
 
     void set_string_column(std::size_t index, const std::vector<py::object> & ts, const std::vector<std::string> & vs)
     {
-        _set_column_impl<qdb_ts_column_blob, blob_like_column>(index, ts, vs, &_convert_string_column);
+        _set_column_impl<qdb_ts_column_string, blob_like_column>(index, ts, vs, &_convert_string_column);
     }
 
     void set_string_or_none(std::size_t index, const py::object & val)
@@ -239,7 +239,7 @@ public:
 
     void set_string_column_with_none(std::size_t index, const std::vector<py::object> & ts, const std::vector<py::object> & vs)
     {
-        _set_column_impl<qdb_ts_column_blob, blob_like_column>(index, ts, vs, &_convert_blob_like_column_with_none);
+        _set_column_impl<qdb_ts_column_string, blob_like_column>(index, ts, vs, &_convert_blob_like_column_with_none);
     }
 
     void set_double(std::size_t index, double val)
