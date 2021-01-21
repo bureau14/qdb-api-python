@@ -108,7 +108,6 @@ public:
     pinned_writer(qdb::handle_ptr h, const std::vector<table> & tables)
         : _logger("quasardb.pinned_writer")
         , _handle{h}
-        , _row_count{0}
         , _point_count{0}
         , _min_max_ts{qdb_min_timespec, qdb_min_timespec}
     {
@@ -156,26 +155,6 @@ public:
     {
         const qdb_timespec_t converted = convert_timestamp(ts);
         _timestamp                     = converted;
-
-        // The block below is only necessary for insert_truncate, and even then if someone
-        // does not explicitly provide a time range. It shouldn't be *too* much of a performance
-        // impact, but maybe we can somehow optimize this away?
-        if (_min_max_ts.begin == qdb_min_timespec && _min_max_ts.end == qdb_min_timespec)
-        {
-            assert(_row_count == 0); // sanity check
-
-            // First row
-            _min_max_ts.begin = converted;
-            _min_max_ts.end   = converted;
-        }
-        else
-        {
-            assert(_row_count > 0);
-            _min_max_ts.begin = std::min(converted, _min_max_ts.begin);
-            _min_max_ts.end   = std::max(converted, _min_max_ts.end);
-        }
-
-        ++_row_count;
     }
 
     void append_blob(std::size_t index, const py::bytes & blob)
@@ -386,11 +365,11 @@ public:
 
     void push()
     {
-        _logger.debug("flushing columns...");
+        _logger.debug("flushing pinned columns");
         _flush_columns();
-        _logger.debug("pushing batch of %d rows with %d data points", _row_count, _point_count);
+        _logger.debug("pushing pinned batch with %d data points", _point_count);
         qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push(_batch_table));
-        _logger.debug("pushed batch of %d rows with %d data points", _row_count, _point_count);
+        _logger.debug("pushed pinned batch with %d data points", _point_count);
 
         _clear_columns();
         _reset_counters();
@@ -398,10 +377,11 @@ public:
 
     void push_async()
     {
+        _logger.debug("flushing pinned columns");
         _flush_columns();
-        _logger.debug("async pushing batch of %d rows with %d data points", _row_count, _point_count);
+        _logger.debug("async pushing pinned batch with %d data points", _point_count);
         qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push_async(_batch_table));
-        _logger.debug("async pushed batch of %d rows with %d data points", _row_count, _point_count);
+        _logger.debug("async pushed pinned batch with %d data points", _point_count);
 
         _clear_columns();
         _reset_counters();
@@ -409,10 +389,11 @@ public:
 
     void push_fast()
     {
+        _logger.debug("flushing pinned columns");
         _flush_columns();
-        _logger.debug("fast pushing batch of %d rows with %d data points", _row_count, _point_count);
+        _logger.debug("fast pushing pinned batch with %d data points", _point_count);
         qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push_fast(_batch_table));
-        _logger.debug("fast pushed batch of %d rows with %d data points", _row_count, _point_count);
+        _logger.debug("fast pushed pinned batch with %d data points", _point_count);
 
         _clear_columns();
         _reset_counters();
@@ -420,12 +401,14 @@ public:
 
     void push_truncate(py::kwargs args)
     {
+        _logger.debug("flushing pinned columns");
         _flush_columns();
         // As we are actively removing data, let's add an additional check to ensure the user
         // doesn't accidentally truncate his whole database without inserting anything.
-        if (_row_count == 0)
+        if (std::all_of(std::cbegin(_columns), std::cend(_columns),
+                [](const auto & column) { return std::visit([](const auto & col) { return col.first.empty(); }, column); }))
         {
-            throw qdb::invalid_argument_exception{"Batch inserter is empty: you did not provide any rows to push."};
+            throw qdb::invalid_argument_exception{"Pinned writer is empty: you did not provide any rows to push."};
         }
 
         qdb_ts_range_t tr;
@@ -444,11 +427,11 @@ public:
             // *after* the last element in this batch.
             tr.end.tv_nsec++;
         }
-        _logger.debug("truncate pushing batch of %d rows with %d data points, start timestamp = %d.%d, end timestamp = %d.%d", _row_count,
-            _point_count, tr.begin.tv_sec, tr.begin.tv_nsec, tr.end.tv_sec, tr.end.tv_nsec);
+        _logger.debug("truncate pushing pinned batch with %d data points, start timestamp = %d.%d, end timestamp = %d.%d", _point_count,
+            tr.begin.tv_sec, tr.begin.tv_nsec, tr.end.tv_sec, tr.end.tv_nsec);
 
         qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push_truncate(_batch_table, &tr, 1));
-        _logger.debug("truncate pushed batch of %d rows with %d data points", _row_count, _point_count);
+        _logger.debug("truncate pushed pinned batch with %d data points", _point_count);
 
         _clear_columns();
         _reset_counters();
@@ -555,6 +538,25 @@ private:
         }
     }
 
+    void _check_timestamp_extremum(const std::vector<qdb_timespec_t> & timestamps)
+    {
+        if (timestamps.empty())
+        {
+            return;
+        }
+        if (_min_max_ts.begin == qdb_min_timespec && _min_max_ts.end == qdb_min_timespec)
+        {
+            // First row
+            _min_max_ts.begin = timestamps.front();
+            _min_max_ts.end   = timestamps.back();
+        }
+        else
+        {
+            _min_max_ts.begin = std::min(timestamps.front(), _min_max_ts.begin);
+            _min_max_ts.end   = std::max(timestamps.back(), _min_max_ts.end);
+        }
+    }
+
     template <typename ColumnType, typename QdbColumnType, typename PinColumn>
     void _flush_column(size_t index, PinColumn && pin_column)
     {
@@ -562,6 +564,7 @@ private:
         auto & timestamps = col->first;
         auto & values     = col->second;
         _sort_column(timestamps, values);
+        _check_timestamp_extremum(timestamps);
         _pin_column<QdbColumnType>(index, timestamps, values, std::forward<PinColumn>(pin_column));
     }
 
@@ -610,7 +613,6 @@ private:
 
     void _reset_counters()
     {
-        _row_count        = 0;
         _point_count      = 0;
         _min_max_ts.begin = qdb_min_timespec;
         _min_max_ts.end   = qdb_min_timespec;
@@ -627,7 +629,6 @@ private:
     qdb_timespec_t _timestamp;
     qdb_duration_t _shard_size;
 
-    int64_t _row_count;
     int64_t _point_count;
 
     qdb_ts_range_t _min_max_ts;
