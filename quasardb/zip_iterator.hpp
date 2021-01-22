@@ -4,6 +4,26 @@
 #include <tuple>
 #include <type_traits>
 
+template <typename T, std::size_t... I>
+void tuple_swap_impl(T & rhs, T & lhs, std::index_sequence<I...> /*unused*/)
+{
+    (std::swap(std::get<I>(rhs), std::get<I>(lhs)), ...);
+}
+
+// we need a std::swap(std::tuple<T&...>, std::tuple<T&...>) in sort
+// because we create a zip_iterator for both time_offsets and values
+// we need to swap them both at the same time
+namespace std
+{
+
+template <typename... T>
+void swap(tuple<T &...> lhs, tuple<T &...> rhs)
+{
+    tuple_swap_impl(lhs, rhs, std::index_sequence_for<T...>{});
+}
+
+} // namespace std
+
 namespace qdb
 {
 namespace detail
