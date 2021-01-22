@@ -9,8 +9,10 @@ def test_perf_disable(qdbd_connection):
 def test_perf_enable(qdbd_connection):
     qdbd_connection.perf().enable()
 
+
 def test_perf_enable_secure_conn(qdbd_secure_connection):
     qdbd_secure_connection.perf().enable()
+
 
 def test_perf_get__when_empty(qdbd_connection):
     profiles = qdbd_connection.perf().get()

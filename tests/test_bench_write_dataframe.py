@@ -14,6 +14,7 @@ import pytest
 cols = None
 shard_size = None
 
+
 def _init_table_creator():
     global cols
     global shard_size
@@ -25,11 +26,12 @@ def _init_table_creator():
     ]
     shard_size = 3600000
 
+
 def _create_table(conn, table_name):
     t = conn.table(table_name)
     try:
         t.create(cols, shard_size=datetime.timedelta(milliseconds=shard_size))
-    except:
+    except BaseException:
         pass
 
 
@@ -40,6 +42,7 @@ def _create_tables(conn, prefix):
     for table_name in table_names:
         _create_table(conn, table_name)
 
+
 def _sensor_to_table(x):
     h = hashlib.sha1()
 
@@ -48,9 +51,11 @@ def _sensor_to_table(x):
     xs_ = h.digest()[0:4]
     return "{:02x}{:02x}".format(xs_[0], xs_[1])
 
+
 def _parse_timestamp(str):
     return datetime.datetime.strptime(
         str, "%m/%d/%Y %H:%M:%S")
+
 
 def _get_timestamps(event_id, sample_rate, sample_value_len):
     start = np.datetime64(event_id, 'ns')
@@ -83,9 +88,10 @@ def _parse_row(row, node_id, axis):
 
     return row_df
 
+
 def _parse_df(node_df, node_id, axis):
 
-    if type(node_df) == pd.Series:
+    if isinstance(node_df, pd.Series):
         df = _parse_row(node_df, node_id, axis)
     else:
         dfs = []
@@ -95,17 +101,20 @@ def _parse_df(node_df, node_id, axis):
 
     return df
 
+
 def _import_df(df, conn, table_name):
 
     attemps_left = 10
     while attemps_left >= 0:
         try:
-            qdbpd.write_pinned_dataframe_with_none(df, conn, table_name, fast=True)
+            qdbpd.write_pinned_dataframe_with_none(
+                df, conn, table_name, fast=True)
             break
         except Exception as e:
             print("Error:", e)
             attemps_left -= 1
             time.sleep(3)
+
 
 @pytest.mark.skip(reason="Skip unless you're benching the pinned writer")
 def test_process_file(qdbd_connection):
@@ -119,14 +128,14 @@ def test_process_file(qdbd_connection):
     table = pq.read_table(file)
     df = table.to_pandas()
     read_from_parquet_time = time.time() - read_from_parquet_start
-    
+
     print(f'{__name__}:')
     print(f'  - table creation:     {create_table_time}s')
     print(f'  - parquet read:     {read_from_parquet_time}s')
 
     df['event_id'] = df['reading_datetime_utc'].map(_parse_timestamp)
     df = df[['axis', 'node_id', 'event_id',
-                 'sample_rate', 'sample_value']]
+             'sample_rate', 'sample_value']]
     df.set_index(['axis', 'node_id'], inplace=True)
 
     parse_time = 0.0
@@ -135,18 +144,18 @@ def test_process_file(qdbd_connection):
     for axis in ['X', 'Y']:
         try:
             axis_df = df.loc[axis]
-        except:
+        except BaseException:
             continue
         node_ids = axis_df.index.unique().tolist()
         print("node_ids count: {}".format(len(node_ids)))
         for node_id in node_ids:
             try:
                 node_df = axis_df.loc[node_id]
-            except:
+            except BaseException:
                 continue
             table_name = "{}/{}".format(prefix,
                                         _sensor_to_table(node_id))
-            
+
             parse_start = time.time()
             table_df = _parse_df(node_df, node_id, axis)
             parse_time = parse_time + (time.time() - parse_start)

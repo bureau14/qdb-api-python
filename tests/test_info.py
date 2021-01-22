@@ -27,8 +27,10 @@ def test_node_topology(qdbd_connection, qdbd_settings):
     assert topology.get('center') is not None
     assert topology.get('successor') is not None
 
+
 def test_endpoints(qdbd_connection, qdbd_settings):
     endpoints = qdbd_connection.endpoints()
-    node_endpoint = qdbd_settings.get('uri').get('insecure').replace("qdb://", "")
+    node_endpoint = qdbd_settings.get('uri').get(
+        'insecure').replace("qdb://", "")
 
     assert endpoints == [node_endpoint]

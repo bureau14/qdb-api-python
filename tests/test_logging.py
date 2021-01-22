@@ -5,6 +5,7 @@ import logging
 import time
 import numpy as np
 
+
 def test_native_logging_output(blob_entry, random_string, caplog):
     caplog.set_level(logging.DEBUG)
 
@@ -27,6 +28,7 @@ def test_native_logging_output(blob_entry, random_string, caplog):
 
     assert 'quasardb.native' in modules
     assert 'requested clients broker service run' in messages
+
 
 def test_invalid_utf8_logs_qdb3361(qdbd_connection, caplog):
     caplog.set_level(logging.DEBUG)
@@ -69,4 +71,4 @@ def test_invalid_utf8_logs_qdb3361(qdbd_connection, caplog):
     for lr in caplog.records:
         seen = seen or '\x80' in lr.message
 
-    assert seen == True
+    assert seen
