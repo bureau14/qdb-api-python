@@ -71,4 +71,4 @@ def test_invalid_utf8_logs_qdb3361(qdbd_connection, caplog):
     for lr in caplog.records:
         seen = seen or '\x80' in lr.message
 
-    assert seen == True
+    assert seen

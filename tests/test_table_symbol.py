@@ -46,14 +46,16 @@ def test_symbol_get_ranges(table, intervals):
 
     # empty result
     out_of_time = start_time + np.timedelta64(10, 'h')
-    results = table.symbol_get_ranges(column_name, [(out_of_time, out_of_time + np.timedelta64(10, 's'))])
+    results = table.symbol_get_ranges(
+        column_name, [(out_of_time, out_of_time + np.timedelta64(10, 's'))])
     assert len(results) == 2
     assert len(results[0]) == 0
     assert len(results[1]) == 0
 
     # error: column doesn't exist
     with pytest.raises(quasardb.Error):
-        table.symbol_get_ranges("lolilol", [(start_time, start_time + np.timedelta64(10, 's'))])
+        table.symbol_get_ranges(
+            "lolilol", [(start_time, start_time + np.timedelta64(10, 's'))])
 
     with pytest.raises(quasardb.Error):
         table.symbol_insert(
@@ -62,7 +64,8 @@ def test_symbol_get_ranges(table, intervals):
             inserted_symbol_data[1])
 
     with pytest.raises(quasardb.IncompatibleTypeError):
-        table.int64_get_ranges(column_name, [(start_time, start_time + np.timedelta64(10, 's'))])
+        table.int64_get_ranges(
+            column_name, [(start_time, start_time + np.timedelta64(10, 's'))])
 
     with pytest.raises(TypeError):
         table.int64_insert(

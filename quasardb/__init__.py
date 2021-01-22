@@ -37,5 +37,5 @@
 
 try:
     from quasardb.quasardb import *
-except:
+except BaseException:
     from quasardb import *
