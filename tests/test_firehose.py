@@ -10,6 +10,7 @@ import itertools
 import multiprocessing
 from sys import platform
 
+
 def _ensure_timeout(f, timeout=3):
     # HACKS(leon): apparently there is no reliable way to do this kind of stuff
     # on Windows or OSX, due to the way threading works.
@@ -59,15 +60,11 @@ def test_subscribe_single_table(qdbd_connection, table, many_intervals):
     xs = table.subscribe(qdbd_connection)
 
     doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
-        inserter,
-        table,
-        many_intervals,
-        batchlib._regular_push)
+        inserter, table, many_intervals, batchlib._regular_push)
 
     time.sleep(4)
 
     n = len(doubles)
-
 
     # After insertion, we expect exactly `n` items in the database, and not a
     # single element more.
@@ -87,7 +84,7 @@ def test_subscribe_single_table(qdbd_connection, table, many_intervals):
 
     # Ensure that acquiring the next row times out after 3 seconds, which ensures
     # that we have reached 'the end'.
-    assert _ensure_timeout(next_row, timeout=3) == True
+    assert _ensure_timeout(next_row, timeout=3)
 
     # Now, we insert additional data, which should wake up our subscription.
     # What we're going to do is just insert the exact same data, but this time
@@ -97,10 +94,7 @@ def test_subscribe_single_table(qdbd_connection, table, many_intervals):
         many_intervals_.append(x + np.timedelta64(365, 'D'))
 
     doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
-        inserter,
-        table,
-        many_intervals_,
-        batchlib._regular_push)
+        inserter, table, many_intervals_, batchlib._regular_push)
 
     # Note that we only reset `offset`; since we just inserted exactly double
     # the data, `n` is still 10000 which is perfect!
@@ -115,7 +109,6 @@ def test_subscribe_single_table(qdbd_connection, table, many_intervals):
         assert row['the_symbol'] == symbols[offset]
         offset = offset + 1
 
-
     # Ensure that acquiring the next row times out after 3 seconds, which ensures
     # that we have reached 'the end'.
-    assert _ensure_timeout(next_row, timeout=3) == True
+    assert _ensure_timeout(next_row, timeout=3)
