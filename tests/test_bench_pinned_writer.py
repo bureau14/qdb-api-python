@@ -11,7 +11,7 @@ import pytest
 import quasardb
 import numpy as np
 
-table_count, column_count, row_factor = 1000, 6, 1000
+table_count, column_count, row_factor = 10000, 6, 1000
 row_count = table_count * row_factor
 
 

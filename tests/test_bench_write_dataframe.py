@@ -107,7 +107,7 @@ def _import_df(df, conn, table_name):
     attemps_left = 10
     while attemps_left >= 0:
         try:
-            qdbpd.write_pinned_dataframe_with_none(
+            qdbpd.write_pinned_dataframe(
                 df, conn, table_name, fast=True)
             break
         except Exception as e:

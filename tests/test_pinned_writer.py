@@ -39,9 +39,9 @@ def test_rows_with_none_values(qdbd_connection, table_name):
     x = [None, 1]
     y = [2, None]
 
-    pinned_writer.set_int64_column_with_none(0, timestamps, node_id)
-    pinned_writer.set_int64_column_with_none(1, timestamps, x)
-    pinned_writer.set_int64_column_with_none(2, timestamps, y)
+    pinned_writer.set_int64_column(0, timestamps, node_id)
+    pinned_writer.set_int64_column(1, timestamps, x)
+    pinned_writer.set_int64_column(2, timestamps, y)
 
     pinned_writer.push()
 
