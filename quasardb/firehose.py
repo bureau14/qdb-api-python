@@ -8,6 +8,7 @@ POLL_INTERVAL = 0.1
 
 logger = logging.getLogger('quasardb.firehose')
 
+
 def _init():
     """
     Initialize our internal state.
@@ -15,23 +16,28 @@ def _init():
     return {'last': None,
             'seen': set()}
 
+
 def _get_transactions_since(conn, table_name, last):
     """
     Retrieve all transactions since a certain timestamp. `last` is expected to be a dict
     firehose row with at least a $timestamp attached.
     """
     if last is None:
-        q = "SELECT $timestamp, transaction_id, begin, end FROM \"{}\" WHERE table = '{}' ORDER BY $timestamp".format(FIREHOSE_TABLE, table_name)
+        q = "SELECT $timestamp, transaction_id, begin, end FROM \"{}\" WHERE table = '{}' ORDER BY $timestamp".format(
+            FIREHOSE_TABLE, table_name)
     else:
-        q = "SELECT $timestamp, transaction_id, begin, end FROM \"{}\" IN RANGE ({}, +1y) WHERE table = '{}' ORDER BY $timestamp".format(FIREHOSE_TABLE, last['$timestamp'], table_name)
+        q = "SELECT $timestamp, transaction_id, begin, end FROM \"{}\" IN RANGE ({}, +1y) WHERE table = '{}' ORDER BY $timestamp".format(
+            FIREHOSE_TABLE, last['$timestamp'], table_name)
 
     return conn.query(q)
+
 
 def _get_transaction_data(conn, table_name, begin, end):
     """
     Gets all data from a certain table.
     """
-    q = "SELECT * FROM \"{}\" IN RANGE ({}, {}) ".format(table_name, begin, end)
+    q = "SELECT * FROM \"{}\" IN RANGE ({}, {}) ".format(
+        table_name, begin, end)
     return conn.query(q)
 
 
@@ -50,13 +56,13 @@ def _get_next(conn, table_name, state):
     for tx in txs:
         txid = tx['transaction_id']
 
-        if state['last'] != None and tx['$timestamp'] > state['last']['$timestamp']:
+        if state['last'] is not None and tx['$timestamp'] > state['last']['$timestamp']:
             # At this point we are guaranteed that the transaction we encounter is
             # 'new', will not conflict with any other transaction ids. It is thus
             # safe to reset the txid set.
             state['seen'] = set()
 
-        if not txid in state['seen']:
+        if txid not in state['seen']:
             xs = xs + _get_transaction_data(conn,
                                             table_name,
                                             tx['begin'],
@@ -66,9 +72,9 @@ def _get_next(conn, table_name, state):
                                             tx['end'] + np.timedelta64(1, 'ns'))
 
             # Because it is possible that multiple firehose changes are stored with the
-            # exact same $timestamp, we also keep track of the actually seen transaction ids.
+            # exact same $timestamp, we also keep track of the actually seen
+            # transaction ids.
             state['seen'].add(txid)
-
 
         state['last'] = tx
 

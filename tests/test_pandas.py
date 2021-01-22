@@ -280,7 +280,12 @@ def _sparsify(xs):
                                          quasardb.ColumnType.Blob,
                                          quasardb.ColumnType.String,
                                          quasardb.ColumnType.Timestamp])
-def test_inference(qdbd_connection, table_name, input_gen, column_type, sparse):
+def test_inference(
+        qdbd_connection,
+        table_name,
+        input_gen,
+        column_type,
+        sparse):
 
     # Create table
     t = qdbd_connection.ts(table_name)

@@ -14,7 +14,8 @@ def _write_data(conn, table):
     inserter = conn.inserter(
         batchlib._make_inserter_info(table))
 
-    # doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
+    # doubles, blobs, strings, integers, timestamps, symbols =
+    # batchlib._test_with_table(
     _, _, _, _, _, _ = batchlib._test_with_table(
         inserter,
         table,
@@ -47,13 +48,14 @@ _expected_user_stats = ['requests.total_count',
                         'perf.ts.table_insert.processing.total_ns']
 
 # Same, but cumulative stats.
-_expected_cumulative_stats = ['requests.total_count',
-                              'requests.successes_count',
-                              'requests.bytes_in',
-                              'requests.bytes_out',
-                              'perf.ts.buffered_table_insert.deserialization.total_ns',
-                              'perf.ts.buffered_table_insert.processing.total_ns',
-                              'partitions_count']
+_expected_cumulative_stats = [
+    'requests.total_count',
+    'requests.successes_count',
+    'requests.bytes_in',
+    'requests.bytes_out',
+    'perf.ts.buffered_table_insert.deserialization.total_ns',
+    'perf.ts.buffered_table_insert.processing.total_ns',
+    'partitions_count']
 
 
 def test_stats_by_node(qdbd_secure_connection,
@@ -76,7 +78,8 @@ def test_stats_by_node(qdbd_secure_connection,
                 assert expected in xs
 
             for _, v in xs.items():
-                # As far as I know, per-user statistics should *always* be integers
+                # As far as I know, per-user statistics should *always* be
+                # integers
                 assert isinstance(v, int)
 
         # Test cumulative stats

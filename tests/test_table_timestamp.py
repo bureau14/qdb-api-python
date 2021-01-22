@@ -22,10 +22,11 @@ def test_timestamp_get_ranges(table, intervals):
     start_time = tslib._start_time(intervals)
     column_name = tslib._ts_col_name(table)
 
-    inserted_timestamp_data = tslib._generate_timestamp_ts(start_time, start_time, 1000)
+    inserted_timestamp_data = tslib._generate_timestamp_ts(
+        start_time, start_time, 1000)
     table.timestamp_insert(column_name,
-                       inserted_timestamp_data[0],
-                       inserted_timestamp_data[1])
+                           inserted_timestamp_data[0],
+                           inserted_timestamp_data[1])
 
     results = table.timestamp_get_ranges(column_name, [(
         start_time, start_time + np.timedelta64(10, 's'))])
@@ -33,10 +34,10 @@ def test_timestamp_get_ranges(table, intervals):
     tslib._check_ts_results(results, inserted_timestamp_data, 10)
 
     results = table.timestamp_get_ranges(column_name,
-                                     [(start_time,
-                                       start_time + np.timedelta64(10, 's')),
-                                      (start_time + np.timedelta64(10, 's'),
-                                       start_time + np.timedelta64(20, 's'))])
+                                         [(start_time,
+                                           start_time + np.timedelta64(10, 's')),
+                                          (start_time + np.timedelta64(10, 's'),
+                                             start_time + np.timedelta64(20, 's'))])
 
     tslib._check_ts_results(results, inserted_timestamp_data, 20)
 
@@ -46,14 +47,16 @@ def test_timestamp_get_ranges(table, intervals):
 
     # empty result
     out_of_time = start_time + np.timedelta64(10, 'h')
-    results = table.timestamp_get_ranges(column_name, [(out_of_time, out_of_time + np.timedelta64(10, 's'))])
+    results = table.timestamp_get_ranges(
+        column_name, [(out_of_time, out_of_time + np.timedelta64(10, 's'))])
     assert len(results) == 2
     assert len(results[0]) == 0
     assert len(results[1]) == 0
 
     # error: column doesn't exist
     with pytest.raises(quasardb.Error):
-        table.timestamp_get_ranges("lolilol", [(start_time, start_time + np.timedelta64(10, 's'))])
+        table.timestamp_get_ranges(
+            "lolilol", [(start_time, start_time + np.timedelta64(10, 's'))])
 
     with pytest.raises(quasardb.Error):
         table.timestamp_insert(
@@ -62,7 +65,8 @@ def test_timestamp_get_ranges(table, intervals):
             inserted_timestamp_data[1])
 
     with pytest.raises(quasardb.IncompatibleTypeError):
-        table.blob_get_ranges(column_name, [(start_time, start_time + np.timedelta64(10, 's'))])
+        table.blob_get_ranges(
+            column_name, [(start_time, start_time + np.timedelta64(10, 's'))])
 
     with pytest.raises(quasardb.IncompatibleTypeError):
         table.blob_insert(
@@ -75,7 +79,8 @@ def test_timestamp_erase_ranges(table, intervals):
     start_time = tslib._start_time(intervals)
     column_name = tslib._ts_col_name(table)
 
-    inserted_timestamp_data = tslib._generate_timestamp_ts(start_time, start_time, 1000)
+    inserted_timestamp_data = tslib._generate_timestamp_ts(
+        start_time, start_time, 1000)
     table.timestamp_insert(
         column_name,
         inserted_timestamp_data[0],
