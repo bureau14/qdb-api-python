@@ -540,14 +540,12 @@ private:
         data[idx] = val;
     }
 
-    template <>
     void _copy_value(size_t idx, qdb_blob_t * data, const std::string & val)
     {
         data[idx].content        = val.c_str();
         data[idx].content_length = val.size();
     }
 
-    template <>
     void _copy_value(size_t idx, qdb_string_t * data, const std::string & val)
     {
         data[idx].data   = val.c_str();
