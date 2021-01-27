@@ -43,8 +43,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   set(CLANG TRUE)
 endif()
 
+set(CMAKE_CXX_STANDARD 14)
 if(CLANG OR CMAKE_COMPILER_IS_GNUCXX)
-  set(PYBIND11_CPP_STANDARD -std=c++14)
   add_compile_options(-Wno-register)
 else()
   add_definitions(/DSTATIC_LINKED)
@@ -52,7 +52,6 @@ else()
   add_compile_options(/wd5033) # register is no longer a supported storage class
   add_compile_options(/EHa)
   add_compile_options(/MT)
-  set(PYBIND11_CPP_STANDARD /std:c++14)
 endif()
 
 add_subdirectory(pybind11)
