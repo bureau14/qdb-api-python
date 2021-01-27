@@ -151,6 +151,22 @@ struct npy_api {
         NPY_UINT8_ = NPY_UBYTE_,
         NPY_INT16_ = NPY_SHORT_,
         NPY_UINT16_ = NPY_USHORT_,
+
+
+        /**
+         * Begin modification by Leon Mergen, 2019-02-20, for PyDatetimeScalarObject
+         * support.
+         *
+         * From:
+         *   https://raw.githubusercontent.com/numpy/numpy/master/numpy/core/include/numpy/ndarraytypes.h
+         */
+
+        NPY_DATETIME, NPY_TIMEDELTA,
+
+        /**
+         * End modification
+         */
+
         // `npy_common.h` defines the integer aliases. In order, it checks:
         // NPY_BITSOF_LONG, NPY_BITSOF_LONGLONG, NPY_BITSOF_INT, NPY_BITSOF_SHORT, NPY_BITSOF_CHAR
         // and assigns the alias to the first matching size, so we should check in this order.
@@ -203,6 +219,19 @@ struct npy_api {
     // Unused. Not removed because that affects ABI of the class.
     int (*PyArray_SetBaseObject_)(PyObject *, PyObject *);
     PyObject* (*PyArray_Resize_)(PyObject*, PyArray_Dims*, int, int);
+
+
+    /**
+     * Begin modification by Leon Mergen, 2019-02-20, for PyDatetimeScalarObject
+     * support.
+     */
+
+    PyTypeObject * PyDatetimeArrType_;
+
+    /**
+     * End modification
+     */
+
 private:
     enum functions {
         API_PyArray_GetNDArrayCFeatureVersion = 211,
@@ -221,6 +250,22 @@ private:
         API_PyArray_EquivTypes = 182,
         API_PyArray_GetArrayParamsFromObject = 278,
         API_PyArray_Squeeze = 136,
+
+
+        /**
+         * Begin modification by Leon Mergen, 2019-02-20, for PyDatetimeScalarObject
+         * support.
+         *
+         * From:
+         *   https://raw.githubusercontent.com/numpy/numpy/master/numpy/core/code_generators/numpy_api.py
+         */
+
+        API_PyDatetimeArrType = 215,
+
+        /**
+         * End modification
+         */
+
         API_PyArray_SetBaseObject = 282
     };
 
@@ -253,6 +298,19 @@ private:
         DECL_NPY_API(PyArray_GetArrayParamsFromObject);
         DECL_NPY_API(PyArray_Squeeze);
         DECL_NPY_API(PyArray_SetBaseObject);
+
+
+        /**
+         * Begin modification by Leon Mergen, 2019-02-20, for PyDatetimeScalarObject
+         * support.
+         */
+
+        DECL_NPY_API(PyDatetimeArrType);
+
+        /**
+         * End modification
+         */
+
 #undef DECL_NPY_API
         return api;
     }

@@ -308,7 +308,9 @@ struct vectorize_result
 
     result_type operator()(const Point * points, size_t count) const
     {
-        result_type res{pybind11::array{"datetime64[ns]", {count}}, pybind11::array_t<T>{{count}}};
+        // Narrowing conversion from size_t to pybind11::ssize_t.
+        auto scount = static_cast<pybind11::ssize_t>(count);
+        result_type res{pybind11::array{"datetime64[ns]", {scount}}, pybind11::array_t<T>{{scount}}};
 
         auto ts_dest = res.first.template mutable_unchecked<std::int64_t, 1>();
         auto v_dest  = res.second.template mutable_unchecked<1>();
