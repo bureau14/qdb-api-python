@@ -5,6 +5,11 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 
 set(PACKAGE_NAME quasardb)
 
+# add_compile_options(
+#   # $<$<CONFIG:Debug>:-DPy_DEBUG=1> # No effect?
+#   $<$<CONFIG:Debug>:-D_DEBUG=1> # This will make link to pythonXY_d.lib instead of pythonXY.lib.
+# )
+
 # step 1: discover libraries
 set(QDB_API_DIR "${CMAKE_SOURCE_DIR}/../qdb")
 find_library(
