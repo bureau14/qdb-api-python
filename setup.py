@@ -63,6 +63,7 @@ class CMakeBuild(build_ext):
                       '-DPYTHON_EXECUTABLE=' + sys.executable,
                       '-DQDB_PY_VERSION=' + qdb_version]
 
+        # NOTE: Run `python setup.py build_ext --debug bdist_wheel ...` for Debug build.
         cfg = 'Debug' if self.debug else 'Release'
         build_args = ['--config', cfg]
 
