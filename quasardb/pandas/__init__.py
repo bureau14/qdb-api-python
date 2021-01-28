@@ -569,8 +569,7 @@ def write_pinned_dataframe(
         else:
             # you need to fill with 0x8000000000000000 (which is quasardb value for null)
             # astype(np.dtype('int64')) cannot convert None to int64
-            values = tmp.fillna(0x8000000000000000).astype(
-                np.dtype('int64')).tolist()
+            values = tmp.fillna(0x8000000000000000).astype(dt).tolist()
         write_with[ct](i, timestamps, values)
 
     start = time.time()
