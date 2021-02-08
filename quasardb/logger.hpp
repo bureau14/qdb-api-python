@@ -61,33 +61,10 @@ public:
     logger(){};
 
     /**
-     * Acquire a logger instance for a module. This constructor is a relatively
-     * expensive call, try to minimize invocations by re-using a logger across
-     * invocations.
+     * Simple logger instance, all complexity is handled in the logging handlers.
      */
-    logger(const std::string & module_name)
-    {
-
-        // TODO(leon): is there a way we can (safely) cache these calls? they should
-        //             remain the same for every python VM instance... is it safe to cache?
-        //
-        // NOTE(leon): looking at the pybind11 code, it appears they never cache anything.. so
-        //             that might hint that it's complex to get right
-        py::module logging    = py::module::import("logging");
-        py::object get_logger = logging.attr("getLogger");
-
-        _logger = get_logger(module_name);
-
-        /**
-         * We cache all function pointer references for the various log levels, to speed
-         * up the calls of the actually invocations below.
-         */
-        _debug    = _logger.attr("debug");
-        _info     = _logger.attr("info");
-        _warning  = _logger.attr("warning");
-        _error    = _logger.attr("error");
-        _critical = _logger.attr("critical");
-    }
+    logger(const std::string & module_name) :
+        _module_name(module_name) {}
 
 public:
     /**
@@ -96,7 +73,8 @@ public:
     template <typename... Args>
     void debug(Args &&... args) const
     {
-        _log(_debug, std::forward<Args>(args)...);
+        _log("debug",
+             std::forward<Args>(args)...);
     }
 
     /**
@@ -105,7 +83,8 @@ public:
     template <typename... Args>
     void info(Args &&... args) const
     {
-        _log(_info, std::forward<Args>(args)...);
+        _log("info",
+             std::forward<Args>(args)...);
     }
 
     /**
@@ -114,7 +93,8 @@ public:
     template <typename... Args>
     void warn(Args &&... args) const
     {
-        _log(_warning, std::forward<Args>(args)...);
+        _log("warning",
+             std::forward<Args>(args)...);
     }
 
     /**
@@ -123,7 +103,8 @@ public:
     template <typename... Args>
     void error(Args &&... args) const
     {
-        _log(_error, std::forward<Args>(args)...);
+        _log("error",
+             std::forward<Args>(args)...);
     }
 
     /**
@@ -132,31 +113,55 @@ public:
     template <typename... Args>
     void critical(Args &&... args) const
     {
-        _log(_critical, std::forward<Args>(args)...);
+        _log("critical",
+             std::forward<Args>(args)...);
     }
 
 private:
     template <typename... Args>
-    static void _log(py::object level, const std::string & msg, Args &&... args)
+    void _log(Args &&... args) const
+    {
+        _do_log(_module_name,
+                std::forward<Args>(args)...);
+    }
+
+    template <typename... Args>
+    static void _do_log(std::string const & module_name,
+                        char const * level,
+                        const std::string & msg, Args &&... args)
     {
         /**
-         * Calls Python function, reflection kicks in, relatively slow.
+         * Calls Python imports, functions, etc, reflection kicks in, relatively slow.
+         *
+         * BUGFIX(leon) 2021-02-08
+         *
+         * We were observing crashes upon process exit, which were related to persistent
+         * references to this logger being kept in logger.cpp. We got a double-free, due
+         * to an incorrect reference count being observed.
+         *
+         * We now do all the reflection / lookups inside this function, which causes
+         * a performance degradation, but makes reasoning over object ownership /
+         * lifecycle much easier, thus no more double-free reference-counted issues.
+         *
+         * A future improvement would be to figure out how to properly deal with
+         * Python's reference counting + persistent object ownership, possibly by
+         * installing a cleanup handler.
          */
+        py::module logging    = py::module::import("logging");
+        py::object get_logger = logging.attr("getLogger");
+        py::object logger     = get_logger(module_name);
+        py::object logfn      = logger.attr(level);
+
         char const * errors = NULL;
         PyObject * buf = PyUnicode_DecodeLatin1(msg.data(), msg.size(), errors);
         assert(buf != NULL);
         assert(errors == NULL);
 
-        level(py::str(buf), std::forward<Args>(args)...);
+        logfn(py::str(buf), std::forward<Args>(args)...);
     }
 
 private:
-    py::object _logger;
-    py::object _debug;
-    py::object _info;
-    py::object _warning;
-    py::object _error;
-    py::object _critical;
+    std::string _module_name;
 };
 
 /**
