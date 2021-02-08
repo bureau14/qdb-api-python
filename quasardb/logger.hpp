@@ -73,8 +73,7 @@ public:
     template <typename... Args>
     void debug(Args &&... args) const
     {
-        _log(_module_name,
-             "debug",
+        _log("debug",
              std::forward<Args>(args)...);
     }
 
@@ -84,8 +83,7 @@ public:
     template <typename... Args>
     void info(Args &&... args) const
     {
-        _log(_module_name,
-             "info",
+        _log("info",
              std::forward<Args>(args)...);
     }
 
@@ -95,8 +93,7 @@ public:
     template <typename... Args>
     void warn(Args &&... args) const
     {
-        _log(_module_name,
-             "warning",
+        _log("warning",
              std::forward<Args>(args)...);
     }
 
@@ -106,8 +103,7 @@ public:
     template <typename... Args>
     void error(Args &&... args) const
     {
-        _log(_module_name,
-             "error",
+        _log("error",
              std::forward<Args>(args)...);
     }
 
@@ -117,16 +113,22 @@ public:
     template <typename... Args>
     void critical(Args &&... args) const
     {
-        _log(_module_name,
-             "critical",
+        _log("critical",
              std::forward<Args>(args)...);
     }
 
 private:
     template <typename... Args>
-    static void _log(std::string const & module_name,
-                     char const * level,
-                     const std::string & msg, Args &&... args)
+    void _log(Args &&... args) const
+    {
+        _do_log(_module_name,
+                std::forward<Args>(args)...);
+    }
+
+    template <typename... Args>
+    static void _do_log(std::string const & module_name,
+                        char const * level,
+                        const std::string & msg, Args &&... args)
     {
         /**
          * Calls Python imports, functions, etc, reflection kicks in, relatively slow.
