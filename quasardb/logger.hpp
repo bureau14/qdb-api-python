@@ -130,6 +130,20 @@ private:
     {
         /**
          * Calls Python imports, functions, etc, reflection kicks in, relatively slow.
+         *
+         * BUGFIX(leon) 2021-02-08
+         *
+         * We were observing crashes upon process exit, which were related to persistent
+         * references to this logger being kept in logger.cpp. We got a double-free, due
+         * to an incorrect reference count being observed.
+         *
+         * We now do all the reflection / lookups inside this function, which causes
+         * a performance degradation, but makes reasoning over object ownership /
+         * lifecycle much easier, thus no more double-free reference-counted issues.
+         *
+         * A future improvement would be to figure out how to properly deal with
+         * Python's reference counting + persistent object ownership, possibly by
+         * installing a cleanup handler.
          */
         py::module logging    = py::module::import("logging");
         py::object get_logger = logging.attr("getLogger");
