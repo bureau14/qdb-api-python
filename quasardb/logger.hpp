@@ -61,33 +61,10 @@ public:
     logger(){};
 
     /**
-     * Acquire a logger instance for a module. This constructor is a relatively
-     * expensive call, try to minimize invocations by re-using a logger across
-     * invocations.
+     * Simple logger instance, all complexity is handled in the logging handlers.
      */
-    logger(const std::string & module_name)
-    {
-
-        // TODO(leon): is there a way we can (safely) cache these calls? they should
-        //             remain the same for every python VM instance... is it safe to cache?
-        //
-        // NOTE(leon): looking at the pybind11 code, it appears they never cache anything.. so
-        //             that might hint that it's complex to get right
-        py::module logging    = py::module::import("logging");
-        py::object get_logger = logging.attr("getLogger");
-
-        _logger = get_logger(module_name);
-
-        /**
-         * We cache all function pointer references for the various log levels, to speed
-         * up the calls of the actually invocations below.
-         */
-        _debug    = _logger.attr("debug");
-        _info     = _logger.attr("info");
-        _warning  = _logger.attr("warning");
-        _error    = _logger.attr("error");
-        _critical = _logger.attr("critical");
-    }
+    logger(const std::string & module_name) :
+        _module_name(module_name) {}
 
 public:
     /**
@@ -96,7 +73,9 @@ public:
     template <typename... Args>
     void debug(Args &&... args) const
     {
-        _log(_debug, std::forward<Args>(args)...);
+        _log(_module_name,
+             "debug",
+             std::forward<Args>(args)...);
     }
 
     /**
@@ -105,7 +84,9 @@ public:
     template <typename... Args>
     void info(Args &&... args) const
     {
-        _log(_info, std::forward<Args>(args)...);
+        _log(_module_name,
+             "info",
+             std::forward<Args>(args)...);
     }
 
     /**
@@ -114,7 +95,9 @@ public:
     template <typename... Args>
     void warn(Args &&... args) const
     {
-        _log(_warning, std::forward<Args>(args)...);
+        _log(_module_name,
+             "warning",
+             std::forward<Args>(args)...);
     }
 
     /**
@@ -123,7 +106,9 @@ public:
     template <typename... Args>
     void error(Args &&... args) const
     {
-        _log(_error, std::forward<Args>(args)...);
+        _log(_module_name,
+             "error",
+             std::forward<Args>(args)...);
     }
 
     /**
@@ -132,31 +117,35 @@ public:
     template <typename... Args>
     void critical(Args &&... args) const
     {
-        _log(_critical, std::forward<Args>(args)...);
+        _log(_module_name,
+             "critical",
+             std::forward<Args>(args)...);
     }
 
 private:
     template <typename... Args>
-    static void _log(py::object level, const std::string & msg, Args &&... args)
+    static void _log(std::string const & module_name,
+                     char const * level,
+                     const std::string & msg, Args &&... args)
     {
         /**
-         * Calls Python function, reflection kicks in, relatively slow.
+         * Calls Python imports, functions, etc, reflection kicks in, relatively slow.
          */
+        py::module logging    = py::module::import("logging");
+        py::object get_logger = logging.attr("getLogger");
+        py::object logger     = get_logger(module_name);
+        py::object logfn      = logger.attr(level);
+
         char const * errors = NULL;
         PyObject * buf = PyUnicode_DecodeLatin1(msg.data(), msg.size(), errors);
         assert(buf != NULL);
         assert(errors == NULL);
 
-        level(py::str(buf), std::forward<Args>(args)...);
+        logfn(py::str(buf), std::forward<Args>(args)...);
     }
 
 private:
-    py::object _logger;
-    py::object _debug;
-    py::object _info;
-    py::object _warning;
-    py::object _error;
-    py::object _critical;
+    std::string _module_name;
 };
 
 /**
