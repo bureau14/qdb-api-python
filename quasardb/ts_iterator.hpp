@@ -1,3 +1,25 @@
+#pragma once
+
+#include "remove_cvref.hpp"
+#include <iterator>
+
+// we need a std::swap(std::tuple<T&...>, std::tuple<T&...>) in sort
+// because we create a zip_iterator for both time_offsets and values
+// we need to swap them both at the same time
+namespace std
+{
+
+template <typename T>
+void swap(tuple<qdb_timespec_t &, T &> lhs, tuple<qdb_timespec_t &, T &> rhs)
+{
+    std::swap(std::get<0>(lhs), std::get<0>(rhs));
+    std::swap(std::get<1>(lhs), std::get<1>(rhs));
+}
+
+} // namespace std
+
+namespace qdb
+{
 
 template <typename T>
 class ts_iterator
@@ -151,9 +173,17 @@ private:
     iterators _its;
 };
 
+template <size_t I, typename T>
+inline decltype(auto) get(const qdb::ts_iterator<T> & it)
+{
+    return it.template get<I>();
+}
+
+} // namespace qdb
+
 template <typename Iterator>
 auto make_ts_iterator(std::vector<qdb_timespec_t>::iterator ts_it, Iterator vs_it)
 {
-    using value_type = std::iterator_traits<Iterator>::value_type;
-    return ts_iterator<value_type>(ts_it, vs_it);
+    using value_type = typename std::iterator_traits<Iterator>::value_type;
+    return qdb::ts_iterator<value_type>(ts_it, vs_it);
 }
