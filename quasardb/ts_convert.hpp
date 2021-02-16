@@ -71,6 +71,14 @@ static inline std::int64_t prep_datetime(py::object v)
     }
     catch (py::cast_error const & /*e*/)
     {
+        // pass this one, retry with chrono::time_point
+    }
+    try
+    {
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(v.cast<std::chrono::time_point<std::chrono::system_clock>>().time_since_epoch()).count();
+    }
+    catch (py::cast_error const & /*e*/)
+    {
         throw qdb::invalid_datetime_exception{v};
     }
 }
