@@ -60,7 +60,9 @@ def test_returns_invalid_argument_with_invalid_query(qdbd_connection):
 def test_returns_alias_not_found_when_ts_doesnt_exist(qdbd_connection):
     with pytest.raises(quasardb.Error):
         qdbd_connection.query(
-            'select * from ' + 'this_ts_doesnt_exist' + ' in range(2017, +10d)')
+            'select * from ' +
+            'this_ts_doesnt_exist' +
+            ' in range(2017, +10d)')
 
 
 def test_returns_alias_not_found_when_untagged(qdbd_connection, tag_name):
@@ -92,7 +94,9 @@ def sanity_check(ts_name, scanned_point_count, res, rows_count, columns_count):
 
 def test_returns_empty_result(qdbd_connection, table):
     res = qdbd_connection.query(
-        "select * from \"" + table.get_name() + "\" in range(2016-01-01 , 2016-12-12)")
+        "select * from \"" +
+        table.get_name() +
+        "\" in range(2016-01-01 , 2016-12-12)")
     assert len(res) == 0
 
 
@@ -137,9 +141,9 @@ def test_returns_inserted_data_with_star_select(
     for row, v in zip(res, inserted_double_data[1]):
         assert '$timestamp' in row
 
-        assert row['the_blob'] == None
-        assert row['the_int64'] == None
-        assert row['the_ts'] == None
+        assert row['the_blob'] is None
+        assert row['the_int64'] is None
+        assert row['the_ts'] is None
         assert row['$table'] == table.get_name()
         assert row['the_double'] == v
 

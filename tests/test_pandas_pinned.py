@@ -45,25 +45,9 @@ def gen_series(start_time, count):
                                 index=idx)}
 
 
-def test_series_read_write(table):
-    series = gen_series(np.datetime64('2017-01-01', 'ns'), ROW_COUNT)
-
-    # Insert everything
-    for col in series:
-        qdbpd.write_series(series[col], table, col)
-
-    # Read everything
-    for col in series:
-        read_series = qdbpd.read_series(table, col)
-        assert isinstance(read_series, pd.core.series.Series)
-        assert read_series.size == ROW_COUNT
-        np.testing.assert_array_equal(
-            read_series.to_numpy(), series[col].to_numpy())
-
-
 def test_dataframe(qdbd_connection, table):
     df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
-    qdbpd.write_dataframe(df1, qdbd_connection, table)
+    qdbpd.write_pinned_dataframe(df1, qdbd_connection, table)
 
     df2 = qdbpd.read_dataframe(table)
 
@@ -74,7 +58,7 @@ def test_dataframe(qdbd_connection, table):
 
 def test_dataframe_can_read_columns(qdbd_connection, table):
     df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
-    qdbpd.write_dataframe(df1, qdbd_connection, table)
+    qdbpd.write_pinned_dataframe(df1, qdbd_connection, table)
 
     df2 = qdbpd.read_dataframe(table, columns=['the_double', 'the_int64'])
 
@@ -87,7 +71,7 @@ def test_dataframe_can_read_columns(qdbd_connection, table):
 def test_dataframe_can_read_ranges(qdbd_connection, table):
     start = np.datetime64('2017-01-01', 'ns')
     df1 = gen_df(start, 10)
-    qdbpd.write_dataframe(df1, qdbd_connection, table)
+    qdbpd.write_pinned_dataframe(df1, qdbd_connection, table)
 
     first_range = (start, start + np.timedelta64(1, 's'))
     second_range = (start + np.timedelta64(1, 's'),
@@ -102,10 +86,10 @@ def test_dataframe_can_read_ranges(qdbd_connection, table):
     assert df4.shape[0] == 2
 
 
-def test_write_dataframe(qdbd_connection, table):
+def test_write_pinned_dataframe(qdbd_connection, table):
     # Ensures that we can do a full-circle write and read of a dataframe
     df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
-    qdbpd.write_dataframe(df1, qdbd_connection, table)
+    qdbpd.write_pinned_dataframe(df1, qdbd_connection, table)
 
     df2 = qdbpd.read_dataframe(table)
 
@@ -114,10 +98,10 @@ def test_write_dataframe(qdbd_connection, table):
         np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
 
 
-def test_write_dataframe_push_fast(qdbd_connection, table):
+def test_write_pinned_dataframe_push_fast(qdbd_connection, table):
     # Ensures that we can do a full-circle write and read of a dataframe
     df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
-    qdbpd.write_dataframe(df1, qdbd_connection, table, fast=True)
+    qdbpd.write_pinned_dataframe(df1, qdbd_connection, table, fast=True)
 
     df2 = qdbpd.read_dataframe(table)
 
@@ -129,11 +113,11 @@ def test_write_dataframe_push_fast(qdbd_connection, table):
 @pytest.mark.parametrize("truncate", [True,
                                       (np.datetime64('2017-01-01', 'ns'),
                                        np.datetime64('2017-01-02', 'ns'))])
-def test_write_dataframe_push_truncate(truncate, qdbd_connection, table):
+def test_write_pinned_dataframe_push_truncate(truncate, qdbd_connection, table):
     # Ensures that we can do a full-circle write and read of a dataframe
     df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
-    qdbpd.write_dataframe(df1, qdbd_connection, table, truncate=truncate)
-    qdbpd.write_dataframe(df1, qdbd_connection, table, truncate=truncate)
+    qdbpd.write_pinned_dataframe(df1, qdbd_connection, table, truncate=truncate)
+    qdbpd.write_pinned_dataframe(df1, qdbd_connection, table, truncate=truncate)
 
     df2 = qdbpd.read_dataframe(table)
 
@@ -142,11 +126,11 @@ def test_write_dataframe_push_truncate(truncate, qdbd_connection, table):
         np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
 
 
-def test_write_dataframe_create_table(caplog, qdbd_connection, entry_name):
+def test_write_pinned_dataframe_create_table(caplog, qdbd_connection, entry_name):
     caplog.set_level(logging.DEBUG)
     table = qdbd_connection.ts(entry_name)
     df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
-    qdbpd.write_dataframe(df1, qdbd_connection, table, create=True)
+    qdbpd.write_pinned_dataframe(df1, qdbd_connection, table, create=True)
 
     df2 = qdbpd.read_dataframe(table)
 
@@ -155,9 +139,9 @@ def test_write_dataframe_create_table(caplog, qdbd_connection, entry_name):
         np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
 
 
-def test_write_dataframe_create_table_twice(qdbd_connection, table):
+def test_write_pinned_dataframe_create_table_twice(qdbd_connection, table):
     df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
-    qdbpd.write_dataframe(df1, qdbd_connection, table, create=True)
+    qdbpd.write_pinned_dataframe(df1, qdbd_connection, table, create=True)
 
 
 def check_equal(expected, actual):
@@ -187,7 +171,7 @@ def test_dataframe_read_fast_is_unordered(qdbd_connection, table):
     df2.at[ts2, 'the_double'] = None
 
     df3 = pd.concat([df1, df2]).sort_index()
-    qdbpd.write_dataframe(df3, qdbd_connection, table)
+    qdbpd.write_pinned_dataframe(df3, qdbd_connection, table)
 
     df4 = qdbpd.read_dataframe(table)
 
@@ -216,7 +200,7 @@ def test_dataframe_read_fast_is_unordered(qdbd_connection, table):
 
 def test_query(qdbd_connection, table):
     df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
-    qdbpd.write_dataframe(df1, qdbd_connection, table)
+    qdbpd.write_pinned_dataframe(df1, qdbd_connection, table)
 
     res = qdbpd.query(qdbd_connection, "SELECT * FROM \"" +
                       table.get_name() + "\"", blobs=['the_blob'])
@@ -290,4 +274,56 @@ def test_inference(
 
     # Note that there are no tests; we effectively only test whether it doesn't
     # throw.
-    qdbpd.write_dataframe(df, qdbd_connection, t)
+    qdbpd.write_pinned_dataframe(df, qdbd_connection, t)
+    
+@pytest.mark.parametrize("sparse", [True, False])
+@pytest.mark.parametrize("input_gen", [_gen_timestamp])
+@pytest.mark.parametrize("column_type", [quasardb.ColumnType.Int64])
+def test_type_inference(
+        qdbd_connection,
+        table_name,
+        input_gen,
+        column_type,
+        sparse):
+
+    # Create table
+    t = qdbd_connection.ts(table_name)
+    t.create([quasardb.ColumnInfo(column_type, "x")])
+
+    n = 10
+    idx = pd.date_range(np.datetime64('2017-01-01'), periods=n, freq='S')
+    xs = input_gen(n)
+    if sparse is True:
+        xs = _sparsify(xs)
+
+    df = pd.DataFrame(data={"x": xs}, index=idx)
+
+    # Note that there are no tests; we effectively only test whether it doesn't
+    # throw.
+    qdbpd.write_pinned_dataframe(df, qdbd_connection, t)
+
+@pytest.mark.parametrize("sparse", [True, False])
+@pytest.mark.parametrize("input_gen", [_gen_blob])
+@pytest.mark.parametrize("column_type", [quasardb.ColumnType.Blob])
+def test_blob_inference(
+        qdbd_connection,
+        table_name,
+        input_gen,
+        column_type,
+        sparse):
+
+    # Create table
+    t = qdbd_connection.ts(table_name)
+    t.create([quasardb.ColumnInfo(column_type, "x")])
+
+    n = 100
+    idx = pd.date_range(np.datetime64('2017-01-01'), periods=n, freq='S')
+    xs = input_gen(n)
+    if sparse is True:
+        xs = _sparsify(xs)
+
+    df = pd.DataFrame(data={"x": xs}, index=idx)
+
+    # Note that there are no tests; we effectively only test whether it doesn't
+    # throw.
+    qdbpd.write_pinned_dataframe(df, qdbd_connection, t)

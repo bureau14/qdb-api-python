@@ -31,6 +31,7 @@ def test_reader_returns_correct_results(
 
         offset = offset + 1
 
+
 def test_reader_iterator_returns_reference(
         qdbd_connection, table, many_intervals, capsys):
     # For performance reasons, our iterators are merely references to the
@@ -56,11 +57,12 @@ def test_reader_iterator_returns_reference(
         # Timestamp is copied by value
         assert isinstance(row[0], np.datetime64)
 
-        assert row[1] == None
-        assert row[2] == None
-        assert row[3] == None
-        assert row[4] == None
-        assert row[5] == None
+        assert row[1] is None
+        assert row[2] is None
+        assert row[3] is None
+        assert row[4] is None
+        assert row[5] is None
+
 
 def test_reader_can_copy_rows(qdbd_connection, table, many_intervals):
     # As a mitigation to the local table reference issue tested above,
@@ -112,6 +114,7 @@ def test_reader_can_select_columns(qdbd_connection, table, many_intervals):
 
         offset = offset + 1
 
+
 def test_reader_can_request_ranges(qdbd_connection, table, many_intervals):
     # Verifies that we can select ranges
     inserter = qdbd_connection.inserter(
@@ -140,7 +143,9 @@ def test_reader_can_request_ranges(qdbd_connection, table, many_intervals):
                 second_range]),
         0)
 
-def test_reader_raises_error_on_invalid_datetime_ranges(qdbd_connection, table, many_intervals):
+
+def test_reader_raises_error_on_invalid_datetime_ranges(
+        qdbd_connection, table, many_intervals):
     # Verifies that we can select ranges
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
@@ -169,6 +174,7 @@ def test_reader_raises_error_on_invalid_datetime_ranges(qdbd_connection, table, 
     with pytest.raises(quasardb.quasardb.InvalidDatetimeError):
         r = table.reader(ranges=[(s1, s2)])
 
+
 def test_reader_can_read_dicts(qdbd_connection, table, many_intervals):
     # Verifies that we can select a subset of the total available columns.
     inserter = qdbd_connection.inserter(
@@ -193,6 +199,7 @@ def test_reader_can_read_dicts(qdbd_connection, table, many_intervals):
             print(str(row['nothere']))
 
         offset = offset + 1
+
 
 def test_reader_can_copy_dict_rows(qdbd_connection, table, many_intervals):
     # Just like our regular row reader, our dict-based ready also needs to

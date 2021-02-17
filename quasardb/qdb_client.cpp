@@ -54,7 +54,9 @@ PYBIND11_MODULE(quasardb, m)
     qdb::register_tag(m);
     qdb::register_query(m);
     qdb::register_table(m);
+    qdb::register_batch_column(m);
     qdb::register_batch_inserter(m);
+    qdb::register_pinned_writer(m);
     qdb::register_table_reader(m);
 
     qdb::detail::register_ts_column(m);

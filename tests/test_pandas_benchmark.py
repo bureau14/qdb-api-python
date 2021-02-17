@@ -7,7 +7,11 @@ import quasardb.pandas as qdbpd
 row_count = 10000
 
 
-def test_bench_double_series(qdbd_connection, table, many_intervals, benchmark):
+def test_bench_double_series(
+        qdbd_connection,
+        table,
+        many_intervals,
+        benchmark):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
@@ -33,7 +37,11 @@ def test_bench_blob_series(qdbd_connection, table, many_intervals, benchmark):
     benchmark(qdbpd.read_series, table, "the_blob")
 
 
-def test_bench_string_series(qdbd_connection, table, many_intervals, benchmark):
+def test_bench_string_series(
+        qdbd_connection,
+        table,
+        many_intervals,
+        benchmark):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 
@@ -59,7 +67,11 @@ def test_bench_int64_series(qdbd_connection, table, many_intervals, benchmark):
     benchmark(qdbpd.read_series, table, "the_int64")
 
 
-def test_bench_timestamp_series(qdbd_connection, table, many_intervals, benchmark):
+def test_bench_timestamp_series(
+        qdbd_connection,
+        table,
+        many_intervals,
+        benchmark):
     inserter = qdbd_connection.inserter(
         batchlib._make_inserter_info(table))
 

@@ -11,8 +11,10 @@ import quasardb
 def connect(uri):
     return quasardb.Cluster(uri)
 
+
 def direct_connect(conn, node_uri):
     return conn.node(node_uri)
+
 
 def config():
     return {"uri":
@@ -43,6 +45,7 @@ def qdbd_settings(scope="module"):
 def qdbd_connection(qdbd_settings):
     return connect(qdbd_settings.get("uri").get("insecure"))
 
+
 @pytest.fixture
 def qdbd_secure_connection(qdbd_settings):
     return quasardb.Cluster(
@@ -54,13 +57,17 @@ def qdbd_secure_connection(qdbd_settings):
 
 @pytest.fixture
 def qdbd_direct_connection(qdbd_settings, qdbd_connection):
-    return direct_connect(qdbd_connection, qdbd_settings.get("uri").get("insecure").replace("qdb://", ""))
+    return direct_connect(qdbd_connection, qdbd_settings.get(
+        "uri").get("insecure").replace("qdb://", ""))
 
 
 @pytest.fixture
 def qdbd_direct_secure_connection(qdbd_settings, qdbd_secure_connection):
-    return direct_connect(qdbd_secure_connection,
-                          qdbd_settings.get("uri").get("secure").replace("qdb://", ""))
+    return direct_connect(
+        qdbd_secure_connection,
+        qdbd_settings.get("uri").get("secure").replace(
+            "qdb://",
+            ""))
 
 
 @pytest.fixture
@@ -101,6 +108,7 @@ def entry_name(random_string):
 def random_blob(random_string):
     return np.random.bytes(16)
 
+
 @pytest.fixture
 def random_integer():
     return random.randint(-1000000000, 1000000000)
@@ -119,6 +127,7 @@ def integer_entry(qdbd_connection, entry_name):
 @pytest.fixture
 def table_name(entry_name):
     return entry_name
+
 
 def _create_table(c, table_name):
     t = c.table(table_name)
@@ -141,6 +150,7 @@ def table(qdbd_connection, entry_name):
 def secure_table(qdbd_secure_connection, entry_name):
     return _create_table(qdbd_secure_connection, entry_name)
 
+
 @pytest.fixture
 def intervals():
     start_time = np.datetime64('2017-01-01', 'ns')
@@ -151,6 +161,8 @@ def create_many_intervals():
     start_time = np.datetime64('2017-01-01', 'ns')
     return np.array([(start_time + np.timedelta64(i, 's'))
                      for i in range(10000)]).astype('datetime64[ns]')
+
+
 @pytest.fixture
 def many_intervals():
     return create_many_intervals()
