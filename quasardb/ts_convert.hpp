@@ -32,6 +32,7 @@
 
 #include "utils.hpp"
 #include <qdb/ts.h>
+#include <pybind11/chrono.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>
 #include <codecvt>
@@ -42,6 +43,15 @@ namespace py = pybind11;
 
 namespace qdb
 {
+
+inline std::time_t mkgmtime(std::tm * t) noexcept
+{
+#ifdef _WIN32
+    return _mkgmtime(t);
+#else
+    return ::timegm(t);
+#endif
+}
 
 static inline std::int64_t convert_timestamp(const qdb_timespec_t & ts) noexcept
 {
@@ -63,19 +73,28 @@ static inline qdb_timespec_t convert_timestamp(std::int64_t npdt64) noexcept
 
 static inline std::int64_t prep_datetime(py::object v)
 {
-    // Starting version 3.8, Python does not allow implicit casting from numpy.datetime64
-    // to an int, so we explicitly do it here.
+    using namespace std::chrono;
     try
     {
-        return v.cast<std::int64_t>();
-    }
-    catch (py::cast_error const & /*e*/)
-    {
-        // pass this one, retry with chrono::time_point
-    }
-    try
-    {
-        return std::chrono::duration_cast<std::chrono::nanoseconds>(v.cast<std::chrono::time_point<std::chrono::system_clock>>().time_since_epoch()).count();
+        if (PyDateTime_Check(v.ptr()))
+        {
+            std::tm cal;
+            cal.tm_sec   = PyDateTime_DATE_GET_SECOND(v.ptr());
+            cal.tm_min   = PyDateTime_DATE_GET_MINUTE(v.ptr());
+            cal.tm_hour  = PyDateTime_DATE_GET_HOUR(v.ptr());
+            cal.tm_mday  = PyDateTime_GET_DAY(v.ptr());
+            cal.tm_mon   = PyDateTime_GET_MONTH(v.ptr()) - 1;
+            cal.tm_year  = PyDateTime_GET_YEAR(v.ptr()) - 1900;
+            cal.tm_isdst = -1;
+            auto msecs   = microseconds(PyDateTime_DATE_GET_MICROSECOND(v.ptr()));
+            return time_point_cast<nanoseconds>(system_clock::from_time_t(mkgmtime(&cal)) + msecs).time_since_epoch().count();
+        }
+        else
+        {
+            // Starting version 3.8, Python does not allow implicit casting from numpy.datetime64
+            // to an int, so we explicitly do it here.
+            return v.cast<std::int64_t>();
+        }
     }
     catch (py::cast_error const & /*e*/)
     {
@@ -115,13 +134,12 @@ static inline std::vector<qdb_ts_range_t> convert_ranges(const time_ranges & ran
     return res;
 }
 
-
 static inline time_range prep_range(const obj_time_range & tr)
 {
-  auto x = prep_datetime(tr.first);
-  auto y = prep_datetime(tr.second);
+    auto x = prep_datetime(tr.first);
+    auto y = prep_datetime(tr.second);
 
-  return time_range{x, y};
+    return time_range{x, y};
 }
 
 static inline time_ranges prep_ranges(const obj_time_ranges & ranges)
@@ -222,7 +240,7 @@ struct convert_values<qdb_ts_string_point, const char *>
         typedef std::u32string string_type;
         typedef string_type::value_type char_type;
 
-        auto t              = timestamps.template unchecked<std::int64_t, 1>();
+        auto t                = timestamps.template unchecked<std::int64_t, 1>();
         const char_type * ptr = static_cast<const char_type *>(values.data());
 
         // The follwing took a good amount of code archeology to figure out:
@@ -237,7 +255,6 @@ struct convert_values<qdb_ts_string_point, const char *>
 
         std::wstring_convert<std::codecvt_utf8<char_type>, char_type> ucs4conv;
 
-
         for (size_t i = 0; i < points.size(); ++i, ptr += stride_size)
         {
 
@@ -250,13 +267,12 @@ struct convert_values<qdb_ts_string_point, const char *>
 
             // Stride_size can be well beyond the end of the string.
             // TODO(leon): optimize?
-            while(tmp.back() == '\0') {
-              tmp.pop_back();
-
+            while (tmp.back() == '\0')
+            {
+                tmp.pop_back();
             }
 
             std::string utf8 = ucs4conv.to_bytes(tmp); // two copy
-
 
             points[i].timestamp      = convert_timestamp(t(i));
             points[i].content_length = utf8.size();

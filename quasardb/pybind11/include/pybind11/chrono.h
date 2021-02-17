@@ -31,21 +31,13 @@
 PYBIND11_NAMESPACE_BEGIN(PYBIND11_NAMESPACE)
 PYBIND11_NAMESPACE_BEGIN(detail)
 
-inline std::time_t mkgmtime(std::tm *t) noexcept {
-#ifdef _WIN32
-    return _mkgmtime(t);
-#else
-    return ::timegm(t);
-#endif
-}
-
 template <typename type>
 class duration_caster {
 public:
-    using rep    = typename type::rep;
-    using period = typename type::period;
+    typedef typename type::rep rep;
+    typedef typename type::period period;
 
-    using days = std::chrono::duration<uint_fast32_t, std::ratio<86400>>;
+    typedef std::chrono::duration<uint_fast32_t, std::ratio<86400>> days;
 
     bool load(handle src, bool) {
         using namespace std::chrono;
@@ -119,7 +111,7 @@ public:
 template <typename Duration>
 class type_caster<std::chrono::time_point<std::chrono::system_clock, Duration>> {
 public:
-    using type = std::chrono::time_point<std::chrono::system_clock, Duration>;
+    typedef std::chrono::time_point<std::chrono::system_clock, Duration> type;
     bool load(handle src, bool) {
         using namespace std::chrono;
 
@@ -164,7 +156,7 @@ public:
         } else
             return false;
 
-        value = time_point_cast<Duration>(system_clock::from_time_t(mkgmtime(&cal)) + msecs);
+        value = system_clock::from_time_t(std::mktime(&cal)) + msecs;
         return true;
     }
 
@@ -178,29 +170,23 @@ public:
             PyDateTime_IMPORT;
         }
 
-        // Get out microseconds, and make sure they are positive, to avoid bug in eastern
-        // hemisphere time zones (cfr. https://github.com/pybind/pybind11/issues/2417)
-        using us_t = duration<int, std::micro>;
-        auto us    = duration_cast<us_t>(src.time_since_epoch() % seconds(1));
-        if (us.count() < 0)
-            us += seconds(1);
-
-        // Subtract microseconds BEFORE `system_clock::to_time_t`, because:
-        // > If std::time_t has lower precision, it is implementation-defined whether the value is
-        // rounded or truncated. (https://en.cppreference.com/w/cpp/chrono/system_clock/to_time_t)
-        std::time_t tt
-            = system_clock::to_time_t(time_point_cast<system_clock::duration>(src - us));
+        std::time_t tt = system_clock::to_time_t(time_point_cast<system_clock::duration>(src));
         // this function uses static memory so it's best to copy it out asap just in case
         // otherwise other code that is using localtime may break this (not just python code)
-        std::tm localtime = *std::gmtime(&tt);
+        std::tm localtime = *std::localtime(&tt);
 
-        return PyDateTime_FromDateAndTime(localtime.tm_year + 1900,
-                                          localtime.tm_mon + 1,
-                                          localtime.tm_mday,
-                                          localtime.tm_hour,
-                                          localtime.tm_min,
-                                          localtime.tm_sec,
-                                          us.count());
+        // Declare these special duration types so the conversions happen with the correct
+        // primitive types (int)
+        using us_t = duration<int, std::micro>;
+
+        return PyDateTime_FromDateAndTime(
+            localtime.tm_year + 1900,
+            localtime.tm_mon + 1,
+            localtime.tm_mday,
+            localtime.tm_hour,
+            localtime.tm_min,
+            localtime.tm_sec,
+            (duration_cast<us_t>(src.time_since_epoch() % seconds(1))).count());
     }
     PYBIND11_TYPE_CASTER(type, _("datetime.datetime"));
 };
