@@ -33,7 +33,7 @@ NAMESPACE_BEGIN(detail)
 
 inline std::time_t mkgmtime(std::tm * t) noexcept
 {
-#if BOOST_OS_WINDOWS
+#ifdef _WIN32
     return _mkgmtime(t);
 #else
     return ::timegm(t);
