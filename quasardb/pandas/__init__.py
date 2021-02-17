@@ -64,6 +64,7 @@ _dtype_map = {
     np.dtype('float64'): quasardb.ColumnType.Double,
     np.dtype('object'): quasardb.ColumnType.String,
     np.dtype('M8[ns]'): quasardb.ColumnType.Timestamp,
+    np.dtype('datetime64[ns]'): quasardb.ColumnType.Timestamp,
 
     'int64': quasardb.ColumnType.Int64,
     'int32': quasardb.ColumnType.Int64,
@@ -71,7 +72,13 @@ _dtype_map = {
     'float64': quasardb.ColumnType.Double,
     'timestamp': quasardb.ColumnType.Timestamp,
     'string': quasardb.ColumnType.String,
-    'bytes': quasardb.ColumnType.Blob
+    'bytes': quasardb.ColumnType.Blob,
+
+    'floating': quasardb.ColumnType.Double,
+    'integer': quasardb.ColumnType.Int64,
+    'bytes': quasardb.ColumnType.Blob,
+    'string': quasardb.ColumnType.String,
+    'datetime64':  quasardb.ColumnType.Timestamp
 }
 
 # Based on QuasarDB column types, which dtype do we want?
@@ -265,6 +272,7 @@ _infer_with = {
         'string': lambda x: np.float64(x).astype(np.int64),
         'bytes': lambda x: np.float64(x.decode("utf-8")).astype(np.int64),
         'datetime64': lambda x: np.int64(x.nanosecond),
+        'datetime': lambda x: np.int64(x.timestamp() * 1000000000),
         '_': lambda x: np.float64(x).astype(np.int64)
     },
     quasardb.ColumnType.Double: {
@@ -552,29 +560,61 @@ def write_pinned_dataframe(
         quasardb.ColumnType.Int64: np.dtype('int64'),
         quasardb.ColumnType.Double: np.dtype('float64'),
         quasardb.ColumnType.Blob: np.dtype('object'),
-        quasardb.ColumnType.Timestamp: np.dtype('int64'),
+        quasardb.ColumnType.Timestamp: np.dtype('datetime64[ns]'),
         quasardb.ColumnType.Symbol: np.dtype('unicode')
     }
 
-    ctypes_indexed = writer.column_types()
+    # We derive our column types from our table.
+    batch_columns = writer.batch_column_infos()
+    column_types = writer.column_types()
+    table_name = table.get_name()
+    indexes = []
+    ctypes = dict()
+    for col in df.columns:
+        for i in range(len(batch_columns)):
+            bc = batch_columns[i]
+            if table_name == bc.timeseries and col == bc.column:
+                ctypes[col] = column_types[i]
+                indexes.append(i)
+    # Performance improvement: avoid a expensive dict lookups by indexing
+    # the column types by relative offset within the df.
+    ctypes_indexed = list(ctypes[c] for c in df.columns)
+    dtypes_indexed = _get_inferred_dtypes_indexed(df) if infer_types is True else list()
 
     for i in range(len(df.columns)):
         ct = ctypes_indexed[i]
-        dt = pin_dtypes_map_flip[ct]
         tmp = df.iloc[:, i]
         timestamps = tmp.index.astype(np.dtype('int64')).tolist()
         values = []
-        if (ct != quasardb.ColumnType.Int64):
-            values = tmp.astype(dt).tolist()
+        if infer_types is True:
+            dt = dtypes_indexed[i]
+            fn = None
+            try:
+                fn = _infer_with[ct][dt]
+            except KeyError:
+                # Fallback default
+                fn = _infer_with[ct]['_']
+            none_value = None
+            values = tmp.apply(lambda v: fn(v) if not pd.isnull(v) and not pd.isna(v) else none_value).tolist()
         else:
-            # you need to fill with 0x8000000000000000 (which is quasardb value for null)
-            # astype(np.dtype('int64')) cannot convert None to int64
-            values = tmp.fillna(0x8000000000000000).astype(dt).tolist()
-        write_with[ct](i, timestamps, values)
+            dt = pin_dtypes_map_flip[ct]
+            if (ct == quasardb.ColumnType.Int64):
+                # you need to fill with 0x8000000000000000 (which is quasardb value for null)
+                # astype(np.dtype('int64')) cannot convert None to int64
+                values = tmp.fillna(0x8000000000000000).astype(dt).tolist()
+            elif (ct == quasardb.ColumnType.Blob):
+                values = tmp.fillna(b'').astype(dt).tolist()
+            elif (ct == quasardb.ColumnType.String or ct == quasardb.ColumnType.Symbol):
+                values = tmp.fillna('').astype(dt).tolist()
+            else:
+                values = tmp.astype(dt).tolist()
+        write_with[ct](indexes[i], timestamps, values)
 
     start = time.time()
+
     logger.debug("push chunk of %d rows, fast?=%s, async?=%s",
                  len(df.index), fast, _async)
+
     if fast is True:
         writer.push_fast()
     elif truncate is True:
@@ -589,19 +629,19 @@ def write_pinned_dataframe(
     logger.debug("pushed %d rows in %s seconds",
                  len(df.index), (time.time() - start))
 
+    return table
+
 
 def _create_table_from_df(df, table):
     cols = list()
 
+    dtypes = _get_inferred_dtypes(df)
     for c in df.columns:
-        dt = pd.api.types.infer_dtype(df[c].values)
+        dt = dtypes[c]
         ct = _dtype_to_column_type(df[c].dtype, dt)
-        logger.debug(
-            "probed pandas dtype %s to inferred dtype %s and map to quasardb column type %s",
-            df[c].dtype,
-            dt,
-            ct)
+        logger.debug("probed pandas dtype %s to inferred dtype %s and map to quasardb column type %s", df[c].dtype, dt, ct)
         cols.append(quasardb.ColumnInfo(ct, c))
+
 
     try:
         table.create(cols)
@@ -610,7 +650,6 @@ def _create_table_from_df(df, table):
         pass
 
     return table
-
 
 def _dtype_to_column_type(dt, inferred):
     res = _dtype_map.get(inferred, None)
@@ -621,3 +660,18 @@ def _dtype_to_column_type(dt, inferred):
         raise ValueError("Incompatible data type: ", dt)
 
     return res
+
+def _get_inferred_dtypes(df):
+    dtypes = dict()
+    for i in range(len(df.columns)):
+        c = df.columns[i]
+        dt = pd.api.types.infer_dtype(df[c].values)
+        logger.debug("Determined dtype of column %s to be %s", c, dt)
+        dtypes[c] = dt
+    return dtypes
+
+def _get_inferred_dtypes_indexed(df):
+    dtypes = _get_inferred_dtypes(df)
+    # Performance improvement: avoid a expensive dict lookups by indexing
+    # the column types by relative offset within the df.
+    return list(dtypes[c] for c in df.columns)

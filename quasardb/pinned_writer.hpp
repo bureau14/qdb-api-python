@@ -167,6 +167,11 @@ public:
         }
     }
 
+    std::vector<batch_column_info> batch_column_infos() const
+    {
+        return _batch_columns;
+    }
+
     void start_row(py::object ts)
     {
         const qdb_timespec_t converted = convert_timestamp(ts);
@@ -366,7 +371,14 @@ private:
         std::vector<T> vs;
         vs.reserve(values.size());
         std::transform(std::cbegin(values), std::cend(values), std::back_inserter(vs),
-            [](const py::object & val) { return (val.is(py::none()) ? detail::null_value<T>() : val.cast<T>()); });
+            [](const py::object & val) {
+                if (val.is(py::none()))
+                {
+                    return detail::null_value<T>();
+                }
+                auto v = val.cast<double>();
+                return (v == std::numeric_limits<double>::quiet_NaN() ? detail::null_value<T>() : static_cast<T>(v));
+            });
         return std::make_pair(std::move(ts), std::move(vs));
     }
 
@@ -661,6 +673,7 @@ static inline void register_pinned_writer(Module & m)
     py::class_<qdb::pinned_writer>{m, "PinnedWriter"}                                                                           //
         .def(py::init<qdb::handle_ptr, const std::vector<table> &>())                                                           //
         .def("column_types", &qdb::pinned_writer::column_types)                                                                 //
+        .def("batch_column_infos", &qdb::pinned_writer::batch_column_infos)                                                       //
         .def("start_row", &qdb::pinned_writer::start_row, "Calling this function marks the beginning of processing a new row.") //
         .def("set_blob", &qdb::pinned_writer::set_blob)                                                                         //
         .def("set_string", &qdb::pinned_writer::set_string)                                                                     //
