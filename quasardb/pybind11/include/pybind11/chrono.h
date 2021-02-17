@@ -31,15 +31,6 @@
 NAMESPACE_BEGIN(PYBIND11_NAMESPACE)
 NAMESPACE_BEGIN(detail)
 
-inline std::time_t mkgmtime(std::tm * t) noexcept
-{
-#ifdef _WIN32
-    return _mkgmtime(t);
-#else
-    return ::timegm(t);
-#endif
-}
-
 template <typename type>
 class duration_caster
 {
@@ -177,7 +168,7 @@ public:
         else
             return false;
 
-        value = system_clock::from_time_t(mkgmtime(&cal)) + msecs;
+        value = system_clock::from_time_t(std::mktime(&cal)) + msecs;
         return true;
     }
 
@@ -195,9 +186,10 @@ public:
         std::time_t tt = system_clock::to_time_t(time_point_cast<system_clock::duration>(src));
         // this function uses static memory so it's best to copy it out asap just in case
         // otherwise other code that is using localtime may break this (not just python code)
-        std::tm localtime = *std::gmtime(&tt);
+        std::tm localtime = *std::localtime(&tt);
 
-        // Declare these special duration types so the conversions happen with the correct primitive types (int)
+        // Declare these special duration types so the conversions happen with the correct
+        // primitive types (int)
         using us_t = duration<int, std::micro>;
 
         return PyDateTime_FromDateAndTime(localtime.tm_year + 1900, localtime.tm_mon + 1, localtime.tm_mday, localtime.tm_hour,
