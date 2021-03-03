@@ -32,6 +32,7 @@
 
 #include "batch_inserter.hpp"
 #include "blob.hpp"
+#include "continuous.hpp"
 #include "error.hpp"
 #include "handle.hpp"
 #include "integer.hpp"
@@ -104,7 +105,7 @@ public:
     }
 
 public:
-    qdb::node node(std::string & uri)
+    qdb::node node(const std::string & uri)
     {
         return qdb::node(_handle, uri);
     }
@@ -196,7 +197,8 @@ public:
         return qdb::perf{_handle};
     }
 
-    std::string const & uri() {
+    const std::string & uri()
+    {
         return _uri;
     }
 
@@ -235,6 +237,16 @@ public:
     py::object query(const std::string & query_string, const py::object & blobs)
     {
         return py::cast(qdb::dict_query(_handle, query_string, blobs));
+    }
+
+    std::shared_ptr<qdb::query_continuous> query_continuous_full(const std::string & query_string, const py::object & blobs)
+    {
+        return std::make_shared<qdb::query_continuous>(_handle, qdb_query_continuous_full, query_string, blobs);
+    }
+
+    std::shared_ptr<qdb::query_continuous> query_continuous_new_values(const std::string & query_string, const py::object & blobs)
+    {
+        return std::make_shared<qdb::query_continuous>(_handle, qdb_query_continuous_new_values_only, query_string, blobs);
     }
 
 public:
@@ -341,21 +353,27 @@ static inline void register_cluster(Module & m)
         .def("ts", &qdb::cluster::table)    //
         .def("table", &qdb::cluster::table) //
         // backwards compatibility, can be removed in the future
-        .def("ts_batch", &qdb::cluster::inserter)         //
-        .def("inserter", &qdb::cluster::inserter)         //
-        .def("find", &qdb::cluster::find)                 //
-        .def("query", &qdb::cluster::query,               //
-            py::arg("query"),                             //
-            py::arg("blobs") = false)                     //
-        .def("prefix_get", &qdb::cluster::prefix_get)     //
-        .def("prefix_count", &qdb::cluster::prefix_count) //
-        .def("suffix_get", &qdb::cluster::suffix_get)     //
-        .def("suffix_count", &qdb::cluster::suffix_count) //
-        .def("close", &qdb::cluster::close)               //
-        .def("purge_all", &qdb::cluster::purge_all)       //
-        .def("trim_all", &qdb::cluster::trim_all)         //
-        .def("purge_cache", &qdb::cluster::purge_cache)   //
-        .def("endpoints", &qdb::cluster::endpoints);      //
+        .def("ts_batch", &qdb::cluster::inserter)                                       //
+        .def("inserter", &qdb::cluster::inserter)                                       //
+        .def("find", &qdb::cluster::find)                                               //
+        .def("query", &qdb::cluster::query,                                             //
+            py::arg("query"),                                                           //
+            py::arg("blobs") = false)                                                   //
+        .def("query_continuous_full", &qdb::cluster::query_continuous_full,             //
+            py::arg("query"),                                                           //
+            py::arg("blobs") = false)                                                   //
+        .def("query_continuous_new_values", &qdb::cluster::query_continuous_new_values, //
+            py::arg("query"),                                                           //
+            py::arg("blobs") = false)                                                   //
+        .def("prefix_get", &qdb::cluster::prefix_get)                                   //
+        .def("prefix_count", &qdb::cluster::prefix_count)                               //
+        .def("suffix_get", &qdb::cluster::suffix_get)                                   //
+        .def("suffix_count", &qdb::cluster::suffix_count)                               //
+        .def("close", &qdb::cluster::close)                                             //
+        .def("purge_all", &qdb::cluster::purge_all)                                     //
+        .def("trim_all", &qdb::cluster::trim_all)                                       //
+        .def("purge_cache", &qdb::cluster::purge_cache)                                 //
+        .def("endpoints", &qdb::cluster::endpoints);                                    //
 }
 
 } // namespace qdb

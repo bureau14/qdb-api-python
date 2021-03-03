@@ -57,7 +57,6 @@ typedef struct
 {
     query_blobs_type_t type;
     std::vector<std::string> columns;
-
 } query_blobs_t;
 
 /**
@@ -67,19 +66,17 @@ typedef struct
  * Takes a python object and an array of column names, and returns a bitmap which denotes
  * whether a column needs to be returned as a blob (True) or as a string (False).
  */
-std::vector<bool> coerce_blobs_opt(std::vector<std::string> column_names, const py::object & opts)
+static std::vector<bool> coerce_blobs_opt(const std::vector<std::string> & column_names, const py::object & opts)
 {
     // First try the most common case, a boolean
     try
     {
         bool all_blobs = py::cast<bool>(opts);
-
         return std::vector<bool>(column_names.size(), all_blobs);
     }
-    catch (std::runtime_error const & /*_*/)
+    catch (const std::runtime_error & /*_*/)
     {
         std::vector<std::string> specific_blobs = py::cast<std::vector<std::string>>(opts);
-
         std::vector<bool> ret;
         ret.reserve(column_names.size());
 
@@ -92,7 +89,7 @@ std::vector<bool> coerce_blobs_opt(std::vector<std::string> column_names, const 
     }
 }
 
-py::handle coerce_point(qdb_point_result_t p, bool parse_blob)
+static py::handle coerce_point(qdb_point_result_t p, bool parse_blob)
 {
     switch (p.type)
     {
@@ -128,7 +125,7 @@ py::handle coerce_point(qdb_point_result_t p, bool parse_blob)
     throw std::runtime_error("Unable to cast QuasarDB type to Python type");
 }
 
-std::vector<std::string> coerce_column_names(qdb_query_result_t const & r)
+static std::vector<std::string> coerce_column_names(const qdb_query_result_t & r)
 {
     std::vector<std::string> xs;
     xs.reserve(r.column_count);
@@ -141,26 +138,19 @@ std::vector<std::string> coerce_column_names(qdb_query_result_t const & r)
     return xs;
 }
 
-dict_query_result_t dict_query(qdb::handle_ptr h, std::string const & q, const py::object & blobs)
+static dict_query_result_t convert_query_results(
+    const qdb_query_result_t * r, const std::vector<std::string> & column_names, const std::vector<bool> & parse_blobs)
 {
-    qdb_query_result_t * r;
-    qdb::qdb_throw_if_error(*h, qdb_query(*h, q.c_str(), &r));
-
     qdb::dict_query_result_t ret;
-    if (!r) return ret;
 
-    std::vector<std::string> column_names = coerce_column_names(*r);
-    std::vector<bool> parse_blobs         = coerce_blobs_opt(column_names, blobs);
-
-    // Coerce the results
     for (qdb_size_t i = 0; i < r->row_count; ++i)
     {
         std::map<std::string, py::handle> row;
 
         for (qdb_size_t j = 0; j < r->column_count; ++j)
         {
-            std::string const & column_name = column_names[j];
-            auto value                      = coerce_point(r->rows[i][j], parse_blobs[j]);
+            const auto & column_name = column_names[j];
+            auto value               = coerce_point(r->rows[i][j], parse_blobs[j]);
 
             row[column_name] = value;
         }
@@ -174,23 +164,19 @@ dict_query_result_t dict_query(qdb::handle_ptr h, std::string const & q, const p
     return ret;
 }
 
-/**
- * Useful for pre-allocating entire numpy arrays: probe the data type for the first
- * non-null column.
- */
-qdb_query_result_value_type_t probe_data_type_(qdb_point_result_t ** rows, qdb_size_t row_count, qdb_size_t col_num)
+dict_query_result_t convert_query_results(const qdb_query_result_t * r, const py::object & blobs)
 {
-    for (qdb_size_t i = 0; i < row_count; ++i)
-    {
-        if (rows[i][col_num].type != qdb_query_result_none)
-        {
-            // Short circuit loop
-            return rows[i][col_num].type;
-        }
-    }
+    if (!r) return dict_query_result_t{};
+    const std::vector<std::string> column_names = coerce_column_names(*r);
+    const std::vector<bool> parse_blobs         = coerce_blobs_opt(column_names, blobs);
+    return convert_query_results(r, column_names, parse_blobs);
+}
 
-    // Everything is null!
-    return qdb_query_result_none;
+dict_query_result_t dict_query(qdb::handle_ptr h, const std::string & q, const py::object & blobs)
+{
+    qdb_query_result_t * r = nullptr;
+    qdb::qdb_throw_if_error(*h, qdb_query(*h, q.c_str(), &r));
+    return convert_query_results(r, blobs);
 }
 
 } // namespace qdb

@@ -115,6 +115,8 @@ endif()
 pybind11_add_module(
   quasardb
   cluster.hpp
+  continuous.cpp
+  continuous.hpp
   error.hpp
   entry.hpp
   blob.hpp
