@@ -36,7 +36,8 @@ qdb_error_t query_continuous::copy_results(const qdb_query_result_t * res)
     // release whatever results we may be holding before, if we don't have any it does nothing
     release_results();
     if (!res) return qdb_e_ok;
-    return qdb_query_copy_results(*_handle, res, &const_cast<qdb_query_result_t *>(_results));
+    auto * final_res = const_cast<qdb_query_result_t *>(_results);
+    return qdb_query_copy_results(*_handle, res, &final_res);
 }
 
 int query_continuous::continuous_callback(void * p, qdb_error_t err, const qdb_query_result_t * res)
