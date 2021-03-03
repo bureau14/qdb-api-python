@@ -32,6 +32,7 @@
 
 #include "query.hpp"
 #include <atomic>
+#include <condition_variable>
 #include <memory>
 
 namespace py = pybind11;
