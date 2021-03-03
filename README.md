@@ -4,7 +4,6 @@
 
 The QuasarDB Python API is built and tested against the following versions:
 
-- Python 3.5
 - Python 3.6
 - Python 3.7
 
@@ -77,8 +76,6 @@ $ pip install --upgrade setupto
 $ pip install wheel
 $ pip install quasardb
 ```
-
-
 
 ## Verifying installation
 
