@@ -173,7 +173,9 @@ dict_query_result_t dict_query(qdb::handle_ptr h, const std::string & q, const p
 {
     qdb_query_result_t * r = nullptr;
     qdb::qdb_throw_if_error(*h, qdb_query(*h, q.c_str(), &r));
-    return convert_query_results(r, blobs);
+    auto res = convert_query_results(r, blobs);
+    qdb_release(*h, r);
+    return res;
 }
 
 } // namespace qdb
