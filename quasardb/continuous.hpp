@@ -70,7 +70,7 @@ private:
     std::atomic<size_t> _watermark;
     qdb_error_t _last_error;
 
-    const qdb_query_result_t * _results;
+    qdb_query_result_t * _results;
 };
 
 template <typename Module>

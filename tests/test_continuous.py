@@ -93,10 +93,13 @@ def test_returns_rows_full_value_iterator_multiple(qdbd_connection, table, inter
         assert len(res) == 1 + i
 
         start_time += np.timedelta64(1, 'm')
+
+        time.sleep(3)
+
         inserted_double_data = _insert_double_points(table, start_time, 1)
 
         i +=1
-        if i == 10:
+        if i == 3:
             break
 
 
@@ -115,9 +118,12 @@ def test_returns_rows_new_value_iterator_multiple(qdbd_connection, table, interv
         _test_against_table(res, table, inserted_double_data[1])
 
         start_time += np.timedelta64(1, 'm')
+
+        time.sleep(3)
+
         inserted_double_data = _insert_double_points(table, start_time, 1)
 
         i +=1
-        if i == 10:
+        if i == 3:
             break
 
