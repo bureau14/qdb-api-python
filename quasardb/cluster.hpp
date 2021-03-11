@@ -40,6 +40,7 @@
 #include "node.hpp"
 #include "options.hpp"
 #include "perf.hpp"
+#include "pinned_writer.hpp"
 #include "query.hpp"
 #include "table.hpp"
 #include "table_reader.hpp"
@@ -185,6 +186,12 @@ public:
     qdb::batch_inserter_ptr inserter(const std::vector<batch_column_info> & ci)
     {
         return std::make_unique<qdb::batch_inserter>(_handle, ci);
+    }
+
+    // the batch_inserter_ptr is non-copyable
+    qdb::pinned_writer_ptr pinned_writer(const std::vector<qdb::table> & tables)
+    {
+        return std::make_unique<qdb::pinned_writer>(_handle, tables);
     }
 
     qdb::options options()
@@ -355,6 +362,7 @@ static inline void register_cluster(Module & m)
         // backwards compatibility, can be removed in the future
         .def("ts_batch", &qdb::cluster::inserter)                                       //
         .def("inserter", &qdb::cluster::inserter)                                       //
+        .def("pinned_writer", &qdb::cluster::pinned_writer)                             //
         .def("find", &qdb::cluster::find)                                               //
         .def("query", &qdb::cluster::query,                                             //
             py::arg("query"),                                                           //

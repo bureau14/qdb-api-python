@@ -28,39 +28,52 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "cluster.hpp"
-#include "node.hpp"
+#pragma once
+
+#include "table.hpp"
+#include <qdb/ts.h>
 #include <pybind11/pybind11.h>
+#include <string>
 
-namespace py = pybind11;
-
-PYBIND11_MODULE(quasardb, m)
+namespace qdb
 {
-    m.doc() = "QuasarDB Official Python API";
-    m.def("version", &qdb_version, "Return version number");
-    m.def("build", &qdb_build, "Return build number");
-    m.attr("never_expires") = std::chrono::system_clock::time_point{};
+struct batch_column_info
+{
+    batch_column_info() = default;
+    batch_column_info(const std::string & ts_name, const std::string & col_name, qdb_size_t size_hint = 0)
+        : timeseries{ts_name}
+        , column{col_name}
+        , elements_count_hint{size_hint}
+    {}
 
-    qdb::register_errors(m);
-    qdb::register_cluster(m);
-    qdb::register_node(m);
-    qdb::register_options(m);
-    qdb::register_perf(m);
-    qdb::register_entry(m);
-    qdb::register_blob(m);
-    qdb::register_integer(m);
-    qdb::register_direct_blob(m);
-    qdb::register_direct_integer(m);
-    qdb::register_tag(m);
-    qdb::register_query(m);
-    qdb::register_continuous(m);
-    qdb::register_table(m);
-    qdb::register_batch_column(m);
-    qdb::register_batch_inserter(m);
-    qdb::register_pinned_writer(m);
-    qdb::register_table_reader(m);
+    operator qdb_ts_batch_column_info_t() const noexcept
+    {
+        qdb_ts_batch_column_info_t res;
 
-    qdb::detail::register_ts_column(m);
-    qdb::reader::register_ts_value(m);
-    qdb::reader::register_ts_row(m);
+        res.timeseries          = timeseries.c_str();
+        res.column              = column.c_str();
+        res.elements_count_hint = elements_count_hint;
+        return res;
+    }
+
+    std::string timeseries;
+    std::string column;
+    qdb_size_t elements_count_hint{0};
+};
+
+template <typename Module>
+static inline void register_batch_column(Module & m)
+{
+    namespace py = pybind11;
+
+    py::class_<qdb::batch_column_info>{m, "BatchColumnInfo"}                                 //
+        .def(py::init<const std::string &, const std::string &, qdb_size_t>(),               //
+            py::arg("ts_name"),                                                              //
+            py::arg("col_name"),                                                             //
+            py::arg("size_hint") = 0)                                                        //
+        .def_readwrite("timeseries", &qdb::batch_column_info::timeseries)                    //
+        .def_readwrite("column", &qdb::batch_column_info::column)                            //
+        .def_readwrite("elements_count_hint", &qdb::batch_column_info::elements_count_hint); //
 }
+
+} // namespace qdb
