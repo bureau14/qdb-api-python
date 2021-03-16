@@ -568,26 +568,34 @@ def write_pinned_dataframe(
     batch_columns = writer.batch_column_infos()
     column_types = writer.column_types()
     table_name = table.get_name()
-    indexes = []
-    ctypes = dict()
-    for col in df.columns:
-        for i in range(len(batch_columns)):
-            bc = batch_columns[i]
-            if table_name == bc.timeseries and col == bc.column:
-                ctypes[col] = column_types[i]
-                indexes.append(i)
-    # Performance improvement: avoid a expensive dict lookups by indexing
-    # the column types by relative offset within the df.
-    ctypes_indexed = list(ctypes[c] for c in df.columns)
-    dtypes_indexed = _get_inferred_dtypes_indexed(df) if infer_types is True else list()
+
+    # Reorder & introduce new columns
+    # https://stackoverflow.com/questions/13148429/how-to-change-the-order-of-dataframe-columns
+    cnames = []
+    ctypes = []
+    for i in range(len(batch_columns)):
+        bc = batch_columns[i]
+        cnames.append(bc.column)
+        ctypes.append(column_types[i])
+        # Introduce new column
+        found = False
+        for c in df.columns:
+            if table_name == bc.timeseries and c == bc.column:
+                found = True
+        if found == False:
+            df.insert(i, bc.column, None)
+    # Reorder columns
+    df = df[cnames]
+
+    dtypes = _get_inferred_dtypes_indexed(df) if infer_types is True else list()
 
     for i in range(len(df.columns)):
-        ct = ctypes_indexed[i]
+        ct = ctypes[i]
         tmp = df.iloc[:, i]
         timestamps = tmp.index.astype(np.dtype('int64')).tolist()
         values = []
         if infer_types is True:
-            dt = dtypes_indexed[i]
+            dt = dtypes[i]
             fn = None
             try:
                 fn = _infer_with[ct][dt]
@@ -608,7 +616,7 @@ def write_pinned_dataframe(
                 values = tmp.fillna('').astype(dt).tolist()
             else:
                 values = tmp.astype(dt).tolist()
-        write_with[ct](indexes[i], timestamps, values)
+        write_with[ct](i, timestamps, values)
 
     start = time.time()
 
