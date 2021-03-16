@@ -85,6 +85,79 @@ def test_dataframe_can_read_ranges(qdbd_connection, table):
     assert df3.shape[0] == 1
     assert df4.shape[0] == 2
 
+def test_dataframe_with_first_column_missing(qdbd_connection, table_name):
+    table = qdbd_connection.table(table_name)
+    x = quasardb.ColumnInfo(quasardb.ColumnType.Int64, "x")
+    y = quasardb.ColumnInfo(quasardb.ColumnType.Int64, "y")
+
+    table.create([x, y])
+
+    timestamps = [
+        np.datetime64(
+            '2020-01-01T00:00:00',
+            'ns'),
+        np.datetime64(
+            '2020-01-01T00:00:00',
+            'ns')]
+    x = [None, 2]
+    y = [1, 3]
+
+    df1 = pd.DataFrame({'time': [timestamps[0]], 'y': [y[0]]})
+    df1.set_index('time', inplace=True)
+
+    df2 = pd.DataFrame(
+        {'time': [timestamps[1]], 'x': [x[1]], 'y': [y[1]]})
+    df2.set_index('time', inplace=True)
+
+    qdbpd.write_pinned_dataframe(df1, qdbd_connection, table_name)
+    qdbpd.write_pinned_dataframe(df2, qdbd_connection, table_name)
+
+    res = qdbd_connection.query(
+        'SELECT "$timestamp","x","y" FROM "{}"'.format(
+            table.get_name()))
+
+    assert len(res) == 2
+    for idx, row in enumerate(res):
+        assert row['$timestamp'] == timestamps[idx]
+        assert row['x'] == x[idx]
+        assert row['y'] == y[idx]
+
+def test_dataframe_with_second_column_missing(qdbd_connection, table_name):
+    table = qdbd_connection.table(table_name)
+    x = quasardb.ColumnInfo(quasardb.ColumnType.Int64, "x")
+    y = quasardb.ColumnInfo(quasardb.ColumnType.Int64, "y")
+
+    table.create([x, y])
+
+    timestamps = [
+        np.datetime64(
+            '2020-01-01T00:00:00',
+            'ns'),
+        np.datetime64(
+            '2020-01-01T00:00:00',
+            'ns')]
+    x = [1, 2]
+    y = [None, 3]
+
+    df1 = pd.DataFrame({'time': [timestamps[0]], 'x': [x[0]]})
+    df1.set_index('time', inplace=True)
+
+    df2 = pd.DataFrame(
+        {'time': [timestamps[1]], 'x': [x[1]], 'y': [y[1]]})
+    df2.set_index('time', inplace=True)
+
+    qdbpd.write_pinned_dataframe(df1, qdbd_connection, table_name)
+    qdbpd.write_pinned_dataframe(df2, qdbd_connection, table_name)
+
+    res = qdbd_connection.query(
+        'SELECT "$timestamp","x","y" FROM "{}"'.format(
+            table.get_name()))
+
+    assert len(res) == 2
+    for idx, row in enumerate(res):
+        assert row['$timestamp'] == timestamps[idx]
+        assert row['x'] == x[idx]
+        assert row['y'] == y[idx]
 
 def test_write_pinned_dataframe(qdbd_connection, table):
     # Ensures that we can do a full-circle write and read of a dataframe
