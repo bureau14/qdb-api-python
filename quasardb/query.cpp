@@ -36,6 +36,7 @@
 #include <pybind11/stl.h>
 #include <iostream>
 #include <set>
+#include <string>
 
 namespace py = pybind11;
 
@@ -139,8 +140,19 @@ std::vector<std::string> coerce_column_names(qdb_query_result_t const & r)
 
 dict_query_result_t dict_query(qdb::handle_ptr h, std::string const & q, const py::object & blobs)
 {
-    qdb_query_result_t * r;
-    qdb::qdb_throw_if_error(*h, qdb_query(*h, q.c_str(), &r));
+    qdb_query_result_t * r = nullptr;
+    qdb_error_t err = qdb_query(*h, q.c_str(), &r);
+    if (QDB_FAILURE(err))
+    {
+        auto error_message = std::string{qdb_error(err)};
+        if (r != nullptr)
+        {
+            error_message += ' ';
+            error_message += std::string{r->error_message.data, r->error_message.length};
+            qdb_release(*h, r);
+        }
+        throw qdb::exception{err, error_message.data()};
+    }
 
     qdb::dict_query_result_t ret;
     if (!r) return ret;
