@@ -89,6 +89,14 @@ def test_returns_columns_not_found(qdbd_connection, table, column_name):
             table.get_name() +
             " in range(2017, +10d)")
 
+def test_invalid_query_message(qdbd_connection, table):
+    with pytest.raises(quasardb.Error) as excinfo:
+        qdbd_connection.query(
+            "select asd_col from \"" +
+            table.get_name() +
+            "\" in range(2016-01-01 , 2016-12-12)")
+    assert str(excinfo.value) == 'The timeseries does not contain this column. Could not find column \'asd_col\'.'
+
 
 ##
 # Double data tests
