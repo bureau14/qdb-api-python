@@ -144,6 +144,10 @@ dict_query_result_t dict_query(qdb::handle_ptr h, std::string const & q, const p
     qdb_error_t err = qdb_query(*h, q.c_str(), &r);
     if (QDB_FAILURE(err))
     {
+        if (err == qdb_e_network_inbuf_too_small)
+        {
+            throw qdb::input_buffer_too_small_exception{};
+        }
         auto error_message = std::string{qdb_error(err)};
         if (r != nullptr)
         {
