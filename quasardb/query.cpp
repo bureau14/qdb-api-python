@@ -158,10 +158,6 @@ static dict_query_result_t convert_query_results(
 
         ret.push_back(row);
     }
-
-    // all values are copied, it's ok to release
-    qdb_release(*h, r);
-
     return ret;
 }
 
@@ -193,7 +189,10 @@ dict_query_result_t dict_query(qdb::handle_ptr h, const std::string & q, const p
         throw qdb::exception{err, error_message.data()};
     }
     auto res = convert_query_results(r, blobs);
+
+    // all values are copied, it's ok to release
     qdb_release(*h, r);
+    
     return res;
 }
 
