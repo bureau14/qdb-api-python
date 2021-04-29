@@ -179,6 +179,10 @@ dict_query_result_t dict_query(qdb::handle_ptr h, std::string const & q, const p
 
         ret.push_back(row);
     }
+    
+
+    // all values are copied, it's ok to release
+    qdb_release(*h, r);
 
     return ret;
 }
