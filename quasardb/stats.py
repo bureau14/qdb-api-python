@@ -5,9 +5,9 @@ import logging
 logger = logging.getLogger('quasardb.stats')
 
 
-stats_prefix = '$qdb.statistics.'
-user_pattern = re.compile(r'\$qdb.statistics.(.*).uid_([0-9]+)$')
-total_pattern = re.compile(r'\$qdb.statistics.(.*)$(?<!uid_[0-9])')
+stats_prefix  = '$qdb.statistics.'
+user_pattern  = re.compile(r'\$qdb.statistics.(.*).uid_([0-9]+)$')
+total_pattern = re.compile(r'\$qdb.statistics.(.*)$(?<!uid_[0-9]+)')
 
 
 def by_node(conn):
