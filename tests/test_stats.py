@@ -88,3 +88,24 @@ def test_stats_by_node(qdbd_secure_connection,
         xs = stats['cumulative']
         for expected in _expected_cumulative_stats:
             assert expected in xs
+
+def test_stats_regex():
+    # This is mostly to test a regression, where user-stats for users with multi-digit ids
+    # were not picked up.
+    user_stats = ['$qdb.statistics.foo.uid_1',
+                  '$qdb.statistics.foo.uid_21',
+                  '$qdb.statistics.foo.uid_321',
+                  '$qdb.statistics.foo.bar.uid_321']
+    total_stats = ['$qdb.statistics.foo',
+                   '$qdb.statistics.foo.bar',
+                   '$qdb.statistics.foo.bar1'
+                   '$qdb.statistics.u.i.d.1'
+                   '$qdb.statistics.foo.uid1']
+
+    for s in user_stats:
+        assert qdbst.is_user_stat(s) is True
+        assert qdbst.is_cumulative_stat(s) is False
+
+    for s in total_stats:
+        assert qdbst.is_user_stat(s) is False
+        assert qdbst.is_cumulative_stat(s) is True
