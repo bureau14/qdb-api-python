@@ -7,8 +7,23 @@ logger = logging.getLogger('quasardb.stats')
 
 stats_prefix  = '$qdb.statistics.'
 user_pattern  = re.compile(r'\$qdb.statistics.(.*).uid_([0-9]+)$')
-total_pattern = re.compile(r'\$qdb.statistics.(.*)$(?<!uid_[0-9]+)')
+total_pattern = re.compile(r'\$qdb.statistics.(.*)$')
 
+
+def is_user_stat(s):
+    return user_pattern.match(s) is not None
+
+def is_cumulative_stat(s):
+    # NOTE(leon): It's quite difficult to express in Python that you don't want any
+    # regex to _end_ with uid_[0-9]+, because Python's regex engine doesn't support
+    # variable width look-behind.
+    #
+    # An alternative would be to use the PyPi regex library (for POSIX regexes), but
+    # want to stay light on dependencies#
+    #
+    # As such, we define a 'cumulative' stat as anything that's not a user stat.
+    # Simple but effective.
+    return user_pattern.match(s) is None
 
 def by_node(conn):
     """
@@ -58,7 +73,7 @@ def _by_uid(stats):
     xs = {}
     for k, v in stats.items():
         matches = user_pattern.match(k)
-        if matches:
+        if is_user_stat(k) and matches:
             (metric, uid_str) = matches.groups()
             uid = int(uid_str)
             if uid not in xs:
@@ -74,7 +89,7 @@ def _cumulative(stats):
 
     for k, v in stats.items():
         matches = total_pattern.match(k)
-        if matches:
+        if is_cumulative_stat(k) and matches:
             metric = matches.groups()[0]
             xs[metric] = v
 
