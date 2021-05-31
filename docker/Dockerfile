@@ -35,13 +35,13 @@ RUN mkdir -p /tmp/python-build
 WORKDIR /tmp/python-build
 RUN curl -sSL https://www.python.org/ftp/python/$PYTHON_VERSION/Python-$PYTHON_VERSION.tar.xz | tar x --xz --strip=1 
 RUN ./configure --enable-optimizations --prefix=/usr/local
-RUN make -j72
-RUN make install
+RUN make altinstall
 
 WORKDIR "~/"
 RUN rm -rf /tmp/python-build
 ENV PATH=/usr/local/bin:$PATH
 ENV PYTHON=python$PYTHON_VERSION
+RUN ln -s /usr/local/bin/python3.6 /usr/bin/python3
 
 # CentOS 7 comes with very old Python modules
 RUN curl -sSL https://bootstrap.pypa.io/get-pip.py | $PYTHON -
