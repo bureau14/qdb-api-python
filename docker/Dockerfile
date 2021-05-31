@@ -17,6 +17,8 @@ RUN alternatives --install /usr/bin/cmake cmake /usr/bin/cmake3 10
 
 RUN scl enable devtoolset-7 bash
 
+RUN ldconfig -v
+
 # Install python $version
 RUN mkdir -p /tmp/python-build
 WORKDIR /tmp/python-build
@@ -27,11 +29,10 @@ RUN make altinstall
 WORKDIR "~/"
 RUN rm -rf /tmp/python-build
 ENV PATH=/usr/local/bin:$PATH
-ENV PYTHON=python$PYTHON_VERSION
 run mv /usr/bin/python3 /usr/bin/python3.old
 RUN ln -s /usr/local/bin/python3.6 /usr/bin/python3
 
 # CentOS 7 comes with very old Python modules
-RUN curl -sSL https://bootstrap.pypa.io/get-pip.py | $PYTHON -
-RUN $PYTHON -m pip install --upgrade setuptools wheel
+RUN curl -sSL https://bootstrap.pypa.io/get-pip.py | python3 -
+RUN python3 -m pip install --upgrade setuptools wheel
 
