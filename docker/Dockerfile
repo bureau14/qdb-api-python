@@ -38,6 +38,7 @@ RUN rm -rf /tmp/python-build
 ENV PATH=/usr/local/bin:$PATH
 run mv /usr/bin/python3 /usr/bin/python3.old
 RUN ln -s /usr/local/bin/python3.6 /usr/bin/python3
+run mv /usr/bin/python /usr/bin/python.old
 RUN ln -s /usr/local/bin/python3.6 /usr/bin/python
 
 # CentOS 7 comes with very old Python modules
