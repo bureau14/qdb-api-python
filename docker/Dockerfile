@@ -6,6 +6,8 @@ ARG PYTHON_VERSION
 
 RUN yum install -y \
 
+        which \
+
         # For recent GCC
         centos-release-scl \
 
@@ -17,7 +19,10 @@ RUN alternatives --install /usr/bin/cmake cmake /usr/bin/cmake3 10
 
 RUN ls -l /usr/lib/gcc* || true
 RUN ls -l /usr/lib64/gcc* || true
-RUN which gcc-7
+RUN which gcc-7 || true
+RUN which gcc || true
+RUN which g++-7 || true
+RUN which g++ || true
 
 RUN ldconfig -v
 RUN ln -fs /usr/local/bin/gcc /usr/local/bin/cc
