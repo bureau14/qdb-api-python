@@ -15,7 +15,7 @@ RUN yum install -y devtoolset-7-gcc-c++ cmake3 make python3-devel python3-wheel 
 # Install python $version
 RUN mkdir -p /tmp/python-build
 WORKDIR /tmp/python-build
-RUN curl -sSL ${URLS["python${PYTHON_VERSION}.tar.xz"]} | tar x --xz --strip=1 https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tar.xz
+RUN curl -sSL https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tar.xz | tar x --xz --strip=1 
 RUN ./configure --enable-optimizations --prefix=/usr/local
 RUN make -j72
 RUN make install
