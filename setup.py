@@ -66,7 +66,7 @@ class CMakeBuild(build_ext):
         # NOTE: Run `python setup.py build_ext --debug bdist_wheel ...` for Debug build.
         cfg = 'Debug' if self.debug else 'Release'
         build_args = ['--config', cfg]
-
+        
         if platform.system() == "Windows":
             cmake_args += [
                 '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(), extdir)]
@@ -77,7 +77,7 @@ class CMakeBuild(build_ext):
                 cmake_args += ['-A', 'Win32']
         #    build_args += ['--', '/m']
         else:
-            cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
+            cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg, '-DCMAKE_CXX_COMPILER=/usr/bin/c++']
         #    build_args += ['--', '-j2']
 
         env = os.environ.copy()
