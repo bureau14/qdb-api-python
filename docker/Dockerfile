@@ -14,19 +14,8 @@ RUN yum install -y \
         # For cmake3
         epel-release
 
-RUN yum install -y devtoolset-7-gcc-c++ cmake3 make python3-devel python3-wheel git
+RUN yum install -y devtoolset-7 cmake3 make python3-devel python3-wheel git
 RUN alternatives --install /usr/bin/cmake cmake /usr/bin/cmake3 10
-
-RUN scl enable devtoolset-7-gcc-c++ bash
-
-RUN ls -l /usr/lib/gcc* || true
-RUN ls -l /usr/lib64/gcc* || true
-RUN which gcc-7 || true
-RUN which gcc || true
-RUN which g++-7 || true
-RUN which g++ || true
-
-RUN yum install -y devtoolset-7
 
 RUN scl enable devtoolset-7 bash
 
