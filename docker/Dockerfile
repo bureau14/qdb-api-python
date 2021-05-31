@@ -12,8 +12,8 @@ RUN yum install -y \
         # For cmake3
         epel-release
 
-RUN yum update openssl openssl-libs
-RUN yum install openssl-devel
+RUN yum update -y openssl openssl-libs
+RUN yum install -y openssl-devel
 RUN yum install -y devtoolset-7 cmake3 make git zlib-devel
 RUN alternatives --install /usr/bin/cmake cmake /usr/bin/cmake3 10
 
