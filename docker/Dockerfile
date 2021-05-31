@@ -45,3 +45,8 @@ RUN ln -s /usr/local/bin/python3.6 /usr/bin/python
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install --upgrade setuptools wheel
 
+RUN yum install -y which
+RUN ls -l /usr/local/bin/g* || true
+RUN which g++ || true
+RUN which gcc || true
+
