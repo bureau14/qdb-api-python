@@ -12,7 +12,7 @@ RUN yum install -y \
         # For cmake3
         epel-release
 
-RUN yum install -y devtoolset-7 cmake3 make git zlib-devel
+RUN yum install -y devtoolset-7 cmake3 make git zlib-devel openssl-devel
 RUN alternatives --install /usr/bin/cmake cmake /usr/bin/cmake3 10
 
 RUN scl enable devtoolset-7 bash
@@ -33,6 +33,6 @@ run mv /usr/bin/python3 /usr/bin/python3.old
 RUN ln -s /usr/local/bin/python3.6 /usr/bin/python3
 
 # CentOS 7 comes with very old Python modules
-RUN python3 -m pip install --upgrade pip --trusted-host pypi.org
-RUN python3 -m pip install --upgrade setuptools wheel --trusted-host pypi.org
+RUN python3 -m pip install --upgrade pip
+RUN python3 -m pip install --upgrade setuptools wheel
 
