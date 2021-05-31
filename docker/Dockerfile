@@ -33,5 +33,7 @@ run mv /usr/bin/python3 /usr/bin/python3.old
 RUN ln -s /usr/local/bin/python3.6 /usr/bin/python3
 
 # CentOS 7 comes with very old Python modules
+RUN curl https://bootstrap.pypa.io/get-pip.py | python3 -
+RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install --upgrade setuptools wheel
 
