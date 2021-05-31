@@ -21,6 +21,8 @@ RUN scl enable devtoolset-7 bash
 
 RUN ln -fs /usr/local/bin/gcc /usr/local/bin/cc
 RUN ln -fs /usr/local/bin/g++ /usr/local/bin/c++
+RUN ln -fs /usr/local/bin/gcc /usr/bin/cc
+RUN ln -fs /usr/local/bin/g++ /usr/bin/c++
 
 RUN ldconfig -v
 
@@ -36,6 +38,7 @@ RUN rm -rf /tmp/python-build
 ENV PATH=/usr/local/bin:$PATH
 run mv /usr/bin/python3 /usr/bin/python3.old
 RUN ln -s /usr/local/bin/python3.6 /usr/bin/python3
+RUN ln -s /usr/local/bin/python3.6 /usr/bin/python
 
 # CentOS 7 comes with very old Python modules
 RUN python3 -m pip install --upgrade pip
