@@ -14,7 +14,7 @@ RUN yum install -y \
         # For cmake3
         epel-release
 
-RUN yum install -y devtoolset-7 cmake3 make python3-devel python3-wheel git
+RUN yum install -y devtoolset-7 cmake3 make python3-devel python3-wheel git zlib-devel
 RUN alternatives --install /usr/bin/cmake cmake /usr/bin/cmake3 10
 
 RUN scl enable devtoolset-7 bash
