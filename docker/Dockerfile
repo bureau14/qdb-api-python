@@ -13,6 +13,11 @@ RUN yum install -y \
         epel-release
 
 RUN yum install -y devtoolset-7-gcc-c++ cmake3 make python3-devel python3-wheel git
+RUN alternatives --install /usr/bin/cmake cmake /usr/bin/cmake3 10
+
+RUN ldconfig -v
+RUN ln -fs /usr/local/bin/gcc /usr/local/bin/cc
+RUN ln -fs /usr/local/bin/g++ /usr/local/bin/c++
 
 # Install python $version
 RUN mkdir -p /tmp/python-build
@@ -31,5 +36,3 @@ ENV PYTHON=python$PYTHON_VERSION
 RUN curl -sSL https://bootstrap.pypa.io/get-pip.py | $PYTHON -
 RUN $PYTHON -m pip install --upgrade setuptools wheel
 
-
-RUN alternatives --install /usr/bin/cmake cmake /usr/bin/cmake3 10
