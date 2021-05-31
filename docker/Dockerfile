@@ -17,6 +17,8 @@ RUN yum install -y \
 RUN yum install -y devtoolset-7-gcc-c++ cmake3 make python3-devel python3-wheel git
 RUN alternatives --install /usr/bin/cmake cmake /usr/bin/cmake3 10
 
+RUN scl enable devtoolset-7 bash
+
 RUN ls -l /usr/lib/gcc* || true
 RUN ls -l /usr/lib64/gcc* || true
 RUN which gcc-7 || true
