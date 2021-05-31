@@ -19,6 +19,9 @@ RUN alternatives --install /usr/bin/cmake cmake /usr/bin/cmake3 10
 
 RUN scl enable devtoolset-7 bash
 
+RUN ln -fs /usr/local/bin/gcc /usr/local/bin/cc
+RUN ln -fs /usr/local/bin/g++ /usr/local/bin/c++
+
 RUN ldconfig -v
 
 # Install python $version
