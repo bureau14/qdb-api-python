@@ -2,6 +2,8 @@ ARG PYTHON_VERSION
 
 FROM centos:7
 
+ARG PYTHON_VERSION
+
 RUN yum install -y \
 
         # For recent GCC
