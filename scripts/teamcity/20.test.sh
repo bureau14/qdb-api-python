@@ -41,7 +41,6 @@ esac
 ${PYTHON} -m pip uninstall -r dev-requirements.txt -y
 ${PYTHON} -m pip uninstall -r dev-requirements.txt -y
 ${PYTHON} -m pip install --upgrade pip
-${PYTHON} -m pip install --user -r dev-requirements.txt
+${PYTHON} -m pip install -r dev-requirements.txt
 ${PYTHON} -m pip install --upgrade setuptools wheel
-${PYTHON} -m pip install --upgrade pandas
 ${PYTHON} setup.py test  --addopts "--junitxml=${JUNIT_XML_FILE}"
