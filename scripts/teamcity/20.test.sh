@@ -1,3 +1,5 @@
+#!/bin/bash
+
 PYTHON="${PYTHON_CMD:-python}"
 
 # remove previous environment
