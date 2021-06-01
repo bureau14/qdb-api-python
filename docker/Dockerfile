@@ -19,10 +19,10 @@ RUN alternatives --install /usr/bin/cmake cmake /usr/bin/cmake3 10
 
 RUN scl enable devtoolset-7 bash
 
-RUN ln -fs /usr/local/bin/gcc /usr/local/bin/cc
-RUN ln -fs /usr/local/bin/g++ /usr/local/bin/c++
-RUN ln -fs /usr/local/bin/gcc /usr/bin/cc
-RUN ln -fs /usr/local/bin/g++ /usr/bin/c++
+RUN ln -fs /opt/rh/devtoolset-7/root/usr/bin/gcc /usr/local/bin/cc
+RUN ln -fs /opt/rh/devtoolset-7/root/usr/bin/g++ /usr/local/bin/c++
+RUN ln -fs /opt/rh/devtoolset-7/root/usr/bin/gcc /usr/bin/cc
+RUN ln -fs /opt/rh/devtoolset-7/root/usr/bin/g++ /usr/bin/c++
 
 RUN ldconfig -v
 
@@ -38,15 +38,9 @@ RUN rm -rf /tmp/python-build
 ENV PATH=/usr/local/bin:$PATH
 run mv /usr/bin/python3 /usr/bin/python3.old
 RUN ln -s /usr/local/bin/python3.6 /usr/bin/python3
-run mv /usr/bin/python /usr/bin/python.old
-RUN ln -s /usr/local/bin/python3.6 /usr/bin/python
+# run mv /usr/bin/python /usr/bin/python.old
+# RUN ln -s /usr/local/bin/python3.6 /usr/bin/python
 
 # CentOS 7 comes with very old Python modules
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install --upgrade setuptools wheel
-
-RUN yum install -y which
-RUN ls -l /usr/local/bin/g* || true
-RUN which g++ || true
-RUN which gcc || true
-
