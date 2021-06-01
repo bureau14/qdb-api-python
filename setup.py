@@ -77,7 +77,7 @@ class CMakeBuild(build_ext):
                 cmake_args += ['-A', 'Win32']
         #    build_args += ['--', '/m']
         else:
-            cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg, '-DCMAKE_CXX_COMPILER=/usr/bin/c++']
+            cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
         #    build_args += ['--', '-j2']
 
         env = os.environ.copy()
