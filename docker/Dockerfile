@@ -14,15 +14,15 @@ RUN yum install -y \
 
 RUN yum update -y openssl openssl-libs
 RUN yum install -y openssl-devel
-RUN yum install -y devtoolset-7 cmake3 make git zlib-devel
+RUN yum install -y devtoolset-8 cmake3 make git zlib-devel
 RUN alternatives --install /usr/bin/cmake cmake /usr/bin/cmake3 10
 
-RUN scl enable devtoolset-7 bash
+RUN scl enable devtoolset-8 bash
 
-RUN ln -fs /opt/rh/devtoolset-7/root/usr/bin/gcc /usr/local/bin/cc
-RUN ln -fs /opt/rh/devtoolset-7/root/usr/bin/g++ /usr/local/bin/c++
-RUN ln -fs /opt/rh/devtoolset-7/root/usr/bin/gcc /usr/bin/cc
-RUN ln -fs /opt/rh/devtoolset-7/root/usr/bin/g++ /usr/bin/c++
+RUN ln -fs /opt/rh/devtoolset-8/root/usr/bin/gcc /usr/local/bin/cc
+RUN ln -fs /opt/rh/devtoolset-8/root/usr/bin/g++ /usr/local/bin/c++
+RUN ln -fs /opt/rh/devtoolset-8/root/usr/bin/gcc /usr/bin/cc
+RUN ln -fs /opt/rh/devtoolset-8/root/usr/bin/g++ /usr/bin/c++
 
 RUN ldconfig -v
 
