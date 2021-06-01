@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PYTHON="${PYTHON_CMD:-python3}"
+PYTHON="${PYTHON_CMD:-python}"
 
 case "$(uname)" in
     Linux*)

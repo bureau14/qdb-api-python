@@ -9,7 +9,7 @@ case "$(uname)" in
     ;;
 esac
 
-PYTHON="${PYTHON_CMD:-python3}"
+PYTHON="${PYTHON_CMD:-python}"
 
 rm -r -fo dist/
 ${PYTHON} setup.py bdist_egg -d dist/
