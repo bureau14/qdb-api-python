@@ -40,6 +40,7 @@ esac
 # first remove system then user
 ${PYTHON} -m pip uninstall -r dev-requirements.txt -y
 ${PYTHON} -m pip uninstall -r dev-requirements.txt -y
-
+${PYTHON} -m pip install --upgrade pip
 ${PYTHON} -m pip install --user -r dev-requirements.txt
+${PYTHON} -m pip install --upgrade setuptools wheel
 ${PYTHON} setup.py test  --addopts "--junitxml=${JUNIT_XML_FILE}"
