@@ -4,6 +4,7 @@ case "$(uname)" in
     Linux*)
         echo "on linux"
         source /opt/rh/devtoolset-8/enable
+    ;;
     *)
     ;;
 esac
