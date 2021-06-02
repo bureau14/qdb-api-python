@@ -40,6 +40,6 @@ RUN python3 --version
 
 # CentOS 7 comes with very old Python modules
 RUN python3 -m pip install --upgrade pip
-RUN python3 -m pip install --upgrade setuptools wheel
+RUN python3 -m pip install --upgrade setuptools wheel pipenv pdoc3==0.7.5 pandas
 
 RUN echo "source /opt/rh/devtoolset-8/enable" >> ~/.bashrc
