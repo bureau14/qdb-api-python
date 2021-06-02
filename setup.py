@@ -66,7 +66,7 @@ class CMakeBuild(build_ext):
         # NOTE: Run `python setup.py build_ext --debug bdist_wheel ...` for Debug build.
         cfg = 'Debug' if self.debug else 'Release'
         build_args = ['--config', cfg]
-        
+
         if platform.system() == "Windows":
             cmake_args += [
                 '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(), extdir)]
