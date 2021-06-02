@@ -44,3 +44,5 @@ RUN ln -s /usr/local/bin/python3.6 /usr/bin/python3
 # CentOS 7 comes with very old Python modules
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install --upgrade setuptools wheel
+
+RUN echo "source /opt/rh/devtoolset-8/enable" >> ~/.bashrc

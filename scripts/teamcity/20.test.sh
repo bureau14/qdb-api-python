@@ -2,15 +2,6 @@
 
 PYTHON="${PYTHON_CMD:-python}"
 
-# Using cento7 docker we need to enable gcc-8 and g++-8
-case "$(uname)" in
-    Linux*)
-        source /opt/rh/devtoolset-8/enable
-    ;;
-    *)
-    ;;
-esac
-
 # remove previous environment
 if [ -d .env ]; then
     case "$(uname)" in
