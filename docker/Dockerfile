@@ -5,11 +5,7 @@ FROM centos:7
 ARG PYTHON_VERSION
 
 RUN yum install -y \
-
-        # For recent GCC
         centos-release-scl \
-
-        # For cmake3
         epel-release
 
 RUN yum update -y openssl openssl-libs
