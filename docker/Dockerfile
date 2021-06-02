@@ -10,7 +10,7 @@ RUN yum install -y \
 
 RUN yum update -y openssl openssl-libs
 RUN yum install -y openssl-devel
-RUN yum install -y devtoolset-8 cmake3 make git zlib-devel bzip2-devel
+RUN yum install -y devtoolset-8 cmake3 make git zlib-devel bzip2-devel libffi-devel
 RUN alternatives --install /usr/bin/cmake cmake /usr/bin/cmake3 10
 
 RUN scl enable devtoolset-8 bash
