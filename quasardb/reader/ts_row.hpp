@@ -52,7 +52,7 @@ class ts_row
 {
 public:
     // We need a default constructor to due being copied as part of an iterator.
-    ts_row() = default;
+    ts_row() noexcept = default;
 
     ts_row(handle_ptr handle, qdb_local_table_t local_table) noexcept
         : _handle{handle}
