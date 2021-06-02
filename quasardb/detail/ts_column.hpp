@@ -139,9 +139,9 @@ static std::vector<std::string> column_list_to_strings(const std::vector<column_
 
 struct indexed_column_info
 {
-    indexed_column_info() noexcept = default;
+    indexed_column_info() = default;
 
-    indexed_column_info(qdb_ts_column_type_t t, qdb_size_t i, const std::string & s = {}) noexcept
+    indexed_column_info(qdb_ts_column_type_t t, qdb_size_t i, const std::string & s = {})
         : type{t}
         , index{i}
         , symtable{s}
