@@ -107,6 +107,7 @@ if(APPLE)
                           ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libqdb_api.dylib)
 endif()
 
+
 # step 3: build
 pybind11_add_module(
   quasardb
@@ -136,6 +137,15 @@ pybind11_add_module(
 
 target_compile_definitions(quasardb PUBLIC QDB_PY_VERSION="${QDB_PY_VERSION}")
 target_link_libraries(quasardb PUBLIC ${QDB_API_LIB})
+
+if(CMAKE_COMPILER_IS_GNUCXX)
+  target_link_options(
+    quasardb
+    PUBLIC
+    -static-libgcc
+    -static-libstdc++
+  )
+endif()
 
 if(APPLE)
   set_target_properties(quasardb PROPERTIES INSTALL_RPATH "@loader_path")
