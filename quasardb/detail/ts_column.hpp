@@ -51,6 +51,8 @@ std::string type_to_string (qdb_ts_column_type_t t) {
     return "timestamp";
   case qdb_ts_column_string:
     return "string";
+  case qdb_ts_column_symbol:
+    return "symbol";
   default:
     return "uninitialized";
   }
