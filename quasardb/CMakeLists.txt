@@ -11,7 +11,13 @@ set(PACKAGE_NAME quasardb)
 # )
 
 # step 1: discover libraries
-set(QDB_API_DIR "${CMAKE_SOURCE_DIR}/../qdb")
+if(DEFINED ENV{QDB_API_PATH})
+  message("Getting qdb api from $ENV{QDB_API_PATH}")
+  set(QDB_API_DIR $ENV{QDB_API_PATH})
+else()
+  set(QDB_API_DIR "${CMAKE_SOURCE_DIR}/../qdb")
+endif()
+
 find_library(
   QDB_API_LIB
   NAMES qdb_api
