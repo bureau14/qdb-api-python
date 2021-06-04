@@ -38,6 +38,23 @@ namespace qdb
 namespace detail
 {
 
+std::string type_to_string (qdb_ts_column_type_t t) {
+  switch (t) {
+  case qdb_ts_column_double:
+    return "double";
+  case qdb_ts_column_blob:
+    return "blob";
+  case qdb_ts_column_int64:
+    return "int64";
+  case qdb_ts_column_timestamp:
+    return "timestamp";
+  case qdb_ts_column_string:
+    return "string";
+  default:
+    return "uninitialized";
+  }
+}
+
 struct column_info
 {
     column_info() = default;
@@ -50,6 +67,12 @@ struct column_info
     column_info(const qdb_ts_column_info_t & ci)
         : column_info{ci.type, ci.name}
     {}
+
+    std::string repr() const
+    {
+        return "<quasardb.ColumnInfo name='" + name + "' type='" + type_to_string(type) + "'>";
+    }
+
 
     operator qdb_ts_column_info_t() const noexcept
     {
@@ -134,6 +157,7 @@ static inline void register_ts_column(Module & m)
 
     py::class_<column_info>{m, "ColumnInfo"}                        //
         .def(py::init<qdb_ts_column_type_t, const std::string &>()) //
+        .def("__repr__", &column_info::repr)
         .def_readwrite("type", &column_info::type)                  //
         .def_readwrite("name", &column_info::name);                 //
 
@@ -141,6 +165,7 @@ static inline void register_ts_column(Module & m)
         .def(py::init<qdb_ts_column_type_t, qdb_size_t &>()) //
         .def_readonly("type", &indexed_column_info::type)    //
         .def_readonly("index", &indexed_column_info::index); //
+
 }
 
 } // namespace detail
