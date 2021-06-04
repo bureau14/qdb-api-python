@@ -56,6 +56,25 @@ def _check_ts_results(results, generated, count):
     np.testing.assert_array_equal(results[0][:count], generated[0][:count])
     np.testing.assert_array_equal(results[1][:count], generated[1][:count])
 
+def test_column_info_repr(column_name):
+    double = quasardb.ColumnInfo(quasardb.ColumnType.Double, column_name)
+    blob = quasardb.ColumnInfo(quasardb.ColumnType.Blob, column_name)
+    int64 = quasardb.ColumnInfo(quasardb.ColumnType.Int64, column_name)
+    timestamp = quasardb.ColumnInfo(quasardb.ColumnType.Timestamp, column_name)
+    string = quasardb.ColumnInfo(quasardb.ColumnType.String, column_name)
+
+    assert column_name in str(double)
+    assert column_name in str(blob)
+    assert column_name in str(int64)
+    assert column_name in str(timestamp)
+    assert column_name in str(string)
+
+    assert 'double'    in str(double)
+    assert 'blob'      in str(blob)
+    assert 'int64'     in str(int64)
+    assert 'timestamp' in str(timestamp)
+    assert 'string'    in str(string)
+
 
 def test_list_columns_throws_when_timeseries_does_not_exist(
         qdbd_connection, entry_name):
