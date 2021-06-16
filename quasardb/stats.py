@@ -1,6 +1,7 @@
 import re
 import quasardb
 import logging
+from datetime import datetime
 
 logger = logging.getLogger('quasardb.stats')
 
@@ -47,17 +48,22 @@ def of_node(conn, uri):
     uri: str
       URI of a node in the cluster, e.g. '127.0.0.1:2836'.
     """
+
+    start = datetime.now()
+
     dconn = conn.node(uri)
-
     raw = {
-        k: _get_stat(
-            dconn,
-            k) for k in dconn.prefix_get(
-            stats_prefix,
-            1000)}
-    return {'by_uid': _by_uid(raw),
-            'cumulative': _cumulative(raw)}
+        k: _get_stat(dconn,k) for k in dconn.prefix_get(stats_prefix, 1000)}
 
+    ret = {'by_uid': _by_uid(raw),
+           'cumulative': _cumulative(raw)}
+
+    check_duration = datetime.now() - start
+
+    ret['cumulative']['check.online'] = 1
+    ret['cumulative']['check.duration_ms'] = int(check_duration.total_seconds() * 1000)
+
+    return ret
 
 def _get_stat(dconn, k):
     # Ugly, but works: try to retrieve as integer, if not an int, retrieve as
@@ -67,7 +73,6 @@ def _get_stat(dconn, k):
     except quasardb.quasardb.Error:
         blob = dconn.blob(k).get()
         return blob.decode('utf-8', 'replace')
-
 
 def _by_uid(stats):
     xs = {}
