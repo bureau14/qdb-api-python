@@ -244,10 +244,10 @@ _infer_with = {
     quasardb.ColumnType.Int64: {
         'floating': np.int64,
         'integer':  np.int64,
-        'string': lambda x: np.float64(x).astype(np.int64),
-        'bytes': lambda x: np.float64(x.decode("utf-8")).astype(np.int64),
+        'string': lambda x: np.float64(x).view(np.int64),
+        'bytes': lambda x: np.float64(x.decode("utf-8")).view(np.int64),
         'datetime64': lambda x: np.int64(x.nanosecond),
-        '_': lambda x: np.float64(x).astype(np.int64)
+        '_': lambda x: np.float64(x).view(np.int64)
     },
     quasardb.ColumnType.Double: {
         'floating': lambda x: x,
