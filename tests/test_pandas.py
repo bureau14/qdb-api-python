@@ -195,16 +195,16 @@ def test_dataframe_read_fast_is_unordered(qdbd_connection, table):
 
     df5 = qdbpd.read_dataframe(table, row_index=True)
 
-    assert df5.at[0, 'the_int64'] == df1.at[ts1, 'the_int64']
-    assert df5.at[1, 'the_int64'] == df2.at[ts1, 'the_int64']
-    assert df5.at[2, 'the_int64'] == df1.at[ts2, 'the_int64']
-    assert df5.at[3, 'the_int64'] == df2.at[ts2, 'the_int64']
+    assert df5.loc[0, 'the_int64'] == df1.loc[ts1, 'the_int64']
+    assert df5.loc[1, 'the_int64'] == df2.loc[ts1, 'the_int64']
+    assert df5.loc[2, 'the_int64'] == df1.loc[ts2, 'the_int64']
+    assert df5.loc[3, 'the_int64'] == df2.loc[ts2, 'the_int64']
 
     # QDB-2418
-    check_equal(df5.at[0, 'the_double'], df1.at[ts1, 'the_double'])
-    check_equal(df5.at[1, 'the_double'], df2.at[ts1, 'the_double'])
-    check_equal(df5.at[2, 'the_double'], df1.at[ts2, 'the_double'])
-    check_equal(df5.at[3, 'the_double'], df2.at[ts2, 'the_double'])
+    check_equal(df5.loc[0, 'the_double'], df1.loc[ts1, 'the_double'])
+    check_equal(df5.loc[1, 'the_double'], df2.loc[ts1, 'the_double'])
+    check_equal(df5.loc[2, 'the_double'], df1.loc[ts2, 'the_double'])
+    check_equal(df5.loc[3, 'the_double'], df2.loc[ts2, 'the_double'])
 
 
 def test_query(qdbd_connection, table):
