@@ -61,6 +61,13 @@ else()
   set(PYBIND11_CPP_STANDARD /std:c++14)
 endif()
 
+# Target core2 by default
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+  add_compile_options(
+      -march=core2
+  )
+endif()
+
 add_subdirectory(pybind11)
 
 include_directories(SYSTEM qdb/include)
