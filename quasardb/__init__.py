@@ -39,3 +39,5 @@ try:
     from quasardb.quasardb import *
 except BaseException:
     from quasardb import *
+
+from .pool import *
