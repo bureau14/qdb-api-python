@@ -40,7 +40,7 @@ class SessionWrapper(object):
         return getattr(self._conn, attr)
 
     def __enter__(self):
-        return self._conn.__enter__()
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._pool.release(self._conn)

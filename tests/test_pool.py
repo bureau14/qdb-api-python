@@ -16,6 +16,36 @@ def test_can_acquire_connection():
         with p.connect() as conn:
             pass
 
+def test_releases_connection_in_with_block():
+    # Tests whether pool.release() is invoked with a connection after a `with` block,
+    # rather than actually closing a connection
+
+    the_conn = None
+
+    with pool.SingletonPool(uri='qdb://127.0.0.1:2836') as p:
+        with p.connect() as conn:
+            the_conn = conn
+            assert the_conn.is_open() is True
+
+        assert the_conn.is_open() is True
+
+
+def test_cleans_connections_after_pool_close():
+    # Verifies whether a pool cleans up all connections after it is closed
+
+    the_conn = None
+
+    with pool.SingletonPool(uri='qdb://127.0.0.1:2836') as p:
+        with p.connect() as conn:
+            the_conn = conn
+            assert the_conn.is_open() is True
+
+        assert the_conn.is_open() is True
+
+    assert the_conn.is_open() is False
+
+
+
 def test_use_acquired_connection(entry_name):
     # Ensures the connection returned by `pool.connect()` is actually a usable
     # QuasarDB connection. It's relevant because we extend the connection class
@@ -47,7 +77,7 @@ def _test_default_decorator_impl(conn):
     return conn
 
 def test_default_decorator():
-    assert isinstance(_test_default_decorator_impl(), quasardb.Cluster)
+    assert isinstance(_test_default_decorator_impl(), pool.SessionWrapper)
 
 @pool.with_conn(arg='foo')
 def _test_kwargs_decorator_impl(entry_name, foo):
@@ -55,7 +85,7 @@ def _test_kwargs_decorator_impl(entry_name, foo):
     return foo
 
 def test_kwarg_decorator(entry_name):
-    assert isinstance(_test_kwargs_decorator_impl(entry_name), quasardb.Cluster)
+    assert isinstance(_test_kwargs_decorator_impl(entry_name), pool.SessionWrapper)
 
 @pool.with_conn(arg=1)
 def _test_positional_args_decorator_impl(entry_name, conn, another_entry_name):
@@ -63,4 +93,4 @@ def _test_positional_args_decorator_impl(entry_name, conn, another_entry_name):
     return conn
 
 def test_positional_args_decorator(entry_name):
-    assert isinstance(_test_positional_args_decorator_impl(entry_name, entry_name), quasardb.Cluster)
+    assert isinstance(_test_positional_args_decorator_impl(entry_name, entry_name), pool.SessionWrapper)
