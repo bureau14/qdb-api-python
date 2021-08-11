@@ -1,67 +1,103 @@
 import logging
 import quasardb
+import threading
+import functools
+import weakref
 
 logger = logging.getLogger('quasardb.pool')
 
-class Session(quasardb.Cluster):
-    def __init__(self, pool, uri=None, user_name=None, user_private_key=None, cluster_public_key=None):
-        self.pool = pool
-        print("uri = {}".format(uri))
-        super().__init__(uri=uri)
-
-    def close(self):
-        self.pool.release(self)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
-
-class Factory(object):
-    def __init__(self, **kwargs):
-        self.args = kwargs
-
-    def create(self):
-        return Session(**self.args)
+def _create_conn(**kwargs):
+    return quasardb.Cluster(**kwargs)
 
 class Pool(object):
     """
-    Connection pool
     """
-    def __init__(self, size=1, uri=None, user_name=None, user_private_key=None, cluster_public_key=None):
-        self.size    = size
-        self.factory = Factory(pool=self,
-                               uri=uri,
-                               user_name=user_name,
-                               user_private_key=user_private_key,
-                               cluster_public_key=cluster_public_key)
+
+    def __init__(self, size=1, get_conn=None, **kwargs):
+        self._all_connections = []
+
+        if get_conn is None:
+            get_conn = functools.partial(_create_conn, **kwargs)
+
+        self._get_conn = get_conn
+        self._size = size
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
+        for conn in self._all_connections:
+            logger.debug("closing connection {}".format(conn))
+            conn.close()
 
     def connect(self):
         """
         Acquire a new connection from the pool.
         """
-        return self.factory.create()
+        logger.info("Acquiring connection from pool")
+        return self._do_connect()
 
     def release(self, conn):
         """
+        Put a connection back into the pool
         """
-        print("releasing conn: {}".format(conn))
+        logger.info("Putting connection back onto pool")
+        return self._do_release(conn)
 
-def _inject_pool_arg(arg, args, kwargs):
+class SingletonPool(Pool):
+    """
+    Implementation of our connection pool that maintains just a single connection
+    per thread.
+    """
+
+    def __init__(self, **kwargs):
+        Pool.__init__(self, **kwargs)
+        self._conn = threading.local()
+
+    def _do_connect(self):
+        try:
+            c = self._conn.current()
+            if c:
+                return c
+        except AttributeError:
+            pass
+
+        c = self._get_conn()
+        self._conn.current = weakref.ref(c)
+        self._all_connections.append(c)
+
+        return c
+
+    def _do_release(self, conn):
+        # Thread-local connections do not have to be 'released'.
+        pass
+
+
+__instance = None
+
+def initialize(p: SingletonPool):
+    """
+    Singleton initializer
+    """
+    global __instance
+    assert isinstance(p, SingletonPool), "Not a singleton pool: {}. Please initialize your connection pool using the SingletonPool() class.".format(p)
+    __instance = p
+
+def instance() -> SingletonPool:
+    """
+    Singleton accessor. Instance must have been initialized using initialize()
+    prior to invoking this function.
+    """
+    global __instance
+    assert __instance is not None, "Global connection pool uninitialized: please initialize by calling the initialize() function."
+    return __instance
+
+def _inject_conn_arg(conn, arg, args, kwargs):
     """
     Decorator utility function. Takes the argument provided to the decorator
     that configures how we should inject the pool into the args to the callback
     function, and injects it in the correct place.
     """
-    pool = 'Test'
-
     if isinstance(arg, int):
         # Invoked positional such as `@with_pool(arg=1)`, put the pool into the
         # correct position.
@@ -69,24 +105,23 @@ def _inject_pool_arg(arg, args, kwargs):
         # Because positional args are always a tuple, and tuples don't have an
         # easy 'insert into position' function, we just cast to and from a list.
         args = list(args)
-        args.insert(arg, pool)
+        args.insert(arg, conn)
         args = tuple(args)
     else:
         assert isinstance(arg, str) == True
         # If not a number, we assume it's a kwarg, which makes things easier
-        kwargs[arg] = pool
+        kwargs[arg] = conn
 
     return (args, kwargs)
 
-
-def with_pool(_fn=None, *, arg=0):
+def with_conn(_fn=None, *, arg=0):
     def inner(fn):
         def wrapper(*args, **kwargs):
-            print("before decorator, kwargs = {}".format(kwargs))
-            (args, kwargs) = _inject_pool_arg(arg, args, kwargs)
-            result = fn(*args, **kwargs)
-            print("after decorator")
-            return result
+            pool = instance()
+
+            with pool.connect() as conn:
+                (args, kwargs) = _inject_conn_arg(conn, arg, args, kwargs)
+                return fn(*args, **kwargs)
 
         return wrapper
 
