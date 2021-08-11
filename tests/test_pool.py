@@ -32,14 +32,13 @@ def test_uninitialized_singleton():
         pool.instance()
 
 def test_singleton():
-    # Tests whether we can initialize a singleton instance
-    p = pool.SingletonPool(uri='qdb://127.0.0.1:2836')
-    pool.initialize(p)
-    assert pool.instance() == p
+    pool.initialize(uri='qdb://127.0.0.1:2836')
+    assert isinstance(pool.instance(), pool.SingletonPool)
 
 def test_singleton_checks_type():
-    # Tests whether we can initialize a singleton instance
-    with pytest.raises(AssertionError, match=r"Not a singleton pool"):
+    # Tests whether an error is thrown if we initialize the pool with an incorrect
+    # arg.
+    with pytest.raises(TypeError):
         pool.initialize('Foo')
 
 @pool.with_conn()

@@ -19,6 +19,9 @@ class Pool(object):
         if get_conn is None:
             get_conn = functools.partial(_create_conn, **kwargs)
 
+        if not callable(get_conn):
+            raise TypeError("get_conn must be callable")
+
         self._get_conn = get_conn
         self._size = size
 
@@ -30,14 +33,14 @@ class Pool(object):
             logger.debug("closing connection {}".format(conn))
             conn.close()
 
-    def connect(self):
+    def connect(self) -> quasardb.Cluster:
         """
         Acquire a new connection from the pool.
         """
         logger.info("Acquiring connection from pool")
         return self._do_connect()
 
-    def release(self, conn):
+    def release(self, conn: quasardb.Cluster):
         """
         Put a connection back into the pool
         """
@@ -75,13 +78,12 @@ class SingletonPool(Pool):
 
 __instance = None
 
-def initialize(p: SingletonPool):
+def initialize(*args, **kwargs):
     """
     Singleton initializer
     """
     global __instance
-    assert isinstance(p, SingletonPool), "Not a singleton pool: {}. Please initialize your connection pool using the SingletonPool() class.".format(p)
-    __instance = p
+    __instance = SingletonPool(*args, **kwargs)
 
 def instance() -> SingletonPool:
     """
