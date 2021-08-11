@@ -9,6 +9,42 @@ logger = logging.getLogger('quasardb.pool')
 def _create_conn(**kwargs):
     return quasardb.Cluster(**kwargs)
 
+class SessionWrapper(object):
+    def __init__(self, pool, conn):
+        self._conn = conn
+        self._pool = pool
+
+    def __getattr__(self, attr):
+        # This hack copies all the quasardb.Cluster() properties, functions and
+        # whatnot, and pretends that this class is actually a quasardb.Cluster.
+        #
+        # The background is that when someone does this:
+        #
+        # with pool.connect() as conn:
+        #   ...
+        #
+        # we don't want the the connection to be closed near the end, but rather
+        # released back onto the pool.
+        #
+        # Now, my initial approach was to build a pool.Session class which inherited
+        # from quasardb.Cluster, and just overload the __exit__ function there. But,
+        # we want people to have the flexibility to pass in an external `get_conn` callback
+        # in the pool, which establishes a connection, because they may have to look up
+        # some dynamic security tokens. This function should then, in turn, return a vanilla
+        # quasardb.Cluster() object.
+        #
+        # And this is why we end up with the solution below.
+        if attr in self.__dict__:
+            return getattr(self, attr)
+
+        return getattr(self._conn, attr)
+
+    def __enter__(self):
+        return self._conn.__enter__()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._pool.release(self._conn)
+
 class Pool(object):
     """
     """
@@ -32,6 +68,9 @@ class Pool(object):
         for conn in self._all_connections:
             logger.debug("closing connection {}".format(conn))
             conn.close()
+
+    def _create_conn(self):
+        return SessionWrapper(self, self._get_conn())
 
     def connect(self) -> quasardb.Cluster:
         """
@@ -65,7 +104,7 @@ class SingletonPool(Pool):
         except AttributeError:
             pass
 
-        c = self._get_conn()
+        c = self._create_conn()
         self._conn.current = weakref.ref(c)
         self._all_connections.append(c)
 
