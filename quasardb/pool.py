@@ -47,9 +47,45 @@ class SessionWrapper(object):
 
 class Pool(object):
     """
+    A connection pool. This class should not be initialized directly, but
+    rather the subclass `SingletonPool` should be initialized.
+
+    The constructor either accepts all regular `quasardb.Cluster()` connection parameters,
+    or a `get_conn` parameter which is invoked any time a new connection should be
+    created.
+
+    Example usage:
+    --------------
+
+    Initialize the pool by passthrough of `quasardb.Cluster()` arguments:
+    ```
+    import quasardb.pool as pool
+
+    pool.SingletonPool(uri='qdb://127.0.0.1:2836',
+                       cluster_public_key='...',
+                       user_private_key='...',
+                       user_name='...')
+    ```
+
+    Initialize pool by providing a callback function
+    ```
+    import quasardb
+    import quasardb.pool as pool
+
+    def my_qdb_connection_create():
+       # This function is invoked any time the pool needs to allocate
+       # a new connection.
+       return quasardb.Cluster(uri='qdb://127.0.0.1:2836',
+                               cluster_public_key='...',
+                               user_private_key='...',
+                               user_name='...')
+
+    pool.SingletonPool(get_conn=my_qdb_connection_create)
+    ```
+
     """
 
-    def __init__(self, size=1, get_conn=None, **kwargs):
+    def __init__(self, get_conn=None, **kwargs):
         self._all_connections = []
 
         if get_conn is None:
@@ -65,16 +101,30 @@ class Pool(object):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        for conn in self._all_connections:
-            logger.debug("closing connection {}".format(conn))
-            conn.close()
+        self.close()
 
     def _create_conn(self):
         return SessionWrapper(self, self._get_conn())
 
+    def close(self):
+        """
+        Close this connection pool, and all associated connections. This function
+        is automatically invoked when used in a with-block or when using the global
+        `instance()` singleton.
+        """
+        for conn in self._all_connections:
+            logger.debug("closing connection {}".format(conn))
+            conn.close()
+
     def connect(self) -> quasardb.Cluster:
         """
-        Acquire a new connection from the pool.
+        Acquire a new connection from the pool. Returned connection must either
+        be explicitly released using `pool.release()`, or should be wrapped in a
+        with-block.
+
+        Returns:
+        --------
+        `quasardb.Cluster`
         """
         logger.info("Acquiring connection from pool")
         return self._do_connect()
@@ -90,6 +140,30 @@ class SingletonPool(Pool):
     """
     Implementation of our connection pool that maintains just a single connection
     per thread.
+
+    Example usage:
+    --------
+
+    Using pool.connect() in a with-block:
+    ```
+    import quasardb.pool as pool
+
+    with pool.Pool(uri='qdb://127.0.0.1:2836') as pool:
+      with pool.connect() as conn:
+        conn.query(...)
+    ```
+
+    Explicitly releasing the connection using `Pool.release()`:
+    ```
+    import quasardb.pool as pool
+
+    with pool.Pool(uri='qdb://127.0.0.1:2836') as pool:
+      conn = pool.connect()
+      try:
+        conn.query(...)
+      finally:
+        pool.release(conn)
+    ```
     """
 
     def __init__(self, **kwargs):
@@ -119,7 +193,25 @@ __instance = None
 
 def initialize(*args, **kwargs):
     """
-    Singleton initializer
+    Initialize a new global SingletonPool. Forwards all arguments to the constructor of
+    `SingletonPool()`.
+
+    After initialization, the instance can be used by invoking `instance()`.
+
+    Example usage:
+    --------------
+
+    ```
+    import quasardb.pool as pool
+
+    pool.initialize(cluster='qdb://127.0.0.1:2836')
+
+    # ...
+
+    def myfunction()
+      with pool.instance().connect() as conn:
+        conn.query(...)
+    ```
     """
     global __instance
     __instance = SingletonPool(*args, **kwargs)
@@ -128,6 +220,11 @@ def instance() -> SingletonPool:
     """
     Singleton accessor. Instance must have been initialized using initialize()
     prior to invoking this function.
+
+    Returns:
+    --------
+    `SingletonPool`
+
     """
     global __instance
     assert __instance is not None, "Global connection pool uninitialized: please initialize by calling the initialize() function."
@@ -156,6 +253,32 @@ def _inject_conn_arg(conn, arg, args, kwargs):
     return (args, kwargs)
 
 def with_conn(_fn=None, *, arg=0):
+    """
+    Decorator function that handles connection assignment, release and invocation for you.
+    Should be used in conjuction with the global singleton accessor, see also: `initialize()`.
+
+    By default, the decorator function injects the connection as the first argument to the
+    function:
+    ```
+    import quasardb.pool as pool
+    pool.initialize(...)
+
+    @pool.with_conn()
+    def myfunction(conn, arg1, arg2):
+       conn.query(...)
+    ```
+
+    You can optionally provide an `arg` parameter to denote which named keyword to provide
+    it as:
+    ```
+    import quasardb.pool as pool
+    pool.initialize(...)
+
+    @pool.with_conn(arg='conn')
+    def myfunction(arg1, arg2, conn=None):
+       conn.query(...)
+    ```
+    """
     def inner(fn):
         def wrapper(*args, **kwargs):
             pool = instance()
