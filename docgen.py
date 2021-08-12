@@ -64,5 +64,9 @@ for mod in modules:
         write_module("doc/" + module_name + ".html", html)
         write_module("doc/" + _strip_prefix(module_name, 'quasardb.') + ".html", html)
 
-        os.mkdir("doc/" + _strip_prefix(module_name, 'quasardb.'))
+        try:
+            os.mkdir("doc/" + _strip_prefix(module_name, 'quasardb.'))
+        except FileExistsError:
+            pass
+
         write_module("doc/" + _strip_prefix(module_name, 'quasardb.') + "/index.html", html)
