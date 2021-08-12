@@ -97,6 +97,8 @@ def read_series(table, col_name, ranges=None):
     Read a Pandas Timeseries from a single column.
 
     Parameters:
+    -----------
+
     table : quasardb.Timeseries
       QuasarDB Timeseries table object, e.g. qdb_cluster.table('my_table')
 
@@ -138,6 +140,8 @@ def write_series(series, table, col_name):
     Writes a Pandas Timeseries to a single column.
 
     Parameters:
+    -----------
+
     series : pandas.Series
       Pandas Series, with a numpy.datetime64[ns] as index. Underlying data will be attempted
       to be transformed to appropriate QuasarDB type.
@@ -172,6 +176,8 @@ def query(cluster, query, blobs=False):
     tablename / DataFrame pairs.
 
     Parameters:
+    -----------
+
     cluster : quasardb.Cluster
       Active connection to the QuasarDB cluster
 
@@ -197,6 +203,8 @@ def read_dataframe(table, row_index=False, columns=None, ranges=None):
     Read a Pandas Dataframe from a QuasarDB Timeseries table.
 
     Parameters:
+    -----------
+
     table : quasardb.Timeseries
       QuasarDB Timeseries table object, e.g. qdb_cluster.table('my_table')
 
@@ -494,6 +502,8 @@ def write_pinned_dataframe(
     Store a dataframe into a table with the pin column API.
 
     Parameters:
+    -----------
+
     df: pandas.DataFrame
       The pandas dataframe to store.
 
