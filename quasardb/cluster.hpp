@@ -125,6 +125,10 @@ public:
         return *this;
     }
 
+    bool is_open() const {
+      return _handle.get() != nullptr;
+    }
+
     void exit(pybind11::object type, pybind11::object value, pybind11::object traceback)
     {
         return close();
@@ -335,6 +339,7 @@ static inline void register_cluster(Module & m)
             py::arg("timeout")            = std::chrono::minutes{1})                                                                               //
         .def("__enter__", &qdb::cluster::enter)                                                                                         //
         .def("__exit__", &qdb::cluster::exit)               //                                                                   //
+        .def("is_open", &qdb::cluster::is_open)             //
         .def("uri", &qdb::cluster::uri)                     //
         .def("node", &qdb::cluster::node)                   //
         .def("options", &qdb::cluster::options)             //
