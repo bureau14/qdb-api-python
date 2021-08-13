@@ -95,7 +95,6 @@ class Pool(object):
             raise TypeError("get_conn must be callable")
 
         self._get_conn = get_conn
-        self._size = size
 
     def __enter__(self):
         return self
