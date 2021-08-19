@@ -59,7 +59,7 @@ def test_use_acquired_connection(entry_name):
 def test_uninitialized_singleton():
     # Tests whether an error is thrown if we use the singleton without initialization
     with pytest.raises(AssertionError, match=r"Global connection pool uninitialized"):
-        pool.instance()
+        print("pool.instance() = {}".pool.instance())
 
 def test_singleton():
     pool.initialize(uri='qdb://127.0.0.1:2836')
