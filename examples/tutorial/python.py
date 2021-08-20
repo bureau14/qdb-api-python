@@ -7,25 +7,26 @@ import numpy as np
 def do_something_async_with(x):
     pass
 
-# pool-connect-start
-import quasardb.pool as pool
+def test_pool()
+    # pool-connect-start
+    import quasardb.pool as pool
 
-# Always initialize the connection pool global singleton.
-pool.initialize(uri="qdb://127.0.0.1:2836")
+    # Always initialize the connection pool global singleton.
+    pool.initialize(uri="qdb://127.0.0.1:2836")
 
-# You can use the connection pool instance directly like this:
-with pool.instance().connect() as conn:
-    # ... do something with conn
-    pass
+    # You can use the connection pool instance directly like this:
+    with pool.instance().connect() as conn:
+        # ... do something with conn
+        pass
 
-# Alternatively, you can make use of the decorator function which handles
-# connection management for you
-@pool.with_conn()
-def my_handler(conn, additional_args):
-    # By default, `conn` is always injected as the first argument
-    result = conn.query()
+    # Alternatively, you can make use of the decorator function which handles
+    # connection management for you
+    @pool.with_conn()
+    def my_handler(conn, additional_args):
+        # By default, `conn` is always injected as the first argument
+        result = conn.query()
 
-# pool-connect-end
+    # pool-connect-end
 
 # connect-start
 with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
