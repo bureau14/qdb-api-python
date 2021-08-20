@@ -7,7 +7,7 @@ import numpy as np
 def do_something_async_with(x):
     pass
 
-def test_pool()
+def test_pool():
     # pool-connect-start
     import quasardb.pool as pool
 
