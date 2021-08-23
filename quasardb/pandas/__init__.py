@@ -277,11 +277,11 @@ _infer_with = {
     quasardb.ColumnType.Int64: {
         'floating': np.int64,
         'integer': np.int64,
-        'string': lambda x: np.float64(x).view(np.int64),
-        'bytes': lambda x: np.float64(x.decode("utf-8")).view(np.int64),
+        'string': lambda x: np.float64(x).astype(np.int64),
+        'bytes': lambda x: np.float64(x.decode("utf-8")).astype(np.int64),
         'datetime64': lambda x: np.int64(x.nanosecond),
         'datetime': lambda x: np.int64(x.timestamp() * 1000000000),
-        '_': lambda x: np.float64(x).view(np.int64)
+        '_': lambda x: np.float64(x).astype(np.int64)
     },
     quasardb.ColumnType.Double: {
         'floating': lambda x: x,
@@ -602,7 +602,7 @@ def write_pinned_dataframe(
     for i in range(len(df.columns)):
         ct = ctypes[i]
         tmp = df.iloc[:, i]
-        timestamps = tmp.index.view(np.dtype('int64')).tolist()
+        timestamps = tmp.index.astype(np.dtype('int64')).tolist()
         values = []
         if infer_types is True:
             dt = dtypes[i]
@@ -618,14 +618,14 @@ def write_pinned_dataframe(
             dt = pin_dtypes_map_flip[ct]
             if (ct == quasardb.ColumnType.Int64):
                 # you need to fill with 0x8000000000000000 (which is quasardb value for null)
-                # view(np.dtype('int64')) cannot convert None to int64
-                values = tmp.fillna(0x8000000000000000).view(dt).tolist()
+                # astype(np.dtype('int64')) cannot convert None to int64
+                values = tmp.fillna(0x8000000000000000).astype(dt).tolist()
             elif (ct == quasardb.ColumnType.Blob):
-                values = tmp.fillna(b'').view(dt).tolist()
+                values = tmp.fillna(b'').astype(dt).tolist()
             elif (ct == quasardb.ColumnType.String or ct == quasardb.ColumnType.Symbol):
-                values = tmp.fillna('').view(dt).tolist()
+                values = tmp.fillna('').astype(dt).tolist()
             else:
-                values = tmp.view(dt).tolist()
+                values = tmp.astype(dt).tolist()
         write_with[ct](i, timestamps, values)
 
     start = time.time()

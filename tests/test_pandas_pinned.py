@@ -175,6 +175,17 @@ def test_write_pinned_dataframe(qdbd_connection, table):
     for col in df1.columns:
         np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
 
+def test_write_pinned_dataframe_with_infer_types(qdbd_connection, table):
+    # Ensures that we can do a full-circle write and read of a dataframe
+    df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
+    qdbpd.write_pinned_dataframe(df1, qdbd_connection, table, infer_types=False)
+
+    df2 = qdbpd.read_dataframe(table)
+
+    assert len(df1.columns) == len(df2.columns)
+    for col in df1.columns:
+        np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
+
 
 def test_write_pinned_dataframe_push_fast(qdbd_connection, table):
     # Ensures that we can do a full-circle write and read of a dataframe
