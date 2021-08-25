@@ -193,9 +193,9 @@ public:
     }
 
     // the batch_inserter_ptr is non-copyable
-    qdb::pinned_writer_ptr pinned_writer(const std::vector<qdb::table> & tables)
+    qdb::pinned_writer_ptr pinned_writer(const qdb::table & table)
     {
-        return std::make_unique<qdb::pinned_writer>(_handle, tables);
+        return std::make_unique<qdb::pinned_writer>(_handle, table);
     }
 
     qdb::options options()

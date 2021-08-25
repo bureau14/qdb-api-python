@@ -152,7 +152,11 @@ pybind11_add_module(
   logger.cpp
   detail/ts_column.hpp
   reader/ts_row.hpp
-  reader/ts_value.hpp)
+  reader/ts_value.hpp
+  utils/blob_deque.hpp
+  utils/ostream.hpp
+  utils/permutation.hpp
+  utils/stable_sort.hpp)
 
 target_compile_definitions(quasardb PUBLIC QDB_PY_VERSION="${QDB_PY_VERSION}")
 target_link_libraries(quasardb PUBLIC ${QDB_API_LIB})

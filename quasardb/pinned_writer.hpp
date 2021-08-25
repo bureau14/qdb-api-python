@@ -36,6 +36,9 @@
 #include "table.hpp"
 #include "ts_iterator.hpp"
 #include "utils.hpp"
+#include "utils/blob_deque.hpp"
+#include "utils/ostream.hpp"
+#include "utils/permutation.hpp"
 #include <vector>
 
 namespace qdb
@@ -71,10 +74,16 @@ std::string null_value()
     return "";
 }
 
-using int64_column     = std::pair<std::vector<qdb_timespec_t>, std::vector<qdb_int_t>>;
-using double_column    = std::pair<std::vector<qdb_timespec_t>, std::vector<double>>;
-using timestamp_column = std::pair<std::vector<qdb_timespec_t>, std::vector<qdb_timespec_t>>;
-using blob_like_column = std::pair<std::vector<qdb_timespec_t>, std::vector<std::string>>;
+template <>
+qdb_blob_t null_value()
+{
+    return qdb_blob_t{nullptr, 0};
+}
+
+using int64_column     = std::vector<qdb_int_t>;
+using double_column    = std::vector<double>;
+using timestamp_column = std::vector<qdb_timespec_t>;
+using blob_like_column = std::vector<qdb_blob_t>;
 struct any_column
 {
     int64_column ints;
@@ -122,36 +131,16 @@ class pinned_writer
     using any_column       = detail::any_column;
 
 public:
-    pinned_writer(qdb::handle_ptr h, const std::vector<table> & tables)
+    pinned_writer(qdb::handle_ptr h, const table & table)
         : _logger("quasardb.pinned_writer")
         , _handle{h}
-        , _point_count{0}
-        , _min_max_ts{qdb_min_timespec, qdb_min_timespec}
+        , _table_name{table.get_name()}
     {
-        for (const auto & tbl : tables)
+        _column_infos = table.list_columns();
+        for (const auto & col : _column_infos)
         {
-            for (const auto & col : tbl.list_columns())
-            {
-                _batch_columns.push_back(batch_column_info{tbl.get_name(), col.name, 1});
-                _column_types.push_back(col.type);
-                _columns.push_back(_make_column(col.type));
-            }
+            _columns.push_back(_make_column(col.type));
         }
-        std::vector<qdb_ts_batch_column_info_t> converted(_batch_columns.size());
-
-        std::transform(_batch_columns.cbegin(), _batch_columns.cend(), converted.begin(),
-            [](const batch_column_info & ci) -> qdb_ts_batch_column_info_t { return ci; });
-
-        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_table_init(*_handle, converted.data(), converted.size(), &_batch_table));
-
-        if (!_batch_columns.empty())
-        {
-            // take the shard size from any table
-            // as all tables shall have the same
-            qdb_ts_shard_size(*_handle, _batch_columns[0].timeseries.c_str(), reinterpret_cast<qdb_uint_t *>(&_shard_size));
-        }
-
-        _logger.debug("initialized batch reader with %d columns", _batch_columns.size());
     }
 
     // prevent copy because of the table object, use a unique_ptr of the batch in cluster
@@ -160,55 +149,52 @@ public:
 
     ~pinned_writer()
     {
-        if (_handle && _batch_table)
+        if (_handle)
         {
-            qdb_release(*_handle, _batch_table);
-            _batch_table = nullptr;
+            qdb_release(*_handle, _table_schemas);
         }
-    }
-
-    std::vector<batch_column_info> batch_column_infos() const
-    {
-        return _batch_columns;
     }
 
     void start_row(py::object ts)
     {
-        const qdb_timespec_t converted = convert_timestamp(ts);
-        _timestamp                     = converted;
+        _timestamps.push_back(convert_timestamp(ts));
     }
 
     void set_blob(std::size_t index, const py::object & val)
     {
-        _set_impl<qdb_ts_column_blob, blob_like_column>(
-            index, (val.is(py::none()) ? detail::null_value<std::string>() : val.cast<std::string>()));
+        _set_blob_impl<qdb_ts_column_blob, blob_like_column>(index, val);
     }
 
-    void set_blob_column(std::size_t index, const std::vector<py::object> & ts, const std::vector<py::object> & vs)
+    void set_timestamps(const std::vector<py::object> & timestamps)
     {
-        _set_column_impl<qdb_ts_column_blob, blob_like_column, std::string>(index, ts, vs, &_convert_blob_like_column);
+        _timestamps.reserve(timestamps.size());
+        std::transform(std::cbegin(timestamps), std::cend(timestamps), std::back_inserter(_timestamps),
+            [](const auto & timestamp) { return convert_timestamp(timestamp); });
+    }
+
+    void set_blob_column(std::size_t index, const std::vector<py::object> & vs)
+    {
+        _set_blob_column_impl<qdb_ts_column_blob, blob_like_column, qdb_blob_t>(index, vs);
     }
 
     void set_string(std::size_t index, const py::object & val)
     {
-        _set_impl<qdb_ts_column_string, blob_like_column>(
-            index, (val.is(py::none()) ? detail::null_value<std::string>() : val.cast<std::string>()));
+        _set_blob_impl<qdb_ts_column_string, blob_like_column>(index, val);
     }
 
-    void set_string_column(std::size_t index, const std::vector<py::object> & ts, const std::vector<py::object> & vs)
+    void set_string_column(std::size_t index, const std::vector<py::object> & vs)
     {
-        _set_column_impl<qdb_ts_column_string, blob_like_column, std::string>(index, ts, vs, &_convert_blob_like_column);
+        _set_blob_column_impl<qdb_ts_column_string, blob_like_column, qdb_blob_t>(index, vs);
     }
 
     void set_symbol(std::size_t index, const py::object & val)
     {
-        _set_impl<qdb_ts_column_symbol, blob_like_column>(
-            index, (val.is(py::none()) ? detail::null_value<std::string>() : val.cast<std::string>()));
+        _set_blob_impl<qdb_ts_column_symbol, blob_like_column>(index, val);
     }
 
-    void set_symbol_column(std::size_t index, const std::vector<py::object> & ts, const std::vector<py::object> & vs)
+    void set_symbol_column(std::size_t index, const std::vector<py::object> & vs)
     {
-        _set_column_impl<qdb_ts_column_symbol, blob_like_column, std::string>(index, ts, vs, &_convert_blob_like_column);
+        _set_blob_column_impl<qdb_ts_column_symbol, blob_like_column, qdb_blob_t>(index, vs);
     }
 
     void set_double(std::size_t index, const py::object & val)
@@ -216,9 +202,9 @@ public:
         _set_impl<qdb_ts_column_double, double_column>(index, (val.is(py::none()) ? detail::null_value<double>() : val.cast<double>()));
     }
 
-    void set_double_column(std::size_t index, const std::vector<py::object> & ts, const std::vector<py::object> & vs)
+    void set_double_column(std::size_t index, const std::vector<py::object> & vs)
     {
-        _set_column_impl<qdb_ts_column_double, double_column, double>(index, ts, vs, &_convert_double_column);
+        _set_column_impl<qdb_ts_column_double, double_column, double>(index, vs, &_convert_double_column);
     }
 
     void set_int64(std::size_t index, const py::object & val)
@@ -226,9 +212,9 @@ public:
         _set_impl<qdb_ts_column_int64, int64_column>(index, (val.is(py::none()) ? detail::null_value<qdb_int_t>() : val.cast<qdb_int_t>()));
     }
 
-    void set_int64_column(std::size_t index, const std::vector<py::object> & ts, const std::vector<py::object> & vs)
+    void set_int64_column(std::size_t index, const std::vector<py::object> & vs)
     {
-        _set_column_impl<qdb_ts_column_int64, int64_column, qdb_int_t>(index, ts, vs, &_convert_int64_column);
+        _set_column_impl<qdb_ts_column_int64, int64_column, qdb_int_t>(index, vs, &_convert_int64_column);
     }
 
     void set_timestamp(std::size_t index, const py::object & val)
@@ -237,51 +223,105 @@ public:
             index, (val.is(py::none()) ? detail::null_value<qdb_timespec_t>() : convert_timestamp(val)));
     }
 
-    void set_timestamp_column(std::size_t index, const std::vector<py::object> & ts, const std::vector<py::object> & vs)
+    void set_timestamp_column(std::size_t index, const std::vector<py::object> & vs)
     {
-        _set_column_impl<qdb_ts_column_timestamp, timestamp_column, qdb_timespec_t>(index, ts, vs, &_convert_timestamp_column);
+        _set_column_impl<qdb_ts_column_timestamp, timestamp_column, qdb_timespec_t>(index, vs, &_convert_timestamp_column);
+    }
+
+    const std::vector<qdb_exp_batch_push_column_t> & prepare_columns()
+    {
+        _columns_data.clear();
+        _columns_data.reserve(_columns.size());
+        for (size_t index = 0; index < _columns.size(); ++index)
+        {
+            const auto & column_name = _column_infos[index].name;
+
+            qdb_exp_batch_push_column_t column;
+            column.name = qdb_string_t{column_name.data(), column_name.size()};
+            const auto data_type = _column_infos[index].type;
+            column.data_type = data_type != qdb_ts_column_symbol ? data_type : qdb_ts_column_string;
+            switch (_column_infos[index].type)
+            {
+            case qdb_ts_column_int64:
+                column.data.ints = detail::access_column<int64_column>(_columns, index)->data();
+                break;
+            case qdb_ts_column_double:
+                column.data.doubles = detail::access_column<double_column>(_columns, index)->data();
+                break;
+            case qdb_ts_column_timestamp:
+                column.data.timestamps = detail::access_column<timestamp_column>(_columns, index)->data();
+                break;
+            case qdb_ts_column_blob:
+                column.data.blobs = detail::access_column<blob_like_column>(_columns, index)->data();
+            case qdb_ts_column_string:
+            case qdb_ts_column_symbol:
+                column.data.strings = reinterpret_cast<const qdb_string_t *>(detail::access_column<blob_like_column>(_columns, index)->data());
+                break;
+            case qdb_ts_column_uninitialized:
+                throw qdb::invalid_argument_exception{std::string{"Uninitialized column at index "} + std::to_string(index)};
+            }
+            if (column.data.ints != nullptr)
+            {
+                _columns_data.push_back(column);
+            }
+        }
+        return _columns_data;
+    }
+
+    qdb_exp_batch_push_table_data_t prepare_table_data()
+    {
+        qdb_exp_batch_push_table_data_t table_data;
+        table_data.row_count = _timestamps.size(),
+        table_data.timestamps = _timestamps.data();
+
+        const auto & columns = prepare_columns();
+        table_data.columns = columns.data();
+        table_data.column_count = columns.size();
+
+        return table_data;
+    }
+    
+    qdb_exp_batch_push_table_t prepare_batch(qdb_exp_batch_push_mode_t mode, qdb_ts_range_t * ranges)
+    {
+        qdb_exp_batch_push_table_t batch;
+        batch.name = qdb_string_t{_table_name.data(), _table_name.size()};
+        batch.data = prepare_table_data();
+        if (mode == qdb_exp_batch_push_truncate)
+        {
+            batch.truncate_ranges = ranges;
+            batch.truncate_range_count = ranges == nullptr ? 0u : 1u;
+        }
+        return batch;
+    }
+
+    void _push_impl(qdb_exp_batch_push_mode_t mode, qdb_ts_range_t * ranges = nullptr)
+    {
+        _logger.debug("[push] Sorting dataset...");
+        _sort_columns();
+        _logger.debug("[push] Preparing batch...");
+        auto batch = prepare_batch(mode, ranges);
+        _logger.debug("Pushing %d rows with %d columns in %s", batch.data.row_count, batch.data.column_count, _table_name);
+        qdb::qdb_throw_if_error(*_handle, qdb_exp_batch_push(*_handle, mode, &batch, &_table_schemas, 1u));
+        _clear_columns();
     }
 
     void push()
     {
-        _logger.debug("flushing pinned columns");
-        _flush_columns();
-        _logger.debug("pushing pinned batch with %d data points", _point_count);
-        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push(_batch_table));
-        _logger.debug("pushed pinned batch with %d data points", _point_count);
-
-        _clear_columns();
-        _reset_counters();
+        _push_impl(qdb_exp_batch_push_transactional);
     }
 
     void push_async()
     {
-        _logger.debug("flushing pinned columns");
-        _flush_columns();
-        _logger.debug("async pushing pinned batch with %d data points", _point_count);
-        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push_async(_batch_table));
-        _logger.debug("async pushed pinned batch with %d data points", _point_count);
-
-        _clear_columns();
-        _reset_counters();
+        _push_impl(qdb_exp_batch_push_async);
     }
 
     void push_fast()
     {
-        _logger.debug("flushing pinned columns");
-        _flush_columns();
-        _logger.debug("fast pushing pinned batch with %d data points", _point_count);
-        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push_fast(_batch_table));
-        _logger.debug("fast pushed pinned batch with %d data points", _point_count);
-
-        _clear_columns();
-        _reset_counters();
+        _push_impl(qdb_exp_batch_push_fast);
     }
 
     void push_truncate(py::kwargs args)
     {
-        _logger.debug("flushing pinned columns");
-        _flush_columns();
         // As we are actively removing data, let's add an additional check to ensure the user
         // doesn't accidentally truncate his whole database without inserting anything.
         if (_empty_columns())
@@ -289,35 +329,26 @@ public:
             throw qdb::invalid_argument_exception{"Pinned writer is empty: you did not provide any rows to push."};
         }
 
-        qdb_ts_range_t tr;
-
+        qdb_ts_range_t tr{_timestamps.front(), _timestamps.back()};
         if (args.contains("range"))
         {
             auto range = py::cast<py::tuple>(args["range"]);
-            _logger.debug("using explicit range for truncate: %s", range);
+            _logger.debug("[push] using explicit range for truncate: %s", range);
             time_range input = prep_range(py::cast<obj_time_range>(range));
             tr               = convert_range(input);
         }
         else
         {
-            tr = _min_max_ts;
             // our range is end-exclusive, so let's move the pointer one nanosecond
             // *after* the last element in this batch.
             tr.end.tv_nsec++;
         }
-        _logger.debug("truncate pushing pinned batch with %d data points, start timestamp = %d.%d, end timestamp = %d.%d", _point_count,
-            tr.begin.tv_sec, tr.begin.tv_nsec, tr.end.tv_sec, tr.end.tv_nsec);
-
-        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push_truncate(_batch_table, &tr, 1));
-        _logger.debug("truncate pushed pinned batch with %d data points", _point_count);
-
-        _clear_columns();
-        _reset_counters();
+        _push_impl(qdb_exp_batch_push_truncate, &tr);
     }
 
-    const std::vector<qdb_ts_column_type_t> & column_types() const
+    std::vector<detail::column_info> column_infos() const
     {
-        return _column_types;
+        return _column_infos;
     }
 
 private:
@@ -356,14 +387,8 @@ private:
     }
 
     template <typename T>
-    static std::pair<std::vector<qdb_timespec_t>, std::vector<T>> _convert_column(
-        const std::vector<py::object> & timestamps, const std::vector<py::object> & values)
+    static std::vector<T> _convert_column(const std::vector<py::object> & values)
     {
-        std::vector<qdb_timespec_t> ts;
-        ts.reserve(timestamps.size());
-        std::transform(std::cbegin(timestamps), std::cend(timestamps), std::back_inserter(ts),
-            [](const auto & timestamp) { return convert_timestamp(timestamp); });
-
         std::vector<T> vs;
         vs.reserve(values.size());
         std::transform(std::cbegin(values), std::cend(values), std::back_inserter(vs),
@@ -375,54 +400,38 @@ private:
                 auto v = val.cast<double>();
                 return (v == std::numeric_limits<double>::quiet_NaN() ? detail::null_value<T>() : static_cast<T>(v));
             });
-        return std::make_pair(std::move(ts), std::move(vs));
+        return std::move(vs);
     }
 
-    static std::pair<std::vector<qdb_timespec_t>, std::vector<qdb_int_t>> _convert_int64_column(
-        const std::vector<py::object> & timestamps, const std::vector<py::object> & values)
+    static std::vector<qdb_int_t> _convert_int64_column(const std::vector<py::object> & values)
     {
-        return _convert_column<qdb_int_t>(timestamps, values);
+        return _convert_column<qdb_int_t>(values);
     }
 
-    static std::pair<std::vector<qdb_timespec_t>, std::vector<double>> _convert_double_column(
-        const std::vector<py::object> & timestamps, const std::vector<py::object> & values)
+    static std::vector<double> _convert_double_column(const std::vector<py::object> & values)
     {
-        return _convert_column<double>(timestamps, values);
+        return _convert_column<double>(values);
     }
 
-    static std::pair<std::vector<qdb_timespec_t>, std::vector<qdb_timespec_t>> _convert_timestamp_column(
-        const std::vector<py::object> & timestamps, const std::vector<py::object> & values)
+    static std::vector<qdb_timespec_t> _convert_timestamp_column(const std::vector<py::object> & values)
     {
-        std::vector<qdb_timespec_t> ts;
-        ts.reserve(timestamps.size());
-        std::transform(std::cbegin(timestamps), std::cend(timestamps), std::back_inserter(ts),
-            [](const auto & timestamp) { return convert_timestamp(timestamp); });
         std::vector<qdb_timespec_t> vs;
         vs.reserve(values.size());
         std::transform(std::cbegin(values), std::cend(values), std::back_inserter(vs),
             [](const py::object & val) { return (val.is(py::none()) ? detail::null_value<qdb_timespec_t>() : convert_timestamp(val)); });
-        return std::make_pair(std::move(ts), std::move(vs));
+        return std::move(vs);
     }
 
-    static std::pair<std::vector<qdb_timespec_t>, std::vector<std::string>> _convert_blob_like_column(
-        const std::vector<py::object> & timestamps, const std::vector<py::object> & values)
+    static std::vector<qdb_blob_t> _convert_blob_like_column(const std::vector<py::object> & values, utils::blob_deque & storage)
     {
-        std::vector<qdb_timespec_t> ts;
-        ts.reserve(timestamps.size());
-        std::transform(std::cbegin(timestamps), std::cend(timestamps), std::back_inserter(ts),
-            [](const auto & timestamp) { return convert_timestamp(timestamp); });
-        std::vector<std::string> vs;
+        std::vector<qdb_blob_t> vs;
         vs.reserve(values.size());
         std::transform(std::cbegin(values), std::cend(values), std::back_inserter(vs),
-            [](const py::object & val) { return (val.is(py::none()) ? detail::null_value<std::string>() : val.cast<std::string>()); });
-        return std::make_pair(std::move(ts), std::move(vs));
-    }
-
-    template <typename T>
-    static void _sort_column(std::vector<qdb_timespec_t> & timestamps, std::vector<T> & values)
-    {
-        std::sort(make_ts_iterator(std::begin(timestamps), std::begin(values)), make_ts_iterator(std::end(timestamps), std::end(values)),
-            [](const auto & a, const auto & b) { return std::get<0>(a) < std::get<0>(b); });
+            [&storage](const py::object & val) {
+                auto str = val.is(py::none()) ? detail::null_value<std::string>() : val.cast<std::string>();
+                return storage.add(qdb_blob_t{str.data(), str.size()});
+            });
+        return std::move(vs);
     }
 
     template <typename QdbColumnType, typename T>
@@ -443,147 +452,65 @@ private:
         data[idx].length = val.size();
     }
 
-    template <typename QdbColumnType, typename PinColumn, typename T>
-    void _pin_column(std::size_t index, std::vector<qdb_timespec_t> & timestamps, std::vector<T> & values, PinColumn && pin_column)
+    void _sort_columns()
     {
-        auto begin = make_ts_iterator(std::begin(timestamps), std::begin(values));
-        auto end   = make_ts_iterator(std::end(timestamps), std::end(values));
-
-        for (; begin < end;)
-        {
-            auto base_time = qdb_ts_bucket_base_time(*qdb::get<0>(begin), _shard_size);
-            auto it        = std::find_if(begin, end, [shard_size = _shard_size, base_time](const auto & val) {
-                return base_time != qdb_ts_bucket_base_time(std::get<0>(val), shard_size);
-            });
-
-            qdb_time_t * timeoffsets;
-            QdbColumnType * data;
-            qdb_size_t capacity      = static_cast<qdb_size_t>(std::distance(begin, it));
-            qdb_timespec_t timestamp = *qdb::get<0>(begin);
-            qdb::qdb_throw_if_error(*_handle, pin_column(_batch_table, index, capacity, &timestamp, &timeoffsets, &data));
-
-            auto start = begin;
-            for (; begin < it; ++begin)
-            {
-                size_t idx       = static_cast<size_t>(std::distance(start, begin));
-                timeoffsets[idx] = qdb_ts_bucket_offset(*qdb::get<0>(begin), _shard_size);
-                _copy_value(idx, data, *qdb::get<1>(begin));
-            }
-        }
-    }
-
-    void _check_timestamp_extremum(const std::vector<qdb_timespec_t> & timestamps)
-    {
-        if (timestamps.empty())
-        {
-            return;
-        }
-        if (_min_max_ts.begin == qdb_min_timespec && _min_max_ts.end == qdb_min_timespec)
-        {
-            // First row
-            _min_max_ts.begin = timestamps.front();
-            _min_max_ts.end   = timestamps.back();
-        }
-        else
-        {
-            _min_max_ts.begin = std::min(timestamps.front(), _min_max_ts.begin);
-            _min_max_ts.end   = std::max(timestamps.back(), _min_max_ts.end);
-        }
-    }
-
-    template <typename ColumnType, typename QdbColumnType, typename PinColumn>
-    void _flush_column(size_t index, PinColumn && pin_column)
-    {
-        auto * col        = detail::access_column<ColumnType>(_columns, index);
-        auto & timestamps = col->first;
-        auto & values     = col->second;
-        _sort_column(timestamps, values);
-        _check_timestamp_extremum(timestamps);
-        _pin_column<QdbColumnType>(index, timestamps, values, std::forward<PinColumn>(pin_column));
-    }
-
-    void _flush_columns()
-    {
+        const auto permutations = utils::sort_permutation(_timestamps, [](const qdb_timespec_t & lhs, const qdb_timespec_t & rhs) {
+            return lhs < rhs;
+        });
+        auto permutations_copy  = permutations;
+        utils::apply_permutation(_timestamps, permutations_copy);
         for (size_t index = 0; index < _columns.size(); ++index)
         {
-            switch (_column_types[index])
+            if (detail::access_column<int64_column>(_columns, index)->empty())
+            {
+                continue;
+            }
+            // doesn't reallocate a new vector
+            // just reassign values
+            permutations_copy = permutations;
+            switch (_column_infos[index].type)
             {
             case qdb_ts_column_int64:
-                _flush_column<int64_column, qdb_int_t>(index, &qdb_ts_batch_pin_int64_column);
+                utils::apply_permutation(*detail::access_column<int64_column>(_columns, index), permutations_copy);
                 break;
             case qdb_ts_column_double:
-                _flush_column<double_column, double>(index, &qdb_ts_batch_pin_double_column);
+                utils::apply_permutation(*detail::access_column<double_column>(_columns, index), permutations_copy);
                 break;
             case qdb_ts_column_timestamp:
-                _flush_column<timestamp_column, qdb_timespec_t>(index, &qdb_ts_batch_pin_timestamp_column);
+                utils::apply_permutation(*detail::access_column<timestamp_column>(_columns, index), permutations_copy);
                 break;
             case qdb_ts_column_blob:
-                _flush_column<blob_like_column, qdb_blob_t>(index, &qdb_ts_batch_pin_blob_column);
+                utils::apply_permutation(*detail::access_column<blob_like_column>(_columns, index), permutations_copy);
                 break;
             case qdb_ts_column_string:
-                _flush_column<blob_like_column, qdb_string_t>(index, &qdb_ts_batch_pin_string_column);
+                utils::apply_permutation(*detail::access_column<blob_like_column>(_columns, index), permutations_copy);
                 break;
             case qdb_ts_column_symbol:
-                _flush_column<blob_like_column, qdb_string_t>(index, &qdb_ts_batch_pin_symbol_column);
+                utils::apply_permutation(*detail::access_column<blob_like_column>(_columns, index), permutations_copy);
                 break;
             case qdb_ts_column_uninitialized:
                 throw qdb::invalid_argument_exception{std::string{"Uninitialized column at index "} + std::to_string(index)};
             }
         }
-    }
-
-    template <typename ColumnType>
-    bool _empty_column(size_t index)
-    {
-        auto * col = detail::access_column<ColumnType>(_columns, index);
-        return col->first.empty();
     }
 
     bool _empty_columns()
     {
-        bool is_empty = true;
-        for (size_t index = 0; index < _columns.size(); ++index)
-        {
-            switch (_column_types[index])
-            {
-            case qdb_ts_column_int64:
-                is_empty = _empty_column<int64_column>(index);
-                break;
-            case qdb_ts_column_double:
-                is_empty = _empty_column<double_column>(index);
-                break;
-            case qdb_ts_column_timestamp:
-                is_empty = _empty_column<timestamp_column>(index);
-                break;
-            case qdb_ts_column_blob:
-            case qdb_ts_column_string:
-            case qdb_ts_column_symbol:
-                is_empty = _empty_column<blob_like_column>(index);
-                break;
-            case qdb_ts_column_uninitialized:
-                throw qdb::invalid_argument_exception{std::string{"Uninitialized column at index "} + std::to_string(index)};
-            }
-            if (!is_empty)
-            {
-                return false;
-            }
-        }
-        return true;
+        return _timestamps.empty();
     }
 
     template <typename ColumnType>
     void _clear_column(size_t index)
     {
-        auto * col = detail::access_column<ColumnType>(_columns, index);
-        col->first.clear();
-        col->second.clear();
+        detail::access_column<ColumnType>(_columns, index)->clear();
     }
 
     void _clear_columns()
     {
+        _timestamps.clear();
         for (size_t index = 0; index < _columns.size(); ++index)
         {
-            switch (_column_types[index])
+            switch (_column_infos[index].type)
             {
             case qdb_ts_column_int64:
                 _clear_column<int64_column>(index);
@@ -605,55 +532,68 @@ private:
         }
     }
 
+    template <qdb_ts_column_type_t Expect, typename ColumnType>
+    void _set_blob_impl(std::size_t index, const py::object & val)
+    {
+        _check_column_type<Expect>(_column_infos[index].type);
+        if (val.is(py::none()))
+        {
+            detail::access_column<ColumnType>(_columns, index)->push_back(detail::null_value<qdb_blob_t>());
+        }
+        else
+        {
+            const auto str = val.cast<std::string>();
+            const auto v = _bytes_storage.add(qdb_blob_t{str.data(), str.size()});
+            detail::access_column<ColumnType>(_columns, index)->push_back(v);
+        }
+    }
+
     template <qdb_ts_column_type_t Expect, typename ColumnType, typename T>
     void _set_impl(std::size_t index, T val)
     {
-        _check_column_type<Expect>(_column_types[index]);
-        auto * col = detail::access_column<ColumnType>(_columns, index);
-        col->first.push_back(_timestamp);
-        col->second.push_back(val);
-        ++_point_count;
+        _check_column_type<Expect>(_column_infos[index].type);
+        detail::access_column<ColumnType>(_columns, index)->push_back(val);
     }
 
-    template <qdb_ts_column_type_t Expect, typename ColumnType, typename ValueType, typename Convert>
-    void _set_column_impl(std::size_t index, const std::vector<py::object> & ts, const std::vector<py::object> & vs, Convert && convert)
+    template <qdb_ts_column_type_t Expect, typename ColumnType, typename ValueType>
+    void _set_blob_column_impl(std::size_t index, const std::vector<py::object> & vs)
     {
-        if (ts.size() != vs.size())
+        if (_timestamps.size() != vs.size())
         {
             throw qdb::invalid_argument_exception{"timestamps array length does not match values array length."};
         }
-        std::vector<qdb_timespec_t> timestamps;
-        std::vector<ValueType> values;
-        std::tie(timestamps, values) = convert(ts, vs);
-        _check_column_type<Expect>(_column_types[index]);
+        std::vector<ValueType> values = _convert_blob_like_column(vs, _bytes_storage);
+        _check_column_type<Expect>(_column_infos[index].type);
         auto * col = detail::access_column<ColumnType>(_columns, index);
-        col->first.insert(
-            std::end(col->first), std::make_move_iterator(std::begin(timestamps)), std::make_move_iterator(std::end(timestamps)));
-        col->second.insert(std::end(col->second), std::make_move_iterator(std::begin(values)), std::make_move_iterator(std::end(values)));
-        _point_count += col->first.size();
+        col->insert(std::end(*col), std::make_move_iterator(std::begin(values)), std::make_move_iterator(std::end(values)));
     }
 
-    void _reset_counters()
+    template <qdb_ts_column_type_t Expect, typename ColumnType, typename ValueType, typename Convert>
+    void _set_column_impl(std::size_t index, const std::vector<py::object> & vs, Convert && convert)
     {
-        _point_count      = 0;
-        _min_max_ts.begin = qdb_min_timespec;
-        _min_max_ts.end   = qdb_min_timespec;
+        if (_timestamps.size() != vs.size())
+        {
+            throw qdb::invalid_argument_exception{"timestamps array length does not match values array length."};
+        }
+        std::vector<ValueType> values = convert(vs);
+        _check_column_type<Expect>(_column_infos[index].type);
+        auto * col = detail::access_column<ColumnType>(_columns, index);
+        col->insert(std::end(*col), std::make_move_iterator(std::begin(values)), std::make_move_iterator(std::end(values)));
     }
 
 private:
     qdb::logger _logger;
     qdb::handle_ptr _handle;
-    qdb_batch_table_t _batch_table{nullptr};
-    std::vector<qdb_ts_column_type_t> _column_types;
+    std::string _table_name;
+
+    utils::blob_deque _bytes_storage;
+
+    std::vector<detail::column_info> _column_infos;
+    std::vector<qdb_timespec_t> _timestamps;
     std::vector<any_column> _columns;
-    std::vector<batch_column_info> _batch_columns;
 
-    qdb_timespec_t _timestamp;
-    qdb_duration_t _shard_size;
-
-    int64_t _point_count;
-
-    qdb_ts_range_t _min_max_ts;
+    std::vector<qdb_exp_batch_push_column_t> _columns_data;
+    const qdb_exp_batch_push_table_schema_t * _table_schemas{nullptr};
 };
 
 // don't use shared_ptr, let Python do the reference counting, otherwise you will have an undefined behavior
@@ -665,9 +605,8 @@ static inline void register_pinned_writer(Module & m)
     namespace py = pybind11;
 
     py::class_<qdb::pinned_writer>{m, "PinnedWriter"}                                                                           //
-        .def(py::init<qdb::handle_ptr, const std::vector<table> &>())                                                           //
-        .def("column_types", &qdb::pinned_writer::column_types)                                                                 //
-        .def("batch_column_infos", &qdb::pinned_writer::batch_column_infos)                                                       //
+        .def(py::init<qdb::handle_ptr, const table &>())                                                                        //
+        .def("column_infos", &qdb::pinned_writer::column_infos)                                                                 //
         .def("start_row", &qdb::pinned_writer::start_row, "Calling this function marks the beginning of processing a new row.") //
         .def("set_blob", &qdb::pinned_writer::set_blob)                                                                         //
         .def("set_string", &qdb::pinned_writer::set_string)                                                                     //
@@ -675,6 +614,7 @@ static inline void register_pinned_writer(Module & m)
         .def("set_double", &qdb::pinned_writer::set_double)                                                                     //
         .def("set_int64", &qdb::pinned_writer::set_int64)                                                                       //
         .def("set_timestamp", &qdb::pinned_writer::set_timestamp)                                                               //
+        .def("set_timestamps", &qdb::pinned_writer::set_timestamps)                                                             //
         .def("set_blob_column", &qdb::pinned_writer::set_blob_column)                                                           //
         .def("set_double_column", &qdb::pinned_writer::set_double_column)                                                       //
         .def("set_int64_column", &qdb::pinned_writer::set_int64_column)                                                         //

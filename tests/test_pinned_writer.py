@@ -26,7 +26,7 @@ def test_rows_with_none_values(qdbd_connection, table_name):
 
     table.create([node_id, x, y])
 
-    pinned_writer = qdbd_connection.pinned_writer([table])
+    pinned_writer = qdbd_connection.pinned_writer(table)
 
     timestamps = [
         np.datetime64(
@@ -39,9 +39,10 @@ def test_rows_with_none_values(qdbd_connection, table_name):
     x = [None, 1]
     y = [2, None]
 
-    pinned_writer.set_int64_column(0, timestamps, node_id)
-    pinned_writer.set_int64_column(1, timestamps, x)
-    pinned_writer.set_int64_column(2, timestamps, y)
+    pinned_writer.set_timestamps(timestamps)
+    pinned_writer.set_int64_column(0, node_id)
+    pinned_writer.set_int64_column(1, x)
+    pinned_writer.set_int64_column(2, y)
 
     pinned_writer.push()
 
@@ -56,9 +57,8 @@ def test_rows_with_none_values(qdbd_connection, table_name):
         assert row['x'] == x[idx]
         assert row['y'] == y[idx]
 
-
 def test_incorrect_type_double(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer([table])
+    pinned_writer = qdbd_connection.pinned_writer(table)
     pinned_writer.start_row(np.datetime64('2020-01-01T00:00:00', 'ns'))
     for idx in range(6):
         if idx == 0:
@@ -71,7 +71,7 @@ def test_successful_type_double(qdbd_connection, table):
     timestamp = np.datetime64('2020-01-01T00:00:00', 'ns')
     value = 1.1
 
-    pinned_writer = qdbd_connection.pinned_writer([table])
+    pinned_writer = qdbd_connection.pinned_writer(table)
     pinned_writer.start_row(timestamp)
     pinned_writer.set_double(0, value)
     pinned_writer.push()
@@ -85,7 +85,7 @@ def test_successful_type_double(qdbd_connection, table):
 
 
 def test_incorrect_type_blob(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer([table])
+    pinned_writer = qdbd_connection.pinned_writer(table)
     pinned_writer.start_row(np.datetime64('2020-01-01T00:00:00', 'ns'))
     for idx in range(6):
         if idx == 1:
@@ -98,7 +98,7 @@ def test_successful_type_blob(qdbd_connection, table):
     timestamp = np.datetime64('2020-01-01T00:00:00', 'ns')
     value = b'aaa'
 
-    pinned_writer = qdbd_connection.pinned_writer([table])
+    pinned_writer = qdbd_connection.pinned_writer(table)
     pinned_writer.start_row(timestamp)
     pinned_writer.set_blob(1, value)
     pinned_writer.push()
@@ -112,7 +112,7 @@ def test_successful_type_blob(qdbd_connection, table):
 
 
 def test_incorrect_type_string(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer([table])
+    pinned_writer = qdbd_connection.pinned_writer(table)
     pinned_writer.start_row(np.datetime64('2020-01-01T00:00:00', 'ns'))
     for idx in range(6):
         if idx == 2:
@@ -125,7 +125,7 @@ def test_successful_type_string(qdbd_connection, table):
     timestamp = np.datetime64('2020-01-01T00:00:00', 'ns')
     value = 'aaa'
 
-    pinned_writer = qdbd_connection.pinned_writer([table])
+    pinned_writer = qdbd_connection.pinned_writer(table)
     pinned_writer.start_row(timestamp)
     pinned_writer.set_string(2, value)
     pinned_writer.push()
@@ -139,7 +139,7 @@ def test_successful_type_string(qdbd_connection, table):
 
 
 def test_incorrect_type_int64(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer([table])
+    pinned_writer = qdbd_connection.pinned_writer(table)
     pinned_writer.start_row(np.datetime64('2020-01-01T00:00:00', 'ns'))
     for idx in range(6):
         if idx == 3:
@@ -152,7 +152,7 @@ def test_successful_type_int64(qdbd_connection, table):
     timestamp = np.datetime64('2020-01-01T00:00:00', 'ns')
     value = 1
 
-    pinned_writer = qdbd_connection.pinned_writer([table])
+    pinned_writer = qdbd_connection.pinned_writer(table)
     pinned_writer.start_row(timestamp)
     pinned_writer.set_int64(3, value)
     pinned_writer.push()
@@ -166,7 +166,7 @@ def test_successful_type_int64(qdbd_connection, table):
 
 
 def test_incorrect_type_timestamp(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer([table])
+    pinned_writer = qdbd_connection.pinned_writer(table)
     pinned_writer.start_row(np.datetime64('2020-01-01T00:00:00', 'ns'))
     for idx in range(6):
         if idx == 4:
@@ -181,7 +181,7 @@ def test_successful_type_timestamp(qdbd_connection, table):
     timestamp = np.datetime64('2020-01-01T00:00:00', 'ns')
     value = np.datetime64('2020-01-01T00:00:00', 'ns')
 
-    pinned_writer = qdbd_connection.pinned_writer([table])
+    pinned_writer = qdbd_connection.pinned_writer(table)
     pinned_writer.start_row(timestamp)
     pinned_writer.set_timestamp(4, value)
     pinned_writer.push()
@@ -195,7 +195,7 @@ def test_successful_type_timestamp(qdbd_connection, table):
 
 
 def test_incorrect_type_symbol(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer([table])
+    pinned_writer = qdbd_connection.pinned_writer(table)
     pinned_writer.start_row(np.datetime64('2020-01-01T00:00:00', 'ns'))
     for idx in range(6):
         if idx == 5:
@@ -209,7 +209,7 @@ def test_successful_type_symbol(qdbd_connection, table):
     timestamp = np.datetime64('2020-01-01T00:00:00', 'ns')
     value = 'aaa'
 
-    pinned_writer = qdbd_connection.pinned_writer([table])
+    pinned_writer = qdbd_connection.pinned_writer(table)
     pinned_writer.start_row(timestamp)
     pinned_writer.set_symbol(5, value)
     pinned_writer.push()
@@ -223,7 +223,7 @@ def test_successful_type_symbol(qdbd_connection, table):
 
 
 def test_insert_data_ordered_single_shard(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer([table])
+    pinned_writer = qdbd_connection.pinned_writer(table)
 
     timestamps = [
         np.datetime64(
@@ -251,7 +251,7 @@ def test_insert_data_ordered_single_shard(qdbd_connection, table):
 
 
 def test_insert_data_ordered_multiple_shards(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer([table])
+    pinned_writer = qdbd_connection.pinned_writer(table)
 
     timestamps = [
         np.datetime64(
@@ -279,7 +279,7 @@ def test_insert_data_ordered_multiple_shards(qdbd_connection, table):
 
 
 def test_insert_data_unordered_single_shard(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer([table])
+    pinned_writer = qdbd_connection.pinned_writer(table)
 
     timestamps = [
         np.datetime64(
@@ -308,7 +308,7 @@ def test_insert_data_unordered_single_shard(qdbd_connection, table):
 
 
 def test_insert_data_unordered_multiple_shards(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer([table])
+    pinned_writer = qdbd_connection.pinned_writer(table)
 
     timestamps = [
         np.datetime64(
@@ -337,7 +337,7 @@ def test_insert_data_unordered_multiple_shards(qdbd_connection, table):
 
 
 def test_insert_data_ordered_single_shard_two_push(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer([table])
+    pinned_writer = qdbd_connection.pinned_writer(table)
 
     timestamps = [
         np.datetime64(
@@ -366,7 +366,7 @@ def test_insert_data_ordered_single_shard_two_push(qdbd_connection, table):
 
 
 def test_insert_data_ordered_multiple_shards_two_push(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer([table])
+    pinned_writer = qdbd_connection.pinned_writer(table)
 
     timestamps = [
         np.datetime64(
@@ -544,7 +544,7 @@ def _test_with_table(
 
 
 def test_insert(qdbd_connection, table, many_intervals):
-    writer = qdbd_connection.pinned_writer([table])
+    writer = qdbd_connection.pinned_writer(table)
 
     _test_with_table(
         writer,
@@ -554,7 +554,7 @@ def test_insert(qdbd_connection, table, many_intervals):
 
 
 def test_insert_secure(qdbd_secure_connection, secure_table, many_intervals):
-    writer = qdbd_secure_connection.pinned_writer([secure_table])
+    writer = qdbd_secure_connection.pinned_writer(secure_table)
 
     _test_with_table(
         writer,
@@ -569,7 +569,7 @@ def test_insert_async(
     # Same test as `test_insert` but using `push_async` to push the entries
     # This allows us to test the `push_async` feature
 
-    writer = qdbd_connection.pinned_writer([table])
+    writer = qdbd_connection.pinned_writer(table)
     _test_with_table(
         writer,
         table,
@@ -582,7 +582,7 @@ def test_insert_fast(
     # Same test as `test_insert` but using `push_fast` to push the entries
     # This allows us to test the `push_fast` feature
 
-    writer = qdbd_connection.pinned_writer([table])
+    writer = qdbd_connection.pinned_writer(table)
     _test_with_table(
         writer,
         table,
@@ -602,7 +602,7 @@ def test_insert_truncate_implicit_range(
     (doubles, _, _, _, _, _) = data
 
     # Insert once
-    writer = qdbd_connection.pinned_writer([table])
+    writer = qdbd_connection.pinned_writer(table)
     _set_batch_writer_data(writer, many_intervals, data)
     writer.push()
 
@@ -647,7 +647,7 @@ def test_insert_truncate_explicit_range(
     # (doubles, integers, blobs, strings, timestamps) = data
     (doubles, _, _, _, _, _) = data
 
-    writer = qdbd_connection.pinned_writer([table])
+    writer = qdbd_connection.pinned_writer(table)
 
     # Insert once
     truncate_range = (whole_range[0],
@@ -689,13 +689,13 @@ def test_insert_truncate_throws_error_on_invalid_range(
     # (doubles, integers, blobs, strings, timestamps) = data
     (_, _, _, _, _, _) = data
 
-    # Insert truncate with explicit timerange, we point the start right after the
-    # first element in our dataset. This means that the range does not overlap all
-    # the data anymore.
-    truncate_range = (whole_range[0] + np.timedelta64(1, 'ns'),
-                      whole_range[1] + np.timedelta64(1, 'ns'))
+    # Insert truncate with reversed range
+    truncate_range = (whole_range[1] + np.timedelta64(1, 'ns'),
+                      whole_range[0] + np.timedelta64(1, 'ns'))
 
-    writer = qdbd_connection.pinned_writer([table])
+    print(truncate_range)
+
+    writer = qdbd_connection.pinned_writer(table)
     _set_batch_writer_data(writer, many_intervals, data)
     with pytest.raises(quasardb.Error):
         writer.push_truncate(range=truncate_range)
@@ -704,16 +704,17 @@ def test_insert_truncate_throws_error_on_invalid_range(
 def _set_batch_writer_column_data(writer, intervals, data, start=0):
     (doubles, integers, blobs, strings, timestamps, symbols) = data
 
-    writer.set_double_column(0, intervals[start:], doubles[start:])
-    writer.set_blob_column(1, intervals[start:], blobs[start:])
-    writer.set_string_column(2, intervals[start:], strings[start:])
-    writer.set_int64_column(3, intervals[start:], integers[start:])
-    writer.set_timestamp_column(4, intervals[start:], timestamps[start:])
-    writer.set_symbol_column(5, intervals[start:], symbols[start:])
+    writer.set_timestamps(intervals[start:])
+    writer.set_double_column(0, doubles[start:])
+    writer.set_blob_column(1, blobs[start:])
+    writer.set_string_column(2, strings[start:])
+    writer.set_int64_column(3, integers[start:])
+    writer.set_timestamp_column(4, timestamps[start:])
+    writer.set_symbol_column(5, symbols[start:])
 
 
 def test_insert_column(qdbd_connection, table, many_intervals):
-    writer = qdbd_connection.pinned_writer([table])
+    writer = qdbd_connection.pinned_writer(table)
 
     _test_with_table(
         writer,
@@ -727,7 +728,7 @@ def test_insert_column_secure(
         qdbd_secure_connection,
         secure_table,
         many_intervals):
-    writer = qdbd_secure_connection.pinned_writer([secure_table])
+    writer = qdbd_secure_connection.pinned_writer(secure_table)
 
     _test_with_table(
         writer,
@@ -743,7 +744,7 @@ def test_insert_column_async(
     # Same test as `test_insert_column` but using `push_async` to push the entries
     # This allows us to test the `push_async` feature
 
-    writer = qdbd_connection.pinned_writer([table])
+    writer = qdbd_connection.pinned_writer(table)
     _test_with_table(
         writer,
         table,
@@ -757,7 +758,7 @@ def test_insert_column_fast(
     # Same test as `test_insert_column` but using `push_fast` to push the entries
     # This allows us to test the `push_async` feature
 
-    writer = qdbd_connection.pinned_writer([table])
+    writer = qdbd_connection.pinned_writer(table)
     _test_with_table(
         writer,
         table,
@@ -778,7 +779,7 @@ def test_insert_truncate_column_implicit_range(
     (doubles, _, _, _, _, _) = data
 
     # Insert once
-    writer = qdbd_connection.pinned_writer([table])
+    writer = qdbd_connection.pinned_writer(table)
     _set_batch_writer_column_data(writer, many_intervals, data)
     writer.push()
 
@@ -823,7 +824,7 @@ def test_insert_truncate_column_explicit_range(
     # (doubles, integers, blobs, strings, timestamps) = data
     (doubles, _, _, _, _, _) = data
 
-    writer = qdbd_connection.pinned_writer([table])
+    writer = qdbd_connection.pinned_writer(table)
 
     # Insert once
     truncate_range = (whole_range[0],
@@ -853,25 +854,3 @@ def test_insert_truncate_column_explicit_range(
 
     np.testing.assert_array_equal(results[0], many_intervals[1:])
     np.testing.assert_array_equal(results[1], doubles[1:])
-
-
-def test_insert_truncate_column_throws_error_on_invalid_range(
-        qdbd_connection, table, many_intervals):
-    whole_range = (
-        many_intervals[0], many_intervals[-1:][0] + np.timedelta64(2, 's'))
-
-    # Generate our dataset
-    data = _generate_data(len(many_intervals))
-    # (doubles, integers, blobs, strings, timestamps) = data
-    (_, _, _, _, _, _) = data
-
-    # Insert truncate with explicit timerange, we point the start right after the
-    # first element in our dataset. This means that the range does not overlap all
-    # the data anymore.
-    truncate_range = (whole_range[0] + np.timedelta64(1, 'ns'),
-                      whole_range[1] + np.timedelta64(1, 'ns'))
-
-    writer = qdbd_connection.pinned_writer([table])
-    _set_batch_writer_column_data(writer, many_intervals, data)
-    with pytest.raises(quasardb.Error):
-        writer.push_truncate(range=truncate_range)

@@ -554,7 +554,7 @@ def write_pinned_dataframe(
         _create_table_from_df(df, table)
 
     # Create batch column info from dataframe
-    writer = cluster.pinned_writer([table])
+    writer = cluster.pinned_writer(table)
 
     write_with = {
         quasardb.ColumnType.Double: writer.set_double_column,
@@ -575,34 +575,33 @@ def write_pinned_dataframe(
     }
 
     # We derive our column types from our table.
-    batch_columns = writer.batch_column_infos()
-    column_types = writer.column_types()
+    column_infos = writer.column_infos()
     table_name = table.get_name()
 
     # Reorder & introduce new columns
     # https://stackoverflow.com/questions/13148429/how-to-change-the-order-of-dataframe-columns
     cnames = []
     ctypes = []
-    for i in range(len(batch_columns)):
-        bc = batch_columns[i]
-        cnames.append(bc.column)
-        ctypes.append(column_types[i])
+    for i in range(len(column_infos)):
+        cnames.append(column_infos[i].name)
+        ctypes.append(column_infos[i].type)
         # Introduce new column
         found = False
         for c in df.columns:
-            if table_name == bc.timeseries and c == bc.column:
+            if c == column_infos[i].name:
                 found = True
         if found == False:
-            df.insert(i, bc.column, None)
+            df.insert(i, column_infos[i].name, None)
     # Reorder columns
     df = df[cnames]
 
     dtypes = _get_inferred_dtypes_indexed(df) if infer_types is True else list()
 
+    timestamps = df.index.view(np.dtype('int64')).tolist()
+    writer.set_timestamps(timestamps)
     for i in range(len(df.columns)):
         ct = ctypes[i]
         tmp = df.iloc[:, i]
-        timestamps = tmp.index.astype(np.dtype('int64')).tolist()
         values = []
         if infer_types is True:
             dt = dtypes[i]
@@ -626,7 +625,7 @@ def write_pinned_dataframe(
                 values = tmp.fillna('').astype(dt).tolist()
             else:
                 values = tmp.astype(dt).tolist()
-        write_with[ct](i, timestamps, values)
+        write_with[ct](i, values)
 
     start = time.time()
 
