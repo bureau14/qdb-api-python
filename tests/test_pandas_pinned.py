@@ -127,6 +127,49 @@ def test_dataframe_with_first_column_missing(qdbd_connection, table_name):
         assert row['x'] == x[idx]
         assert row['y'] == y[idx]
 
+def test_dataframe_with_column_missing_timestamp(qdbd_connection, table_name):
+    table = qdbd_connection.table(table_name)
+    x = quasardb.ColumnInfo(quasardb.ColumnType.Timestamp, "x")
+    y = quasardb.ColumnInfo(quasardb.ColumnType.Timestamp, "y")
+
+    table.create([x, y])
+
+    timestamps = [
+        np.datetime64(
+            '2020-01-01T00:00:00',
+            'ns'),
+        np.datetime64(
+            '2020-01-01T00:00:00',
+            'ns')]
+    x = [None, np.datetime64(
+            '2020-01-02T00:00:00',
+            'ns')]
+    y = [np.datetime64(
+            '2020-01-01T00:00:00',
+            'ns'), np.datetime64(
+            '2020-01-02T00:00:00',
+            'ns')]
+
+    df1 = pd.DataFrame({'time': [timestamps[0]], 'y': [y[0]]})
+    df1.set_index('time', inplace=True)
+
+    df2 = pd.DataFrame(
+        {'time': [timestamps[1]], 'x': [x[1]], 'y': [y[1]]})
+    df2.set_index('time', inplace=True)
+
+    qdbpd.write_pinned_dataframe(df1, qdbd_connection, table_name, infer_types=False)
+    qdbpd.write_pinned_dataframe(df2, qdbd_connection, table_name, infer_types=False)
+
+    res = qdbd_connection.query(
+        'SELECT "$timestamp","x","y" FROM "{}"'.format(
+            table.get_name()))
+
+    assert len(res) == 2
+    for idx, row in enumerate(res):
+        assert row['$timestamp'] == timestamps[idx]
+        assert row['x'] == x[idx]
+        assert row['y'] == y[idx]
+
 def test_dataframe_with_second_column_missing(qdbd_connection, table_name):
     table = qdbd_connection.table(table_name)
     x = quasardb.ColumnInfo(quasardb.ColumnType.Int64, "x")
