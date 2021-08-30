@@ -606,6 +606,8 @@ def write_pinned_dataframe(
                 values = tmp.fillna(b'').astype(dt).tolist()
             elif (ct == quasardb.ColumnType.String or ct == quasardb.ColumnType.Symbol):
                 values = tmp.fillna('').astype(dt).tolist()
+            elif (ct == quasardb.ColumnType.Timestamp):
+                values = tmp.apply(lambda v: np.datetime64(v, 'ns') if not pd.isnull(v) and not pd.isna(v) else None).tolist()
             else:
                 values = tmp.astype(dt).tolist()
         write_with[ct](i, timestamps, values)
