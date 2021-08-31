@@ -61,6 +61,10 @@ static inline std::int64_t convert_timestamp(const qdb_timespec_t & ts) noexcept
 // assuming ns
 static inline qdb_timespec_t convert_timestamp(std::int64_t npdt64) noexcept
 {
+    if (npdt64 < 0)
+    {
+        return qdb_timespec_t{qdb_min_time, qdb_min_time};
+    }
     qdb_timespec_t res;
 
     static constexpr std::int64_t ns = 1'000'000'000ull;
