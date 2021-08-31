@@ -219,8 +219,7 @@ public:
 
     void set_timestamp(std::size_t index, const py::object & val)
     {
-        _set_impl<qdb_ts_column_timestamp, timestamp_column>(
-            index, (val.is(py::none()) ? detail::null_value<qdb_timespec_t>() : convert_timestamp(val)));
+        _set_impl<qdb_ts_column_timestamp, timestamp_column>(index, convert_timestamp(val));
     }
 
     void set_timestamp_column(std::size_t index, const std::vector<py::object> & vs)
@@ -418,7 +417,7 @@ private:
         std::vector<qdb_timespec_t> vs;
         vs.reserve(values.size());
         std::transform(std::cbegin(values), std::cend(values), std::back_inserter(vs),
-            [](const py::object & val) { return (val.is(py::none()) ? detail::null_value<qdb_timespec_t>() : convert_timestamp(val)); });
+            [](const py::object & val) { return convert_timestamp(val); });
         return std::move(vs);
     }
 
