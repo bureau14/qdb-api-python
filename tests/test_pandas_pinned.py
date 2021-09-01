@@ -89,7 +89,6 @@ def test_dataframe_can_read_ranges(qdbd_connection, table):
     assert df2.shape[0] == 10
     assert df3.shape[0] == 1
     assert df4.shape[0] == 2
-
 def test_dataframe_with_first_column_missing(qdbd_connection, table_name):
     table = qdbd_connection.table(table_name)
     x = quasardb.ColumnInfo(quasardb.ColumnType.Int64, "x")
@@ -116,7 +115,6 @@ def test_dataframe_with_first_column_missing(qdbd_connection, table_name):
 
     qdbpd.write_pinned_dataframe(df1, qdbd_connection, table_name)
     qdbpd.write_pinned_dataframe(df2, qdbd_connection, table_name)
-
     res = qdbd_connection.query(
         'SELECT "$timestamp","x","y" FROM "{}"'.format(
             table.get_name()))
@@ -127,48 +125,86 @@ def test_dataframe_with_first_column_missing(qdbd_connection, table_name):
         assert row['x'] == x[idx]
         assert row['y'] == y[idx]
 
-def test_dataframe_with_column_missing_timestamp(qdbd_connection, table_name):
-    table = qdbd_connection.table(table_name)
-    x = quasardb.ColumnInfo(quasardb.ColumnType.Timestamp, "x")
-    y = quasardb.ColumnInfo(quasardb.ColumnType.Timestamp, "y")
+def _test_missing(qdbd_connection, table_name, column_type, x, y, infer_types):
+    assert len(x) == len(y)
 
-    table.create([x, y])
+    table = qdbd_connection.table(table_name)
+    x_col = quasardb.ColumnInfo(column_type, "x")
+    y_col = quasardb.ColumnInfo(column_type, "y")
+
+    table.create([x_col, y_col])
 
     timestamps = [
         np.datetime64(
             '2020-01-01T00:00:00',
-            'ns'),
-        np.datetime64(
-            '2020-01-01T00:00:00',
-            'ns')]
-    x = [None, np.datetime64(
-            '2020-01-02T00:00:00',
-            'ns')]
-    y = [np.datetime64(
-            '2020-01-01T00:00:00',
-            'ns'), np.datetime64(
-            '2020-01-02T00:00:00',
-            'ns')]
+            'ns') for _ in range(len(x))]
 
-    df1 = pd.DataFrame({'time': [timestamps[0]], 'y': [y[0]]})
-    df1.set_index('time', inplace=True)
+    mid_range = int(len(x)/2)
 
-    df2 = pd.DataFrame(
-        {'time': [timestamps[1]], 'x': [x[1]], 'y': [y[1]]})
-    df2.set_index('time', inplace=True)
+    df = pd.DataFrame({'time': timestamps, 'x': x, 'y': y})
+    df.set_index('time', inplace=True)
 
-    qdbpd.write_pinned_dataframe(df1, qdbd_connection, table_name, infer_types=False)
-    qdbpd.write_pinned_dataframe(df2, qdbd_connection, table_name, infer_types=False)
+    qdbpd.write_pinned_dataframe(df, qdbd_connection, table_name, infer_types=infer_types)
 
     res = qdbd_connection.query(
         'SELECT "$timestamp","x","y" FROM "{}"'.format(
             table.get_name()))
 
-    assert len(res) == 2
+    assert len(res) == len(x)
     for idx, row in enumerate(res):
         assert row['$timestamp'] == timestamps[idx]
         assert row['x'] == x[idx]
         assert row['y'] == y[idx]
+
+def test_dataframe_with_missing_double(qdbd_connection, table_name):
+    x = [None, 1.1]
+    y = [2.2, None]
+    _test_missing(qdbd_connection, table_name, quasardb.ColumnType.Double, x, y, infer_types=False)
+
+def test_dataframe_with_missing_int64(qdbd_connection, table_name):
+    x = [None, 1]
+    y = [2, None]
+    _test_missing(qdbd_connection, table_name, quasardb.ColumnType.Int64, x, y, infer_types=False)
+
+def test_dataframe_with_missing_timestamp(qdbd_connection, table_name):
+    x = [None, np.datetime64('2020-01-02T00:00:00','ns')]
+    y = [np.datetime64('2020-01-01T00:00:00','ns'), None]
+    _test_missing(qdbd_connection, table_name, quasardb.ColumnType.Timestamp, x, y, infer_types=False)
+
+def test_dataframe_with_missing_blob(qdbd_connection, table_name):
+    x = [None, b'1.1']
+    y = [b'2.2', None]
+    _test_missing(qdbd_connection, table_name, quasardb.ColumnType.Blob, x, y, infer_types=False)
+
+def test_dataframe_with_missing_string(qdbd_connection, table_name):
+    x = [None, '1.1']
+    y = ['2.2', None]
+    _test_missing(qdbd_connection, table_name, quasardb.ColumnType.String, x, y, infer_types=False)
+
+def test_dataframe_with_missing_inferred_double(qdbd_connection, table_name):
+    x = [None, 1.1]
+    y = [2.2, None]
+    _test_missing(qdbd_connection, table_name, quasardb.ColumnType.Double, x, y, infer_types=True)
+
+def test_dataframe_with_missing_inferred_int64(qdbd_connection, table_name):
+    x = [None, 1]
+    y = [2, None]
+    _test_missing(qdbd_connection, table_name, quasardb.ColumnType.Int64, x, y, infer_types=True)
+
+def test_dataframe_with_missing_inferred_timestamp(qdbd_connection, table_name):
+    x = [np.datetime64('2020-01-02T00:00:00','ns')]
+    y = [np.datetime64('2020-01-01T00:00:00','ns')]
+    _test_missing(qdbd_connection, table_name, quasardb.ColumnType.Timestamp, x, y, infer_types=True)
+
+def test_dataframe_with_missing_inferred_blob(qdbd_connection, table_name):
+    x = [None, b'1.1']
+    y = [b'2.2', None]
+    _test_missing(qdbd_connection, table_name, quasardb.ColumnType.Blob, x, y, infer_types=True)
+
+def test_dataframe_with_missing_inferred_string(qdbd_connection, table_name):
+    x = [None, '1.1']
+    y = ['2.2', None]
+    _test_missing(qdbd_connection, table_name, quasardb.ColumnType.String, x, y, infer_types=True)
 
 def test_dataframe_with_second_column_missing(qdbd_connection, table_name):
     table = qdbd_connection.table(table_name)

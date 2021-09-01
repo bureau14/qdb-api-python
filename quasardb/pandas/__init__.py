@@ -611,8 +611,7 @@ def write_pinned_dataframe(
             except KeyError:
                 # Fallback default
                 fn = _infer_with[ct]['_']
-            none_value = None
-            values = tmp.apply(lambda v: fn(v) if not pd.isnull(v) and not pd.isna(v) else none_value).tolist()
+            values = tmp.apply(lambda v: fn(v) if not pd.isnull(v) and not pd.isna(v) else None).tolist()
         else:
             dt = pin_dtypes_map_flip[ct]
             if (ct == quasardb.ColumnType.Int64):
