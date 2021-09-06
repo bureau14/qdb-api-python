@@ -390,7 +390,7 @@ private:
         vs.reserve(values.size());
         std::transform(std::cbegin(values), std::cend(values), std::back_inserter(vs),
             [](const py::object & val) { return convert_timestamp(val); });
-        return std::move(vs);
+        return std::make_pair(std::move(ts), std::move(vs));
     }
 
     static std::pair<std::vector<qdb_timespec_t>, std::vector<std::string>> _convert_blob_like_column(
