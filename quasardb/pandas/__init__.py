@@ -603,7 +603,7 @@ def write_pinned_dataframe(
                 values = tmp.fillna(0x8000000000000000).astype(dt).tolist()
             elif (ct == quasardb.ColumnType.Blob):
                 values = tmp.fillna(b'').astype(dt).tolist()
-            elif (ct == quasardb.ColumnType.String or ct == quasardb.ColumnType.Symbol):
+            elif (ct == quasardb.ColumnType.String):
                 values = tmp.fillna('').astype(dt).tolist()
             else:
                 values = tmp.astype(dt).tolist()
