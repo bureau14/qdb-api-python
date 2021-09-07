@@ -84,7 +84,8 @@ def _by_uid(stats):
             if uid not in xs:
                 xs[uid] = {}
 
-            xs[uid][metric] = v
+            if not metric.startswith('serialized'):
+                xs[uid][metric] = v
 
     return xs
 
@@ -96,6 +97,7 @@ def _cumulative(stats):
         matches = total_pattern.match(k)
         if is_cumulative_stat(k) and matches:
             metric = matches.groups()[0]
-            xs[metric] = v
+            if not metric.startswith('serialized'):
+                xs[metric] = v
 
     return xs
