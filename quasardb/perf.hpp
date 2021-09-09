@@ -106,6 +106,30 @@ std::string perf_label_name(qdb_perf_label_t label)
         return "affix_search_starts";
     case qdb_pl_affix_search_ends:
         return "affix_search_ends";
+    case qdb_pl_eviction_starts:
+      return "qdb_pl_eviction_starts";
+    case qdb_pl_eviction_ends:
+      return "qdb_pl_eviction_ends";
+    case qdb_pl_time_vector_tracker_reading_starts:
+      return "qdb_pl_time_vector_tracker_reading_starts";
+    case qdb_pl_time_vector_tracker_reading_ends:
+      return "qdb_pl_time_vector_tracker_reading_ends";
+    case qdb_pl_bucket_reading_starts:
+      return "qdb_pl_bucket_reading_starts";
+    case qdb_pl_bucket_reading_ends:
+      return "qdb_pl_bucket_reading_ends";
+    case qdb_pl_entries_directory_reading_starts:
+      return "qdb_pl_entries_directory_reading_starts";
+    case qdb_pl_entries_directory_reading_ends:
+      return "qdb_pl_entries_directory_reading_ends";
+    case qdb_pl_acl_reading_starts:
+      return "qdb_pl_acl_reading_starts";
+    case qdb_pl_acl_reading_ends:
+      return "qdb_pl_acl_reading_ends";
+    case qdb_pl_time_vector_reading_starts:
+      return "qdb_pl_time_vector_reading_starts";
+    case qdb_pl_time_vector_reading_ends:
+      return "qdb_pl_time_vector_reading_ends";
     case qdb_pl_unknown:
         return "unknown";
     }
