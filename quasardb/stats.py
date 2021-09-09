@@ -95,10 +95,7 @@ def _stat_type(stat_id):
     elif async_pipeline_count_pattern.match(stat_id):
         return 'gauge'
     else:
-        print("unrecognized: {}".format(stat_id))
         return None
-
-
 
 def _calculate_delta_stat(stat_id, prev, cur):
     logger.info("calculating delta for stat_id = {}, prev = {}. cur = {}".format(stat_id, prev, cur))
