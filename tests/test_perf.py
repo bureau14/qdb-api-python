@@ -40,3 +40,11 @@ def test_perf_clear_after_blob_put(qdbd_connection, entry_name, random_string):
     qdbd_connection.perf().clear()
     profiles = qdbd_connection.perf().get()
     assert len(profiles) == 0
+
+
+def test_perf_fold(qdbd_connection, entry_name, random_string):
+    qdbd_connection.perf().enable()
+    qdbd_connection.blob(entry_name).put(random_string)
+
+    xs = qdbd_connection.perf().get(folded=True)
+    assert len(xs) > 0
