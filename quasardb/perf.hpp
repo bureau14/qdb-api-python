@@ -34,9 +34,50 @@
 #include <qdb/perf.h>
 #include <chrono>
 #include <vector>
+#include <map>
+#include <stack>
+#include <optional>
 
 namespace qdb
 {
+
+bool ends_with(std::string const & value, std::string const & ending)
+{
+    if (ending.size() > value.size()) return false;
+    return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+}
+
+bool is_delta_op(std::string const & op) {
+    return ends_with(op, "_starts") || ends_with(op, "_ends");
+}
+
+
+bool is_start_op(std::string const & op) {
+  assert(is_delta_op(op) == true);
+  if (ends_with(op, "_starts")) {
+    return true;
+  } else if (ends_with(op, "_ends")) {
+    return false;
+  }
+
+  // NOTREACHED
+  throw std::runtime_error{"Not a start/stop op"};
+
+}
+
+
+std::pair<bool, std::string> parse_op(std::string const & op) {
+  assert(is_delta_op(op) == true);
+  bool is_start = is_start_op(op);
+
+  if (is_start) {
+    // Trim '_starts' (7 char) from the end
+    return {is_start, op.substr(0, op.size() - 7)};
+  }
+
+  // Trim '_ends' (5 char) from the end
+  return {is_start, op.substr(0, op.size() - 5)};
+}
 
 std::string perf_label_name(qdb_perf_label_t label)
 {
@@ -172,6 +213,73 @@ public:
         return profiles;
     }
 
+    // pair of <stack, total_ns>
+    using folded      = std::pair<std::string, std::int64_t>;
+
+    std::vector<folded> get_folded() const {
+      std::vector<folded> ret;
+
+      std::map<std::string, std::chrono::nanoseconds> totals;
+
+      for (profile p : get_profiles()) {
+        std::stack<std::string> stack;
+        std::map<std::string, std::chrono::nanoseconds> last;
+
+        for (measurement m : p.second) {
+
+          std::chrono::nanoseconds ns = m.second;
+
+          if (is_delta_op(m.first)) {
+            auto parsed = parse_op(m.first);
+            bool is_start = parsed.first;
+            std::string op = parsed.second;
+
+            if (is_start) {
+              if (stack.empty()) {
+                stack.push(op);
+              } else {
+                stack.push(stack.top() + ";" + op);
+              }
+
+              // Can't have the same op type nested twice?
+              assert(last.find(op) == last.end());
+              last.emplace(op, ns);
+            } else {
+              // May throw error, we assume an end always has a last
+              std::chrono::nanoseconds delta = ns - last.at(op);
+              last.erase(op);
+
+              std::string x = stack.top();
+              assert(ends_with(x, op));
+              stack.pop();
+
+              if (totals.find(x) == totals.end()) {
+                totals.emplace(x, delta);
+              } else {
+                auto iter = totals.find(x);
+                iter->second += delta;
+              }
+            }
+          }
+        }
+      }
+
+      for (auto total : totals) {
+        ret.push_back(std::make_pair(total.first,
+                                     total.second.count()));
+      }
+
+      return ret;
+    }
+
+    py::object get(bool folded) const {
+      if (folded) {
+        return py::cast(get_folded());
+      } else {
+        return py::cast(get_profiles());
+      }
+    }
+
     void clear_all_profiles() const
     {
         qdb::qdb_throw_if_error(*_handle, qdb_perf_clear_all_profiles(*_handle));
@@ -197,11 +305,11 @@ static inline void register_perf(Module & m)
     namespace py = pybind11;
 
     py::class_<qdb::perf>(m, "Perf")
-        .def(py::init<qdb::handle_ptr>())                     //
-        .def("get", &qdb::perf::get_profiles)                 //
-        .def("clear", &qdb::perf::clear_all_profiles)         //
-        .def("enable", &qdb::perf::enable_client_tracking)    //
-        .def("disable", &qdb::perf::disable_client_tracking); //
+        .def(py::init<qdb::handle_ptr>())                        //
+        .def("get", &qdb::perf::get, py::arg("folded") = false)  //
+        .def("clear", &qdb::perf::clear_all_profiles)            //
+        .def("enable", &qdb::perf::enable_client_tracking)       //
+        .def("disable", &qdb::perf::disable_client_tracking);    //
 }
 
 } // namespace qdb
