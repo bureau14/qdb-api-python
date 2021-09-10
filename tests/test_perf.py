@@ -42,9 +42,25 @@ def test_perf_clear_after_blob_put(qdbd_connection, entry_name, random_string):
     assert len(profiles) == 0
 
 
-def test_perf_fold(qdbd_connection, entry_name, random_string):
+def test_perf_flamechart(qdbd_connection, entry_name, random_string):
     qdbd_connection.perf().enable()
     qdbd_connection.blob(entry_name).put(random_string)
 
-    xs = qdbd_connection.perf().get(folded=True)
-    assert len(xs) > 0
+    x = qdbd_connection.perf().get(flame=True)
+    assert type(x) == str
+    assert x != ""
+
+    x = qdbd_connection.perf().get(flame=True)
+    assert x == ""
+
+
+def test_perf_flamechart_to_file(qdbd_connection, entry_name, random_string):
+    qdbd_connection.perf().enable()
+    qdbd_connection.blob(entry_name).put(random_string)
+
+    filename='test_perf.out'
+    x = qdbd_connection.perf().get(flame=True, outfile=filename)
+    assert type(x) == str
+    assert x != ""
+    with open(filename, 'r') as fp:
+        assert x == fp.read()

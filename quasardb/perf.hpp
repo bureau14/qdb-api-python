@@ -36,7 +36,8 @@
 #include <vector>
 #include <map>
 #include <stack>
-#include <optional>
+#include <iostream>
+#include <fstream>
 
 namespace qdb
 {
@@ -214,10 +215,8 @@ public:
     }
 
     // pair of <stack, delta_ns>
-    using folded      = std::pair<std::string, std::int64_t>;
-
-    std::vector<folded> get_folded() const {
-      std::vector<folded> ret;
+    std::string  get_flamegraph(std::string outfile) const {
+      std::ostringstream ret;
 
       for (profile p : get_profiles()) {
         std::stack<std::string> stack;
@@ -253,18 +252,25 @@ public:
               assert(ends_with(x, op));
               stack.pop();
 
-              ret.push_back(std::make_pair(x, delta.count()));
+              ret << x << '\t' << delta.count() << std::endl;
             }
           }
         }
       }
 
-      return ret;
+      if (outfile != "") {
+        std::ofstream f;
+        f.open(outfile);
+        f << ret.str();
+        f.close();
+      }
+
+      return ret.str();
     }
 
-  py::object get(bool folded) const {
-      if (folded) {
-        return py::cast(get_folded());
+  py::object get(bool flamegraph, std::string outfile) const {
+      if (flamegraph) {
+        return py::cast(get_flamegraph(outfile));
       } else {
         return py::cast(get_profiles());
       }
@@ -295,11 +301,11 @@ static inline void register_perf(Module & m)
     namespace py = pybind11;
 
     py::class_<qdb::perf>(m, "Perf")
-        .def(py::init<qdb::handle_ptr>())                        //
-        .def("get", &qdb::perf::get, py::arg("folded") = false)  //
-        .def("clear", &qdb::perf::clear_all_profiles)            //
-        .def("enable", &qdb::perf::enable_client_tracking)       //
-        .def("disable", &qdb::perf::disable_client_tracking);    //
+        .def(py::init<qdb::handle_ptr>())                                                //
+        .def("get", &qdb::perf::get, py::arg("flame") = false, py::arg("outfile") = "")  //
+        .def("clear", &qdb::perf::clear_all_profiles)                                    //
+        .def("enable", &qdb::perf::enable_client_tracking)                               //
+        .def("disable", &qdb::perf::disable_client_tracking);                            //
 }
 
 } // namespace qdb
