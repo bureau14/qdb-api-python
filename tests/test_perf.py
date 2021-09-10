@@ -56,7 +56,7 @@ def test_perf_flamechart(qdbd_connection, entry_name, random_string):
 
 def test_perf_flamechart_to_file(qdbd_connection, entry_name, random_string):
     qdbd_connection.perf().enable()
-    qdbd_connection.query('select * from "8DSE2UBARPUU9O69"')
+    qdbd_connection.blob(entry_name).put(random_string)
 
     filename='test_perf.out'
     xs = qdbd_connection.perf().get(flame=True, outfile=filename)
