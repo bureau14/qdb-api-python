@@ -213,13 +213,11 @@ public:
         return profiles;
     }
 
-    // pair of <stack, total_ns>
+    // pair of <stack, delta_ns>
     using folded      = std::pair<std::string, std::int64_t>;
 
     std::vector<folded> get_folded() const {
       std::vector<folded> ret;
-
-      std::map<std::string, std::chrono::nanoseconds> totals;
 
       for (profile p : get_profiles()) {
         std::stack<std::string> stack;
@@ -253,26 +251,16 @@ public:
               assert(ends_with(x, op));
               stack.pop();
 
-              if (totals.find(x) == totals.end()) {
-                totals.emplace(x, delta);
-              } else {
-                auto iter = totals.find(x);
-                iter->second += delta;
-              }
+              ret.push_back(std::make_pair(x, delta.count()));
             }
           }
         }
       }
 
-      for (auto total : totals) {
-        ret.push_back(std::make_pair(total.first,
-                                     total.second.count()));
-      }
-
       return ret;
     }
 
-    py::object get(bool folded) const {
+  py::object get(bool folded) const {
       if (folded) {
         return py::cast(get_folded());
       } else {
