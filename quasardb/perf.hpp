@@ -214,9 +214,8 @@ public:
         return profiles;
     }
 
-    // pair of <stack, delta_ns>
-    std::string  get_flamegraph(std::string outfile) const {
-      std::ostringstream ret;
+    std::vector<std::string>  get_flamegraph(std::string outfile) const {
+      std::vector<std::string> ret;
 
       for (profile p : get_profiles()) {
         std::stack<std::string> stack;
@@ -252,7 +251,7 @@ public:
               assert(ends_with(x, op));
               stack.pop();
 
-              ret << x << '\t' << delta.count() << std::endl;
+              ret.push_back(x + " " + std::to_string(delta.count()));
             }
           }
         }
@@ -261,11 +260,15 @@ public:
       if (outfile != "") {
         std::ofstream f;
         f.open(outfile);
-        f << ret.str();
+
+        for (std::string const & row : ret) {
+          f << row << std::endl;
+        }
+
         f.close();
       }
 
-      return ret.str();
+      return ret;
     }
 
   py::object get(bool flamegraph, std::string outfile) const {
