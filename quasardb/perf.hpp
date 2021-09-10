@@ -221,6 +221,8 @@ public:
 
       for (profile p : get_profiles()) {
         std::stack<std::string> stack;
+
+        stack.push(p.first); // operation name
         std::map<std::string, std::chrono::nanoseconds> last;
 
         for (measurement m : p.second) {
