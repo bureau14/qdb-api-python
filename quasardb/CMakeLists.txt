@@ -129,7 +129,6 @@ pybind11_add_module(
   entry.hpp
   blob.hpp
   handle.hpp
-  memcpy_wrap.cpp
   options.hpp
   qdb_client.cpp
   query.hpp
