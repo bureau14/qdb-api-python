@@ -116,12 +116,6 @@ static inline size_t max_length(const PointType * points, size_t count)
     })->content_length;
 }
 
-static inline qdb_time_t to_localtime(qdb_time_t t)
-{
-    struct tm * local = localtime(&t);
-    return mktime(local);
-}
-
 static inline std::string to_string(qdb_string_t s)
 {
     return std::string(s.data, s.length);
