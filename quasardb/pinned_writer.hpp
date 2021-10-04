@@ -279,7 +279,7 @@ public:
 
         return table_data;
     }
-    
+
     qdb_exp_batch_push_table_t prepare_batch(qdb_exp_batch_push_mode_t mode, qdb_ts_range_t * ranges)
     {
         qdb_exp_batch_push_table_t batch;
@@ -290,6 +290,7 @@ public:
             batch.truncate_ranges = ranges;
             batch.truncate_range_count = ranges == nullptr ? 0u : 1u;
         }
+        batch.options = qdb_exp_batch_option_standard;
         return batch;
     }
 
