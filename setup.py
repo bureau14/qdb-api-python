@@ -59,9 +59,11 @@ class CMakeBuild(build_ext):
         # We provide CMAKE_LIBRARY_OUTPUT_DIRECTORY to cmake, where it will copy libqdb_api.so (or
         # whatever the OS uses). It is important that this path matches `package_modules`, so that
         # setuptools knows it needs to package this.
-        cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
-                      '-DPYTHON_EXECUTABLE=' + sys.executable,
-                      '-DQDB_PY_VERSION=' + qdb_version]
+        cmake_args = [
+            '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
+            '-DPYTHON_EXECUTABLE=' + sys.executable,
+            '-DQDB_PY_VERSION=' + qdb_version,
+        ]
 
         # NOTE: Run `python setup.py build_ext --debug bdist_wheel ...` for Debug build.
         cfg = 'Debug' if self.debug else 'Release'
@@ -81,6 +83,12 @@ class CMakeBuild(build_ext):
         #    build_args += ['--', '-j2']
 
         env = os.environ.copy()
+
+        additional_cmake_params = env.get('ADDITIONAL_CMAKE_PARAMETERS')
+        if additional_cmake_params:
+            additional_cmake_params = additional_cmake_params.split(':')
+            cmake_args += additional_cmake_params
+
         env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(env.get('CXXFLAGS', ''),
                                                               self.distribution.get_version())
         if not os.path.exists(self.build_temp):
