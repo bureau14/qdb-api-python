@@ -68,8 +68,17 @@ def of_node(conn, uri):
 
 _stat_types = {'requests.bytes_out': 'counter',
                'requests.bytes_in': 'counter',
+               'persistence.bucket_insert_count': 'counter',
+               'persistence.bucket_read_count': 'counter',
+               'persistence.bucket_update_count': 'counter',
+               'persistence.write_successes_count': 'counter',
+               'persistence.bytes_read': 'counter',
+               'persistence.bytes_utilized': 'gauge',
+               'persistence.bytes_written': 'counter',
+               'persistence.entries_count': 'gauge',
                'async_pipelines.merge.bucket_count': 'counter',
                'async_pipelines.merge.duration_us': 'counter',
+               'async_pipelines.merge.requests_count': 'counter',
                'async_pipelines.write.successes_count': 'counter',
                'async_pipelines.write.failures_count': 'counter',
                'async_pipelines.write.time_us': 'counter'}
@@ -98,7 +107,7 @@ def _stat_type(stat_id):
         return None
 
 def _calculate_delta_stat(stat_id, prev, cur):
-    logger.info("calculating delta for stat_id = {}, prev = {}. cur = {}".format(stat_id, prev, cur))
+    logger.debug("calculating delta for stat_id = {}, prev = {}. cur = {}".format(stat_id, prev, cur))
 
     stat_type = _stat_type(stat_id)
     if stat_type == 'counter':
@@ -112,7 +121,7 @@ def _calculate_delta_stats(prev_stats, cur_stats):
     ret = {}
     for stat_id in cur_stats.keys():
         try:
-            prev_stat = cur_stats[stat_id]
+            prev_stat = prev_stats[stat_id]
             cur_stat  = cur_stats[stat_id]
 
             value = _calculate_delta_stat(stat_id, prev_stat, cur_stat)
