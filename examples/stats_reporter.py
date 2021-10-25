@@ -21,9 +21,8 @@ modules = [{'id': 'requests',
             'help': 'Cumulative async pipeline stats'},
            {'id': 'async_details',
             'help': 'Detailed stats per async pipeline',
-            'arg': '--async-details'},
+            'arg': '--async-details'}]
 
-           ]
 def get_args():
     parser = argparse.ArgumentParser(
         description="Report statistics")
@@ -326,7 +325,7 @@ def grab_stats(args):
     with get_conn(args.cluster_uri,
                   cluster_public_key=args.cluster_public_key,
                   user_security_file=args.user_security_file) as conn:
-        return qdbst.by_node(conn)
+        return qdbst.of_node(conn, args.node_id)
 
 def _to_header_vals(xs):
     regex_pipe = re.compile('async_pipelines.pipe_([0-9]+)')
@@ -438,22 +437,20 @@ def main():
         cur = grab_stats(args)
         if last is not None:
             delta = qdbst.calculate_delta(last, cur)
-            if len(delta.keys()) == 1:
-                cur_delta = delta[next(iter(delta))]
+            cur_delta = delta
 
-                # Printer header once every 25 rows, *or* when we suddenly have more columns
-                # in the delta than last time.
-                keys_changed = last_delta != None and last_delta.keys() != cur_delta.keys()
-                print_header = keys_changed or (i % 25 == 0)
+            # Printer header once every 25 rows, *or* when we suddenly have more columns
+            # in the delta than last time.
+            keys_changed = last_delta != None and last_delta.keys() != cur_delta.keys()
+            print_header = keys_changed or (i % 25 == 0)
 
 
-                _print_delta(enabled_modules,
-                             cur_delta,
-                             print_header=print_header)
+            _print_delta(enabled_modules,
+                         cur_delta,
+                         print_header=print_header)
 
-                last_delta = cur_delta
-                i += 1
-
+            last_delta = cur_delta
+            i += 1
 
         last = cur
 

@@ -139,12 +139,8 @@ def calculate_delta(prev, cur):
     """
     Calculates the 'delta' between two successive statistic measurements.
     """
-    ret = {}
-    for node_id in cur.keys():
-        ret[node_id] = _calculate_delta_stats(prev[node_id]['cumulative'],
-                                              cur[node_id]['cumulative'])
-
-    return ret
+    return _calculate_delta_stats(prev['cumulative'],
+                                  cur['cumulative'])
 
 def _get_stat(dconn, k):
     # Ugly, but works: try to retrieve as integer, if not an int, retrieve as
