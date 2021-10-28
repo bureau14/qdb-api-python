@@ -4,6 +4,7 @@ import sys
 import time
 import re
 
+import statistics
 import quasardb
 import quasardb.stats as qdbst
 
@@ -185,6 +186,30 @@ def fchg(var, width, base):
         c = -1
     return ret, c
 
+def dchg(var, width, base):
+    "Convert decimal to string given base and length"
+    c = 0
+    while True:
+        ret = str(int(round(var)))
+        if len(ret) <= width:
+            break
+        var = var / base
+        c = c + 1
+    else:
+        c = -1
+    return ret, c
+
+def tchg(var, width):
+    "Convert time string to given length"
+    ret = '%2dh%02d' % (var / 60, var % 60)
+    if len(ret) > width:
+        ret = '%2dh' % (var / 60)
+        if len(ret) > width:
+            ret = '%2dd' % (var / 60 / 24)
+            if len(ret) > width:
+                ret = '%2dw' % (var / 60 / 24 / 7)
+    return ret
+
 def cprint(var, ctype = 'f', width = 4, scale = 1000):
     "Color print one column"
 
@@ -194,9 +219,6 @@ def cprint(var, ctype = 'f', width = 4, scale = 1000):
 
     ### Use units when base is exact 1000 or 1024
     unit = False
-    if scale in (1000, 1024) and width >= len(str(base)):
-        unit = True
-        width = width - 1
 
     ### If this is a negative value, return a dash
     if ctype != 's' and var < 0:
@@ -241,10 +263,7 @@ def cprint(var, ctype = 'f', width = 4, scale = 1000):
         color = ctext
 
     ### Justify value to left if string
-    if ctype in ('s',):
-        ret = color + ret.ljust(width)
-    else:
-        ret = color + ret.rjust(width)
+    ret = color + ret.rjust(width)
 
     ### Add unit to output
     if unit:
@@ -255,37 +274,63 @@ def cprint(var, ctype = 'f', width = 4, scale = 1000):
 
     return ret
 
-def cprintlist(varlist, ctype, width, scale):
-    "Return all columns color printed"
-    ret = sep = ''
-    for var in varlist:
-        ret = ret + sep + cprint(var, ctype, width, scale)
-        sep = char['space']
+def row(xs_by_module, width):
+
+    ret = ''
+
+    sep = ''
+    for m in xs_by_module.values():
+        ret += sep
+
+        for k in m['keys']:
+            ctype = 'd'
+            if 'ctype' in k:
+                ctype = k['ctype']
+
+            ret += sep + cprint(k['value'], ctype, width, scale=1000)
+            sep = char['space']
+
+        ret += sep
+
     return ret
 
-def header(xs, width):
-    "Return the header for a set of module counters"
+def header(xs_by_module, width):
     line = ''
+
     ### Process title
-    for o in xs:
+    first = True
+    for module in xs_by_module:
+        m = xs_by_module[module]
+
+        keys = len(m['keys'])
+        title_width = (len(m['keys']) * (width + 1))
+        if first is False:
+            title_width += 1
+        first = False
+
         line += theme['frame']
-        line += o['title'].center(o['width'] + 3, '-')
+        line += m['title'].center(title_width, '-')
         line += theme['frame'] + char['space']
 
     line += '\n'
-    for o in xs:
+    first = True
+    for module in xs_by_module:
+        m = xs_by_module[module]
+
+
         line += ansi['bold'] + ansi['underline']
-        for st in o['subtitle']:
-            if st is o['subtitle'][-1]:
-                line += st.center(width + 2)
-            else:
-                line += st.center(width + 1)
+        subtitles = [o['subtitle'] for o in m['keys']]
 
-        if o is not xs[-1]:
-            line += theme['frame'] + char['pipe']
+        for st in subtitles:
+            line += st.center(width + 1)
+
+        if first is True:
+            line += theme['frame']
         else:
-            line += theme['title']
+            line += ' ' + theme['title']
 
+        first = False
+        line +=  char['pipe']
 
     line += ansi['reset']
 
@@ -327,100 +372,162 @@ def grab_stats(args):
                   user_security_file=args.user_security_file) as conn:
         return qdbst.of_node(conn, args.node_id)
 
-def _to_header_vals(xs):
-    regex_pipe = re.compile('async_pipelines.pipe_([0-9]+)')
-    ret = {}
-    for x in xs:
-        k = x['key']
-        module = x['module']
 
-        if x['module'] == 'async_details':
-            matches_pipe = regex_pipe.match(k)
-            if not matches_pipe:
-                logger.warn("async pipeline without matching regex? {}".format(k))
+prefix_by_module = {'async': 'async_pipelines.merge.',
+                    'async_details': 'async_pipelines.pipes',
+                    'requests': 'requests.bytes_',
+                    'persistence': ['persistence.bytes_',
+                                    'persistence.bucket_']}
 
-            pipe_id = int(matches_pipe.groups()[0])
-            pipe_key = pipe_id + x['offset']
-            pipe_str = 'pipe{}'.format(pipe_id)
 
-            if not pipe_key in ret:
-                ret[pipe_key] = {'title': pipe_str,
-                                 'subtitle': [],
-                                 'width': 0}
+title_by_module = {'async': 'async',
+                   'async_details': 'async pipes',
+                   'async_details_bytes': 'async pipes (bytes)',
+                   'async_details_count': 'async pipes (count)',
+                   'requests': 'requests',
+                   'persistence': 'persistence',
+                   'persistence_bytes': 'persistence (byte)',
+                   'persistence_bucket': 'persistence (bucket)',
+                   }
 
-            if k.endswith('bytes'):
-                ret[pipe_key]['subtitle'].append('byt')
-            elif k.endswith('count'):
-                ret[pipe_key]['subtitle'].append('cnt')
+props_by_key = {'requests.bytes_in': {'subtitle': 'in'},
+                'requests.bytes_out': {'subtitle': 'out'},
+                'persistence.bucket_insert_count': {'submodule': 'persistence_bucket',
+                                                    'subtitle': 'in'},
+                'persistence.bucket_read_count': {'submodule': 'persistence_bucket',
+                                                  'subtitle': 're'},
+                'persistence.bucket_update_count': {'submodule': 'persistence_bucket',
+                                                    'subtitle': 'up'},
+                'persistence.bytes_read': {'submodule': 'persistence_bytes',
+                                           'subtitle': 'read'},
+                'persistence.bytes_utilized': {'submodule': 'persistence_bytes',
+                                               'subtitle': 'util'},
+                'persistence.bytes_written': {'submodule': 'persistence_bytes',
+                                              'subtitle': 'writ'},
 
-            ret[pipe_key]['width'] = 5 * len(ret[pipe_key]['subtitle'])
+                'async_pipelines.merge.bucket_count': {'subtitle': 'bkts'},
+                'async_pipelines.merge.duration_us': {'subtitle': 'dur'},
+                'async_pipelines.merge.requests_count': {'subtitle': 'req'},
 
-        elif x['module'] == 'async':
-            ret[x['offset']] = {'title': 'async merge',
-                                'subtitle': ['bkt', 'dur', 'req'],
-                                'width': 16}
-        elif x['module'] == 'requests':
-            ret[x['offset']] = {'title': 'requests',
-                                'subtitle': ['in', 'out'],
-                                'width': 10}
-        elif x['module'] == 'persistence_bytes':
-            ret[x['offset']] = {'title': 'pers/bytes',
-                                'subtitle': ['read', 'utilized', 'write'],
-                                'width': 16}
-        elif x['module'] == 'persistence_bucket':
-            ret[x['offset']] = {'title': 'pers/buckets',
-                                'subtitle': ['insert', 'read', 'update'],
-                                'width': 16}
+                'async_pipelines.pipes.bytes.mean': {'submodule': 'async_details_bytes',
+                                                     'subtitle': 'mean'},
+                'async_pipelines.pipes.bytes.median': {'submodule': 'async_details_bytes',
+                                                       'subtitle': 'median'},
+                'async_pipelines.pipes.bytes.min': {'submodule': 'async_details_bytes',
+                                                    'subtitle': 'min'},
+                'async_pipelines.pipes.bytes.max': {'submodule': 'async_details_bytes',
+                                                    'subtitle': 'max'},
 
-    ret_ = [ret[k] for k in sorted(ret.keys())]
-    return ret_
+                'async_pipelines.pipes.count.mean': {'submodule': 'async_details_count',
+                                                     'subtitle': 'mean'},
+                'async_pipelines.pipes.count.median': {'submodule': 'async_details_count',
+                                                       'subtitle': 'median'},
+                'async_pipelines.pipes.count.min': {'submodule': 'async_details_count',
+                                                    'subtitle': 'min'},
+                'async_pipelines.pipes.count.max': {'submodule': 'async_details_count',
+                                                    'subtitle': 'max'}
 
+
+                }
 
 def _print_delta(modules, delta, print_header=False):
 
-    keys  = []
+    delta_by_module  = {}
 
-    offset = 0
     for module in modules:
-        if module == 'async':
-            keys.extend([{'key': k,
-                          'module': module,
-                          'offset': offset} for k in delta.keys() if k.startswith('async_pipelines.merge.')])
-        elif module == 'async_details':
-            keys.extend([{'key': k,
-                          'module': module,
-                          'offset': offset} for k in delta.keys() if k.startswith('async_pipelines.pipe_')])
-        elif module == 'requests':
-            keys.extend([{'key': k,
-                          'module': module,
-                          'offset': offset} for k in delta.keys() if k.startswith('requests.bytes_')])
-        elif module == 'persistence':
-            keys.extend([{'key': k,
-                          'module': '{}_bytes'.format(module),
-                          'offset': offset} for k in delta.keys() if k.startswith('persistence.bytes_')])
-            keys.extend([{'key': k,
-                          'module': '{}_bucket'.format(module),
-                          'offset': offset + 1} for k in delta.keys() if k.startswith('persistence.bucket_')])
-        else:
-            print("unrecognized module: {}".format(module))
 
-        offset += 100
 
-    #header = [_to_header(k) for k in keys]
-    xs        = [{'delta': delta[k['key']],
-                  'module': k['module']}
-                 for k in keys]
+        prefix = prefix_by_module[module]
 
-    col_width = 5
+        # Always coerce prefix to a list
+        if type(prefix) == str:
+            prefix = [prefix]
+
+        for k in delta.keys():
+            for p in prefix:
+                if k.startswith(p):
+                    props = props_by_key[k].copy()
+
+                    module_id = module
+                    if 'submodule' in props:
+                        module_id = props['submodule']
+
+                    if not module_id in delta_by_module:
+                        delta_by_module[module_id] = {'title': title_by_module[module_id],
+                                                      'keys': []}
+
+                    props['key'] = k
+                    props['value'] = delta[k]
+
+                    delta_by_module[module_id]['keys'].append(props)
+
+    col_width = 6
     sep = theme['frame'] + char['colon']
 
     if print_header is True:
-        print(header(_to_header_vals(keys),
-                      width=col_width))
+        print(header(delta_by_module,
+                     width=col_width))
 
-    print(cprintlist((x['delta'] for x in xs), ctype='f', width=col_width + 1, scale=1000))
+    # ctype = 'f'
+    # scale = 1000
+    print(row(delta_by_module, width=col_width))
 
 default_modules = ['requests', 'async', 'persistence']
+
+def _derive_async_pipeline_metrics(xs):
+    metrics = ['bytes', 'count']
+
+    ret = {}
+
+    stats = {'mean': statistics.mean,
+             'median': statistics.median,
+             'min': min,
+             'max': max}
+
+    for metric_id in metrics:
+        vals = [xs[pipe_id][metric_id] for pipe_id in xs]
+
+        for stat_id in stats:
+            stat_fn = stats[stat_id]
+
+            ret['async_pipelines.pipes.{}.{}'.format(metric_id, stat_id)] = stat_fn(vals)
+
+    return ret
+
+def _preprocess_delta_async_pipelines(xs):
+    regex_pipe = re.compile('async_pipelines.pipe_([0-9]+).merge_map.(bytes|count)')
+
+    ks = []
+    pipelines = {}
+
+    for k in xs:
+        matches = regex_pipe.match(k)
+        if not matches:
+            continue
+
+        pipe_id = int(matches.group(1))
+        metric_id = matches.group(2)
+        metric_value = xs[k]
+
+        if not pipe_id in pipelines:
+            pipelines[pipe_id] = {}
+
+        pipelines[pipe_id][metric_id] = metric_value
+        ks.append(k)
+
+
+    for k in ks:
+        del xs[k]
+
+
+    derived = _derive_async_pipeline_metrics(pipelines)
+    for k in derived:
+        xs[k] = derived[k]
+
+    return xs
+
+def _preprocess_delta(xs):
+    return _preprocess_delta_async_pipelines(xs)
 
 def main():
     args = get_args()
@@ -436,7 +543,7 @@ def main():
     while True:
         cur = grab_stats(args)
         if last is not None:
-            delta = qdbst.calculate_delta(last, cur)
+            delta = _preprocess_delta(qdbst.calculate_delta(last, cur))
             cur_delta = delta
 
             # Printer header once every 25 rows, *or* when we suddenly have more columns
