@@ -35,6 +35,7 @@
 
 static std::pair<int, int> get_version_pair(const char * version)
 {
+  try {
     std::regex re(u8"([0-9]+)\\.([0-9]+)\\..*");
     std::cmatch m;
     if (!std::regex_match(version, m, re))
@@ -46,6 +47,20 @@ static std::pair<int, int> get_version_pair(const char * version)
     const auto major = std::stoi(m[1].str());
     const auto minor = std::stoi(m[2].str());
     return std::make_pair(major, minor);
+  } catch (std::bad_cast const & e) {
+    // This is caused by std::regex constructor when ran inside a different locale
+    // than what we built the C API version against.
+    //
+    // This is reproducable by loading the QuasarDB module in a modern Jupyter notebook,
+    // which does something weird with locales.
+    //
+    // Proper fix would be to probably do some locale normalization or whatever,
+    // but the regex is so simple, we may also just want to get rid of regexes entirely.
+    //
+    // But for now, we'll just return a bogus result which effectively ignores this
+    // version checks in environments with weird locales.
+    return std::make_pair<int, int>(-1, -1);
+  }
 }
 
 namespace qdb
