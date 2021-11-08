@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PYTHON="${PYTHON_CMD:-python}"
+PYTHON="${PYTHON_CMD:-python3}"
 
 # remove previous environment
 if [ -d .env ]; then

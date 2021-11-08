@@ -2,7 +2,7 @@
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 FILE=${1}
-PYTHON="${PYTHON_EXECUTABLE:-python}"
+PYTHON="${PYTHON_CMD:-python3}"
 
 rm -rf .env/ || true
 
