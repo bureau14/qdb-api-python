@@ -18,6 +18,10 @@ PYTHON="${PYTHON_CMD:-python3}"
 
 rm -r -f dist/
 
+${PYTHON} -m pip install --upgrade pip
+${PYTHON} -m pip install --upgrade wheel
+${PYTHON} -m pip install --upgrade "setuptools<=58.4"
+
 ${PYTHON} setup.py sdist -d dist/
 ${PYTHON} setup.py bdist_egg -d dist/
 ${PYTHON} setup.py bdist_wheel -d dist/

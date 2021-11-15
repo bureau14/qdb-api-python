@@ -152,27 +152,31 @@ setup(name=package_name,
           'Intended Audience :: Other Audience',
           'Intended Audience :: System Administrators',
           'Intended Audience :: Telecommunications Industry',
-          'Programming Language :: Python :: 2.7',
           'Programming Language :: Python :: 3.6',
+          'Programming Language :: Python :: 3.7',
+          'Programming Language :: Python :: 3.8',
+          'Programming Language :: Python :: 3.9',
+          'Programming Language :: Python :: 3.10',
           'Topic :: Database',
           'Topic :: Software Development :: Libraries :: Python Modules',
           "License :: OSI Approved :: BSD License",
       ],
       keywords='quasardb timeseries database API driver ',
-      setup_requires=[
-          "setuptools_git >= 0.3",
-          "xmlrunner >= 1.7.7",
-          "future >= 0.17.1",
-          "numpy >= 1.16.1",
-          "pytest == 5.3.1",
-          "pytest-runner == 5.2",
-          "pytest-benchmark == 3.2.2",
-          "pytz >= 2018.9",
-          "pandas >= 1.0.0"],
-      install_requires=[
-          "xmlrunner >= 1.7.7",
-          "future >= 0.17.1",
-          "numpy >= 1.16.1"],
+      tests_require=[
+          "pytest >= 6.2.5",
+          "pytest-runner >= 5.3.1",
+          "pytest-benchmark == 3.4.1",
+          "teamcity-messages >= 1.29"],
+
+      extra_requires={
+          ':python_version > "3.9"': [
+              "pandas",
+              "numpy"],
+          ':python_version <= "3.9"': [
+              "pandas",
+              "numpy"]
+      },
+
       packages=[package_name],
       package_data={package_name: package_modules},
       ext_modules=[CMakeExtension('quasardb', 'quasardb/')],
