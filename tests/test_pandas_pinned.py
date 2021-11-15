@@ -1,5 +1,6 @@
 # pylint: disable=missing-module-docstring,missing-function-docstring,not-an-iterable,invalid-name
 
+from datetime import timedelta
 import logging
 import numpy as np
 import numpy.ma as ma
@@ -317,6 +318,19 @@ def check_equal(expected, actual):
         assert np.isnan(actual)
     else:
         assert expected == actual
+
+
+def test_write_pinned_dataframe_create_table(caplog, qdbd_connection, entry_name):
+    caplog.set_level(logging.DEBUG)
+    table = qdbd_connection.ts(entry_name)
+    df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
+    qdbpd.write_pinned_dataframe(df1, qdbd_connection, table, create=True, shard_size=timedelta(weeks=4))
+
+    df2 = qdbpd.read_dataframe(table)
+
+    assert len(df1.columns) == len(df2.columns)
+    for col in df1.columns:
+        np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
 
 
 def test_dataframe_read_fast_is_unordered(qdbd_connection, table):
