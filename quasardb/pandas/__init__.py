@@ -331,6 +331,7 @@ def write_dataframe(
         df,
         cluster,
         table,
+        shard_size=None,
         create=False,
         _async=False,
         fast=False,
@@ -352,6 +353,9 @@ def write_dataframe(
 
     create: optional bool
       Whether to create the table. Defaults to false.
+
+    shard_size: optional bool
+      The shard size of the timeseries you wish to create.
 
     infer_types: optional bool
       If true, will attemp to convert types from Python to QuasarDB natives types if
@@ -387,7 +391,7 @@ def write_dataframe(
         table = cluster.table(table)
 
     if create:
-        _create_table_from_df(df, table)
+        _create_table_from_df(df, table, shard_size)
 
     # Create batch column info from dataframe
     col_info = list(quasardb.BatchColumnInfo(
@@ -491,6 +495,7 @@ def write_pinned_dataframe(
         cluster,
         table,
         create=False,
+        shard_size=None,
         _async=False,
         fast=False,
         truncate=False,
@@ -509,6 +514,8 @@ def write_pinned_dataframe(
       For example, 'my_table' or cluster.table('my_table') are both valid values.
     create: optional bool
       Whether to create the table. Defaults to false.
+    shard_size: optional bool
+      The shard size of the timeseries you wish to create.
     infer_types: optional bool
       If true, will attemp to convert types from Python to QuasarDB natives types if
       the provided dataframe has incompatible types. For example, a dataframe with integers
@@ -535,7 +542,7 @@ def write_pinned_dataframe(
         table = cluster.table(table)
 
     if create:
-        _create_table_from_df(df, table)
+        _create_table_from_df(df, table, shard_size)
 
     # Create batch column info from dataframe
     writer = cluster.pinned_writer([table])
@@ -632,7 +639,7 @@ def write_pinned_dataframe(
     return table
 
 
-def _create_table_from_df(df, table):
+def _create_table_from_df(df, table, shard_size=None):
     cols = list()
 
     dtypes = _get_inferred_dtypes(df)
@@ -644,7 +651,10 @@ def _create_table_from_df(df, table):
 
 
     try:
-        table.create(cols)
+        if not shard_size:
+            table.create(cols)
+        else:
+            table.create(cols, shard_size)
     except quasardb.quasardb.AliasAlreadyExistsError:
         # TODO(leon): warn? how?
         pass
