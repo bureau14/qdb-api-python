@@ -1,13 +1,38 @@
-wheel == 0.34.2
-setuptools_git == 1.2
-xmlrunner == 1.7.7
-future == 0.18.2
-numpy == 1.19.5
+
+## Non-FreeBSD
+#
+# Numpy / Pandas are difficult to build in various environments (especially
+# FreeBSD), and there are some conflicting requirements. For example, Numpy
+# doesn't have any version that works on both Python 3.6 and Python 3.10.
+
+numpy == 1.19.5; python_version <= '3.9' and sys_platform != "freebsd13"
+pandas >= 1.0.0; python_version <= '3.9' and sys_platform != "freebsd13"
+numpy == 1.21.2; python_version > '3.9' and sys_platform != "freebsd13"
+pandas == 1.3.4; python_version > '3.9' and sys_platform != "freebsd13"
+
+wheel == 0.37.0; sys_platform != "freebsd13"
+pytest == 6.2.5; sys_platform != "freebsd13"
+pytest-runner == 5.3.1; sys_platform != "freebsd13"
+pytest-benchmark == 3.4.1; sys_platform != "freebsd13"
+
+## FreeBSD
+#
+# For FreeBSD, it is a difficult challenge to find an "equilibrium" of package
+# versions that work well together. For this reason, we defer to the OS-maintained
+# packages whenever we can; all packages below are, in fact, installed using
+# ports (e.g. `pkg install py38-numpy py38-pandas py38-pytest` etc)
+
+numpy; sys_platform == "freebsd13"
+pandas; sys_platform == "freebsd13"
+
+wheel; sys_platform == "freebsd13"
+pytest; sys_platform == "freebsd13"
+pytest-runner; sys_platform == "freebsd13"
+pytest-benchmark; sys_platform == "freebsd13"
+
+
+## Any environment
+
+# XXX(leon): Later versions of pdoc3 are incompatible with our doc process!
 pdoc3 == 0.7.5
-pytest == 5.3.1
-pytest-runner == 5.2
-pytest-benchmark == 3.2.2
-pytz == 2019.3
-pandas >= 1.0.0
-teamcity-messages == 1.27
-pipenv == 2018.11.26
+teamcity-messages == 1.29
