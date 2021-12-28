@@ -340,7 +340,8 @@ def write_dataframe(
         _async=False,
         fast=False,
         truncate=False,
-        infer_types=True):
+        infer_types=True,
+        reindex=True):
     """
     Store a dataframe into a table.
 
@@ -355,13 +356,13 @@ def write_dataframe(
       Either a string or a reference to a QuasarDB Timeseries table object.
       For example, 'my_table' or cluster.table('my_table') are both valid values.
 
-    create: optional bool
+    create: bool, default False
       Whether to create the table. Defaults to false.
 
     shard_size: optional bool
       The shard size of the timeseries you wish to create.
 
-    infer_types: optional bool
+    infer_types: bool, default True
       If true, will attemp to convert types from Python to QuasarDB natives types if
       the provided dataframe has incompatible types. For example, a dataframe with integers
       will automatically convert these to doubles if the QuasarDB table expects it.
@@ -369,20 +370,20 @@ def write_dataframe(
       Defaults to True. For production use cases where you want to avoid implicit conversions,
       we recommend setting this to False.
 
-    truncate: optional bool
+    truncate: bool, default False
       Truncate (also referred to as upsert) the data in-place. Will detect time range to truncate
       from the time range inside the dataframe.
 
       Defaults to False.
 
-    _async: optional bool
+    _async: bool, default False
       If true, uses asynchronous insertion API where commits are buffered server-side and
       acknowledged before they are written to disk. If you insert to the same table from
       multiple processes, setting this to True may improve performance.
 
       Defaults to False.
 
-    fast: optional bool
+    fast: bool, default False
       Whether to use 'fast push'. If you incrementally add small batches of data to table,
       you may see better performance if you set this to True.
 
@@ -553,6 +554,10 @@ def write_pinned_dataframe(
       Defaults to False.
 
     """
+
+    if not df.index.is_monotonic_increasing:
+        logger.warn("dataframe index is unsorted, resorting dataframe based on index")
+        df = df.sort_index().reindex()
 
     # Acquire reference to table if string is provided
     if isinstance(table, str):
