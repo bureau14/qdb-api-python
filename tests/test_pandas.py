@@ -13,14 +13,18 @@ import quasardb.pandas as qdbpd
 ROW_COUNT = 1000
 
 
-def gen_df(start_time, count):
-    idx = pd.date_range(start_time, periods=count, freq='S')
+def gen_df(start_time, count, step=1):
+    idx = pd.date_range(start=start_time,
+                        end=(start_time + (np.timedelta64(step, 'D') * count)),
+                        periods=count)
 
     return pd.DataFrame(data={"the_double": np.random.uniform(-100.0, 100.0, count),
                               "the_int64": np.random.randint(-100, 100, count),
                               "the_blob": np.array(list(np.random.bytes(np.random.randint(16, 32)) for i in range(count)),
                                                    'O'),
                               "the_string": np.array([("content_" + str(item))
+                                                      for item in range(count)], 'U'),
+                              "the_symbol": np.array([("symbol_" + str(item))
                                                       for item in range(count)], 'U'),
                               "the_ts": np.array([
                                   (start_time + np.timedelta64(i, 's'))
@@ -120,6 +124,42 @@ def test_write_dataframe(write_fn, qdbd_connection, table):
     assert len(df1.columns) == len(df2.columns)
     for col in df1.columns:
         np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
+
+@pytest.mark.parametrize("write_fn", [qdbpd.write_dataframe,
+                                      qdbpd.write_pinned_dataframe])
+@pytest.mark.parametrize("row_count", [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024])
+@pytest.mark.parametrize("df_count", [1, 2, 4, 8, 16])
+def test_write_unindexed_dataframe(write_fn, df_count, row_count, qdbd_connection, table):
+    # CF. QDB-10203, we generate a dataframe which is unordered. The easiest
+    # way to do this is reuse our gen_df function with overlapping timestamps,
+    # and concatenate the data.
+
+    # We generate a whole bunch of dataframes. Their timestamps overlap, but never collide: we
+    # ensure that by using a 'step' of the dataframe count, and let each dataframe start at
+    # the appropriate offset.
+    #
+    # e.g. with 8 dataframes, the first dataframe starts at 2017-01-01 and the second row's
+    # timestap is 2017-01-09, while the second dataframe starts at 2017-01-02 and has 2017-01-10
+    # as second row, etc.
+    dfs = [gen_df((np.datetime64('2017-01-01') + np.timedelta64(i, 'D')) ,
+                  row_count,
+                  step=df_count)
+           for i in range(df_count)]
+    df_unsorted = pd.concat(dfs)
+    df_sorted = df_unsorted.sort_index().reindex()
+    assert len(df_sorted.columns) == len(df_unsorted.columns)
+
+    # We store unsorted
+    write_fn(df_unsorted, qdbd_connection, table)
+
+
+    # We expect to receive sorted data
+    df_read = qdbpd.read_dataframe(table)
+
+    assert len(df_sorted.columns) == len(df_read.columns)
+    for col in df_sorted.columns:
+        np.testing.assert_array_equal(df_sorted[col].to_numpy(),
+                                      df_read[col].to_numpy())
 
 
 @pytest.mark.parametrize("write_fn", [qdbpd.write_dataframe,
