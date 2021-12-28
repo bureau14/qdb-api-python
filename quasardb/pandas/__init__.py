@@ -340,8 +340,7 @@ def write_dataframe(
         _async=False,
         fast=False,
         truncate=False,
-        infer_types=True,
-        reindex=True):
+        infer_types=True):
     """
     Store a dataframe into a table.
 
