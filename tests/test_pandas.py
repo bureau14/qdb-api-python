@@ -99,9 +99,9 @@ def test_dataframe_can_read_ranges(write_fn, qdbd_connection, table):
     df1 = gen_df(start, 10)
     write_fn(df1, qdbd_connection, table)
 
-    first_range = (start, start + np.timedelta64(1, 's'))
-    second_range = (start + np.timedelta64(1, 's'),
-                    start + np.timedelta64(2, 's'))
+    first_range = (start, start + np.timedelta64(1, 'D'))
+    second_range = (start + np.timedelta64(1, 'D'),
+                    start + np.timedelta64(2, 'D'))
 
     df2 = qdbpd.read_dataframe(table)
     df3 = qdbpd.read_dataframe(table, ranges=[first_range])
@@ -264,12 +264,12 @@ def test_dataframe_read_fast_is_unordered(write_fn, qdbd_connection, table):
 
     assert len(df3.columns) == len(df4.columns)
     for col in df3.columns:
-        expected = True
         if col == 'the_double':
-            expected = False
-
-        assert np.array_equal(df3[col].to_numpy(),
-                              df4[col].to_numpy()) == expected
+            np.testing.assert_array_almost_equal(df3[col].to_numpy(),
+                                                 df4[col].to_numpy())
+        else:
+            np.testing.assert_array_equal(df3[col].to_numpy(),
+                                          df4[col].to_numpy())
 
     df5 = qdbpd.read_dataframe(table, row_index=True)
 
