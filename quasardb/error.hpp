@@ -171,7 +171,7 @@ void qdb_throw_if_error(qdb_handle_t h, qdb_error_t err, PreThrowFtor && pre_thr
             throw qdb::input_buffer_too_small_exception{};
 
         case qdb_e_incompatible_type:
-            throw qdb::incompatible_type_exception{};
+            throw qdb::incompatible_type_exception{msg_.data};
 
         default:
             throw qdb::exception{err_, msg_.data};
