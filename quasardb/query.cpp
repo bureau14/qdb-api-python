@@ -33,6 +33,7 @@
 #include "numpy.hpp"
 #include "ts_convert.hpp"
 #include "utils.hpp"
+#include "detail/qdb_resource.hpp"
 #include <pybind11/stl.h>
 #include <iostream>
 #include <set>
@@ -172,26 +173,12 @@ dict_query_result_t convert_query_results(const qdb_query_result_t * r, const py
 
 dict_query_result_t dict_query(qdb::handle_ptr h, const std::string & q, const py::object & blobs)
 {
-    qdb_query_result_t * r = nullptr;
+    detail::qdb_resource<qdb_query_result_t> r{h};
     qdb_error_t err = qdb_query(*h, q.c_str(), &r);
-    if (QDB_FAILURE(err))
-    {
-        if (err == qdb_e_network_inbuf_too_small)
-        {
-            throw qdb::input_buffer_too_small_exception{};
-        }
-        auto error_message = std::string{qdb_error(err)};
-        if (r != nullptr)
-        {
-            error_message += ' ';
-            error_message += std::string{r->error_message.data, r->error_message.length};
-            qdb_release(*h, r);
-        }
-        throw qdb::exception{err, error_message.data()};
-    }
-    auto res = convert_query_results(r, blobs);
-    qdb_release(*h, r);
-    return res;
+
+    qdb::qdb_throw_if_error(*h, err);
+
+    return convert_query_results(r, blobs);
 }
 
 } // namespace qdb
