@@ -24,8 +24,6 @@ def gen_df(start_time, count, step=1):
                                                    'O'),
                               "the_string": np.array([("content_" + str(item))
                                                       for item in range(count)], 'U'),
-                              "the_symbol": np.array([("symbol_" + str(item))
-                                                      for item in range(count)], 'U'),
                               "the_ts": np.array([
                                   (start_time + np.timedelta64(i, 's'))
                                   for i in range(count)]).astype('datetime64[ns]')},
