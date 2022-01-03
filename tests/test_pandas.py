@@ -247,8 +247,10 @@ def test_dataframe_read_fast_is_unordered(write_fn, qdbd_connection, table):
     df1 = gen_df(np.datetime64('2017-01-01'), 2)
     df2 = gen_df(np.datetime64('2017-01-01'), 2)
 
-    ts1 = np.datetime64('2017-01-01 00:00:00', 'ns')
-    ts2 = np.datetime64('2017-01-01 00:00:01', 'ns')
+    np.testing.assert_array_equal(df1.index, df2.index)
+
+    ts1 = df1.index[0]
+    ts2 = df1.index[1]
 
     # Now, we set the wrong value for a first row in df1, and for
     # a second row in df2
