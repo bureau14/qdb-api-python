@@ -178,10 +178,19 @@ def test_write_dataframe_push_fast(write_fn, qdbd_connection, table):
                                       qdbpd.write_pinned_dataframe])
 @pytest.mark.parametrize("truncate", [True,
                                       (np.datetime64('2017-01-01', 'ns'),
-                                       np.datetime64('2017-01-02', 'ns'))])
+                                       np.datetime64('2020-01-01', 'ns'))])
 def test_write_dataframe_push_truncate(write_fn, truncate, qdbd_connection, table):
     # Ensures that we can do a full-circle write and read of a dataframe
     df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
+
+    if type(truncate) == tuple:
+        # If this fails, it means our `gen_df` function generated data that goes
+        # beyond the (hardcoded) truncate end range.
+        #
+        # You'll either want to set the `np.datetime64` end truncate time to a later
+        # timestamp, or adjust the `gen_df` dataframe.
+        assert df1.index[-1] < truncate[1]
+
     write_fn(df1, qdbd_connection, table, truncate=truncate)
     write_fn(df1, qdbd_connection, table, truncate=truncate)
 
