@@ -13,9 +13,9 @@ import quasardb.pandas as qdbpd
 ROW_COUNT = 1000
 
 
-def gen_df(start_time, count, step=1):
+def gen_df(start_time, count, step=1, unit='D'):
     idx = pd.date_range(start=start_time,
-                        end=(start_time + (np.timedelta64(step, 'D') * count)),
+                        end=(start_time + (np.timedelta64(step, unit) * count)),
                         periods=count)
 
     return pd.DataFrame(data={"the_double": np.random.uniform(-100.0, 100.0, count),

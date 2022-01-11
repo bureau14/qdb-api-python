@@ -38,6 +38,7 @@
 #include <iostream>
 #include <set>
 #include <string>
+#include <sstream>
 
 namespace py = pybind11;
 
@@ -171,6 +172,199 @@ dict_query_result_t convert_query_results(const qdb_query_result_t * r, const py
     return convert_query_results(r, column_names, parse_blobs);
 }
 
+template <typename ValueType>
+py::array
+_convert_to_numpy_array(qdb_size_t column,
+                        qdb_point_result_t ** rows,
+                        qdb_size_t row_count,
+                        char const * dtype,
+                        std::function<ValueType(qdb_point_result_t const &)> fn) {
+
+  py::array ret(dtype, {row_count});
+  auto value = ret.template mutable_unchecked<ValueType, 1>();
+
+  for (qdb_size_t i = 0; i < row_count; ++i) {
+    value(i) = fn(rows[i][column]);
+  }
+
+  return ret;
+}
+
+py::array
+numpy_query_array_double(qdb_size_t column,
+                         qdb_point_result_t ** rows,
+                         qdb_size_t row_count) {
+  return _convert_to_numpy_array<std::double_t> (column,
+                                                 rows,
+                                                 row_count,
+
+                                                 // dtype
+                                                 "float64",
+
+                                                 // result -> std::double_t
+                                                 [](qdb_point_result_t const & row) -> std::double_t {
+                                                   return row.payload.double_.value;
+                                                 });
+}
+
+py::array
+numpy_query_array_int64(qdb_size_t column,
+                        qdb_point_result_t ** rows,
+                        qdb_size_t row_count) {
+  return _convert_to_numpy_array<std::int64_t> (column,
+                                                rows,
+                                                row_count,
+
+                                                // dtype
+                                                "int64",
+
+                                                // result -> std::double_t
+                                                [](qdb_point_result_t const & row) -> std::int64_t {
+                                                  return row.payload.int64_.value;
+                                                });
+}
+
+py::array
+numpy_query_array_string(qdb_size_t column,
+                         qdb_point_result_t ** rows,
+                         qdb_size_t row_count) {
+
+  return _convert_to_numpy_array<py::object> (column,
+                                              rows,
+                                              row_count,
+
+                                              // dtype
+                                              "O",
+
+                                              // result -> py::object
+                                              [](qdb_point_result_t const & row) -> py::object {
+                                                return py::str{row.payload.string.content,
+                                                               row.payload.string.content_length
+                                                };
+                                              });
+}
+
+py::array
+numpy_query_array_symbol(qdb_size_t column,
+                         qdb_point_result_t ** rows,
+                         qdb_size_t row_count) {
+
+  return _convert_to_numpy_array<py::object> (column,
+                                              rows,
+                                              row_count,
+
+                                              // dtype
+                                              "O",
+
+                                              // result -> py::object
+                                              [](qdb_point_result_t const & row) -> py::object {
+                                                return py::str{row.payload.symbol.content,
+                                                               row.payload.symbol.content_length
+                                                };
+                                              });
+}
+
+
+py::array
+numpy_query_array_blob(qdb_size_t column,
+                       qdb_point_result_t ** rows,
+                       qdb_size_t row_count) {
+
+  return _convert_to_numpy_array<py::object> (column,
+                                              rows,
+                                              row_count,
+
+                                              // dtype
+                                              "O",
+
+                                              // result -> py::object
+                                              [](qdb_point_result_t const & row) -> py::object {
+                                                return py::bytes{
+                                                  static_cast<char const *>(row.payload.blob.content),
+                                                  row.payload.blob.content_length
+                                                };
+                                              }
+                                              );
+}
+
+py::array
+numpy_query_array_timestamp(qdb_size_t column,
+                            qdb_point_result_t ** rows,
+                            qdb_size_t row_count) {
+
+  return _convert_to_numpy_array<std::int64_t> (column,
+                                                rows,
+                                                row_count,
+
+                                                // dtype
+                                                "datetime64[ns]",
+
+                                                // result -> py::object
+                                                [](qdb_point_result_t const & row) -> std::int64_t {
+                                                  return convert_timestamp(row.payload.timestamp.value);
+                                                });
+}
+
+py::array
+numpy_query_array(qdb_query_result_t const & r,
+                  qdb_size_t column) {
+  switch (r.rows[0][column].type) {
+  case qdb_query_result_double:
+    return numpy_query_array_double(column, r.rows, r.row_count);
+  case qdb_query_result_int64:
+    return numpy_query_array_int64(column, r.rows, r.row_count);
+  case qdb_query_result_string:
+    return numpy_query_array_string(column, r.rows, r.row_count);
+  case qdb_query_result_symbol:
+    return numpy_query_array_symbol(column, r.rows, r.row_count);
+  case qdb_query_result_blob:
+    return numpy_query_array_blob(column, r.rows, r.row_count);
+  case qdb_query_result_timestamp:
+    return numpy_query_array_timestamp(column, r.rows, r.row_count);
+  default:
+    {
+      std::stringstream ss;
+      ss << "unrecognized query result column type: " << r.rows[0][column].type;
+      throw qdb::incompatible_type_exception(ss.str());
+    }
+  }
+}
+
+numpy_query_column_t
+numpy_query_column(qdb_query_result_t const & r,
+                   qdb_size_t column) {
+
+  qdb::numpy_query_column_t ret;
+  ret.first = qdb::to_string(r.column_names[column]);
+  ret.second = numpy_query_array(r, column);
+  return ret;
+}
+
+
+numpy_query_result_t numpy_query_results(qdb_query_result_t const & r)
+{
+  qdb::numpy_query_result_t ret{};
+  ret.reserve(r.column_count);
+
+  // First initialize the result vector. This means storing the column names,
+  // and pre-allocating the column result arrays with data points for each .
+  for (qdb_size_t j = 0; j < r.column_count; ++j) {
+    ret.push_back(numpy_query_column(r, j));
+  }
+
+  return ret;
+}
+
+numpy_query_result_t numpy_query_results(const qdb_query_result_t * r)
+{
+  if (!r || r->column_count == 0 || r->row_count == 0) {
+    return numpy_query_result_t{};
+  }
+
+  const std::vector<std::string> column_names = coerce_column_names(*r);
+  return numpy_query_results(*r);
+}
+
 dict_query_result_t dict_query(qdb::handle_ptr h, const std::string & q, const py::object & blobs)
 {
     detail::qdb_resource<qdb_query_result_t> r{h};
@@ -179,6 +373,15 @@ dict_query_result_t dict_query(qdb::handle_ptr h, const std::string & q, const p
     qdb::qdb_throw_if_error(*h, err);
 
     return convert_query_results(r, blobs);
+}
+
+numpy_query_result_t numpy_query(qdb::handle_ptr h, const std::string & q)
+{
+    detail::qdb_resource<qdb_query_result_t> r{h};
+    qdb_error_t err = qdb_query(*h, q.c_str(), &r);
+    qdb::qdb_throw_if_error(*h, err);
+
+    return numpy_query_results(r);
 }
 
 } // namespace qdb

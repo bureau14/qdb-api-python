@@ -55,6 +55,7 @@ inline std::time_t mkgmtime(std::tm * t) noexcept
 
 static inline std::int64_t convert_timestamp(const qdb_timespec_t & ts) noexcept
 {
+    // XXX(leon): potential overflow
     return ts.tv_nsec + ts.tv_sec * 1'000'000'000ull;
 }
 
