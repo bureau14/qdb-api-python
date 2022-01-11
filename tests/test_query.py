@@ -21,6 +21,13 @@ def _insert_blob_points(table, start_time, points=10):
                       inserted_blob_data[1])
     return inserted_blob_data
 
+def _insert_string_points(table, start_time, points=10):
+    xs = tslib._generate_string_ts(start_time, points)
+    table.string_insert(tslib._string_col_name(table),
+                        xs[0],
+                        xs[1])
+    return xs
+
 
 def _insert_int64_points(table, start_time, points=10):
     inserted_int64_data = tslib._generate_int64_ts(start_time, points)
@@ -46,6 +53,36 @@ def _insert_symbol_points(table, start_time, points=10):
                         inserted_symbol_data[0],
                         inserted_symbol_data[1])
     return inserted_symbol_data
+
+point_inserter_by_type = {'double': _insert_double_points,
+                          'blob': _insert_blob_points,
+                          'string': _insert_string_points,
+                          'int64': _insert_int64_points,
+                          'timestamp': _insert_timestamp_points,
+                          'symbol': _insert_symbol_points}
+
+def _insert_points(value_type, table, start_time=None, intervals=None, points=10):
+    if start_time is None:
+        assert intervals is not None
+        start_time = tslib._start_time(intervals)
+
+    assert start_time is not None
+
+    fn = point_inserter_by_type[value_type]
+    return fn(table, start_time, points)
+
+
+def _column_name(table, value_type):
+    value_type_to_fn = {'double': tslib._double_col_name,
+                        'int64': tslib._int64_col_name,
+                        'blob': tslib._blob_col_name,
+                        'string': tslib._string_col_name,
+                        'timestamp': tslib._ts_col_name,
+                        'symbol': tslib._symbol_col_name}
+
+    fn = value_type_to_fn[value_type]
+    return fn(table)
+
 
 ##
 # Query failure tests
@@ -95,8 +132,7 @@ def test_invalid_query_message(qdbd_connection, table):
             "select asd_col from \"" +
             table.get_name() +
             "\" in range(2016-01-01 , 2016-12-12)")
-    assert str(excinfo.value) == 'The timeseries does not contain this column. Could not find column \'asd_col\'.'
-
+    assert str(excinfo.value) == 'at qdb_query: The timeseries does not contain this column.'
 
 ##
 # Double data tests
@@ -165,6 +201,72 @@ def test_returns_inserted_data_with_star_select(
         assert row['the_double'] == v
 
 
+
+@pytest.mark.parametrize("query_handler", ['dict',
+                                           'numpy'])
+@pytest.mark.parametrize("value_type", ['double',
+                                        'int64',
+                                        'blob',
+                                        'string',
+                                        'timestamp'])
+def test_supports_all_column_types(value_type, query_handler, qdbd_connection, table, intervals):
+    inserted_data = _insert_points(value_type, table, intervals=intervals)
+    column_name = _column_name(table, value_type)
+    query = "SELECT \"{}\" FROM \"{}\"".format(column_name, table.get_name())
+
+    if query_handler == 'numpy':
+        res = qdbd_connection.query_numpy(query)
+        (col, xs) = res[0]
+        assert col == column_name
+        np.testing.assert_array_equal(xs,
+                                      inserted_data[1])
+    elif query_handler == 'dict':
+        res = qdbd_connection.query(query)
+        assert len(res) == len(inserted_data[1])
+
+        for i in range(len(res)):
+            assert column_name in res[i]
+
+            val_in  = inserted_data[1][i]
+            val_out = res[i][column_name]
+
+            assert val_in == val_out
+
+    else:
+        raise RuntimeError("Unrecognized query handler: {}".format(query_handler))
+
+
+@pytest.mark.skip(reason="Skip unless you're benching the pinned writer")
+@pytest.mark.parametrize("query_handler", ['dict',
+                                           'numpy'])
+@pytest.mark.parametrize("value_type", ['double',
+                                        'int64',
+                                        'blob',
+                                        'string',
+                                        'timestamp'])
+@pytest.mark.parametrize("row_count", [16384, 131072, 1048576])
+def test_query_handler_benchmark(benchmark, value_type, row_count, query_handler, qdbd_connection, table, intervals):
+
+
+
+    query_fn = None
+    if query_handler == 'numpy':
+        query_fn = qdbd_connection.query_numpy
+    elif query_handler == 'dict':
+        query_fn = qdbd_connection.query
+    else:
+        raise RuntimeError("Unrecognized query handler: {}".format(query_handler))
+
+
+
+    inserted_data = _insert_points(value_type, table, intervals=intervals, points=row_count)
+    column_name = _column_name(table, value_type)
+    query = "SELECT \"{}\" FROM \"{}\"".format(column_name, table.get_name())
+
+    benchmark(query_fn, query)
+
+
+
 def test_returns_inserted_data_with_column_select(
         qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
@@ -172,6 +274,7 @@ def test_returns_inserted_data_with_column_select(
     query = "select " + tslib._double_col_name(table) + \
         " from \"" + table.get_name() + "\" in range(" + \
         str(tslib._start_year(intervals)) + ", +100d)"
+
     res = qdbd_connection.query(query)
 
     assert len(res) == 10
@@ -184,7 +287,6 @@ def test_returns_inserted_data_with_column_select(
         assert 'the_ts' not in row
 
         assert row['the_double'] == v
-
 
 def test_returns_inserted_data_with_specific_select(
         qdbd_connection, table, intervals):

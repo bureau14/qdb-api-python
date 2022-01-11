@@ -98,7 +98,7 @@ def test_reader_can_select_columns(qdbd_connection, table, many_intervals):
         assert row[1] == integers[offset]
         assert row[2] == doubles[offset]
 
-        with pytest.raises(IndexError):
+        with pytest.raises((IndexError, RuntimeError)):
             print(str(row[3]))
 
         offset = offset + 1

@@ -250,6 +250,11 @@ public:
         return py::cast(qdb::dict_query(_handle, query_string, blobs));
     }
 
+    py::object query_numpy(const std::string & query_string)
+    {
+        return py::cast(qdb::numpy_query(_handle, query_string));
+    }
+
     std::shared_ptr<qdb::query_continuous> query_continuous_full(const std::string & query_string, const py::object & blobs)
     {
         return std::make_shared<qdb::query_continuous>(_handle, qdb_query_continuous_full, query_string, blobs);
@@ -372,6 +377,8 @@ static inline void register_cluster(Module & m)
         .def("query", &qdb::cluster::query,                                             //
             py::arg("query"),                                                           //
             py::arg("blobs") = false)                                                   //
+        .def("query_numpy", &qdb::cluster::query_numpy,                                 //
+            py::arg("query"))                                                           //
         .def("query_continuous_full", &qdb::cluster::query_continuous_full,             //
             py::arg("query"),                                                           //
             py::arg("blobs") = false)                                                   //
