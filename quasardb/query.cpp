@@ -173,24 +173,32 @@ dict_query_result_t convert_query_results(const qdb_query_result_t * r, const py
 }
 
 template <typename ValueType>
-py::array
+qdb::detail::masked_array
 _convert_to_numpy_array(qdb_size_t column,
                         qdb_point_result_t ** rows,
                         qdb_size_t row_count,
                         char const * dtype,
                         std::function<ValueType(qdb_point_result_t const &)> fn) {
 
-  py::array ret(dtype, {row_count});
-  auto value = ret.template mutable_unchecked<ValueType, 1>();
+  py::array data(dtype, {row_count});
+  py::array_t<bool> mask = qdb::detail::masked_array::masked_all({row_count});
+
+  auto data_f = data.template mutable_unchecked<ValueType, 1>();
+  auto mask_f = mask.template mutable_unchecked<1>();
 
   for (qdb_size_t i = 0; i < row_count; ++i) {
-    value(i) = fn(rows[i][column]);
+    bool masked = (rows[i][column].type == qdb_query_result_none);
+
+    if (masked == false) {
+      data_f(i) = fn(rows[i][column]);
+      mask_f(i) = false;
+    }
   }
 
-  return ret;
+  return qdb::detail::masked_array{data, mask};
 }
 
-py::array
+qdb::detail::masked_array
 numpy_query_array_double(qdb_size_t column,
                          qdb_point_result_t ** rows,
                          qdb_size_t row_count) {
@@ -207,7 +215,7 @@ numpy_query_array_double(qdb_size_t column,
                                                  });
 }
 
-py::array
+qdb::detail::masked_array
 numpy_query_array_int64(qdb_size_t column,
                         qdb_point_result_t ** rows,
                         qdb_size_t row_count) {
@@ -224,7 +232,7 @@ numpy_query_array_int64(qdb_size_t column,
                                                 });
 }
 
-py::array
+qdb::detail::masked_array
 numpy_query_array_string(qdb_size_t column,
                          qdb_point_result_t ** rows,
                          qdb_size_t row_count) {
@@ -244,7 +252,7 @@ numpy_query_array_string(qdb_size_t column,
                                               });
 }
 
-py::array
+qdb::detail::masked_array
 numpy_query_array_symbol(qdb_size_t column,
                          qdb_point_result_t ** rows,
                          qdb_size_t row_count) {
@@ -264,8 +272,7 @@ numpy_query_array_symbol(qdb_size_t column,
                                               });
 }
 
-
-py::array
+qdb::detail::masked_array
 numpy_query_array_blob(qdb_size_t column,
                        qdb_point_result_t ** rows,
                        qdb_size_t row_count) {
@@ -287,7 +294,7 @@ numpy_query_array_blob(qdb_size_t column,
                                               );
 }
 
-py::array
+qdb::detail::masked_array
 numpy_query_array_timestamp(qdb_size_t column,
                             qdb_point_result_t ** rows,
                             qdb_size_t row_count) {
@@ -305,10 +312,36 @@ numpy_query_array_timestamp(qdb_size_t column,
                                                 });
 }
 
-py::array
+qdb::detail::masked_array
+numpy_null_array(qdb_size_t row_count) {
+  py::array::ShapeContainer shape{row_count};
+  auto mask = qdb::detail::masked_array::masked_all(shape);
+  auto data = qdb::numpy::array::initialize<std::double_t>(shape,
+                                                           std::numeric_limits<std::double_t>::quiet_NaN());
+
+  return qdb::detail::masked_array{data, mask};
+}
+
+qdb_query_result_value_type_t
+probe_column_type(qdb_query_result_t const & r,
+                  qdb_size_t column) {
+  // Probe a column for its value type, by returning the type of the first non-null
+  // value.
+  for (qdb_size_t row = 0; row < r.row_count; ++row) {
+    if (r.rows[row][column].type != qdb_query_result_none) {
+      return r.rows[row][column].type;
+    }
+  }
+
+  // No non-null values were part of the dataset.
+  return qdb_query_result_none;
+
+}
+
+qdb::detail::masked_array
 numpy_query_array(qdb_query_result_t const & r,
                   qdb_size_t column) {
-  switch (r.rows[0][column].type) {
+  switch (probe_column_type(r, column)) {
   case qdb_query_result_double:
     return numpy_query_array_double(column, r.rows, r.row_count);
   case qdb_query_result_int64:
@@ -321,6 +354,8 @@ numpy_query_array(qdb_query_result_t const & r,
     return numpy_query_array_blob(column, r.rows, r.row_count);
   case qdb_query_result_timestamp:
     return numpy_query_array_timestamp(column, r.rows, r.row_count);
+  case qdb_query_result_none:
+    return numpy_null_array(r.row_count);
   default:
     {
       std::stringstream ss;
@@ -336,10 +371,9 @@ numpy_query_column(qdb_query_result_t const & r,
 
   qdb::numpy_query_column_t ret;
   ret.first = qdb::to_string(r.column_names[column]);
-  ret.second = numpy_query_array(r, column);
+  ret.second = py::cast(numpy_query_array(r, column));
   return ret;
 }
-
 
 numpy_query_result_t numpy_query_results(qdb_query_result_t const & r)
 {

@@ -12,11 +12,40 @@ import quasardb.pandas as qdbpd
 
 ROW_COUNT = 1000
 
+def _to_numpy_masked(xs):
+    data = xs.to_numpy()
+    mask = xs.isna()
+    return ma.masked_array(data=data, mask=mask)
+
+def _assert_df_equal(lhs, rhs):
+    """
+    Verifies DataFrames lhs and rhs are equal(ish). We're not pedantic that we're comparing
+    metadata and things like that.
+
+    Typically one would use `lhs` for the DataFrame that was generated in code, and
+    `rhs` for the DataFrame that's returned by qdbpd.
+    """
+
+    np.testing.assert_array_equal(lhs.index.to_numpy(), rhs.index.to_numpy())
+    assert len(lhs.columns) == len(rhs.columns)
+    for col in lhs.columns:
+
+        lhs_ = _to_numpy_masked(lhs[col])
+        rhs_ = _to_numpy_masked(rhs[col])
+
+        np.testing.assert_array_equal(lhs_, rhs_)
+
+
+def gen_idx(start_time, count, step=1, unit='D'):
+    return pd.Index(data=pd.date_range(start=start_time,
+                                       end=(start_time + (np.timedelta64(step, unit) * count)),
+                                       periods=count),
+                    dtype='datetime64[ns]',
+                    name='$timestamp')
+
 
 def gen_df(start_time, count, step=1, unit='D'):
-    idx = pd.date_range(start=start_time,
-                        end=(start_time + (np.timedelta64(step, unit) * count)),
-                        periods=count)
+    idx = gen_idx(start_time, count, step, unit)
 
     return pd.DataFrame(data={"the_double": np.random.uniform(-100.0, 100.0, count),
                               "the_int64": np.random.randint(-100, 100, count),
@@ -244,18 +273,13 @@ def check_equal(expected, actual):
     else:
         assert expected == actual
 
-@pytest.mark.parametrize("write_fn", [qdbpd.write_dataframe,
-                                      qdbpd.write_pinned_dataframe])
-def test_query(write_fn, qdbd_connection, table):
-    df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
-    write_fn(df1, qdbd_connection, table)
-
-    res = qdbpd.query(qdbd_connection, "SELECT * FROM \"" +
-                      table.get_name() + "\"", blobs=['the_blob'])
-
-    for col in df1.columns:
-        np.testing.assert_array_equal(df1[col].to_numpy(), res[col].to_numpy())
-
+def _sparsify(xs):
+    # Randomly make a bunch of elements null, we make use of Numpy's masked
+    # arrays for this: keep track of a separate boolean 'mask' array, which
+    # determines whether or not an item in the array is None.
+    mask = np.random.choice(a=[True, False], size=len(xs))
+    return ma.masked_array(data=xs,
+                           mask=mask)
 
 def _gen_floating(n, low=-100.0, high=100.0):
     return np.random.uniform(low, high, n)
@@ -280,49 +304,26 @@ def _gen_timestamp(n):
     return np.array([(start_time + np.timedelta64(i, 's'))
                      for i in range(n)]).astype('datetime64[ns]')
 
+def test_query(qdbpd_write_fn, # parametrized
+               qdbpd_query_fn, # parametrized
+               gen_df,         # parametrized
+               qdbd_connection,
+               column_name,
+               table_name):
+    qdbpd_write_fn(gen_df, qdbd_connection, table_name, create=True)
 
-def _sparsify(xs):
-    # Randomly make a bunch of elements null, we make use of Numpy's masked
-    # arrays for this: keep track of a separate boolean 'mask' array, which
-    # determines whether or not an item in the array is None.
-    mask = np.random.choice(a=[True, False], size=len(xs))
-    return ma.masked_array(data=xs,
-                           mask=mask)
+    res = qdbpd_query_fn(qdbd_connection,
+                         "SELECT $timestamp, {} FROM \"{}\"".format(column_name, table_name)
+                         ).set_index('$timestamp').reindex()
+
+    _assert_df_equal(gen_df, res)
 
 
-@pytest.mark.parametrize("sparse", [True, False])
-@pytest.mark.parametrize("write_fn", [qdbpd.write_dataframe,
-                                      qdbpd.write_pinned_dataframe])
-@pytest.mark.parametrize("input_gen", [_gen_floating,
-                                       _gen_integer,
-                                       _gen_blob,
-                                       _gen_string,
-                                       _gen_timestamp])
-@pytest.mark.parametrize("column_type", [quasardb.ColumnType.Int64,
-                                         quasardb.ColumnType.Double,
-                                         quasardb.ColumnType.Blob,
-                                         quasardb.ColumnType.String,
-                                         quasardb.ColumnType.Timestamp])
 def test_inference(
-        write_fn,
+        qdbpd_write_fn,
+        gen_df,
         qdbd_connection,
-        table_name,
-        input_gen,
-        column_type,
-        sparse):
-
-    # Create table
-    t = qdbd_connection.ts(table_name)
-    t.create([quasardb.ColumnInfo(column_type, "x")])
-
-    n = 100
-    idx = pd.date_range(np.datetime64('2017-01-01'), periods=n, freq='S')
-    xs = input_gen(n)
-    if sparse is True:
-        xs = _sparsify(xs)
-
-    df = pd.DataFrame(data={"x": xs}, index=idx)
-
+        table_1col):
     # Note that there are no tests; we effectively only test whether it doesn't
     # throw.
-    write_fn(df, qdbd_connection, t)
+    qdbpd_write_fn(gen_df, qdbd_connection, table_1col)

@@ -4,9 +4,11 @@ import random
 import string
 import pytest
 import numpy as np
+import numpy.ma as ma
+import pandas as pd
 
 import quasardb
-
+import quasardb.pandas as qdbpd
 
 def connect(uri):
     return quasardb.Cluster(uri)
@@ -20,7 +22,6 @@ def config():
     return {"uri":
             {"insecure": "qdb://127.0.0.1:2836",
              "secure": "qdb://127.0.0.1:2838"}}
-
 
 @pytest.fixture
 def qdbd_settings(scope="module"):
@@ -123,11 +124,9 @@ def blob_entry(qdbd_connection, entry_name):
 def integer_entry(qdbd_connection, entry_name):
     return qdbd_connection.integer(entry_name)
 
-
 @pytest.fixture
 def table_name(entry_name):
     return entry_name
-
 
 def _create_table(c, table_name):
     t = c.table(table_name)
@@ -141,7 +140,6 @@ def _create_table(c, table_name):
 
     t.create([double_col, blob_col, string_col, int64_col, ts_col, symbol_col])
     return t
-
 
 @pytest.fixture
 def table(qdbd_connection, entry_name):
@@ -168,3 +166,107 @@ def create_many_intervals():
 @pytest.fixture
 def many_intervals():
     return create_many_intervals()
+
+
+
+
+
+
+def _sparsify(xs):
+    # Randomly make a bunch of elements null, we make use of Numpy's masked
+    # arrays for this: keep track of a separate boolean 'mask' array, which
+    # determines whether or not an item in the array is None.
+    mask = np.random.choice(a=[True, False], size=len(xs))
+    return ma.masked_array(data=xs,
+                           mask=mask)
+
+
+def _gen_floating(n, low=-100.0, high=100.0):
+    return np.random.uniform(low, high, n)
+
+
+def _gen_integer(n):
+    return np.random.randint(-100, 100, n)
+
+
+def _gen_string(n):
+    # Slightly hacks, but for testing purposes we'll ensure that we are generating
+    # blobs that can be cast to other types as well.
+    return list(str(x) for x in _gen_floating(n, low=0))
+
+
+def _gen_blob(n):
+    return list(x.encode("utf-8") for x in _gen_string(n))
+
+
+def _gen_timestamp(n):
+    start_time = np.datetime64('2017-01-01', 'ns')
+    return np.array([(start_time + np.timedelta64(i, 's'))
+                     for i in range(n)]).astype('datetime64[ns]')
+
+@pytest.fixture(params=[_gen_floating,
+                        _gen_integer,
+                        _gen_string,
+                        _gen_blob,
+                        _gen_timestamp])
+def gen_array(request):
+    row_count = 100
+    fn = request.param
+    return fn(row_count)
+
+@pytest.fixture(params=[_gen_floating,
+                        _gen_integer,
+                        _gen_string,
+                                        _gen_blob,
+                        _gen_timestamp], ids=['double',
+                                              'int64',
+                                              'string',
+                                              'blob',
+                                              'timestamp'])
+def gen_df(request, column_name):
+    row_count = 100
+    fn = request.param
+    xs = fn(row_count)
+    idx = pd.Index(pd.date_range(np.datetime64('2017-01-01'), periods=row_count, freq='S'),
+                   name='$timestamp')
+    return pd.DataFrame(data={column_name: xs},
+                        index=idx)
+
+@pytest.fixture(params=[quasardb.ColumnType.Int64,
+                        quasardb.ColumnType.Double,
+                        quasardb.ColumnType.Blob,
+                        quasardb.ColumnType.String,
+                        quasardb.ColumnType.Timestamp], ids=['int64',
+                                                             'double',
+                                                             'blob',
+                                                             'string',
+                                                             'timestamp'])
+def column_type(request):
+    param = request.param
+    yield param
+
+@pytest.fixture(params=[qdbpd.write_dataframe,
+                        qdbpd.write_pinned_dataframe])
+def qdbpd_write_fn(request):
+    yield request.param
+
+
+def _query_style_numpy(conn, query):
+    return qdbpd.query(conn, query, numpy=True)
+
+def _query_style_regular(conn, query):
+    return qdbpd.query(conn, query, numpy=False)
+
+query_fns = {'query_numpy': _query_style_numpy,
+             'query_regular': _query_style_regular}
+
+@pytest.fixture(params=['query_numpy',
+                        'query_regular'])
+def qdbpd_query_fn(request):
+    yield query_fns[request.param]
+
+@pytest.fixture
+def table_1col(qdbd_connection, table_name, column_name, column_type):
+    t = qdbd_connection.ts(table_name)
+    t.create([quasardb.ColumnInfo(column_type, column_name)])
+    return t

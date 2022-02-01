@@ -30,6 +30,7 @@
  */
 #pragma once
 
+#include "detail/masked_array.hpp"
 #include "handle.hpp"
 #include "utils.hpp"
 #include <qdb/query.h>
@@ -68,8 +69,9 @@ private:
     std::string _query_string;
 };
 
+
 using dict_query_result_t = std::vector<std::map<std::string, py::handle>>;
-using numpy_query_column_t = std::pair<std::string, py::array>;
+using numpy_query_column_t = std::pair<std::string, py::object>;
 using numpy_query_result_t = std::vector<numpy_query_column_t>;
 
 dict_query_result_t convert_query_results(const qdb_query_result_t * r, const py::object & blobs);
