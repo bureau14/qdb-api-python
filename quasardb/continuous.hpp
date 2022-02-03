@@ -52,9 +52,17 @@ private:
     qdb_error_t copy_results(const qdb_query_result_t * res);
     static int continuous_callback(void * p, qdb_error_t err, const qdb_query_result_t * res);
 
+private:
+    dict_query_result_t unsafe_results();
+
 public:
-    // returns the results
+    // returns the results (blocking)
     dict_query_result_t results();
+    // returns the results (non-blocking), empty if no results available yet
+    // needed to be able to interface with other framework that can't wait for results to be available
+    // in that case you would poll probe_results(), the cost is low because it doesn't result in a remote call
+    // just acquiring the mutex and see if results have been updated
+    dict_query_result_t probe_results();
     void stop();
 
 private:
@@ -81,6 +89,7 @@ static inline void register_continuous(Module & m)
     py::class_<qdb::query_continuous, std::shared_ptr<qdb::query_continuous>>{m, "QueryContinuous"}                  //
         .def(py::init<qdb::handle_ptr, qdb_query_continuous_mode_type_t, const std::string &, const py::object &>()) //
         .def("results", &qdb::query_continuous::results)                                                             //
+        .def("probe_results", &qdb::query_continuous::probe_results)                                                 //
         .def("stop", &qdb::query_continuous::stop)                                                                   //
 
         // required interface to use query_continuous as an iterator
