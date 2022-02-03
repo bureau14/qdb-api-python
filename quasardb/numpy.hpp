@@ -115,14 +115,15 @@ namespace numpy
 namespace array
 {
 template <typename ValueType>
-static void fill(py::array_t<ValueType> & xs, ValueType x) noexcept {
+static void fill(py::array_t<ValueType> & xs, ValueType x) noexcept
+{
     // For now, don't support multi-dimensional arrays (e.g. matrices) and
     // only plain vanilla arrays. Apart from some additional wrestling with
     // numpy / pybind APIs, it's possible to implement though.
-    assert (xs.shape().size() == 1);
+    assert(xs.ndim() == 1);
 
     std::size_t n = xs.shape(0);
-    assert (n > 0);
+    assert(n > 0);
 
     ValueType * y = xs.mutable_unchecked().mutable_data();
     std::fill(y, y + n, x);
@@ -130,16 +131,18 @@ static void fill(py::array_t<ValueType> & xs, ValueType x) noexcept {
 
 // Create empty array, do not fill any values.
 template <typename ValueType>
-static py::array_t<ValueType> initialize(py::array::ShapeContainer shape) noexcept {
+static py::array_t<ValueType> initialize(py::array::ShapeContainer shape) noexcept
+{
     return py::array_t<ValueType>(shape);
 }
 
 // Create empty array, filled with `x`
 template <typename ValueType>
-static py::array_t<ValueType> initialize(py::array::ShapeContainer shape, ValueType x) noexcept {
-  py::array_t<ValueType> xs = initialize<ValueType>(shape);
-  fill(xs, x);
-  return xs;
+static py::array_t<ValueType> initialize(py::array::ShapeContainer shape, ValueType x) noexcept
+{
+    py::array_t<ValueType> xs = initialize<ValueType>(shape);
+    fill(xs, x);
+    return xs;
 }
 
 } // namespace array
