@@ -34,6 +34,13 @@ def test_returns_empty_result_new_values(qdbd_connection, table):
     res = cont.results()
     assert len(res) == 0
 
+def test_returns_empty_result_new_values_probe(qdbd_connection, table):
+    # return empty result
+    q = "select * from \"" + table.get_name() + "\""
+    cont = qdbd_connection.query_continuous_new_values(q)
+    res = cont.probe_results()
+    assert len(res) == 0
+
 def _test_against_table(res, table, data):
     for row, v in zip(res, data):
         assert '$timestamp' in row
@@ -53,6 +60,17 @@ def test_returns_rows_full(qdbd_connection, table, intervals):
     assert len(res) == 1
     _test_against_table(res, table, inserted_double_data[1])
 
+def test_returns_rows_full_probe(qdbd_connection, table, intervals):
+    start_time = tslib._start_time(intervals)
+    inserted_double_data = _insert_double_points(table, start_time, 1)
+    q = "select * from \"" + table.get_name() + "\""
+    cont = qdbd_connection.query_continuous_full(q)
+    res = []
+    while len(res) == 0:
+        res = cont.probe_results()
+    assert len(res) == 1
+    _test_against_table(res, table, inserted_double_data[1])
+
 def test_returns_rows_full_iterator(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
     inserted_double_data = _insert_double_points(table, start_time, 1)
@@ -69,6 +87,17 @@ def test_returns_rows_new_values(qdbd_connection, table, intervals):
     q = "select * from \"" + table.get_name() + "\""
     cont = qdbd_connection.query_continuous_new_values(q)
     res = cont.results()
+    assert len(res) == 1
+    _test_against_table(res, table, inserted_double_data[1])
+
+def test_returns_rows_new_values_probe(qdbd_connection, table, intervals):
+    start_time = tslib._start_time(intervals)
+    inserted_double_data = _insert_double_points(table, start_time, 1)
+    q = "select * from \"" + table.get_name() + "\""
+    cont = qdbd_connection.query_continuous_new_values(q)
+    res = []
+    while len(res) == 0:
+        res = cont.probe_results()
     assert len(res) == 1
     _test_against_table(res, table, inserted_double_data[1])
 
@@ -102,8 +131,6 @@ def test_returns_rows_full_value_iterator_multiple(qdbd_connection, table, inter
         i +=1
         if i == 3:
             break
-
-
 
 def test_returns_rows_new_value_iterator_multiple(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)

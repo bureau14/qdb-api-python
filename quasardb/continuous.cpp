@@ -79,6 +79,24 @@ int query_continuous::continuous_callback(void * p, qdb_error_t err, const qdb_q
     return 0;
 }
 
+dict_query_result_t query_continuous::unsafe_results()
+{
+    // when we return from the condition variable we own the mutex
+    _previous_watermark.store(_watermark.load());
+
+    if (_last_error == qdb_e_interrupted) throw py::stop_iteration{};
+
+    // throw an error, user may decide to resume iteration
+    qdb::qdb_throw_if_error(*_handle, _last_error);
+
+    // safe and quick to call if _results is nullptr
+    auto res = convert_query_results(_results, _parse_bools);
+
+    release_results();
+
+    return res;
+}
+
 dict_query_result_t query_continuous::results()
 {
     std::unique_lock<std::mutex> lock{_results_mutex};
@@ -98,19 +116,23 @@ dict_query_result_t query_continuous::results()
         }
     }
 
-    // when we return from the condition variable we own the mutex
-    _previous_watermark.store(_watermark.load());
+    return unsafe_results();
+}
 
-    if (_last_error == qdb_e_interrupted) throw py::stop_iteration{};
+// the difference with the call above is that we're returning immediately if there's no change
+dict_query_result_t query_continuous::probe_results()
+{
+    std::unique_lock<std::mutex> lock{_results_mutex};
 
-    // throw an error, user may decide to resume iteration
-    qdb::qdb_throw_if_error(*_handle, _last_error);
+    // check if there's a new value
+    if (_watermark == _previous_watermark)
+    {
+        // nope return empty, don't wait, don't acquire the condition variable
+        return dict_query_result_t{};
+    }
 
-    // safe and quick to call if _results is nullptr
-    auto res = convert_query_results(_results, _parse_bools);
-
-    release_results();
-    return res;
+    // yes, return the value
+    return unsafe_results();
 }
 
 void query_continuous::stop()
