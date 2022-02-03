@@ -84,11 +84,11 @@ _dtype_map = {
 # Based on QuasarDB column types, which dtype do we want?
 _dtypes_map_flip = {
     quasardb.ColumnType.String: np.dtype('unicode'),
+    quasardb.ColumnType.Symbol: np.dtype('unicode'),
     quasardb.ColumnType.Int64: np.dtype('int64'),
     quasardb.ColumnType.Double: np.dtype('float64'),
     quasardb.ColumnType.Blob: np.dtype('object'),
-    quasardb.ColumnType.Timestamp: np.dtype('datetime64[ns]'),
-    quasardb.ColumnType.Symbol: np.dtype('unicode')
+    quasardb.ColumnType.Timestamp: np.dtype('datetime64[ns]')
 }
 
 
@@ -114,7 +114,7 @@ def read_series(table, col_name, ranges=None):
         quasardb.ColumnType.String: table.string_get_ranges,
         quasardb.ColumnType.Int64: table.int64_get_ranges,
         quasardb.ColumnType.Timestamp: table.timestamp_get_ranges,
-        quasardb.ColumnType.Symbol: table.symbol_get_ranges,
+        quasardb.ColumnType.Symbol: table.string_get_ranges,
     }
 
     kwargs = {
@@ -156,9 +156,10 @@ def write_series(series, table, col_name):
         quasardb.ColumnType.Double: table.double_insert,
         quasardb.ColumnType.Blob: table.blob_insert,
         quasardb.ColumnType.String: table.string_insert,
+        quasardb.ColumnType.Symbol: table.string_insert,
         quasardb.ColumnType.Int64: table.int64_insert,
         quasardb.ColumnType.Timestamp: table.timestamp_insert,
-        quasardb.ColumnType.Symbol: table.symbol_insert
+
     }
 
     t = table.column_type_by_id(col_name)
@@ -311,6 +312,13 @@ _infer_with = {
         'bytes': lambda x: x.decode("utf-8"),
         '_': str
     },
+    quasardb.ColumnType.Symbol: {
+        'floating': str,
+        'integer': str,
+        'string': str,
+        'bytes': lambda x: x.decode("utf-8"),
+        '_': str
+    },
     quasardb.ColumnType.Timestamp: {
         'floating': lambda x: np.datetime64(datetime.utcfromtimestamp(x), 'ns'),
         'integer': lambda x: np.datetime64(datetime.utcfromtimestamp(x), 'ns'),
@@ -318,13 +326,6 @@ _infer_with = {
         'bytes': lambda x: string_to_timestamp(x.decode("utf-8")),
         'datetime64': lambda x: np.datetime64(x, 'ns'),
         '_': lambda x: np.datetime64(datetime.utcfromtimestamp(np.float64(x)), 'ns')
-    },
-    quasardb.ColumnType.Symbol: {
-        'floating': str,
-        'integer': str,
-        'string': str,
-        'bytes': lambda x: x.decode("utf-8"),
-        '_': str
     }
 }
 
@@ -406,20 +407,21 @@ def write_dataframe(
     # Create batch column info from dataframe
     col_info = list(quasardb.BatchColumnInfo(
         table.get_name(), c, df.shape[0]) for c in df.columns)
+
     batch = cluster.inserter(col_info)
 
     write_with = {
         quasardb.ColumnType.Double: batch.set_double,
         quasardb.ColumnType.Blob: batch.set_blob,
         quasardb.ColumnType.String: batch.set_string,
+        quasardb.ColumnType.Symbol: batch.set_string,
         quasardb.ColumnType.Int64: batch.set_int64,
         quasardb.ColumnType.Timestamp: lambda i,
         x: batch.set_timestamp(
             i,
             np.datetime64(
                 x,
-                'ns')),
-        quasardb.ColumnType.Symbol: batch.set_symbol}
+                'ns'))}
 
     # We derive our column types from our table.
     ctypes = dict()
@@ -578,18 +580,18 @@ def write_pinned_dataframe(
         quasardb.ColumnType.Double: writer.set_double_column,
         quasardb.ColumnType.Blob: writer.set_blob_column,
         quasardb.ColumnType.String: writer.set_string_column,
+        quasardb.ColumnType.Symbol: writer.set_string_column,
         quasardb.ColumnType.Int64: writer.set_int64_column,
-        quasardb.ColumnType.Timestamp: writer.set_timestamp_column,
-        quasardb.ColumnType.Symbol: writer.set_symbol_column,
+        quasardb.ColumnType.Timestamp: writer.set_timestamp_column
     }
 
     pin_dtypes_map_flip = {
         quasardb.ColumnType.String: np.dtype('unicode'),
+        quasardb.ColumnType.Symbol: np.dtype('unicode'),
         quasardb.ColumnType.Int64: np.dtype('int64'),
         quasardb.ColumnType.Double: np.dtype('float64'),
         quasardb.ColumnType.Blob: np.dtype('object'),
-        quasardb.ColumnType.Timestamp: np.dtype('datetime64[ns]'),
-        quasardb.ColumnType.Symbol: np.dtype('unicode')
+        quasardb.ColumnType.Timestamp: np.dtype('datetime64[ns]')
     }
 
     # We derive our column types from our table.
@@ -638,8 +640,6 @@ def write_pinned_dataframe(
                 values = tmp.fillna(0x8000000000000000).astype(dt).tolist()
             elif (ct == quasardb.ColumnType.Blob):
                 values = tmp.fillna(b'').astype(dt).tolist()
-            elif (ct == quasardb.ColumnType.String or ct == quasardb.ColumnType.Symbol):
-                values = tmp.fillna('').astype(dt).tolist()
             else:
                 values = tmp.astype(dt).tolist()
         write_with[ct](i, values)

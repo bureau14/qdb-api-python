@@ -187,16 +187,6 @@ public:
         _set_blob_column_impl<qdb_ts_column_string, blob_like_column, qdb_blob_t>(index, vs);
     }
 
-    void set_symbol(std::size_t index, const py::object & val)
-    {
-        _set_blob_impl<qdb_ts_column_symbol, blob_like_column>(index, val);
-    }
-
-    void set_symbol_column(std::size_t index, const std::vector<py::object> & vs)
-    {
-        _set_blob_column_impl<qdb_ts_column_symbol, blob_like_column, qdb_blob_t>(index, vs);
-    }
-
     void set_double(std::size_t index, const py::object & val)
     {
         _set_impl<qdb_ts_column_double, double_column>(index, (val.is(py::none()) ? detail::null_value<double>() : val.cast<double>()));
@@ -237,8 +227,10 @@ public:
 
             qdb_exp_batch_push_column_t column;
             column.name = qdb_string_t{column_name.data(), column_name.size()};
-            const auto data_type = _column_infos[index].type;
-            column.data_type = data_type != qdb_ts_column_symbol ? data_type : qdb_ts_column_string;
+            column.name = qdb_string_t{column_name.data(), column_name.size()};
+            column.data_type = (_column_infos[index].type == qdb_ts_column_symbol
+                                ? qdb_ts_column_string
+                                : _column_infos[index].type);
             switch (_column_infos[index].type)
             {
             case qdb_ts_column_int64:
@@ -258,6 +250,8 @@ public:
                 break;
             case qdb_ts_column_uninitialized:
                 throw qdb::invalid_argument_exception{std::string{"Uninitialized column at index "} + std::to_string(index)};
+            default:
+              throw qdb::invalid_argument_exception{"Unrecognized column with type " + std::to_string(_column_infos[index].type) + " at index " + std::to_string(index)};
             }
             if (column.data.ints != nullptr)
             {
@@ -380,9 +374,11 @@ private:
     template <qdb_ts_column_type_t Expect>
     void _check_column_type(qdb_ts_column_type_t type)
     {
-        if (Expect != type)
+        // Expect = provided data typetable column typew
+        // type = table column type
+        if (Expect != type && !(Expect == qdb_ts_column_string && type == qdb_ts_column_symbol))
         {
-            throw qdb::exception{qdb_e_invalid_argument, "Expected another column type"};
+          throw qdb::exception{qdb_e_invalid_argument, "Expected another column type (" + std::to_string(Expect) + " != "  + std::to_string(type) + ")"};
         }
     }
 
@@ -610,7 +606,6 @@ static inline void register_pinned_writer(Module & m)
         .def("start_row", &qdb::pinned_writer::start_row, "Calling this function marks the beginning of processing a new row.") //
         .def("set_blob", &qdb::pinned_writer::set_blob)                                                                         //
         .def("set_string", &qdb::pinned_writer::set_string)                                                                     //
-        .def("set_symbol", &qdb::pinned_writer::set_symbol)                                                                     //
         .def("set_double", &qdb::pinned_writer::set_double)                                                                     //
         .def("set_int64", &qdb::pinned_writer::set_int64)                                                                       //
         .def("set_timestamp", &qdb::pinned_writer::set_timestamp)                                                               //
@@ -619,7 +614,6 @@ static inline void register_pinned_writer(Module & m)
         .def("set_double_column", &qdb::pinned_writer::set_double_column)                                                       //
         .def("set_int64_column", &qdb::pinned_writer::set_int64_column)                                                         //
         .def("set_string_column", &qdb::pinned_writer::set_string_column)                                                       //
-        .def("set_symbol_column", &qdb::pinned_writer::set_symbol_column)                                                       //
         .def("set_timestamp_column", &qdb::pinned_writer::set_timestamp_column)                                                 //
         .def("push", &qdb::pinned_writer::push, "Regular batch push")                                                           //
         .def("push_async", &qdb::pinned_writer::push_async,

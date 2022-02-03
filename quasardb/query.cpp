@@ -111,10 +111,6 @@ static py::handle coerce_point(qdb_point_result_t p, bool parse_blob)
         return PyUnicode_FromStringAndSize(
             static_cast<char const *>(p.payload.string.content), static_cast<Py_ssize_t>(p.payload.string.content_length));
 
-    case qdb_query_result_symbol:
-        return PyUnicode_FromStringAndSize(
-            static_cast<char const *>(p.payload.symbol.content), static_cast<Py_ssize_t>(p.payload.symbol.content_length));
-
     case qdb_query_result_int64:
         return PyLong_FromLongLong(p.payload.int64_.value);
 
@@ -253,26 +249,6 @@ numpy_query_array_string(qdb_size_t column,
 }
 
 qdb::detail::masked_array
-numpy_query_array_symbol(qdb_size_t column,
-                         qdb_point_result_t ** rows,
-                         qdb_size_t row_count) {
-
-  return _convert_to_numpy_array<py::object> (column,
-                                              rows,
-                                              row_count,
-
-                                              // dtype
-                                              "O",
-
-                                              // result -> py::object
-                                              [](qdb_point_result_t const & row) -> py::object {
-                                                return py::str{row.payload.symbol.content,
-                                                               row.payload.symbol.content_length
-                                                };
-                                              });
-}
-
-qdb::detail::masked_array
 numpy_query_array_blob(qdb_size_t column,
                        qdb_point_result_t ** rows,
                        qdb_size_t row_count) {
@@ -348,8 +324,6 @@ numpy_query_array(qdb_query_result_t const & r,
     return numpy_query_array_int64(column, r.rows, r.row_count);
   case qdb_query_result_string:
     return numpy_query_array_string(column, r.rows, r.row_count);
-  case qdb_query_result_symbol:
-    return numpy_query_array_symbol(column, r.rows, r.row_count);
   case qdb_query_result_blob:
     return numpy_query_array_blob(column, r.rows, r.row_count);
   case qdb_query_result_timestamp:

@@ -53,11 +53,12 @@ def gen_df(start_time, count, step=1, unit='D'):
                                                    'O'),
                               "the_string": np.array([("content_" + str(item))
                                                       for item in range(count)], 'U'),
-                              "the_symbol": np.array([("symbol_" + str(item))
-                                                      for item in range(count)], 'U'),
                               "the_ts": np.array([
                                   (start_time + np.timedelta64(i, 's'))
-                                  for i in range(count)]).astype('datetime64[ns]')},
+                                  for i in range(count)]).astype('datetime64[ns]'),
+                              "the_symbol": np.array([("symbol_" + str(item))
+                                                      for item in range(count)], 'U')},
+
                         index=idx)
 
 
@@ -76,7 +77,11 @@ def gen_series(start_time, count):
                                     index=idx),
             "the_ts": pd.Series(np.array([(start_time + np.timedelta64(i, 's'))
                                           for i in range(count)]).astype('datetime64[ns]'),
-                                index=idx)}
+                                index=idx),
+            "the_symbol": pd.Series(np.array([("symbol_" + str(item)) for item in range(count)],
+                                             'U'),
+                                    index=idx)}
+
 
 
 def test_series_read_write(table):
@@ -214,17 +219,7 @@ def test_write_dataframe_push_truncate(write_fn, truncate, qdbd_connection, tabl
     write_fn(df1, qdbd_connection, table, truncate=truncate)
     write_fn(df1, qdbd_connection, table, truncate=truncate)
 
-    # XXX(leon): Reading truncated symbols is broken in 3.13.1
-    #            See: QDB-10206
-    #
-    # To work around this limitation, we select all columns except the
-    # symbol column. Once QDB-10206 is fixed, remove the `columns=[..]`
-    # below.
-    df2 = qdbpd.read_dataframe(table, columns=['the_double',
-                                               'the_blob',
-                                               'the_string',
-                                               'the_int64',
-                                               'the_ts'])
+    df2 = qdbpd.read_dataframe(table)
 
     assert len(df1.columns) >= len(df2.columns)
     for col in df2.columns:

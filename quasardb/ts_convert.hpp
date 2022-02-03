@@ -297,16 +297,6 @@ struct convert_values<qdb_ts_string_point, const char *>
 };
 
 template <>
-struct convert_values<qdb_ts_symbol_point, const char *>
-{
-    std::vector<qdb_ts_symbol_point> operator()(const pybind11::array & timestamps, const pybind11::array & values) const
-    {
-        using string_converter = convert_values<qdb_ts_string_point, const char *>;
-        return string_converter::do_conversion<qdb_ts_symbol_point>(timestamps, values);
-    }
-};
-
-template <>
 struct convert_values<qdb_ts_timestamp_point, std::int64_t>
 {
     std::vector<qdb_ts_timestamp_point> operator()(const pybind11::array & timestamps, const pybind11::array_t<std::int64_t> & values) const
@@ -426,18 +416,6 @@ struct vectorize_result<qdb_ts_string_point, const char *>
     result_type operator()(const qdb_ts_string_point * points, size_t count) const
     {
         return do_conversion(points, count);
-    }
-};
-
-template <>
-struct vectorize_result<qdb_ts_symbol_point, const char *>
-{
-    using vectorizer_type = vectorize_result<qdb_ts_string_point, const char *>;
-    using result_type     = vectorizer_type::result_type;
-
-    result_type operator()(const qdb_ts_symbol_point * points, size_t count) const
-    {
-        return vectorizer_type::do_conversion(points, count);
     }
 };
 

@@ -95,17 +95,16 @@ public:
             return double_();
         case qdb_ts_column_blob:
             return blob();
+        case qdb_ts_column_symbol: //! *FALLTHROUGH*
         case qdb_ts_column_string:
             return string();
-        case qdb_ts_column_symbol:
-            return symbol();
         case qdb_ts_column_int64:
             return int64();
         case qdb_ts_column_timestamp:
             return timestamp();
         };
 
-        throw std::runtime_error("Unable to cast QuasarDB type to Python type");
+        throw std::runtime_error("Unable to cast QuasarDB type to Python type, unrecognized type: " + std::to_string(_type));
     }
 
 private:
@@ -148,22 +147,6 @@ private:
         qdb_size_t l   = 0;
 
         auto res = qdb_ts_row_get_string(_local_table, _index, v.ptr(), &l);
-        if (res == qdb_e_element_not_found)
-        {
-            Py_RETURN_NONE;
-            // notreached
-        }
-
-        qdb::qdb_throw_if_error(*_handle, res);
-        return PyUnicode_FromStringAndSize(v.get(), static_cast<Py_ssize_t>(l));
-    }
-
-    py::handle symbol() const
-    {
-        qdb::release_guard<const char *> v (_handle);
-        qdb_size_t l   = 0;
-
-        auto res = qdb_ts_row_get_symbol(_local_table, _index, v.ptr(), &l);
         if (res == qdb_e_element_not_found)
         {
             Py_RETURN_NONE;
