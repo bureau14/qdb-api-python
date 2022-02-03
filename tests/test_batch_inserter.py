@@ -26,7 +26,7 @@ def _row_insertion_method(
         inserter.set_string(2, strings[i])
         inserter.set_int64(3, integers[i])
         inserter.set_timestamp(4, timestamps[i])
-        inserter.set_symbol(5, symbols[i])
+        inserter.set_string(5, symbols[i]) # symbol columns use string representation
 
 
 def _regular_push(inserter):
@@ -45,16 +45,15 @@ def _fast_push(inserter):
 
 
 def _make_inserter_info(table):
-    return [quasardb.BatchColumnInfo(table.get_name(), tslib._double_col_name(table), 100),
+    return [quasardb.BatchColumnInfo(table.get_name(), tslib._double_col_name(table), 1000),
             quasardb.BatchColumnInfo(
-                table.get_name(), tslib._blob_col_name(table), 100),
+                table.get_name(), tslib._blob_col_name(table), 1000),
             quasardb.BatchColumnInfo(
-                table.get_name(), tslib._string_col_name(table), 100),
+                table.get_name(), tslib._string_col_name(table), 1000),
             quasardb.BatchColumnInfo(
-                table.get_name(), tslib._int64_col_name(table), 100),
-            quasardb.BatchColumnInfo(table.get_name(), tslib._ts_col_name(table), 100),
-            quasardb.BatchColumnInfo(
-                table.get_name(), tslib._symbol_col_name(table), 100)]
+                table.get_name(), tslib._int64_col_name(table), 1000),
+            quasardb.BatchColumnInfo(table.get_name(), tslib._ts_col_name(table), 1000),
+            quasardb.BatchColumnInfo(table.get_name(), tslib._symbol_col_name(table), 1000)]
 
 
 def test_non_existing_bulk_insert(qdbd_connection, entry_name):
@@ -71,7 +70,7 @@ def _generate_data(count, start=np.datetime64('2017-01-01', 'ns')):
     strings = np.array([("content_" + str(item)) for item in range(count)])
     timestamps = tslib._generate_dates(
         start + np.timedelta64('1', 'D'), count)
-    symbols = np.array([("sym_" + str(item)) for item in range(count)])
+    symbols = np.array([("symbol_" + str(item)) for item in range(count)])
 
     return (doubles, integers, blobs, strings, timestamps, symbols)
 
@@ -86,7 +85,7 @@ def _set_batch_inserter_data(inserter, intervals, data, start=0):
         inserter.set_string(2, strings[i])
         inserter.set_int64(3, integers[i])
         inserter.set_timestamp(4, timestamps[i])
-        inserter.set_symbol(5, symbols[i])
+        inserter.set_string(5, symbols[i])
 
 
 def _assert_results(table, intervals, data):
@@ -118,7 +117,7 @@ def _assert_results(table, intervals, data):
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], timestamps)
 
-    results = table.symbol_get_ranges(
+    results = table.string_get_ranges(
         tslib._symbol_col_name(table), [whole_range])
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], symbols)
@@ -161,7 +160,7 @@ def _test_with_table(
         tslib._ts_col_name(table), [whole_range])
     assert len(results[0]) == 0
 
-    results = table.symbol_get_ranges(
+    results = table.string_get_ranges(
         tslib._symbol_col_name(table), [whole_range])
     assert len(results[0]) == 0
 
@@ -199,6 +198,8 @@ def test_successful_secure_bulk_row_insert(
         _regular_push)
 
 
+
+@pytest.mark.skip(reason="Skip slow tests")
 def test_successful_async_bulk_row_insert(
         qdbd_connection, table, many_intervals):
 
@@ -239,7 +240,7 @@ def test_push_truncate_implicit_range(qdbd_connection, table, many_intervals):
 
     # Generate our dataset
     data = _generate_data(len(many_intervals))
-    # (doubles, integers, blobs, strings, timestamps, symbols) = data
+    # (doubles, integers, blobs, strings, timestamps) = data
     (doubles, _, _, _, _, _) = data
 
     # Insert once
@@ -321,6 +322,7 @@ def test_push_truncate_explicit_range(qdbd_connection, table, many_intervals):
 
 def test_push_truncate_throws_error_on_invalid_range(
         qdbd_connection, table, many_intervals):
+    print("table = {}".format(table.get_name()))
     whole_range = (
         many_intervals[0], many_intervals[-1:][0] + np.timedelta64(2, 's'))
 

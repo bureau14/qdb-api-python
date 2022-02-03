@@ -19,12 +19,10 @@ def _generate_int64_ts(start_time, count):
     return (_generate_dates(start_time, count),
             np.random.randint(-100, 100, count))
 
-
 def _generate_timestamp_ts(start_time, start_val, count):
     return (
         _generate_dates(start_time, count),
         _generate_dates(start_val, count))
-
 
 def _generate_blob_ts(start_time, count):
     dates = _generate_dates(start_time, count)
@@ -44,11 +42,6 @@ def _generate_string_ts(start_time, count):
                       dtype=np.unicode)
 
     return (dates, values)
-
-
-def _generate_symbol_ts(start_time, count):
-    return _generate_string_ts(start_time, count)
-
 
 def _check_ts_results(results, generated, count):
     assert len(results) == 2
@@ -150,33 +143,20 @@ def test_create_with_shard_size_of_more_than_1_year(
 
 
 def test_table_layout(table):
+    """
+    We have hard-coded a certain table layout, this test ensures that this is true.
+    """
+    expected = [("the_double", quasardb.ColumnType.Double),
+                ("the_blob", quasardb.ColumnType.Blob),
+                ("the_string", quasardb.ColumnType.String),
+                ("the_int64", quasardb.ColumnType.Int64),
+                ("the_ts", quasardb.ColumnType.Timestamp),
+                ("the_symbol", quasardb.ColumnType.Symbol)]
+
     col_list = table.list_columns()
-    assert len(col_list) == 6
+    got = [(c.name, c.type) for c in col_list]
 
-    assert col_list[0].name == "the_double"
-    assert col_list[0].type == quasardb.ColumnType.Double
-    assert col_list[0].symtable == ""
-
-    assert col_list[1].name == "the_blob"
-    assert col_list[1].type == quasardb.ColumnType.Blob
-    assert col_list[1].symtable == ""
-
-    assert col_list[2].name == "the_string"
-    assert col_list[2].type == quasardb.ColumnType.String
-    assert col_list[2].symtable == ""
-
-    assert col_list[3].name == "the_int64"
-    assert col_list[3].type == quasardb.ColumnType.Int64
-    assert col_list[3].symtable == ""
-
-    assert col_list[4].name == "the_ts"
-    assert col_list[4].type == quasardb.ColumnType.Timestamp
-    assert col_list[4].symtable == ""
-
-    assert col_list[5].name == "the_symbol"
-    assert col_list[5].type == quasardb.ColumnType.Symbol
-    assert col_list[5].symtable == "symtable"
-
+    assert expected == got
 
 def test_column_lookup(table):
     assert table.column_index_by_id("the_double") == 0
@@ -184,7 +164,6 @@ def test_column_lookup(table):
     assert table.column_index_by_id("the_string") == 2
     assert table.column_index_by_id("the_int64") == 3
     assert table.column_index_by_id("the_ts") == 4
-    assert table.column_index_by_id("the_symbol") == 5
 
     with pytest.raises(quasardb.Error):
         table.column_index_by_id('foobar')
@@ -221,10 +200,8 @@ def _int64_col_name(table):
 def _ts_col_name(table):
     return table.list_columns()[4].name
 
-
 def _symbol_col_name(table):
     return table.list_columns()[5].name
-
 
 def _start_time(intervals):
     return intervals[0][0]

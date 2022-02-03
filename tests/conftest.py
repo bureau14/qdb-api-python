@@ -76,44 +76,47 @@ def qdbd_direct_secure_connection(qdbd_settings, qdbd_secure_connection):
             ""))
 
 
-@pytest.fixture
-def random_identifier():
+def _random_identifier():
     return ''.join(random.choice(string.ascii_lowercase) for _ in range(16))
 
-
-@pytest.fixture
-def random_string():
+def _random_string():
     return ''.join(
         random.choice(
             string.ascii_uppercase +
             string.digits) for _ in range(16))
 
+@pytest.fixture
+def random_identifier():
+    return _random_identifier()
 
 @pytest.fixture
-def column_name(random_identifier):
-    return random_identifier
-
+def random_string():
+    return _random_string()
 
 @pytest.fixture
-def tag_name(random_identifier):
-    return random_identifier
+def column_name():
+    return _random_identifier()
 
+@pytest.fixture
+def symbol_table_name():
+    return _random_identifier()
+
+@pytest.fixture
+def tag_name():
+    return _random_identifier()
 
 @pytest.fixture
 def tag_names():
     return sorted([''.join(random.choice(string.ascii_lowercase)
                            for _ in range(16)) for _ in range(10)])
 
-
 @pytest.fixture
 def entry_name(random_string):
-    return random_string
-
+    return _random_string()
 
 @pytest.fixture
 def random_blob(random_string):
     return np.random.bytes(16)
-
 
 @pytest.fixture
 def random_integer():
@@ -241,11 +244,13 @@ def gen_df(request, column_name):
                         quasardb.ColumnType.Double,
                         quasardb.ColumnType.Blob,
                         quasardb.ColumnType.String,
-                        quasardb.ColumnType.Timestamp], ids=['int64',
-                                                             'double',
-                                                             'blob',
-                                                             'string',
-                                                             'timestamp'])
+                        quasardb.ColumnType.Timestamp,
+                        quasardb.ColumnType.Symbol], ids=['int64',
+                                                          'double',
+                                                          'blob',
+                                                          'string',
+                                                          'timestamp',
+                                                          'symbol'])
 def column_type(request):
     param = request.param
     yield param
@@ -271,7 +276,14 @@ def qdbpd_query_fn(request):
     yield query_fns[request.param]
 
 @pytest.fixture
-def table_1col(qdbd_connection, table_name, column_name, column_type):
+def column_info(column_name, column_type, symbol_table_name):
+    if column_type == quasardb.ColumnType.Symbol:
+        return quasardb.ColumnInfo(column_type, column_name, symbol_table_name)
+
+    return quasardb.ColumnInfo(column_type, column_name)
+
+@pytest.fixture
+def table_1col(qdbd_connection, table_name, column_info):
     t = qdbd_connection.ts(table_name)
-    t.create([quasardb.ColumnInfo(column_type, column_name)])
+    t.create([column_info])
     return t

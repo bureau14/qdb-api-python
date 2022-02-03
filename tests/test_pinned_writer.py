@@ -87,12 +87,8 @@ def test_successful_type_double(qdbd_connection, table):
 def test_incorrect_type_blob(qdbd_connection, table):
     pinned_writer = qdbd_connection.pinned_writer(table)
     pinned_writer.start_row(np.datetime64('2020-01-01T00:00:00', 'ns'))
-    for idx in range(6):
-        if idx == 1:
-            continue
-        with pytest.raises(quasardb.Error):
-            pinned_writer.set_blob(idx, b'aaa')
-
+    with pytest.raises(quasardb.Error):
+        pinned_writer.set_int64(1, 1234)
 
 def test_successful_type_blob(qdbd_connection, table):
     timestamp = np.datetime64('2020-01-01T00:00:00', 'ns')
@@ -114,12 +110,8 @@ def test_successful_type_blob(qdbd_connection, table):
 def test_incorrect_type_string(qdbd_connection, table):
     pinned_writer = qdbd_connection.pinned_writer(table)
     pinned_writer.start_row(np.datetime64('2020-01-01T00:00:00', 'ns'))
-    for idx in range(6):
-        if idx == 2:
-            continue
-        with pytest.raises(quasardb.Error):
-            pinned_writer.set_string(idx, 'aaa')
-
+    with pytest.raises(quasardb.Error):
+        pinned_writer.set_int64(2, 1234)
 
 def test_successful_type_string(qdbd_connection, table):
     timestamp = np.datetime64('2020-01-01T00:00:00', 'ns')
@@ -197,21 +189,16 @@ def test_successful_type_timestamp(qdbd_connection, table):
 def test_incorrect_type_symbol(qdbd_connection, table):
     pinned_writer = qdbd_connection.pinned_writer(table)
     pinned_writer.start_row(np.datetime64('2020-01-01T00:00:00', 'ns'))
-    for idx in range(6):
-        if idx == 5:
-            continue
-        with pytest.raises(quasardb.Error):
-            pinned_writer.set_symbol(idx, 'aaa')
+    with pytest.raises(quasardb.Error):
+        pinned_writer.set_int64(5, 1234)
 
-
-@pytest.mark.skip(reason="Skip until we fix symbol table")
 def test_successful_type_symbol(qdbd_connection, table):
     timestamp = np.datetime64('2020-01-01T00:00:00', 'ns')
     value = 'aaa'
 
     pinned_writer = qdbd_connection.pinned_writer(table)
     pinned_writer.start_row(timestamp)
-    pinned_writer.set_symbol(5, value)
+    pinned_writer.set_string(5, value)
     pinned_writer.push()
 
     res = qdbd_connection.query(
@@ -412,7 +399,7 @@ def _row_insertion_method(
         writer.set_string(2, strings[i])
         writer.set_int64(3, integers[i])
         writer.set_timestamp(4, timestamps[i])
-        writer.set_symbol(5, symbols[i])
+        writer.set_string(5, symbols[i])
 
 
 def _regular_push(writer):
@@ -453,7 +440,7 @@ def _set_batch_writer_data(writer, intervals, data, start=0):
         writer.set_string(2, strings[i])
         writer.set_int64(3, integers[i])
         writer.set_timestamp(4, timestamps[i])
-        writer.set_symbol(5, symbols[i])
+        writer.set_string(5, symbols[i])
 
 
 def _assert_results(table, intervals, data):
@@ -485,7 +472,7 @@ def _assert_results(table, intervals, data):
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], timestamps)
 
-    results = table.symbol_get_ranges(
+    results = table.string_get_ranges(
         tslib._symbol_col_name(table), [whole_range])
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], symbols)
@@ -529,7 +516,7 @@ def _test_with_table(
         tslib._ts_col_name(table), [whole_range])
     assert len(results[0]) == 0
 
-    results = table.symbol_get_ranges(
+    results = table.string_get_ranges(
         tslib._symbol_col_name(table), [whole_range])
     assert len(results[0]) == 0
 
@@ -710,7 +697,7 @@ def _set_batch_writer_column_data(writer, intervals, data, start=0):
     writer.set_string_column(2, strings[start:])
     writer.set_int64_column(3, integers[start:])
     writer.set_timestamp_column(4, timestamps[start:])
-    writer.set_symbol_column(5, symbols[start:])
+    writer.set_string_column(5, symbols[start:])
 
 
 def test_insert_column(qdbd_connection, table, many_intervals):
