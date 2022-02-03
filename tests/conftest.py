@@ -6,6 +6,7 @@ import pytest
 import numpy as np
 import numpy.ma as ma
 import pandas as pd
+import datetime
 
 import quasardb
 import quasardb.pandas as qdbpd
@@ -42,18 +43,22 @@ def qdbd_settings(scope="module"):
             "cluster_public_key": cluster_key}}
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def qdbd_connection(qdbd_settings):
-    return connect(qdbd_settings.get("uri").get("insecure"))
+    conn = connect(qdbd_settings.get("uri").get("insecure"))
+    yield conn
+    conn.purge_all(datetime.timedelta(minutes=1))
 
-
-@pytest.fixture
+@pytest.fixture(scope="function")
 def qdbd_secure_connection(qdbd_settings):
-    return quasardb.Cluster(
+    conn = quasardb.Cluster(
         uri=qdbd_settings.get("uri").get("secure"),
         user_name=qdbd_settings.get("security").get("user_name"),
         user_private_key=qdbd_settings.get("security").get("user_private_key"),
         cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"))
+    yield conn
+    conn.purge_all(datetime.timedelta(minutes=1))
+
 
 
 @pytest.fixture
