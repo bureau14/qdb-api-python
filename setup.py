@@ -20,7 +20,7 @@ from distutils.version import LooseVersion
 from pkg_resources import get_build_platform
 from wheel.bdist_wheel import bdist_wheel as old_bdist_wheel
 
-qdb_version = "3.13.2.dev0"
+qdb_version = "3.13.3.dev0"
 
 # package_modules are our 'extra' files. Our cmake configuration copies our QDB_API_LIB
 # into our source directory, and by adding this to `package_modules` we tell setuptools to
