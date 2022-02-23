@@ -229,6 +229,23 @@ numpy_query_array_int64(qdb_size_t column,
 }
 
 qdb::detail::masked_array
+numpy_query_array_count(qdb_size_t column,
+                        qdb_point_result_t ** rows,
+                        qdb_size_t row_count) {
+  return _convert_to_numpy_array<std::int64_t> (column,
+                                                rows,
+                                                row_count,
+
+                                                // dtype
+                                                "int64",
+
+                                                // result -> std::double_t
+                                                [](qdb_point_result_t const & row) -> std::int64_t {
+                                                  return row.payload.count.value;
+                                                });
+}
+
+qdb::detail::masked_array
 numpy_query_array_string(qdb_size_t column,
                          qdb_point_result_t ** rows,
                          qdb_size_t row_count) {
@@ -328,6 +345,8 @@ numpy_query_array(qdb_query_result_t const & r,
     return numpy_query_array_blob(column, r.rows, r.row_count);
   case qdb_query_result_timestamp:
     return numpy_query_array_timestamp(column, r.rows, r.row_count);
+  case qdb_query_result_count:
+    return numpy_query_array_count(column, r.rows, r.row_count);
   case qdb_query_result_none:
     return numpy_null_array(r.row_count);
   default:
