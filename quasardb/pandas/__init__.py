@@ -170,7 +170,7 @@ def write_series(series, table, col_name):
 
     (write_with[t])(col_name, series.index.to_numpy(), xs)
 
-def query(cluster, query, blobs=False, numpy=True):
+def query(cluster, query, index=None, blobs=False, numpy=True):
     """
     Execute a query and return the results as DataFrames. Returns a dict of
     tablename / DataFrame pairs.
@@ -196,14 +196,20 @@ def query(cluster, query, blobs=False, numpy=True):
     logger.debug("querying and returning as DataFrame: %s", query)
 
 
+    m = {}
     if numpy:
         res = cluster.query_numpy(query)
-        xs = {x[0]: x[1] for x in res}
+        m = {x[0]: x[1] for x in res}
 
-        return DataFrame(xs)
+    else:
+        m = cluster.query(query, blobs=blobs)
 
-    return DataFrame(cluster.query(query, blobs=blobs))
+    df = pd.DataFrame(m)
 
+    if index and index in m:
+        df.set_index(index, inplace=True)
+
+    return df
 
 def read_dataframe(table, row_index=False, columns=None, ranges=None):
     """
