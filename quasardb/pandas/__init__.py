@@ -443,7 +443,6 @@ def write_dataframe(
         for i in range(len(df.columns)):
             c = df.columns[i]
             dt = pd.api.types.infer_dtype(df[c].values)
-            logger.debug("Determined dtype of column %s to be %s", c, dt)
             dtypes[c] = dt
 
         # Performance improvement: avoid a expensive dict lookups by indexing
