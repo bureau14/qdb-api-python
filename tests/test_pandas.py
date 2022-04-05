@@ -99,39 +99,32 @@ def test_series_read_write(table):
         np.testing.assert_array_equal(
             read_series.to_numpy(), series[col].to_numpy())
 
-@pytest.mark.parametrize("write_fn", [qdbpd.write_dataframe,
-                                      qdbpd.write_pinned_dataframe])
-def test_dataframe(write_fn, qdbd_connection, table):
-    df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
-    write_fn(df1, qdbd_connection, table)
+def test_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
+    (_, df1, table) = df_with_table
+    qdbpd_write_fn(df1, qdbd_connection, table)
 
     df2 = qdbpd.read_dataframe(table)
 
-    assert len(df1.columns) == len(df2.columns)
-    for col in df1.columns:
-        np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
+    _assert_df_equal(df1, df2)
 
+def test_dataframe_can_read_columns(qdbpd_write_fn, df_with_table, qdbd_connection, column_name, table_name):
+    (_, df1, table) = df_with_table
+    assert column_name in df1.columns
+    assert len(df1.columns) == 1
 
-@pytest.mark.parametrize("write_fn", [qdbpd.write_dataframe,
-                                      qdbpd.write_pinned_dataframe])
-def test_dataframe_can_read_columns(write_fn, qdbd_connection, table):
-    df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
-    write_fn(df1, qdbd_connection, table)
+    qdbpd_write_fn(df1, qdbd_connection, table)
 
-    df2 = qdbpd.read_dataframe(table, columns=['the_double', 'the_int64'])
+    df2 = qdbpd.read_dataframe(table, columns=[column_name])
 
-    assert len(df1.columns) != len(df2.columns)
-    assert len(df2.columns) == 2
+    assert len(df2.columns) == 1
     for col in df2.columns:
         np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
 
 
-@pytest.mark.parametrize("write_fn", [qdbpd.write_dataframe,
-                                      qdbpd.write_pinned_dataframe])
-def test_dataframe_can_read_ranges(write_fn, qdbd_connection, table):
+def test_dataframe_can_read_ranges(qdbpd_write_fn, qdbd_connection, table):
     start = np.datetime64('2017-01-01', 'ns')
     df1 = gen_df(start, 10)
-    write_fn(df1, qdbd_connection, table)
+    qdbpd_write_fn(df1, qdbd_connection, table)
 
     first_range = (start, start + np.timedelta64(1, 'D'))
     second_range = (start + np.timedelta64(1, 'D'),
@@ -146,24 +139,17 @@ def test_dataframe_can_read_ranges(write_fn, qdbd_connection, table):
     assert df4.shape[0] == 2
 
 
-@pytest.mark.parametrize("write_fn", [qdbpd.write_dataframe,
-                                      qdbpd.write_pinned_dataframe])
-def test_write_dataframe(write_fn, qdbd_connection, table):
-    # Ensures that we can do a full-circle write and read of a dataframe
-    df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
-    write_fn(df1, qdbd_connection, table)
+def test_write_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
+    (_, df, table) = df_with_table
 
-    df2 = qdbpd.read_dataframe(table)
+    qdbpd_write_fn(df, qdbd_connection, table, infer_types=False)
+    res = qdbpd.read_dataframe(table)
 
-    assert len(df1.columns) == len(df2.columns)
-    for col in df1.columns:
-        np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
+    _assert_df_equal(df, res)
 
-@pytest.mark.parametrize("write_fn", [qdbpd.write_dataframe,
-                                      qdbpd.write_pinned_dataframe])
 @pytest.mark.parametrize("row_count", [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024])
 @pytest.mark.parametrize("df_count", [1, 2, 4, 8, 16])
-def test_write_unindexed_dataframe(write_fn, df_count, row_count, qdbd_connection, table):
+def test_write_unindexed_dataframe(qdbpd_write_fn, df_count, row_count, qdbd_connection, table):
     # CF. QDB-10203, we generate a dataframe which is unordered. The easiest
     # way to do this is reuse our gen_df function with overlapping timestamps,
     # and concatenate the data.
@@ -184,7 +170,7 @@ def test_write_unindexed_dataframe(write_fn, df_count, row_count, qdbd_connectio
     assert len(df_sorted.columns) == len(df_unsorted.columns)
 
     # We store unsorted
-    write_fn(df_unsorted, qdbd_connection, table)
+    qdbpd_write_fn(df_unsorted, qdbd_connection, table)
 
 
     # We expect to receive sorted data
@@ -196,12 +182,10 @@ def test_write_unindexed_dataframe(write_fn, df_count, row_count, qdbd_connectio
                                       df_read[col].to_numpy())
 
 
-@pytest.mark.parametrize("write_fn", [qdbpd.write_dataframe,
-                                      qdbpd.write_pinned_dataframe])
-def test_write_dataframe_push_fast(write_fn, qdbd_connection, table):
+def test_write_dataframe_push_fast(qdbpd_write_fn, qdbd_connection, table):
     # Ensures that we can do a full-circle write and read of a dataframe
     df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
-    write_fn(df1, qdbd_connection, table, fast=True)
+    qdbpd_write_fn(df1, qdbd_connection, table, fast=True)
 
     df2 = qdbpd.read_dataframe(table)
 
@@ -261,58 +245,20 @@ def test_write_dataframe_create_table_with_shard_size(write_fn, caplog, qdbd_con
     for col in df1.columns:
         np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
 
-
-def check_equal(expected, actual):
-    if np.isnan(expected):
-        assert np.isnan(actual)
-    else:
-        assert expected == actual
-
-def _sparsify(xs):
-    # Randomly make a bunch of elements null, we make use of Numpy's masked
-    # arrays for this: keep track of a separate boolean 'mask' array, which
-    # determines whether or not an item in the array is None.
-    mask = np.random.choice(a=[True, False], size=len(xs))
-    return ma.masked_array(data=xs,
-                           mask=mask)
-
-def _gen_floating(n, low=-100.0, high=100.0):
-    return np.random.uniform(low, high, n)
-
-
-def _gen_integer(n):
-    return np.random.randint(-100, 100, n)
-
-
-def _gen_string(n):
-    # Slightly hacks, but for testing purposes we'll ensure that we are generating
-    # blobs that can be cast to other types as well.
-    return list(str(x) for x in _gen_floating(n, low=0))
-
-
-def _gen_blob(n):
-    return list(x.encode("utf-8") for x in _gen_string(n))
-
-
-def _gen_timestamp(n):
-    start_time = np.datetime64('2017-01-01', 'ns')
-    return np.array([(start_time + np.timedelta64(i, 's'))
-                     for i in range(n)]).astype('datetime64[ns]')
-
 def test_query(qdbpd_write_fn, # parametrized
                qdbpd_query_fn, # parametrized
-               gen_df,         # parametrized
+               df_with_table,  # parametrized
                qdbd_connection,
                column_name,
                table_name):
-    qdbpd_write_fn(gen_df, qdbd_connection, table_name, create=True)
+    (_, df1, table) = df_with_table
+    qdbpd_write_fn(df1, qdbd_connection, table)
 
-    res = qdbpd_query_fn(qdbd_connection,
+    df2 = qdbpd_query_fn(qdbd_connection,
                          "SELECT $timestamp, {} FROM \"{}\"".format(column_name, table_name)
                          ).set_index('$timestamp').reindex()
 
-    _assert_df_equal(gen_df, res)
-
+    _assert_df_equal(df1, df2)
 
 def test_inference(
         qdbpd_write_fn,
@@ -321,4 +267,5 @@ def test_inference(
         table_1col):
     # Note that there are no tests; we effectively only test whether it doesn't
     # throw.
-    qdbpd_write_fn(gen_df, qdbd_connection, table_1col)
+    (_, df) = gen_df
+    qdbpd_write_fn(df, qdbd_connection, table_1col)

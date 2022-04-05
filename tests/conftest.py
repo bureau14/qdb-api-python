@@ -176,6 +176,9 @@ def many_intervals():
     return create_many_intervals()
 
 
+@pytest.fixture(params=[256])
+def row_count(request):
+    return request.param
 
 
 
@@ -198,47 +201,83 @@ def _gen_integer(n):
 
 
 def _gen_string(n):
-    # Slightly hacks, but for testing purposes we'll ensure that we are generating
-    # blobs that can be cast to other types as well.
+    # Slightly hacks, but for testing purposes the contents of the strings
+    # being floats allows us to always cast these strings to other types as
+    # well.
     return list(str(x) for x in _gen_floating(n, low=0))
 
 
 def _gen_blob(n):
     return list(x.encode("utf-8") for x in _gen_string(n))
 
+def _gen_datetime64(n, precision):
+    start_time = np.datetime64('2017-01-01', precision)
+    return np.array([(start_time + np.timedelta64(i, 's'))
+                     for i in range(n)]).astype('datetime64[{}]'.format(precision))
+
+def _gen_datetime64_s(n):
+    return _gen_datetime64(n, 's')
+
+def _gen_datetime64_ms(n):
+    return _gen_datetime64(n, 'ms')
+
+def _gen_datetime64_ns(n):
+    return _gen_datetime64(n, 'ns')
 
 def _gen_timestamp(n):
-    start_time = np.datetime64('2017-01-01', 'ns')
-    return np.array([(start_time + np.timedelta64(i, 's'))
-                     for i in range(n)]).astype('datetime64[ns]')
+    return _gen_datetime64_ns(n)
 
-@pytest.fixture(params=[_gen_floating,
-                        _gen_integer,
-                        _gen_string,
-                        _gen_blob,
-                        _gen_timestamp])
-def gen_array(request):
-    row_count = 100
-    fn = request.param
-    return fn(row_count)
+_dtype_to_generator = {np.float64: _gen_floating,
+                       np.int64: _gen_integer,
+                       np.unicode_: _gen_string,
+                       np.bytes_: _gen_blob,
+                       np.dtype('datetime64[ns]'): _gen_datetime64_ns,
+                       np.dtype('datetime64[ms]'): _gen_datetime64_ms,
+                       np.dtype('datetime64[s]'): _gen_datetime64_s}
 
-@pytest.fixture(params=[_gen_floating,
-                        _gen_integer,
-                        _gen_string,
-                                        _gen_blob,
-                        _gen_timestamp], ids=['double',
-                                              'int64',
-                                              'string',
-                                              'blob',
-                                              'timestamp'])
-def gen_df(request, column_name):
-    row_count = 100
-    fn = request.param
-    xs = fn(row_count)
+
+_dtype_to_column_type = {np.int64: quasardb.ColumnType.Int64,
+                         np.float64: quasardb.ColumnType.Double,
+                         np.unicode_: quasardb.ColumnType.String,
+                         np.bytes_: quasardb.ColumnType.Blob,
+                         np.dtype('datetime64[ns]'): quasardb.ColumnType.Timestamp,
+                         np.dtype('datetime64[ms]'): quasardb.ColumnType.Timestamp,
+                         np.dtype('datetime64[s]'): quasardb.ColumnType.Timestamp}
+
+@pytest.fixture(params=[np.float64,
+                        np.int64,
+                        np.unicode_,
+                        np.bytes_,
+                        np.dtype('datetime64[ns]'),
+                        np.dtype('datetime64[ms]'),
+                        np.dtype('datetime64[s]')])
+def gen_array(request, row_count):
+    dtype = request.param
+
+    assert dtype in _dtype_to_generator
+    fn = _dtype_to_generator[dtype]
+
+    return (dtype, fn(row_count))
+
+@pytest.fixture
+def gen_df(gen_array, row_count, column_name):
+    (dtype, xs) = gen_array
+
     idx = pd.Index(pd.date_range(np.datetime64('2017-01-01'), periods=row_count, freq='S'),
                    name='$timestamp')
-    return pd.DataFrame(data={column_name: xs},
-                        index=idx)
+    return (dtype, pd.DataFrame(data={column_name: xs},
+                                index=idx))
+
+@pytest.fixture
+def df_with_table(qdbd_connection, table_name, column_name, gen_df):
+    (dtype, df) = gen_df
+
+    table = qdbd_connection.table(table_name)
+    columnType = _dtype_to_column_type[dtype]
+
+    columns = [quasardb.ColumnInfo(columnType, column_name)]
+    table.create(columns)
+    return (dtype, df, table)
 
 @pytest.fixture(params=[quasardb.ColumnType.Int64,
                         quasardb.ColumnType.Double,
@@ -255,8 +294,9 @@ def column_type(request):
     param = request.param
     yield param
 
-@pytest.fixture(params=[qdbpd.write_dataframe,
-                        qdbpd.write_pinned_dataframe])
+# @pytest.fixture(params=[qdbpd.write_dataframe,
+#                         qdbpd.write_pinned_dataframe])
+@pytest.fixture(params=[qdbpd.write_pinned_dataframe])
 def qdbpd_write_fn(request):
     yield request.param
 
