@@ -53,27 +53,25 @@ inline std::time_t mkgmtime(std::tm * t) noexcept
 #endif
 }
 
-static inline std::int64_t convert_timestamp(const qdb_timespec_t & ts) noexcept
+static constexpr std::int64_t convert_timestamp(const qdb_timespec_t & ts) noexcept
 {
     // XXX(leon): potential overflow
     return ts.tv_nsec + ts.tv_sec * 1'000'000'000ull;
 }
 
 // assuming ns
-static inline qdb_timespec_t convert_timestamp(std::int64_t npdt64) noexcept
+static constexpr qdb_timespec_t convert_timestamp(std::int64_t npdt64) noexcept
 {
     if (npdt64 < 0)
     {
         return qdb_timespec_t{qdb_min_time, qdb_min_time};
     }
-    qdb_timespec_t res;
 
-    static constexpr std::int64_t ns = 1'000'000'000ull;
+    constexpr std::int64_t ns = 1'000'000'000ull;
+    std::int64_t tv_nsec = npdt64 % ns;
+    std::int64_t tv_sec = (npdt64 - tv_nsec) / ns;
 
-    res.tv_nsec = npdt64 % ns;
-    res.tv_sec  = (npdt64 - res.tv_nsec) / ns;
-
-    return res;
+    return qdb_timespec_t{tv_sec, tv_nsec};
 }
 
 static inline std::int64_t prep_datetime(py::object v)
