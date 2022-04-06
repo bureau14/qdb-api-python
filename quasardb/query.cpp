@@ -182,7 +182,7 @@ numpy_null_array(qdb_size_t row_count) {
 template <qdb_query_result_value_type_t ResultType>
 struct numpy_util {
   static constexpr char const * dtype();
-  static decltype(auto) get_value(qdb_point_result_t const &);
+  static constexpr decltype(auto) get_value(qdb_point_result_t const &);
 };
 
 template <>
@@ -194,7 +194,7 @@ struct numpy_util<qdb_query_result_double> {
     return "float64";
   }
 
-  static std::double_t get_value(qdb_point_result_t const & row) {
+  static constexpr std::double_t get_value(qdb_point_result_t const & row) {
     return row.payload.double_.value;
   }
 
@@ -208,7 +208,7 @@ struct numpy_util<qdb_query_result_int64> {
     return "int64";
   }
 
-  static std::int64_t get_value(qdb_point_result_t const & row) {
+  static constexpr std::int64_t get_value(qdb_point_result_t const & row) {
     return row.payload.int64_.value;
   }
 
@@ -222,7 +222,7 @@ struct numpy_util<qdb_query_result_blob> {
     return "O";
   }
 
-  static py::object get_value(qdb_point_result_t const & row) {
+  static inline py::object get_value(qdb_point_result_t const & row) {
     return py::bytes{static_cast<char const *>(row.payload.blob.content),
                      row.payload.blob.content_length};
   }
@@ -236,7 +236,7 @@ struct numpy_util<qdb_query_result_string> {
     return "O";
   }
 
-  static py::object get_value(qdb_point_result_t const & row) {
+  static inline py::object get_value(qdb_point_result_t const & row) {
     return py::str{row.payload.string.content,
                    row.payload.string.content_length
     };
@@ -252,7 +252,7 @@ struct numpy_util<qdb_query_result_count> {
     return "int64";
   }
 
-  static std::int64_t get_value(qdb_point_result_t const & row) {
+  static constexpr std::int64_t get_value(qdb_point_result_t const & row) {
     return row.payload.count.value;
   }
 };
@@ -265,7 +265,7 @@ struct numpy_util<qdb_query_result_timestamp> {
     return "datetime64[ns]";
   }
 
-  static std::int64_t get_value(qdb_point_result_t const & row) {
+  static constexpr std::int64_t get_value(qdb_point_result_t const & row) {
     return convert_timestamp(row.payload.timestamp.value);
   }
 };
