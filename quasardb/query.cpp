@@ -168,143 +168,6 @@ dict_query_result_t convert_query_results(const qdb_query_result_t * r, const py
     return convert_query_results(r, column_names, parse_blobs);
 }
 
-template <typename ValueType>
-qdb::detail::masked_array
-_convert_to_numpy_array(qdb_size_t column,
-                        qdb_point_result_t ** rows,
-                        qdb_size_t row_count,
-                        char const * dtype,
-                        std::function<ValueType(qdb_point_result_t const &)> fn) {
-
-  py::array data(dtype, {row_count});
-  py::array_t<bool> mask = qdb::detail::masked_array::masked_all({row_count});
-
-  auto data_f = data.template mutable_unchecked<ValueType, 1>();
-  auto mask_f = mask.template mutable_unchecked<1>();
-
-  for (qdb_size_t i = 0; i < row_count; ++i) {
-    bool masked = (rows[i][column].type == qdb_query_result_none);
-
-    if (masked == false) {
-      data_f(i) = fn(rows[i][column]);
-      mask_f(i) = false;
-    }
-  }
-
-  return qdb::detail::masked_array{data, mask};
-}
-
-qdb::detail::masked_array
-numpy_query_array_double(qdb_size_t column,
-                         qdb_point_result_t ** rows,
-                         qdb_size_t row_count) {
-  return _convert_to_numpy_array<std::double_t> (column,
-                                                 rows,
-                                                 row_count,
-
-                                                 // dtype
-                                                 "float64",
-
-                                                 // result -> std::double_t
-                                                 [](qdb_point_result_t const & row) -> std::double_t {
-                                                   return row.payload.double_.value;
-                                                 });
-}
-
-qdb::detail::masked_array
-numpy_query_array_int64(qdb_size_t column,
-                        qdb_point_result_t ** rows,
-                        qdb_size_t row_count) {
-  return _convert_to_numpy_array<std::int64_t> (column,
-                                                rows,
-                                                row_count,
-
-                                                // dtype
-                                                "int64",
-
-                                                // result -> std::double_t
-                                                [](qdb_point_result_t const & row) -> std::int64_t {
-                                                  return row.payload.int64_.value;
-                                                });
-}
-
-qdb::detail::masked_array
-numpy_query_array_count(qdb_size_t column,
-                        qdb_point_result_t ** rows,
-                        qdb_size_t row_count) {
-  return _convert_to_numpy_array<std::int64_t> (column,
-                                                rows,
-                                                row_count,
-
-                                                // dtype
-                                                "int64",
-
-                                                // result -> std::double_t
-                                                [](qdb_point_result_t const & row) -> std::int64_t {
-                                                  return row.payload.count.value;
-                                                });
-}
-
-qdb::detail::masked_array
-numpy_query_array_string(qdb_size_t column,
-                         qdb_point_result_t ** rows,
-                         qdb_size_t row_count) {
-
-  return _convert_to_numpy_array<py::object> (column,
-                                              rows,
-                                              row_count,
-
-                                              // dtype
-                                              "O",
-
-                                              // result -> py::object
-                                              [](qdb_point_result_t const & row) -> py::object {
-                                                return py::str{row.payload.string.content,
-                                                               row.payload.string.content_length
-                                                };
-                                              });
-}
-
-qdb::detail::masked_array
-numpy_query_array_blob(qdb_size_t column,
-                       qdb_point_result_t ** rows,
-                       qdb_size_t row_count) {
-
-  return _convert_to_numpy_array<py::object> (column,
-                                              rows,
-                                              row_count,
-
-                                              // dtype
-                                              "O",
-
-                                              // result -> py::object
-                                              [](qdb_point_result_t const & row) -> py::object {
-                                                return py::bytes{
-                                                  static_cast<char const *>(row.payload.blob.content),
-                                                  row.payload.blob.content_length
-                                                };
-                                              }
-                                              );
-}
-
-qdb::detail::masked_array
-numpy_query_array_timestamp(qdb_size_t column,
-                            qdb_point_result_t ** rows,
-                            qdb_size_t row_count) {
-
-  return _convert_to_numpy_array<std::int64_t> (column,
-                                                rows,
-                                                row_count,
-
-                                                // dtype
-                                                "datetime64[ns]",
-
-                                                // result -> py::object
-                                                [](qdb_point_result_t const & row) -> std::int64_t {
-                                                  return convert_timestamp(row.payload.timestamp.value);
-                                                });
-}
-
 qdb::detail::masked_array
 numpy_null_array(qdb_size_t row_count) {
   py::array::ShapeContainer shape{row_count};
@@ -314,6 +177,139 @@ numpy_null_array(qdb_size_t row_count) {
 
   return qdb::detail::masked_array{data, mask};
 }
+
+
+template <qdb_query_result_value_type_t ResultType>
+struct numpy_util {
+  static constexpr char const * dtype();
+  static decltype(auto) get_value(qdb_point_result_t const &);
+};
+
+template <>
+struct numpy_util<qdb_query_result_double> {
+
+  using value_type = std::double_t;
+
+  static constexpr char const * dtype() {
+    return "float64";
+  }
+
+  static std::double_t get_value(qdb_point_result_t const & row) {
+    return row.payload.double_.value;
+  }
+
+};
+
+template <>
+struct numpy_util<qdb_query_result_int64> {
+  using value_type = std::int64_t;
+
+  static constexpr char const * dtype() {
+    return "int64";
+  }
+
+  static std::int64_t get_value(qdb_point_result_t const & row) {
+    return row.payload.int64_.value;
+  }
+
+};
+
+template <>
+struct numpy_util<qdb_query_result_blob> {
+  using value_type = py::object;
+
+  static constexpr char const * dtype() {
+    return "O";
+  }
+
+  static py::object get_value(qdb_point_result_t const & row) {
+    return py::bytes{static_cast<char const *>(row.payload.blob.content),
+                     row.payload.blob.content_length};
+  }
+};
+
+template <>
+struct numpy_util<qdb_query_result_string> {
+  using value_type = py::object;
+
+  static constexpr char const * dtype() {
+    return "O";
+  }
+
+  static py::object get_value(qdb_point_result_t const & row) {
+    return py::str{row.payload.string.content,
+                   row.payload.string.content_length
+    };
+  }
+
+};
+
+template <>
+struct numpy_util<qdb_query_result_count> {
+  using value_type = std::int64_t;
+
+  static constexpr char const * dtype() {
+    return "int64";
+  }
+
+  static std::int64_t get_value(qdb_point_result_t const & row) {
+    return row.payload.count.value;
+  }
+};
+
+template <>
+struct numpy_util<qdb_query_result_timestamp> {
+  using value_type = std::int64_t;
+
+  static constexpr char const * dtype() {
+    return "datetime64[ns]";
+  }
+
+  static std::int64_t get_value(qdb_point_result_t const & row) {
+    return convert_timestamp(row.payload.timestamp.value);
+  }
+};
+
+template <qdb_query_result_value_type_t ResultType>
+struct numpy_converter {
+  static qdb::detail::masked_array convert(qdb_size_t column,
+                                           qdb_point_result_t ** rows,
+                                           qdb_size_t row_count) {
+    using value_type = typename numpy_util<ResultType>::value_type;
+    constexpr char const * dtype = numpy_util<ResultType>::dtype();
+    auto fn = numpy_util<ResultType>::get_value;
+
+    py::array data(dtype, {row_count});
+    py::array_t<bool> mask = qdb::detail::masked_array::masked_all({row_count});
+
+    auto data_f = data.template mutable_unchecked<value_type, 1>();
+    auto mask_f = mask.template mutable_unchecked<1>();
+
+    for (qdb_size_t i = 0; i < row_count; ++i) {
+      bool masked = (rows[i][column].type == qdb_query_result_none);
+
+      if (masked == false) {
+        data_f(i) = fn(rows[i][column]);
+        mask_f(i) = false;
+      }
+    }
+
+    return qdb::detail::masked_array{data, mask};
+  }
+};
+
+/**
+ * Nothing to convert for columns without type, just return an array filled with null
+ * values.
+ */
+template <>
+struct numpy_converter<qdb_query_result_none> {
+  static qdb::detail::masked_array convert(qdb_size_t /* column */ ,
+                                           qdb_point_result_t ** /* rows */ ,
+                                           qdb_size_t row_count) {
+    return numpy_null_array(row_count);
+  }
+};
 
 qdb_query_result_value_type_t
 probe_column_type(qdb_query_result_t const & r,
@@ -334,28 +330,28 @@ probe_column_type(qdb_query_result_t const & r,
 qdb::detail::masked_array
 numpy_query_array(qdb_query_result_t const & r,
                   qdb_size_t column) {
+
   switch (probe_column_type(r, column)) {
-  case qdb_query_result_double:
-    return numpy_query_array_double(column, r.rows, r.row_count);
-  case qdb_query_result_int64:
-    return numpy_query_array_int64(column, r.rows, r.row_count);
-  case qdb_query_result_string:
-    return numpy_query_array_string(column, r.rows, r.row_count);
-  case qdb_query_result_blob:
-    return numpy_query_array_blob(column, r.rows, r.row_count);
-  case qdb_query_result_timestamp:
-    return numpy_query_array_timestamp(column, r.rows, r.row_count);
-  case qdb_query_result_count:
-    return numpy_query_array_count(column, r.rows, r.row_count);
-  case qdb_query_result_none:
-    return numpy_null_array(r.row_count);
+
+#define CASE(t)                                                             \
+    case t:                                                                 \
+      return numpy_converter<t>::convert(column, r.rows, r.row_count);
+
+    CASE(qdb_query_result_double);
+    CASE(qdb_query_result_int64);
+    CASE(qdb_query_result_string);
+    CASE(qdb_query_result_blob);
+    CASE(qdb_query_result_timestamp);
+    CASE(qdb_query_result_count);
+    CASE(qdb_query_result_none);
+
   default:
     {
       std::stringstream ss;
       ss << "unrecognized query result column type: " << r.rows[0][column].type;
       throw qdb::incompatible_type_exception(ss.str());
     }
-  }
+  };
 }
 
 numpy_query_column_t
