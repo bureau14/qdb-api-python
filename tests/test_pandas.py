@@ -6,6 +6,7 @@ import numpy as np
 import numpy.ma as ma
 import pandas as pd
 import pytest
+import conftest
 
 import quasardb
 import quasardb.pandas as qdbpd
@@ -112,13 +113,11 @@ def test_dataframe_can_read_columns(qdbpd_write_fn, df_with_table, qdbd_connecti
     assert column_name in df1.columns
     assert len(df1.columns) == 1
 
-    qdbpd_write_fn(df1, qdbd_connection, table)
+    qdbpd_write_fn(df1, qdbd_connection, table, infer_types=False)
 
     df2 = qdbpd.read_dataframe(table, columns=[column_name])
 
-    assert len(df2.columns) == 1
-    for col in df2.columns:
-        np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
+    _assert_df_equal(df1, df2)
 
 
 def test_dataframe_can_read_ranges(qdbpd_write_fn, qdbd_connection, table):
@@ -138,17 +137,16 @@ def test_dataframe_can_read_ranges(qdbpd_write_fn, qdbd_connection, table):
     assert df3.shape[0] == 1
     assert df4.shape[0] == 2
 
-
 def test_write_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
-    (_, df, table) = df_with_table
+    (dtype, df, table) = df_with_table
 
-    qdbpd_write_fn(df, qdbd_connection, table, infer_types=False)
+    infer = True
+    if conftest.is_native_dtype(dtype) is True:
+        infer=False
+
+    qdbpd_write_fn(df, qdbd_connection, table, infer_types=infer)
     res = qdbpd.read_dataframe(table)
 
-    _assert_df_equal(df, res)
-
-@pytest.mark.parametrize("row_count", [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024])
-@pytest.mark.parametrize("df_count", [1, 2, 4, 8, 16])
 def test_write_unindexed_dataframe(qdbpd_write_fn, df_count, row_count, qdbd_connection, table):
     # CF. QDB-10203, we generate a dataframe which is unordered. The easiest
     # way to do this is reuse our gen_df function with overlapping timestamps,
@@ -176,68 +174,49 @@ def test_write_unindexed_dataframe(qdbpd_write_fn, df_count, row_count, qdbd_con
     # We expect to receive sorted data
     df_read = qdbpd.read_dataframe(table)
 
-    assert len(df_sorted.columns) == len(df_read.columns)
-    for col in df_sorted.columns:
-        np.testing.assert_array_equal(df_sorted[col].to_numpy(),
-                                      df_read[col].to_numpy())
+    _assert_df_equal(df_sorted, df_read)
 
+def test_write_dataframe_push_fast(qdbpd_write_fn, qdbd_connection, df_with_table):
+    (_, df1, table) = df_with_table
 
-def test_write_dataframe_push_fast(qdbpd_write_fn, qdbd_connection, table):
     # Ensures that we can do a full-circle write and read of a dataframe
-    df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
     qdbpd_write_fn(df1, qdbd_connection, table, fast=True)
 
     df2 = qdbpd.read_dataframe(table)
 
-    assert len(df1.columns) == len(df2.columns)
-    for col in df1.columns:
-        np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
+    _assert_df_equal(df1, df2)
 
+def test_write_dataframe_push_truncate(qdbpd_write_fn, qdbd_connection, df_with_table):
+    (_, df1, table) = df_with_table
 
-@pytest.mark.parametrize("write_fn", [qdbpd.write_dataframe])
-@pytest.mark.parametrize("truncate", [True])
-def test_write_dataframe_push_truncate(write_fn, truncate, qdbd_connection, table):
     # Ensures that we can do a full-circle write and read of a dataframe
-    df1 = gen_df(np.datetime64('2017-01-01'), count=1000)
-
-    write_fn(df1, qdbd_connection, table, truncate=truncate)
-    write_fn(df1, qdbd_connection, table, truncate=truncate)
+    qdbpd_write_fn(df1, qdbd_connection, table, truncate=True)
+    qdbpd_write_fn(df1, qdbd_connection, table, truncate=True)
 
     df2 = qdbpd.read_dataframe(table)
 
-    assert len(df1.columns) >= len(df2.columns)
-    for col in df2.columns:
-        np.testing.assert_array_equal(df1[col].to_numpy(),
-                                      df2[col].to_numpy())
+    _assert_df_equal(df1, df2)
 
-@pytest.mark.parametrize("write_fn", [qdbpd.write_dataframe,
-                                      qdbpd.write_pinned_dataframe])
-def test_write_dataframe_create_table(write_fn, caplog, qdbd_connection, entry_name):
+def test_write_dataframe_create_table(qdbpd_write_fn, caplog, qdbd_connection, gen_df, table_name):
+    (_, df1) = gen_df
+
     caplog.set_level(logging.DEBUG)
-    table = qdbd_connection.ts(entry_name)
-    df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
-    write_fn(df1, qdbd_connection, table, create=True)
+    table = qdbd_connection.ts(table_name)
+    qdbpd_write_fn(df1, qdbd_connection, table, create=True)
 
     df2 = qdbpd.read_dataframe(table)
 
-    assert len(df1.columns) == len(df2.columns)
-    for col in df1.columns:
-        np.testing.assert_array_equal(df1[col].to_numpy(), df2[col].to_numpy())
+    _assert_df_equal(df1, df2)
 
-
-@pytest.mark.parametrize("write_fn", [qdbpd.write_dataframe,
-                                      qdbpd.write_pinned_dataframe])
-def test_write_dataframe_create_table_twice(write_fn, qdbd_connection, table):
+def test_write_dataframe_create_table_twice(qdbpd_write_fn, qdbd_connection, table):
     df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
-    write_fn(df1, qdbd_connection, table, create=True)
+    qdbpd_write_fn(df1, qdbd_connection, table, create=True)
 
-@pytest.mark.parametrize("write_fn", [qdbpd.write_dataframe,
-                                      qdbpd.write_pinned_dataframe])
-def test_write_dataframe_create_table_with_shard_size(write_fn, caplog, qdbd_connection, entry_name):
+def test_write_dataframe_create_table_with_shard_size(qdbpd_write_fn, caplog, qdbd_connection, entry_name):
     caplog.set_level(logging.DEBUG)
     table = qdbd_connection.ts(entry_name)
     df1 = gen_df(np.datetime64('2017-01-01'), ROW_COUNT)
-    write_fn(df1, qdbd_connection, table, create=True, shard_size=timedelta(weeks=4))
+    qdbpd_write_fn(df1, qdbd_connection, table, create=True, shard_size=timedelta(weeks=4))
 
     df2 = qdbpd.read_dataframe(table)
 
@@ -261,11 +240,10 @@ def test_query(qdbpd_write_fn, # parametrized
     _assert_df_equal(df1, df2)
 
 def test_inference(
-        qdbpd_write_fn,
-        gen_df,
-        qdbd_connection,
-        table_1col):
+        qdbpd_write_fn, # parametrized
+        df_with_table,
+        qdbd_connection):
     # Note that there are no tests; we effectively only test whether it doesn't
     # throw.
-    (_, df) = gen_df
-    qdbpd_write_fn(df, qdbd_connection, table_1col)
+    (_, df, table) = df_with_table
+    qdbpd_write_fn(df, qdbd_connection, table)
