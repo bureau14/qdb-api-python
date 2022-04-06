@@ -8,6 +8,8 @@ import numpy.ma as ma
 import pandas as pd
 import datetime
 
+from functools import partial
+
 import quasardb
 import quasardb.pandas as qdbpd
 
@@ -175,30 +177,70 @@ def create_many_intervals():
 def many_intervals():
     return create_many_intervals()
 
-
 @pytest.fixture(params=[256])
 def row_count(request):
-    return request.param
+    yield request.param
 
+@pytest.fixture(params=[1, 2, 4, 8, 16])
+def df_count(request):
+    yield request.param
 
-
-
-def _sparsify(xs):
+def _sparsify(perc, xs):
     # Randomly make a bunch of elements null, we make use of Numpy's masked
     # arrays for this: keep track of a separate boolean 'mask' array, which
     # determines whether or not an item in the array is None.
-    mask = np.random.choice(a=[True, False], size=len(xs))
+    #
+    # `perc` denotes the percentage of "sparsity", where 100 means no None elements,
+    # and 0 means everything is None
+    assert perc <= 100
+    assert perc >= 0
+    assert type(perc) == int
+
+    n = len(xs)
+
+    if perc == 0:
+        # When everything is 0, don't use a masked array; it's more "intrusive" if we
+        # would just literally return an array with nulls, we don't need a mask here.
+        return np.full(n, None)
+    elif perc == 100:
+        return xs
+
+    choices = np.full(100, True)
+    choices[:perc] = False
+
+    mask = np.random.choice(a=choices, size=n)
     return ma.masked_array(data=xs,
                            mask=mask)
 
+no_sparsify = [lambda x: x]
+
+@pytest.fixture(params=[100, 50, 0])
+def sparsify(request):
+    return partial(_sparsify, request.param)
 
 def _gen_floating(n, low=-100.0, high=100.0):
     return np.random.uniform(low, high, n)
 
+def _gen_float64(n, low=-100.0, high=100.0):
+    return _gen_floating(n, low=low, high=high).astype(np.float64)
+
+def _gen_float32(n, low=-100.0, high=100.0):
+    return _gen_floating(n, low=low, high=high).astype(np.float32)
+
+def _gen_float16(n, low=-100.0, high=100.0):
+    return _gen_floating(n, low=low, high=high).astype(np.float16)
 
 def _gen_integer(n):
     return np.random.randint(-100, 100, n)
 
+def _gen_int64(n):
+    return _gen_integer(n).astype(np.int64)
+
+def _gen_int32(n):
+    return _gen_integer(n).astype(np.int32)
+
+def _gen_int16(n):
+    return _gen_integer(n).astype(np.int16)
 
 def _gen_string(n):
     # Slightly hacks, but for testing purposes the contents of the strings
@@ -227,8 +269,12 @@ def _gen_datetime64_ns(n):
 def _gen_timestamp(n):
     return _gen_datetime64_ns(n)
 
-_dtype_to_generator = {np.float64: _gen_floating,
-                       np.int64: _gen_integer,
+_dtype_to_generator = {np.float64: _gen_float64,
+                       np.float32: _gen_float32,
+                       np.float16: _gen_float16,
+                       np.int64: _gen_int64,
+                       np.int32: _gen_int32,
+                       np.int16: _gen_int16,
                        np.unicode_: _gen_string,
                        np.bytes_: _gen_blob,
                        np.dtype('datetime64[ns]'): _gen_datetime64_ns,
@@ -237,36 +283,79 @@ _dtype_to_generator = {np.float64: _gen_floating,
 
 
 _dtype_to_column_type = {np.int64: quasardb.ColumnType.Int64,
+                         np.int32: quasardb.ColumnType.Int64,
+                         np.int16: quasardb.ColumnType.Int64,
                          np.float64: quasardb.ColumnType.Double,
+                         np.float32: quasardb.ColumnType.Double,
+                         np.float16: quasardb.ColumnType.Double,
                          np.unicode_: quasardb.ColumnType.String,
                          np.bytes_: quasardb.ColumnType.Blob,
                          np.dtype('datetime64[ns]'): quasardb.ColumnType.Timestamp,
                          np.dtype('datetime64[ms]'): quasardb.ColumnType.Timestamp,
                          np.dtype('datetime64[s]'): quasardb.ColumnType.Timestamp}
 
-@pytest.fixture(params=[np.float64,
-                        np.int64,
-                        np.unicode_,
-                        np.bytes_,
-                        np.dtype('datetime64[ns]'),
-                        np.dtype('datetime64[ms]'),
-                        np.dtype('datetime64[s]')])
-def gen_array(request, row_count):
-    dtype = request.param
+# all dtypes that we support 'natively', that is, writing to qdb & reading them back
+# is guaranteed to yield the exact same value.
+native_dtypes = [np.float64,
+                 np.int64,
+                 np.unicode_,
+                 np.bytes_,
+                 np.dtype('datetime64[ns]')]
 
+# dtypes which we support, but should not necessarily yield the exact same result type.
+inferrable_dtypes = [np.float32,
+                     np.float16,
+                     np.int32,
+                     np.int16,
+                     np.dtype('datetime64[ms]'),
+                     np.dtype('datetime64[s]')]
+
+all_dtypes = [*native_dtypes, *inferrable_dtypes]
+
+@pytest.fixture(params=all_dtypes)
+def gen_dtype(request):
+    yield request.param
+
+gen_native_dtype = native_dtypes
+gen_inferrable_dtype = inferrable_dtypes
+
+def is_native_dtype(dt):
+    return dt in native_dtypes
+
+def is_inferrable_dtype(dt):
+    return dt in inferrable_dtypes0
+
+def _gen_array(dtype, sparsify, row_count):
     assert dtype in _dtype_to_generator
     fn = _dtype_to_generator[dtype]
 
-    return (dtype, fn(row_count))
+    xs = fn(row_count)
+    xs = sparsify(xs)
+    return (dtype, xs)
+
+@pytest.fixture(params=[np.datetime64('2017-01-01', 'ns')])
+def start_date(request):
+    yield request.param
 
 @pytest.fixture
-def gen_df(gen_array, row_count, column_name):
+def gen_array(gen_dtype, sparsify, row_count):
+    return _gen_array(gen_dtype, sparsify, row_count)
+
+def _do_gen_df(gen_array, start_date, row_count, column_name):
     (dtype, xs) = gen_array
 
-    idx = pd.Index(pd.date_range(np.datetime64('2017-01-01'), periods=row_count, freq='S'),
+    idx = pd.Index(pd.date_range(start_date, periods=row_count, freq='S'),
                    name='$timestamp')
     return (dtype, pd.DataFrame(data={column_name: xs},
                                 index=idx))
+
+@pytest.fixture
+def gen_df_fn(gen_array, start_date, row_count, column_name):
+    return partial(_do_gen_df, start_date, row_count, column_name)
+
+@pytest.fixture
+def gen_df(gen_array, start_date, row_count, column_name):
+    return _do_gen_df(gen_array, start_date, row_count, column_name)
 
 @pytest.fixture
 def df_with_table(qdbd_connection, table_name, column_name, gen_df):
@@ -294,12 +383,9 @@ def column_type(request):
     param = request.param
     yield param
 
-# @pytest.fixture(params=[qdbpd.write_dataframe,
-#                         qdbpd.write_pinned_dataframe])
-@pytest.fixture(params=[qdbpd.write_pinned_dataframe])
+@pytest.fixture(params=[qdbpd.write_dataframe])
 def qdbpd_write_fn(request):
     yield request.param
-
 
 def _query_style_numpy(conn, query):
     return qdbpd.query(conn, query, numpy=True)
