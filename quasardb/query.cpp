@@ -190,11 +190,11 @@ struct numpy_util<qdb_query_result_double> {
 
   using value_type = std::double_t;
 
-  static constexpr char const * dtype() {
+  static constexpr char const * dtype() noexcept {
     return "float64";
   }
 
-  static constexpr std::double_t get_value(qdb_point_result_t const & row) {
+  static constexpr std::double_t get_value(qdb_point_result_t const & row) noexcept {
     return row.payload.double_.value;
   }
 
@@ -204,11 +204,11 @@ template <>
 struct numpy_util<qdb_query_result_int64> {
   using value_type = std::int64_t;
 
-  static constexpr char const * dtype() {
+  static constexpr char const * dtype() noexcept {
     return "int64";
   }
 
-  static constexpr std::int64_t get_value(qdb_point_result_t const & row) {
+  static constexpr std::int64_t get_value(qdb_point_result_t const & row) noexcept {
     return row.payload.int64_.value;
   }
 
@@ -218,11 +218,11 @@ template <>
 struct numpy_util<qdb_query_result_blob> {
   using value_type = py::object;
 
-  static constexpr char const * dtype() {
+  static constexpr char const * dtype() noexcept {
     return "O";
   }
 
-  static inline py::object get_value(qdb_point_result_t const & row) {
+  static inline py::object get_value(qdb_point_result_t const & row) noexcept {
     return py::bytes{static_cast<char const *>(row.payload.blob.content),
                      row.payload.blob.content_length};
   }
@@ -232,11 +232,11 @@ template <>
 struct numpy_util<qdb_query_result_string> {
   using value_type = py::object;
 
-  static constexpr char const * dtype() {
+  static constexpr char const * dtype() noexcept {
     return "O";
   }
 
-  static inline py::object get_value(qdb_point_result_t const & row) {
+  static inline py::object get_value(qdb_point_result_t const & row) noexcept {
     return py::str{row.payload.string.content,
                    row.payload.string.content_length
     };
@@ -248,11 +248,11 @@ template <>
 struct numpy_util<qdb_query_result_count> {
   using value_type = std::int64_t;
 
-  static constexpr char const * dtype() {
+  static constexpr char const * dtype() noexcept {
     return "int64";
   }
 
-  static constexpr std::int64_t get_value(qdb_point_result_t const & row) {
+  static constexpr std::int64_t get_value(qdb_point_result_t const & row) noexcept {
     return row.payload.count.value;
   }
 };
@@ -261,11 +261,11 @@ template <>
 struct numpy_util<qdb_query_result_timestamp> {
   using value_type = std::int64_t;
 
-  static constexpr char const * dtype() {
+  static constexpr char const * dtype() noexcept {
     return "datetime64[ns]";
   }
 
-  static constexpr std::int64_t get_value(qdb_point_result_t const & row) {
+  static constexpr std::int64_t get_value(qdb_point_result_t const & row) noexcept {
     return convert_timestamp(row.payload.timestamp.value);
   }
 };
