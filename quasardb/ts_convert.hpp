@@ -323,11 +323,13 @@ struct vectorize_result
 {
     using result_type = std::pair<pybind11::array, typename pybind11::array_t<T>>;
 
-    result_type operator()(const Point * points, size_t count) const
-    {
+    result_type operator()(const Point * points, py::ssize_t count) const
+  {
+        std::array<py::ssize_t, 1> shape{{count}};
         // Narrowing conversion from size_t to pybind11::ssize_t.
         auto scount = static_cast<pybind11::ssize_t>(count);
-        result_type res{pybind11::array{"datetime64[ns]", {scount}}, pybind11::array_t<T>{{scount}}};
+        result_type res{pybind11::array{py::dtype("datetime64[ns]"), shape},
+                        pybind11::array_t<T>{shape}};
 
         auto ts_dest = res.first.template mutable_unchecked<std::int64_t, 1>();
         auto v_dest  = res.second.template mutable_unchecked<1>();
@@ -347,9 +349,12 @@ struct vectorize_result<qdb_ts_timestamp_point, std::int64_t>
 {
     using result_type = std::pair<pybind11::array, pybind11::array>;
 
-    result_type operator()(const qdb_ts_timestamp_point * points, size_t count) const
+    result_type operator()(const qdb_ts_timestamp_point * points, py::ssize_t count) const
     {
-        result_type res{pybind11::array{"datetime64[ns]", {count}}, pybind11::array{"datetime64[ns]", {count}}};
+        std::array<py::ssize_t, 1> shape{{count}};
+
+        result_type res{py::array{py::dtype{"datetime64[ns]"}, shape},
+                        py::array_t<std::int64_t>{shape}};
 
         auto ts_dest = res.first.template mutable_unchecked<std::int64_t, 1>();
         auto v_dest  = res.second.template mutable_unchecked<std::int64_t, 1>();
@@ -369,10 +374,13 @@ struct vectorize_result<qdb_ts_blob_point, const char *>
 {
     using result_type = std::pair<pybind11::array, pybind11::array>;
 
-    result_type operator()(const qdb_ts_blob_point * points, size_t count) const
+    result_type operator()(const qdb_ts_blob_point * points, py::ssize_t count) const
     {
         size_t item_size = max_length(points, count);
-        result_type res{pybind11::array{"datetime64[ns]", {count}}, pybind11::array{"O", {count}}};
+
+        std::array<py::ssize_t, 1> shape{{count}};
+        result_type res{pybind11::array{py::dtype("datetime64[ns]"), shape},
+                        pybind11::array{py::dtype("O"), shape}};
 
         auto ts_dest = res.first.template mutable_unchecked<std::int64_t, 1>();
         auto v_dest  = res.second.template mutable_unchecked<pybind11::object, 1>();
@@ -393,11 +401,13 @@ struct vectorize_result<qdb_ts_string_point, const char *>
     using result_type = std::pair<pybind11::array, pybind11::array>;
 
     template <class Point>
-    static result_type do_conversion(const Point * points, size_t count)
+    static result_type do_conversion(const Point * points, py::ssize_t count)
     {
         size_t item_size = max_length(points, count);
 
-        result_type res{pybind11::array{"datetime64[ns]", {count}}, pybind11::array{"O", {count}}};
+        std::array<py::ssize_t, 1> shape{{count}};
+        result_type res{pybind11::array{py::dtype("datetime64[ns]"), shape},
+                        pybind11::array{py::dtype("O"), shape}};
 
         auto ts_dest = res.first.template mutable_unchecked<std::int64_t, 1>();
         auto v_dest  = res.second.template mutable_unchecked<pybind11::object, 1>();
