@@ -11,11 +11,12 @@
 #pragma once
 
 #include "pybind11.h"
+
 #include <chrono>
 #include <cmath>
 #include <ctime>
 #include <datetime.h>
-#include <iostream>
+#include <mutex>
 
 // Backport the PyDateTime_DELTA functions from Python3.3 if required
 #ifndef PyDateTime_DELTA_GET_DAYS
@@ -34,10 +35,11 @@ PYBIND11_NAMESPACE_BEGIN(detail)
 template <typename type>
 class duration_caster {
 public:
-    using rep    = typename type::rep;
+    using rep = typename type::rep;
     using period = typename type::period;
 
-    using days = std::chrono::duration<uint_fast32_t, std::ratio<86400>>;
+    // signed 25 bits required by the standard.
+    using days = std::chrono::duration<int_least32_t, std::ratio<86400>>;
 
     bool load(handle src, bool) {
         using namespace std::chrono;
@@ -47,8 +49,9 @@ public:
             PyDateTime_IMPORT;
         }
 
-        if (!src)
+        if (!src) {
             return false;
+        }
         // If invoked with datetime.delta object
         if (PyDelta_Check(src.ptr())) {
             value = type(duration_cast<duration<rep, period>>(
@@ -58,12 +61,12 @@ public:
             return true;
         }
         // If invoked with a float we assume it is seconds and convert
-        else if (PyFloat_Check(src.ptr())) {
+        if (PyFloat_Check(src.ptr())) {
             value = type(duration_cast<duration<rep, period>>(
                 duration<double>(PyFloat_AsDouble(src.ptr()))));
             return true;
-        } else
-            return false;
+        }
+        return false;
     }
 
     // If this is a duration just return it back
@@ -97,15 +100,31 @@ public:
         using ss_t = duration<int, std::ratio<1>>;
         using us_t = duration<int, std::micro>;
 
-        auto dd   = duration_cast<dd_t>(d);
+        auto dd = duration_cast<dd_t>(d);
         auto subd = d - dd;
-        auto ss   = duration_cast<ss_t>(subd);
-        auto us   = duration_cast<us_t>(subd - ss);
+        auto ss = duration_cast<ss_t>(subd);
+        auto us = duration_cast<us_t>(subd - ss);
         return PyDelta_FromDSU(dd.count(), ss.count(), us.count());
     }
 
-    PYBIND11_TYPE_CASTER(type, _("datetime.timedelta"));
+    PYBIND11_TYPE_CASTER(type, const_name("datetime.timedelta"));
 };
+
+inline std::tm *localtime_thread_safe(const std::time_t *time, std::tm *buf) {
+#if (defined(__STDC_LIB_EXT1__) && defined(__STDC_WANT_LIB_EXT1__)) || defined(_MSC_VER)
+    if (localtime_s(buf, time))
+        return nullptr;
+    return buf;
+#else
+    static std::mutex mtx;
+    std::lock_guard<std::mutex> lock(mtx);
+    std::tm *tm_ptr = std::localtime(time);
+    if (tm_ptr != nullptr) {
+        *buf = *tm_ptr;
+    }
+    return tm_ptr;
+#endif
+}
 
 // This is for casting times on the system clock into datetime.datetime instances
 template <typename Duration>
@@ -120,41 +139,43 @@ public:
             PyDateTime_IMPORT;
         }
 
-        if (!src)
+        if (!src) {
             return false;
+        }
 
         std::tm cal;
         microseconds msecs;
 
         if (PyDateTime_Check(src.ptr())) {
-            cal.tm_sec   = PyDateTime_DATE_GET_SECOND(src.ptr());
-            cal.tm_min   = PyDateTime_DATE_GET_MINUTE(src.ptr());
-            cal.tm_hour  = PyDateTime_DATE_GET_HOUR(src.ptr());
-            cal.tm_mday  = PyDateTime_GET_DAY(src.ptr());
-            cal.tm_mon   = PyDateTime_GET_MONTH(src.ptr()) - 1;
-            cal.tm_year  = PyDateTime_GET_YEAR(src.ptr()) - 1900;
+            cal.tm_sec = PyDateTime_DATE_GET_SECOND(src.ptr());
+            cal.tm_min = PyDateTime_DATE_GET_MINUTE(src.ptr());
+            cal.tm_hour = PyDateTime_DATE_GET_HOUR(src.ptr());
+            cal.tm_mday = PyDateTime_GET_DAY(src.ptr());
+            cal.tm_mon = PyDateTime_GET_MONTH(src.ptr()) - 1;
+            cal.tm_year = PyDateTime_GET_YEAR(src.ptr()) - 1900;
             cal.tm_isdst = -1;
-            msecs        = microseconds(PyDateTime_DATE_GET_MICROSECOND(src.ptr()));
+            msecs = microseconds(PyDateTime_DATE_GET_MICROSECOND(src.ptr()));
         } else if (PyDate_Check(src.ptr())) {
-            cal.tm_sec   = 0;
-            cal.tm_min   = 0;
-            cal.tm_hour  = 0;
-            cal.tm_mday  = PyDateTime_GET_DAY(src.ptr());
-            cal.tm_mon   = PyDateTime_GET_MONTH(src.ptr()) - 1;
-            cal.tm_year  = PyDateTime_GET_YEAR(src.ptr()) - 1900;
+            cal.tm_sec = 0;
+            cal.tm_min = 0;
+            cal.tm_hour = 0;
+            cal.tm_mday = PyDateTime_GET_DAY(src.ptr());
+            cal.tm_mon = PyDateTime_GET_MONTH(src.ptr()) - 1;
+            cal.tm_year = PyDateTime_GET_YEAR(src.ptr()) - 1900;
             cal.tm_isdst = -1;
-            msecs        = microseconds(0);
+            msecs = microseconds(0);
         } else if (PyTime_Check(src.ptr())) {
-            cal.tm_sec   = PyDateTime_TIME_GET_SECOND(src.ptr());
-            cal.tm_min   = PyDateTime_TIME_GET_MINUTE(src.ptr());
-            cal.tm_hour  = PyDateTime_TIME_GET_HOUR(src.ptr());
-            cal.tm_mday  = 1;  // This date (day, month, year) = (1, 0, 70)
-            cal.tm_mon   = 0;  // represents 1-Jan-1970, which is the first
-            cal.tm_year  = 70; // earliest available date for Python's datetime
+            cal.tm_sec = PyDateTime_TIME_GET_SECOND(src.ptr());
+            cal.tm_min = PyDateTime_TIME_GET_MINUTE(src.ptr());
+            cal.tm_hour = PyDateTime_TIME_GET_HOUR(src.ptr());
+            cal.tm_mday = 1;  // This date (day, month, year) = (1, 0, 70)
+            cal.tm_mon = 0;   // represents 1-Jan-1970, which is the first
+            cal.tm_year = 70; // earliest available date for Python's datetime
             cal.tm_isdst = -1;
-            msecs        = microseconds(PyDateTime_TIME_GET_MICROSECOND(src.ptr()));
-        } else
+            msecs = microseconds(PyDateTime_TIME_GET_MICROSECOND(src.ptr()));
+        } else {
             return false;
+        }
 
         value = time_point_cast<Duration>(system_clock::from_time_t(std::mktime(&cal)) + msecs);
         return true;
@@ -173,19 +194,22 @@ public:
         // Get out microseconds, and make sure they are positive, to avoid bug in eastern
         // hemisphere time zones (cfr. https://github.com/pybind/pybind11/issues/2417)
         using us_t = duration<int, std::micro>;
-        auto us    = duration_cast<us_t>(src.time_since_epoch() % seconds(1));
-        if (us.count() < 0)
+        auto us = duration_cast<us_t>(src.time_since_epoch() % seconds(1));
+        if (us.count() < 0) {
             us += seconds(1);
+        }
 
         // Subtract microseconds BEFORE `system_clock::to_time_t`, because:
         // > If std::time_t has lower precision, it is implementation-defined whether the value is
         // rounded or truncated. (https://en.cppreference.com/w/cpp/chrono/system_clock/to_time_t)
         std::time_t tt
             = system_clock::to_time_t(time_point_cast<system_clock::duration>(src - us));
-        // this function uses static memory so it's best to copy it out asap just in case
-        // otherwise other code that is using localtime may break this (not just python code)
-        std::tm localtime = *std::localtime(&tt);
 
+        std::tm localtime;
+        std::tm *localtime_ptr = localtime_thread_safe(&tt, &localtime);
+        if (!localtime_ptr) {
+            throw cast_error("Unable to represent system_clock in local time");
+        }
         return PyDateTime_FromDateAndTime(localtime.tm_year + 1900,
                                           localtime.tm_mon + 1,
                                           localtime.tm_mday,
@@ -194,7 +218,7 @@ public:
                                           localtime.tm_sec,
                                           us.count());
     }
-    PYBIND11_TYPE_CASTER(type, _("datetime.datetime"));
+    PYBIND11_TYPE_CASTER(type, const_name("datetime.datetime"));
 };
 
 // Other clocks that are not the system clock are not measured as datetime.datetime objects
