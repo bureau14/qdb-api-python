@@ -1,4 +1,4 @@
-from typing import Tuple, Union
+from typing import Union, Tuple
 
 def _to_int(s: str) -> Union[int, str]: ...
 

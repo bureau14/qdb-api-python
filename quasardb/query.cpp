@@ -181,7 +181,7 @@ numpy_null_array(qdb_size_t row_count) {
 
 template <qdb_query_result_value_type_t ResultType>
 struct numpy_util {
-  static py::dtype dtype();
+  static constexpr char const * dtype();
   static constexpr decltype(auto) get_value(qdb_point_result_t const &);
 };
 
@@ -190,8 +190,8 @@ struct numpy_util<qdb_query_result_double> {
 
   using value_type = std::double_t;
 
-  static inline py::dtype dtype() noexcept {
-    return py::dtype("float64");
+  static constexpr char const * dtype() noexcept {
+    return "float64";
   }
 
   static constexpr std::double_t get_value(qdb_point_result_t const & row) noexcept {
@@ -204,8 +204,8 @@ template <>
 struct numpy_util<qdb_query_result_int64> {
   using value_type = std::int64_t;
 
-  static inline py::dtype dtype() noexcept {
-    return py::dtype("int64");
+  static constexpr char const * dtype() noexcept {
+    return "int64";
   }
 
   static constexpr std::int64_t get_value(qdb_point_result_t const & row) noexcept {
@@ -218,8 +218,8 @@ template <>
 struct numpy_util<qdb_query_result_blob> {
   using value_type = py::object;
 
-  static inline py::dtype dtype() noexcept {
-    return py::dtype("O");
+  static constexpr char const * dtype() noexcept {
+    return "O";
   }
 
   static inline py::object get_value(qdb_point_result_t const & row) noexcept {
@@ -232,8 +232,8 @@ template <>
 struct numpy_util<qdb_query_result_string> {
   using value_type = py::object;
 
-  static inline py::dtype dtype() noexcept {
-    return py::dtype("O");
+  static constexpr char const * dtype() noexcept {
+    return "O";
   }
 
   static inline py::object get_value(qdb_point_result_t const & row) noexcept {
@@ -248,8 +248,8 @@ template <>
 struct numpy_util<qdb_query_result_count> {
   using value_type = std::int64_t;
 
-  static inline py::dtype dtype() noexcept {
-    return py::dtype("int64");
+  static constexpr char const * dtype() noexcept {
+    return "int64";
   }
 
   static constexpr std::int64_t get_value(qdb_point_result_t const & row) noexcept {
@@ -261,8 +261,8 @@ template <>
 struct numpy_util<qdb_query_result_timestamp> {
   using value_type = std::int64_t;
 
-  static inline py::dtype dtype() noexcept {
-    return py::dtype("datetime64[ns]");
+  static constexpr char const * dtype() noexcept {
+    return "datetime64[ns]";
   }
 
   static constexpr std::int64_t get_value(qdb_point_result_t const & row) noexcept {
@@ -276,10 +276,10 @@ struct numpy_converter {
                                            qdb_point_result_t ** rows,
                                            qdb_size_t row_count) {
     using value_type = typename numpy_util<ResultType>::value_type;
-    const py::dtype dtype = numpy_util<ResultType>::dtype();
+    constexpr char const * dtype = numpy_util<ResultType>::dtype();
     auto fn = numpy_util<ResultType>::get_value;
 
-    py::array data(dtype, py::array::ShapeContainer{row_count});
+    py::array data(dtype, {row_count});
     py::array_t<bool> mask = qdb::detail::masked_array::masked_all({row_count});
 
     auto data_f = data.template mutable_unchecked<value_type, 1>();

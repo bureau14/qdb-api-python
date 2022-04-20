@@ -41,26 +41,25 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import contextlib
 import os
-import platform
-import shlex
 import shutil
 import sys
-import sysconfig
 import tempfile
 import threading
+import platform
 import warnings
 
 try:
-    from setuptools import Extension as _Extension
     from setuptools.command.build_ext import build_ext as _build_ext
+    from setuptools import Extension as _Extension
 except ImportError:
     from distutils.command.build_ext import build_ext as _build_ext
     from distutils.extension import Extension as _Extension
 
-import distutils.ccompiler
 import distutils.errors
+import distutils.ccompiler
 
-WIN = sys.platform.startswith("win32") and "mingw" not in sysconfig.get_platform()
+
+WIN = sys.platform.startswith("win32")
 PY2 = sys.version_info[0] < 3
 MACOS = sys.platform.startswith("darwin")
 STD_TMPL = "/std:c++{}" if WIN else "-std=c++{}"
@@ -85,7 +84,7 @@ class Pybind11Extension(_Extension):
     * ``stdlib=libc++`` on macOS
     * ``visibility=hidden`` and ``-g0`` on Unix
 
-    Finally, you can set ``cxx_std`` via constructor or afterwards to enable
+    Finally, you can set ``cxx_std`` via constructor or afterwords to enable
     flags for C++ std, and a few extra helper flags related to the C++ standard
     level. It is _highly_ recommended you either set this, or use the provided
     ``build_ext``, which will search for the highest supported extension for
@@ -144,12 +143,7 @@ class Pybind11Extension(_Extension):
         if WIN:
             cflags += ["/EHsc", "/bigobj"]
         else:
-            cflags += ["-fvisibility=hidden"]
-            env_cflags = os.environ.get("CFLAGS", "")
-            env_cppflags = os.environ.get("CPPFLAGS", "")
-            c_cpp_flags = shlex.split(env_cflags) + shlex.split(env_cppflags)
-            if not any(opt.startswith("-g") for opt in c_cpp_flags):
-                cflags += ["-g0"]
+            cflags += ["-fvisibility=hidden", "-g0"]
             if MACOS:
                 cflags += ["-stdlib=libc++"]
                 ldflags += ["-stdlib=libc++"]
@@ -308,42 +302,6 @@ class build_ext(_build_ext):  # noqa: N801
         _build_ext.build_extensions(self)
 
 
-def intree_extensions(paths, package_dir=None):
-    """
-    Generate Pybind11Extensions from source files directly located in a Python
-    source tree.
-
-    ``package_dir`` behaves as in ``setuptools.setup``.  If unset, the Python
-    package root parent is determined as the first parent directory that does
-    not contain an ``__init__.py`` file.
-    """
-    exts = []
-    for path in paths:
-        if package_dir is None:
-            parent, _ = os.path.split(path)
-            while os.path.exists(os.path.join(parent, "__init__.py")):
-                parent, _ = os.path.split(parent)
-            relname, _ = os.path.splitext(os.path.relpath(path, parent))
-            qualified_name = relname.replace(os.path.sep, ".")
-            exts.append(Pybind11Extension(qualified_name, [path]))
-        else:
-            found = False
-            for prefix, parent in package_dir.items():
-                if path.startswith(parent):
-                    found = True
-                    relname, _ = os.path.splitext(os.path.relpath(path, parent))
-                    qualified_name = relname.replace(os.path.sep, ".")
-                    if prefix:
-                        qualified_name = prefix + "." + qualified_name
-                    exts.append(Pybind11Extension(qualified_name, [path]))
-            if not found:
-                raise ValueError(
-                    "path {} is not a child of any of the directories listed "
-                    "in 'package_dir' ({})".format(path, package_dir)
-                )
-    return exts
-
-
 def naive_recompile(obj, src):
     """
     This will recompile only if the source file changes. It does not check
@@ -451,9 +409,7 @@ class ParallelCompile(object):
                     compiler._compile(obj, src, ext, cc_args, extra_postargs, pp_opts)
 
             try:
-                # Importing .synchronize checks for platforms that have some multiprocessing
-                # capabilities but lack semaphores, such as AWS Lambda and Android Termux.
-                import multiprocessing.synchronize
+                import multiprocessing
                 from multiprocessing.pool import ThreadPool
             except ImportError:
                 threads = 1
@@ -466,14 +422,8 @@ class ParallelCompile(object):
                     threads = 1
 
             if threads > 1:
-                pool = ThreadPool(threads)
-                # In Python 2, ThreadPool can't be used as a context manager.
-                # Once we are no longer supporting it, this can be 'with pool:'
-                try:
-                    for _ in pool.imap_unordered(_single_compile, objects):
-                        pass
-                finally:
-                    pool.terminate()
+                for _ in ThreadPool(threads).imap_unordered(_single_compile, objects):
+                    pass
             else:
                 for ob in objects:
                     _single_compile(ob)
