@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from ._version import __version__, version_info
-from .commands import get_cmake_dir, get_include
+from ._version import version_info, __version__
+from .commands import get_include, get_cmake_dir
+
 
 __all__ = (
     "version_info",
