@@ -7,14 +7,15 @@ option(QDB_LINK_STATIC_LIB "Link qdb_api_static instead of dynamic qdb_api." OFF
 
 set(PACKAGE_NAME quasardb)
 
-# add_compile_options(
-#   # $<$<CONFIG:Debug>:-DPy_DEBUG=1> # No effect?
-#   $<$<CONFIG:Debug>:-D_DEBUG=1> # This will make link to pythonXY_d.lib instead of pythonXY.lib.
-# )
 
-# step 1: discover libraries
+###
+#
+# Discover QuasarDB api location, set QDB_API_DIR accordingly.
+#
+###
+
 if(DEFINED ENV{QDB_API_PATH})
-  message(STATUS "Getting qdb API from environment variable QDB_API_PATH: $ENV{QDB_API_PATH}")
+  message(STATUS "[qdb-api-python] Getting qdb API from environment variable QDB_API_PATH: $ENV{QDB_API_PATH}")
   set(QDB_API_DIR $ENV{QDB_API_PATH})
 else()
   set(QDB_API_DIR "${CMAKE_SOURCE_DIR}/../qdb")
@@ -28,14 +29,14 @@ find_library(
 
 if(QDB_API_LIB)
   if(NOT IS_DIRECTORY "${QDB_API_DIR}/include")
-    message(FATAL_ERROR "Please unzip qdb c-api into ${QDB_API_DIR}")
+    message(FATAL_ERROR "[qdb-api-python] Please unzip qdb c-api into ${QDB_API_DIR}")
   endif()
   include_directories(SYSTEM ${QDB_API_DIR}/include)
 else()
   find_library(QDB_API_LIB NAMES qdb_api)
 endif()
 
-message(STATUS "Resolved QDB API library location: ${QDB_API_LIB}")
+message(STATUS "[qdb-api-python] Resolved QDB API library location: ${QDB_API_LIB}")
 
 if(NOT QDB_API_LIB)
   message(
@@ -52,32 +53,153 @@ if(NOT QDB_API_LIB)
   )
 endif()
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+
+
+
+
+###
+#
+# High-level compiler/OS-independent cmake options
+#
+###
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+
+###
+#
+# Probe compiler/OS
+#
+###
+
+if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+  message(STATUS "[qdb-api-python] Detected: clang compiler")
   set(CLANG TRUE)
+elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  message(STATUS "[qdb-api-python] Detected: gcc")
+  set(GNU TRUE)
+elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+  message(STATUS "[qdb-api-python] Detected: msvc")
+  set(MSVC TRUE)
+  set(WINDOWS TRUE)
+
+  if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    message(STATUS "[qdb-api-python] Detected: win64")
+    set(WIN64 TRUE)
+  elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+    message(STATUS "[qdb-api-python] Detected: win32")
+    set(WIN32 TRUE)
+  endif()
 endif()
 
-set(CMAKE_CXX_STANDARD 14)
-if(CLANG OR CMAKE_COMPILER_IS_GNUCXX)
-  add_compile_options(-Wno-register)
-else()
+if (CMAKE_HOST_APPLE)
+  message(STATUS "[qdb-api-python] Detected: apple host")
+  set(APPLE TRUE)
+elseif(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+  message(STATUS "[qdb-api-python] Detected: freebsd")
+  set(FREEEBSD TRUE)
+elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
+  message(STATUS "[qdb-api-python] Detected: linux")
+  set(LINUX TRUE)
+endif()
+
+
+###
+#
+# Compile options based on compiler/OS
+#
+###
+
+if(CLANG OR GNU)
+  if(CLANG AND NOT APPLE)
+    # Clang + Ninja eats colors
+    add_compile_options(
+      -fdiagnostics-color=always
+      # -Rpass=loop-vectorize
+      # -Rpass-missed=loop-vectorize
+      # -Rpass-analysis=loop-vectorize
+      -ftemplate-backtrace-limit=0
+      -fmacro-backtrace-limit=0)
+  endif()
+
+  if (LINUX)
+    add_compile_options(
+      -Wno-register
+      -Wall
+
+      $<$<CONFIG:Debug>:-Og>
+      $<$<CONFIG:Release>:-O2>
+      $<$<CONFIG:Release>:-ftree-vectorize>)
+
+    # Can we perhaps make different builds, one for core2 and another
+    # for haswell?
+    add_compile_options(-march=core2)
+  endif()
+
+elseif (MSVC)
+  message(STATUS "[qdb-api-python] Detected: msvc")
   add_definitions(/DSTATIC_LINKED)
   add_definitions(/D_CRT_SECURE_NO_WARNINGS=1)
   add_compile_options(/wd5033) # register is no longer a supported storage class
   add_compile_options(/EHa)
   add_compile_options(/MT)
+
+  # Core2
+  add_compile_options(/arch:AVX)
 endif()
 
-# Target core2 by default
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-  add_compile_options(
-      -march=core2
-  )
+###
+#
+# Link options based on compiler/OS
+#
+###
+
+
+if (CLANG)
+  if(QDB_LINKER)
+    if(QDB_LINKER STREQUAL "lld")
+      if(APPLE)
+        message(STATUS "[qdb-api-python] Detected: clang + lld + apple")
+        add_link_options(--ld-path=ld64.lld)
+      elseif(WIN32)
+        message(STATUS "[qdb-api-python] Detected: clang + lld + win32")
+        add_link_options(--ld-path=lld-link)
+      else()
+        message(STATUS "[qdb-api-python] Detected: clang + lld (other)")
+        add_link_options(--ld-path=ld.lld)
+      endif()
+    else()
+      message(STATUS "[qdb-api-python] Detected: clang + qdb_linker (other)")
+      add_link_options(--ld-path=${QDB_LINKER})
+    endif()
+  endif()
+
+  # clang + anything not apple
+  if(NOT APPLE)
+    message(STATUS "[qdb-api-python] Detected: clang + not apple")
+    add_link_options(
+      -Qunused-arguments
+      -Wl,--gc-sections)
+  endif()
+
 endif()
 
-add_subdirectory(pybind11)
+
+###
+#
+# Third-party libraries
+#
+###
+
+message(STATUS "[qdb-api-python] Including thirdparty libraries with binary directory ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+add_subdirectory(../thirdparty/ ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+
+include_directories(SYSTEM ../thirdparty/range-v3/include)
+include_directories(SYSTEM ../thirdparty/utfcpp/source)
+
 
 include_directories(SYSTEM qdb/include)
-
 include_directories(${CMAKE_SOURCE_DIR})
 
 #
@@ -117,7 +239,7 @@ if(NOT QDB_LINK_STATIC_LIB)
     # "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libqdb_api.so")
   endif()
 
-  message(STATUS "Files to copy: ${FILES_TO_COPY}")
+  message(STATUS "[qdb-api-python] Files to copy: ${FILES_TO_COPY}")
   file(COPY ${FILES_TO_COPY} DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 
   # for Apple we need to change the id otherwise we won't be able to load the
@@ -131,6 +253,7 @@ endif()
 # step 3: build
 pybind11_add_module(
   quasardb
+
   cluster.hpp
   continuous.cpp
   continuous.hpp
@@ -138,21 +261,32 @@ pybind11_add_module(
   entry.hpp
   blob.hpp
   handle.hpp
+  masked_array.hpp
+  numpy.hpp
+  numpy.cpp
+  object_tracker.hpp
   options.hpp
+  pinned_writer.cpp
+  pinned_writer.hpp
   qdb_client.cpp
   query.hpp
   query.cpp
+  table.cpp
   table.hpp
   table_reader.hpp
   batch_inserter.hpp
-  ts_convert.hpp
+  convert.hpp
+  traits.hpp
+  concepts.hpp
   tag.hpp
+  utils.cpp
   utils.hpp
   version.hpp
   version.cpp
   logger.hpp
   logger.cpp
   detail/ts_column.hpp
+  detail/qdb_resource.hpp
   reader/ts_row.hpp
   reader/ts_value.hpp
   utils/blob_deque.hpp
@@ -160,6 +294,26 @@ pybind11_add_module(
   utils/permutation.hpp
   utils/stable_sort.hpp
 )
+
+
+###
+#
+# We need Python UCS4/UTF32 -> UTF8 conversion, and cuchar provides a fast
+# API for this. It isn't availalbe by default on FreeBSD and OSX, and as
+# such we need to defer to a slower alternative there.
+#
+###
+find_path(UcharIncludes uchar.h)
+if(UcharIncludes)
+  message(STATUS "[qdb-api-python] Found uchar.h")
+  # target_compile_definitions(quasardb PUBLIC QDB_USE_UCHAR=1)
+
+else()
+  message(STATUS "[qdb-api-python] Did not find uchar.h")
+endif()
+
+
+
 
 target_compile_definitions(quasardb PUBLIC QDB_PY_VERSION="${QDB_PY_VERSION}")
 if(QDB_LINK_STATIC_LIB)

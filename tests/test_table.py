@@ -55,7 +55,7 @@ def test_column_info_repr(column_name):
     int64 = quasardb.ColumnInfo(quasardb.ColumnType.Int64, column_name)
     timestamp = quasardb.ColumnInfo(quasardb.ColumnType.Timestamp, column_name)
     string = quasardb.ColumnInfo(quasardb.ColumnType.String, column_name)
-    symbol = quasardb.ColumnInfo(quasardb.ColumnType.Symbol, column_name)
+    symbol = quasardb.ColumnInfo(quasardb.ColumnType.Symbol, column_name, 'symtable')
 
     assert column_name in str(double)
     assert column_name in str(blob)
@@ -113,7 +113,7 @@ def test_create_without_columns(qdbd_connection, entry_name):
 def test_create_with_shard_size_less_than_1_millisecond_throws(
         qdbd_connection, entry_name):
     table = qdbd_connection.table(entry_name)
-    with pytest.raises(quasardb.Error):
+    with pytest.raises(quasardb.InvalidArgumentError):
         table.create([], datetime.timedelta(milliseconds=0))
 
 

@@ -59,9 +59,9 @@ PYBIND11_MODULE(quasardb, m)
     qdb::register_batch_inserter(m);
     qdb::register_pinned_writer(m);
     qdb::register_table_reader(m);
+    qdb::register_masked_array(m);
 
     qdb::detail::register_ts_column(m);
-    qdb::detail::register_masked_array(m);
     qdb::reader::register_ts_value(m);
     qdb::reader::register_ts_row(m);
 }

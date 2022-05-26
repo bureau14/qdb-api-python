@@ -47,7 +47,8 @@ public:
 public:
     void set_timeout(std::chrono::milliseconds ms)
     {
-        qdb::qdb_throw_if_error(*_handle, qdb_option_set_timeout(*_handle, static_cast<int>(ms.count())));
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_option_set_timeout(*_handle, static_cast<int>(ms.count())));
     }
 
     std::chrono::milliseconds get_timeout()
@@ -61,7 +62,8 @@ public:
 
     void set_stabilization_max_wait(std::chrono::milliseconds ms)
     {
-        qdb::qdb_throw_if_error(*_handle, qdb_option_set_stabilization_max_wait(*_handle, static_cast<int>(ms.count())));
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_option_set_stabilization_max_wait(*_handle, static_cast<int>(ms.count())));
     }
 
     std::chrono::milliseconds get_stabilization_max_wait()
@@ -95,7 +97,8 @@ public:
 
     void set_user_credentials(const std::string & user, const std::string & private_key)
     {
-        qdb::qdb_throw_if_error(*_handle, qdb_option_set_user_credentials(*_handle, user.c_str(), private_key.c_str()));
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_option_set_user_credentials(*_handle, user.c_str(), private_key.c_str()));
     }
 
     void set_client_max_in_buf_size(size_t max_size)
@@ -119,13 +122,15 @@ public:
 
     void set_client_max_parallelism(size_t max_parallelism)
     {
-        qdb::qdb_throw_if_error(*_handle, qdb_option_set_client_max_parallelism(*_handle, max_parallelism));
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_option_set_client_max_parallelism(*_handle, max_parallelism));
     }
 
     size_t get_client_max_parallelism()
     {
         size_t max_parallelism = 0;
-        qdb::qdb_throw_if_error(*_handle, qdb_option_get_client_max_parallelism(*_handle, &max_parallelism));
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_option_get_client_max_parallelism(*_handle, &max_parallelism));
         return max_parallelism;
     }
 
@@ -164,7 +169,7 @@ static inline void register_options(Module & m)
         .def("get_client_max_in_buf_size", &qdb::options::get_client_max_in_buf_size)   //
         .def("get_cluster_max_in_buf_size", &qdb::options::get_cluster_max_in_buf_size) //
         .def("set_client_max_parallelism", &qdb::options::set_client_max_parallelism,   //
-             py::arg("parallelism"))                                                    //
+            py::arg("parallelism"))                                                     //
         .def("get_client_max_parallelism", &qdb::options::get_client_max_parallelism)   //
         ;
 }

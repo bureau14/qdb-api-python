@@ -39,20 +39,25 @@
 #include <string>
 #include <vector>
 
-static inline bool
-operator<(qdb_timespec_t const & lhs, qdb_timespec_t const & rhs) {
-  if (lhs.tv_sec < rhs.tv_sec) {
-    return true;
-  } else if (lhs.tv_sec == rhs.tv_sec) {
-    return lhs.tv_nsec < rhs.tv_nsec;
-  } else {
-    return false;
-  }
+static inline bool operator<(qdb_timespec_t const & lhs, qdb_timespec_t const & rhs)
+{
+    if (lhs.tv_sec < rhs.tv_sec)
+    {
+        return true;
+    }
+    else if (lhs.tv_sec == rhs.tv_sec)
+    {
+        return lhs.tv_nsec < rhs.tv_nsec;
+    }
+    else
+    {
+        return false;
+    }
 }
 
-static inline bool
-operator==(qdb_timespec_t const & lhs, qdb_timespec_t const & rhs) {
-  return lhs.tv_sec == rhs.tv_sec && lhs.tv_nsec == rhs.tv_nsec;
+static inline bool operator==(qdb_timespec_t const & lhs, qdb_timespec_t const & rhs)
+{
+    return lhs.tv_sec == rhs.tv_sec && lhs.tv_nsec == rhs.tv_nsec;
 }
 
 namespace qdb
@@ -61,41 +66,47 @@ namespace qdb
 /**
  * Simple guard class which always releases tracked objects back to qdb api.
  */
-template <typename T> class release_guard {
+template <typename T>
+class release_guard
+{
 public:
-  release_guard(handle_ptr handle) noexcept
-    : _handle(handle)
-    , _obj(nullptr) {
-  }
+    release_guard(handle_ptr handle) noexcept
+        : _handle(handle)
+        , _obj(nullptr)
+    {}
 
-  release_guard(handle_ptr handle, T obj) noexcept
-    : _handle(handle)
-    , _obj(obj) {
-  }
+    release_guard(handle_ptr handle, T obj) noexcept
+        : _handle(handle)
+        , _obj(obj)
+    {}
 
-  ~release_guard() {
-    qdb_release(*_handle, _obj);
-  }
+    ~release_guard()
+    {
+        qdb_release(*_handle, _obj);
+    }
 
-  T get() const noexcept {
-    return _obj;
-  }
+    T get() const noexcept
+    {
+        return _obj;
+    }
 
-  T * ptr() noexcept {
-    return &_obj;
-  }
+    T * ptr() noexcept
+    {
+        return &_obj;
+    }
 
-  T const * ptr() const noexcept {
-    return &_obj;
-  }
+    T const * ptr() const noexcept
+    {
+        return &_obj;
+    }
 
 private:
-  handle_ptr _handle;
-  T _obj;
+    handle_ptr _handle;
+    T _obj;
 };
 
-
-static inline std::vector<std::string> convert_strings_and_release(qdb::handle_ptr h, const char ** ss, size_t c)
+static inline std::vector<std::string> convert_strings_and_release(
+    qdb::handle_ptr h, const char ** ss, size_t c)
 {
     std::vector<std::string> res(c);
 
@@ -106,14 +117,18 @@ static inline std::vector<std::string> convert_strings_and_release(qdb::handle_p
     return res;
 }
 
+std::vector<qdb_ts_range_t> convert_ranges(py::object xs);
+
 template <typename PointType>
 static inline size_t max_length(const PointType * points, size_t count)
 {
     if (!count) return 0;
 
-    return std::max_element(points, points + count, [](const PointType & left, const PointType & right) {
-        return left.content_length < right.content_length;
-    })->content_length;
+    return std::max_element(points, points + count,
+        [](const PointType & left, const PointType & right) {
+            return left.content_length < right.content_length;
+        })
+        ->content_length;
 }
 
 static inline std::string to_string(qdb_string_t s)

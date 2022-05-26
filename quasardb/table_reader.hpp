@@ -31,7 +31,6 @@
 #pragma once
 
 #include "numpy.hpp"
-#include "ts_convert.hpp"
 #include <qdb/ts.h>
 #include "detail/ts_column.hpp"
 #include "reader/ts_row.hpp"
@@ -49,7 +48,8 @@ template <typename RowType>
 class table_reader_iterator;
 
 template <typename RowType>
-bool operator==(const table_reader_iterator<RowType> & lhs, const table_reader_iterator<RowType> & rhs) noexcept;
+bool operator==(
+    const table_reader_iterator<RowType> & lhs, const table_reader_iterator<RowType> & rhs) noexcept;
 
 template <typename RowType>
 class table_reader_iterator
@@ -58,7 +58,8 @@ public:
     using value_type = RowType;
     using reference  = const value_type &;
 
-    friend bool operator==<RowType>(const table_reader_iterator<RowType> &, const table_reader_iterator<RowType> &) noexcept;
+    friend bool operator==<RowType>(
+        const table_reader_iterator<RowType> &, const table_reader_iterator<RowType> &) noexcept;
 
 public:
     table_reader_iterator()
@@ -113,7 +114,8 @@ private:
 };
 
 template <typename RowType>
-bool operator==(const table_reader_iterator<RowType> & lhs, const table_reader_iterator<RowType> & rhs) noexcept
+bool operator==(
+    const table_reader_iterator<RowType> & lhs, const table_reader_iterator<RowType> & rhs) noexcept
 {
     // Our .end() iterator is recognized by a null local table, and we'll
     // ignore the actual row object.
@@ -134,14 +136,18 @@ public:
     using iterator = table_reader_iterator<RowType>;
 
 public:
-    table_reader(qdb::handle_ptr h, const std::string & t, const ts_columns_t & c, const std::vector<qdb_ts_range_t> & r)
+    table_reader(qdb::handle_ptr h,
+        const std::string & t,
+        const ts_columns_t & c,
+        const std::vector<qdb_ts_range_t> & r)
         : _handle{h}
         , _columns{c}
         , _local_table{nullptr}
     {
         auto c_columns = convert_columns(c);
 
-        qdb::qdb_throw_if_error(*_handle, qdb_ts_local_table_init(*_handle, t.c_str(), c_columns.data(), c_columns.size(), &_local_table));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_local_table_init(*_handle, t.c_str(), c_columns.data(),
+                                              c_columns.size(), &_local_table));
 
         qdb::qdb_throw_if_error(*_handle, qdb_ts_table_stream_ranges(_local_table, r.data(), r.size()));
     }
@@ -189,17 +195,21 @@ template <typename Module>
 static inline void register_table_reader(Module & m)
 {
     py::class_<qdb::table_reader<reader::ts_fast_row>>{m, "TimeSeriesFastReader"}
-        .def(py::init<qdb::handle_ptr, const std::string &, const ts_columns_t &, const std::vector<qdb_ts_range_t> &>())
+        .def(py::init<qdb::handle_ptr, const std::string &, const ts_columns_t &,
+            const std::vector<qdb_ts_range_t> &>())
 
         .def(
-            "__iter__", [](table_reader<reader::ts_fast_row> & r) { return py::make_iterator(r.begin(), r.end()); },
+            "__iter__",
+            [](table_reader<reader::ts_fast_row> & r) { return py::make_iterator(r.begin(), r.end()); },
             py::keep_alive<0, 1>());
 
     py::class_<qdb::table_reader<reader::ts_dict_row>>{m, "TimeSeriesDictReader"}
-        .def(py::init<qdb::handle_ptr, const std::string &, const ts_columns_t &, const std::vector<qdb_ts_range_t> &>())
+        .def(py::init<qdb::handle_ptr, const std::string &, const ts_columns_t &,
+            const std::vector<qdb_ts_range_t> &>())
 
         .def(
-            "__iter__", [](table_reader<reader::ts_dict_row> & r) { return py::make_iterator(r.begin(), r.end()); },
+            "__iter__",
+            [](table_reader<reader::ts_dict_row> & r) { return py::make_iterator(r.begin(), r.end()); },
             py::keep_alive<0, 1>());
 }
 

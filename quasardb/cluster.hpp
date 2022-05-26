@@ -76,9 +76,11 @@ public:
         check_qdb_c_api_version(qdb_version());
         // must specify everything or nothing
         if (user_name.empty() != user_private_key.empty())
-            throw qdb::exception{qdb_e_invalid_argument, "Either all security settings must be provided, or none at all"};
+            throw qdb::exception{qdb_e_invalid_argument,
+                "Either all security settings must be provided, or none at all"};
         if (user_name.empty() != cluster_public_key.empty())
-            throw qdb::exception{qdb_e_invalid_argument, "Either all security settings must be provided, or none at all"};
+            throw qdb::exception{qdb_e_invalid_argument,
+                "Either all security settings must be provided, or none at all"};
 
         if (!user_name.empty())
         {
@@ -126,8 +128,9 @@ public:
         return *this;
     }
 
-    bool is_open() const {
-      return _handle.get() != nullptr;
+    bool is_open() const
+    {
+        return _handle.get() != nullptr;
     }
 
     void exit(pybind11::object type, pybind11::object value, pybind11::object traceback)
@@ -140,7 +143,8 @@ public:
         const char * content      = nullptr;
         qdb_size_t content_length = 0;
 
-        qdb::qdb_throw_if_error(*_handle, qdb_node_config(*_handle, uri.c_str(), &content, &content_length));
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_node_config(*_handle, uri.c_str(), &content, &content_length));
 
         return convert_to_json_and_release(content);
     }
@@ -150,7 +154,8 @@ public:
         const char * content      = nullptr;
         qdb_size_t content_length = 0;
 
-        qdb::qdb_throw_if_error(*_handle, qdb_node_status(*_handle, uri.c_str(), &content, &content_length));
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_node_status(*_handle, uri.c_str(), &content, &content_length));
 
         return convert_to_json_and_release(content);
     }
@@ -160,7 +165,8 @@ public:
         const char * content      = nullptr;
         qdb_size_t content_length = 0;
 
-        qdb::qdb_throw_if_error(*_handle, qdb_node_topology(*_handle, uri.c_str(), &content, &content_length));
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_node_topology(*_handle, uri.c_str(), &content, &content_length));
 
         return convert_to_json_and_release(content);
     }
@@ -196,6 +202,12 @@ public:
     qdb::pinned_writer_ptr pinned_writer(const qdb::table & table)
     {
         return std::make_unique<qdb::pinned_writer>(_handle, table);
+    }
+
+    // the batch_inserter_ptr is non-copyable
+    qdb::pinned_writer_ptr writer(const qdb::table & table)
+    {
+        return pinned_writer(table);
     }
 
     qdb::options options()
@@ -255,14 +267,18 @@ public:
         return py::cast(qdb::numpy_query(_handle, query_string));
     }
 
-    std::shared_ptr<qdb::query_continuous> query_continuous_full(const std::string & query_string, const py::object & blobs)
+    std::shared_ptr<qdb::query_continuous> query_continuous_full(
+        const std::string & query_string, const py::object & blobs)
     {
-        return std::make_shared<qdb::query_continuous>(_handle, qdb_query_continuous_full, query_string, blobs);
+        return std::make_shared<qdb::query_continuous>(
+            _handle, qdb_query_continuous_full, query_string, blobs);
     }
 
-    std::shared_ptr<qdb::query_continuous> query_continuous_new_values(const std::string & query_string, const py::object & blobs)
+    std::shared_ptr<qdb::query_continuous> query_continuous_new_values(
+        const std::string & query_string, const py::object & blobs)
     {
-        return std::make_shared<qdb::query_continuous>(_handle, qdb_query_continuous_new_values_only, query_string, blobs);
+        return std::make_shared<qdb::query_continuous>(
+            _handle, qdb_query_continuous_new_values_only, query_string, blobs);
     }
 
 public:
@@ -294,17 +310,20 @@ public:
 public:
     void purge_all(std::chrono::milliseconds timeout_ms)
     {
-        qdb::qdb_throw_if_error(*_handle, qdb_purge_all(*_handle, static_cast<int>(timeout_ms.count())));
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_purge_all(*_handle, static_cast<int>(timeout_ms.count())));
     }
 
     void purge_cache(std::chrono::milliseconds timeout_ms)
     {
-        qdb::qdb_throw_if_error(*_handle, qdb_purge_cache(*_handle, static_cast<int>(timeout_ms.count())));
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_purge_cache(*_handle, static_cast<int>(timeout_ms.count())));
     }
 
     void wait_for_stabilization(std::chrono::milliseconds timeout_ms)
     {
-        qdb::qdb_throw_if_error(*_handle, qdb_wait_for_stabilization(*_handle, static_cast<int>(timeout_ms.count())));
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_wait_for_stabilization(*_handle, static_cast<int>(timeout_ms.count())));
     }
 
     void trim_all(std::chrono::milliseconds timeout_ms)
@@ -324,8 +343,9 @@ public:
         std::vector<std::string> results;
         results.resize(count);
 
-        std::transform(endpoints, endpoints + count, std::begin(results),
-            [](auto const & endpoint) { return std::string{endpoint.address} + ":" + std::to_string(endpoint.port); });
+        std::transform(endpoints, endpoints + count, std::begin(results), [](auto const & endpoint) {
+            return std::string{endpoint.address} + ":" + std::to_string(endpoint.port);
+        });
 
         qdb_release(*_handle, endpoints);
 
@@ -346,33 +366,34 @@ static inline void register_cluster(Module & m)
     namespace py = pybind11;
 
     py::class_<qdb::cluster>(m, "Cluster",
-        "Represents a connection to the QuasarDB cluster. ")                                                                            //
-        .def(py::init<const std::string &, const std::string &, const std::string &, const std::string &, std::chrono::milliseconds>(), //
-            py::arg("uri"),                                                                                                             //
-            py::arg("user_name")          = std::string{},                                                                              //
-            py::arg("user_private_key")   = std::string{},                                                                              //
-            py::arg("cluster_public_key") = std::string{},                                                                              //
-            py::arg("timeout")            = std::chrono::minutes{1})                                                                               //
-        .def("__enter__", &qdb::cluster::enter)                                                                                         //
-        .def("__exit__", &qdb::cluster::exit)               //                                                                   //
-        .def("is_open", &qdb::cluster::is_open)             //
-        .def("uri", &qdb::cluster::uri)                     //
-        .def("node", &qdb::cluster::node)                   //
-        .def("options", &qdb::cluster::options)             //
-        .def("perf", &qdb::cluster::perf)                   //
-        .def("node_status", &qdb::cluster::node_status)     //
-        .def("node_config", &qdb::cluster::node_config)     //
-        .def("node_topology", &qdb::cluster::node_topology) //
-        .def("tag", &qdb::cluster::tag)                     //
-        .def("blob", &qdb::cluster::blob)                   //
-        .def("integer", &qdb::cluster::integer)             //
-        // backwards compatibility, can be removed in the future
-        .def("ts", &qdb::cluster::table)    //
-        .def("table", &qdb::cluster::table) //
-        // backwards compatibility, can be removed in the future
+        "Represents a connection to the QuasarDB cluster. ") //
+        .def(py::init<const std::string &, const std::string &, const std::string &,
+                 const std::string &, std::chrono::milliseconds>(), //
+            py::arg("uri"),                                         //
+            py::arg("user_name")          = std::string{},          //
+            py::arg("user_private_key")   = std::string{},          //
+            py::arg("cluster_public_key") = std::string{},          //
+            py::arg("timeout")            = std::chrono::minutes{1})           //
+        .def("__enter__", &qdb::cluster::enter)                     //
+        .def("__exit__",
+            &qdb::cluster::exit) //                                                                   //
+        .def("is_open", &qdb::cluster::is_open)                                         //
+        .def("uri", &qdb::cluster::uri)                                                 //
+        .def("node", &qdb::cluster::node)                                               //
+        .def("options", &qdb::cluster::options)                                         //
+        .def("perf", &qdb::cluster::perf)                                               //
+        .def("node_status", &qdb::cluster::node_status)                                 //
+        .def("node_config", &qdb::cluster::node_config)                                 //
+        .def("node_topology", &qdb::cluster::node_topology)                             //
+        .def("tag", &qdb::cluster::tag)                                                 //
+        .def("blob", &qdb::cluster::blob)                                               //
+        .def("integer", &qdb::cluster::integer)                                         //
+        .def("ts", &qdb::cluster::table)                                                //
+        .def("table", &qdb::cluster::table)                                             //
         .def("ts_batch", &qdb::cluster::inserter)                                       //
         .def("inserter", &qdb::cluster::inserter)                                       //
         .def("pinned_writer", &qdb::cluster::pinned_writer)                             //
+        .def("writer", &qdb::cluster::writer)                                           //
         .def("find", &qdb::cluster::find)                                               //
         .def("query", &qdb::cluster::query,                                             //
             py::arg("query"),                                                           //

@@ -13,5 +13,5 @@ def test_set_timeout_1_second(qdbd_connection):
 
 
 def test_set_timeout_throws__when_timeout_is_1_microsecond(qdbd_connection):
-    with pytest.raises(quasardb.Error):
+    with pytest.raises(quasardb.InvalidArgumentError):
         qdbd_connection.options().set_timeout(datetime.timedelta(microseconds=1))

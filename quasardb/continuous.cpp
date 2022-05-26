@@ -3,8 +3,10 @@
 namespace qdb
 {
 
-query_continuous::query_continuous(
-    qdb::handle_ptr h, qdb_query_continuous_mode_type_t mode, const std::string & query_string, const py::object & bools)
+query_continuous::query_continuous(qdb::handle_ptr h,
+    qdb_query_continuous_mode_type_t mode,
+    const std::string & query_string,
+    const py::object & bools)
     : _handle{h}
     , _callback{&query_continuous::continuous_callback}
     , _cont_handle{nullptr}
@@ -13,7 +15,8 @@ query_continuous::query_continuous(
     , _watermark{0}
     , _last_error{qdb_e_uninitialized}
 {
-    qdb::qdb_throw_if_error(*_handle, qdb_query_continuous(*_handle, query_string.c_str(), mode, _callback, this, &_cont_handle));
+    qdb::qdb_throw_if_error(*_handle,
+        qdb_query_continuous(*_handle, query_string.c_str(), mode, _callback, this, &_cont_handle));
 }
 
 query_continuous::~query_continuous()
@@ -51,7 +54,8 @@ int query_continuous::continuous_callback(void * p, qdb_error_t err, const qdb_q
         pthis->_last_error = err;
         if (QDB_FAILURE(pthis->_last_error))
         {
-            // signal the error, if processing end, we will get a qdb_e_interrupted which is handled in the results function
+            // signal the error, if processing end, we will get a qdb_e_interrupted which is handled in
+            // the results function
             lock.unlock();
             pthis->_results_cond.notify_all();
             return 0;
@@ -59,8 +63,10 @@ int query_continuous::continuous_callback(void * p, qdb_error_t err, const qdb_q
 
         // copy the results using the API convenience function
         // there are two traps to avoid
-        // 1. we are within the context of a thread owned by the quasardb C API, calling Python functions could results in deadlocks
-        // 2. the results are valid only in the context of the callback, if we want to work on them outside we need to copy them
+        // 1. we are within the context of a thread owned by the quasardb C API, calling Python
+        // functions could results in deadlocks
+        // 2. the results are valid only in the context of the callback, if we want to work on them
+        // outside we need to copy them
         pthis->_last_error = pthis->copy_results(res);
         if (QDB_FAILURE(pthis->_last_error))
         {
@@ -86,7 +92,8 @@ dict_query_result_t query_continuous::results()
         // every second we are going to check if the user didn't do CTRL-C
         if (_results_cond.wait_for(lock, std::chrono::seconds{1}) == std::cv_status::timeout)
         {
-            // if we don't do this, it will be impossible to interrupt the Python program while we wait for results
+            // if we don't do this, it will be impossible to interrupt the Python program while we wait
+            // for results
             if (PyErr_CheckSignals() != 0) throw py::error_already_set();
         }
     }

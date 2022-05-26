@@ -38,78 +38,81 @@ namespace qdb
 namespace detail
 {
 
-
 /**
  * Resource guard for QDB-native allocated resources. Automatically invokes
  * qdb_release() when the guard goes out of scope.
  */
 template <typename ValueType>
-class qdb_resource {
+class qdb_resource
+{
 public:
-  /**
-   * Default constructor, initializes nullpointer.
-   */
-  qdb_resource(qdb::handle_ptr h) : qdb_resource(h, nullptr) {}
+    /**
+     * Default constructor, initializes nullpointer.
+     */
+    qdb_resource(qdb::handle_ptr h)
+        : qdb_resource(h, nullptr)
+    {}
 
-  /**
-   * Constructor and immediately initialize with pointer.
-   */
-  qdb_resource(qdb::handle_ptr h, ValueType * p) : h_(h),
-                                                   p_(p) {}
+    /**
+     * Constructor and immediately initialize with pointer.
+     */
+    qdb_resource(qdb::handle_ptr h, ValueType * p)
+        : h_(h)
+        , p_(p)
+    {}
 
+    qdb_resource(qdb_resource const &) = delete;
+    qdb_resource & operator=(qdb_resource const &) = delete;
 
-  qdb_resource(qdb_resource const &) = delete;
-  qdb_resource &
-  operator=(qdb_resource const &) = delete;
+    ~qdb_resource()
+    {
+        if (p_ != nullptr)
+        {
+            qdb_release(*h_, p_);
+        }
 
-
-  ~qdb_resource() {
-    if (p_ != nullptr) {
-      qdb_release(*h_, p_);
+        p_ = nullptr;
     }
 
-    p_ = nullptr;
-  }
+    constexpr operator ValueType *() const
+    {
+        return get();
+    }
 
-  constexpr operator ValueType*() const {
-    return get();
-  }
+    operator ValueType *()
+    {
+        return get();
+    }
 
-  operator ValueType*() {
-    return get();
-  }
+    ValueType * get()
+    {
+        return p_;
+    }
 
-  ValueType *
-  get() {
-    return p_;
-  }
+    constexpr ValueType const * get() const
+    {
+        return p_;
+    }
 
-  constexpr ValueType const *
-  get() const {
-    return p_;
-  }
+    ValueType ** operator&()
+    {
+        return &p_;
+    }
 
-  ValueType **
-  operator&() {
-    return &p_;
-  }
+    ValueType & operator*()
+    {
+        return *p_;
+    }
 
-  ValueType &
-  operator*() {
-    return *p_;
-  }
-
-  constexpr ValueType const &
-  operator*() const {
-    return *p_;
-  }
+    constexpr ValueType const & operator*() const
+    {
+        return *p_;
+    }
 
 private:
-  qdb::handle_ptr h_;
-  ValueType * p_;
-
+    qdb::handle_ptr h_;
+    ValueType * p_;
 };
-
 
 } // namespace detail
 

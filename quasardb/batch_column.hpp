@@ -40,7 +40,8 @@ namespace qdb
 struct batch_column_info
 {
     batch_column_info() = default;
-    batch_column_info(const std::string & ts_name, const std::string & col_name, qdb_size_t size_hint = 0)
+    batch_column_info(
+        const std::string & ts_name, const std::string & col_name, qdb_size_t size_hint = 0)
         : timeseries{ts_name}
         , column{col_name}
         , elements_count_hint{size_hint}

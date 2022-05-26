@@ -38,8 +38,8 @@ void qdb::native::_callback(qdb_log_level_t log_level,
     size_t message_size)
 {
     message_t x{log_level,
-        {static_cast<int>(date[0]), static_cast<int>(date[1]), static_cast<int>(date[2]), static_cast<int>(date[3]),
-            static_cast<int>(date[4]), static_cast<int>(date[5])},
+        {static_cast<int>(date[0]), static_cast<int>(date[1]), static_cast<int>(date[2]),
+            static_cast<int>(date[3]), static_cast<int>(date[4]), static_cast<int>(date[5])},
         static_cast<int>(pid), static_cast<int>(tid), std::string(message_buffer, message_size)};
 
     std::lock_guard<std::mutex> guard(_buffer_lock);

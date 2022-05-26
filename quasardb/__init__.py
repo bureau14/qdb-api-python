@@ -35,7 +35,38 @@
 .. moduleauthor: quasardb SAS. All rights reserved
 """
 
+def link_error_msg(e):
+    return """
+
+**************************************************************************
+
+QuasarDB was unable to find all expected symbols in the compiled library.
+This is usuallycaused byf running an incorrect version of the QuasarDB C
+API (libqdb_api) along the QuasarDB Python API (this module).
+
+Please ensure you do not have multiple versions of libqdb_api installed.
+If you believe this to be a bug, please reach out to QuasarDB at
+support@quasar.ai, and include the underlying error message:
+
+**************************************************************************
+
+Original exception:
+
+   Type:    {}
+   Message: {}
+
+**************************************************************************
+
+""".format(type(e), str(e))
+
 try:
     from quasardb.quasardb import *
-except BaseException:
-    from quasardb import *
+except BaseException as e:
+    if "undefined symbol" in str(e):
+        print(link_error_msg(e))
+        raise e
+    else:
+        from quasardb import *
+
+from .extensions import extend_module
+extend_module(quasardb)

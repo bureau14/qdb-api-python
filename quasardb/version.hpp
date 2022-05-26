@@ -36,7 +36,8 @@ extern const char * const qdb_c_api_version;
 // Checks that the host QDB C API version matches the QDB C API version used for the build.
 // The check only compares `major` and `minor` version numbers and throws when there is a mismatch
 // or when fed with an invalid version string.
-// This simple tests allows to simply rule out a commonly met faulty config when troubleshooting Python API issues
+// This simple tests allows to simply rule out a commonly met faulty config when troubleshooting Python
+// API issues
 void check_qdb_c_api_version(const char * candidate);
 
 } // namespace qdb

@@ -63,8 +63,9 @@ public:
     /**
      * Simple logger instance, all complexity is handled in the logging handlers.
      */
-    logger(const std::string & module_name) :
-        _module_name(module_name) {}
+    logger(const std::string & module_name)
+        : _module_name(module_name)
+    {}
 
 public:
     /**
@@ -73,8 +74,7 @@ public:
     template <typename... Args>
     void debug(Args &&... args) const
     {
-        _log("debug",
-             std::forward<Args>(args)...);
+        _log("debug", std::forward<Args>(args)...);
     }
 
     /**
@@ -83,8 +83,7 @@ public:
     template <typename... Args>
     void info(Args &&... args) const
     {
-        _log("info",
-             std::forward<Args>(args)...);
+        _log("info", std::forward<Args>(args)...);
     }
 
     /**
@@ -93,8 +92,7 @@ public:
     template <typename... Args>
     void warn(Args &&... args) const
     {
-        _log("warning",
-             std::forward<Args>(args)...);
+        _log("warning", std::forward<Args>(args)...);
     }
 
     /**
@@ -103,8 +101,7 @@ public:
     template <typename... Args>
     void error(Args &&... args) const
     {
-        _log("error",
-             std::forward<Args>(args)...);
+        _log("error", std::forward<Args>(args)...);
     }
 
     /**
@@ -113,22 +110,19 @@ public:
     template <typename... Args>
     void critical(Args &&... args) const
     {
-        _log("critical",
-             std::forward<Args>(args)...);
+        _log("critical", std::forward<Args>(args)...);
     }
 
 private:
     template <typename... Args>
     void _log(Args &&... args) const
     {
-        _do_log(_module_name,
-                std::forward<Args>(args)...);
+        _do_log(_module_name, std::forward<Args>(args)...);
     }
 
     template <typename... Args>
-    static void _do_log(std::string const & module_name,
-                        char const * level,
-                        const std::string & msg, Args &&... args)
+    static void _do_log(
+        std::string const & module_name, char const * level, const std::string & msg, Args &&... args)
     {
         /**
          * Calls Python imports, functions, etc, reflection kicks in, relatively slow.
@@ -153,7 +147,7 @@ private:
         py::object logfn      = logger.attr(level);
 
         char const * errors = NULL;
-        PyObject * buf = PyUnicode_DecodeLatin1(msg.data(), msg.size(), errors);
+        PyObject * buf      = PyUnicode_DecodeLatin1(msg.data(), msg.size(), errors);
         assert(buf != NULL);
         assert(errors == NULL);
 
@@ -215,7 +209,8 @@ void flush();
 
 void _callback(                  //
     qdb_log_level_t log_level,   // qdb log level
-    const unsigned long * date,  // [years, months, day, hours, minute, seconds] (valid only in the context of the callback)
+    const unsigned long * date,  // [years, months, day, hours, minute, seconds] (valid only in the
+                                 // context of the callback)
     unsigned long pid,           // process id
     unsigned long tid,           // thread id
     const char * message_buffer, // message buffer (valid only in the context of the callback)

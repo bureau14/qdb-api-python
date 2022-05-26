@@ -33,11 +33,11 @@
 #include "handle.hpp"
 #include <qdb/perf.h>
 #include <chrono>
-#include <vector>
+#include <fstream>
+#include <iostream>
 #include <map>
 #include <stack>
-#include <iostream>
-#include <fstream>
+#include <vector>
 
 namespace qdb
 {
@@ -48,36 +48,40 @@ bool ends_with(std::string const & value, std::string const & ending)
     return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
 }
 
-bool is_delta_op(std::string const & op) {
+bool is_delta_op(std::string const & op)
+{
     return ends_with(op, "_starts") || ends_with(op, "_ends");
 }
 
+bool is_start_op(std::string const & op)
+{
+    assert(is_delta_op(op) == true);
+    if (ends_with(op, "_starts"))
+    {
+        return true;
+    }
+    else if (ends_with(op, "_ends"))
+    {
+        return false;
+    }
 
-bool is_start_op(std::string const & op) {
-  assert(is_delta_op(op) == true);
-  if (ends_with(op, "_starts")) {
-    return true;
-  } else if (ends_with(op, "_ends")) {
-    return false;
-  }
-
-  // NOTREACHED
-  throw std::runtime_error{"Not a start/stop op"};
-
+    // NOTREACHED
+    throw std::runtime_error{"Not a start/stop op"};
 }
 
+std::pair<bool, std::string> parse_op(std::string const & op)
+{
+    assert(is_delta_op(op) == true);
+    bool is_start = is_start_op(op);
 
-std::pair<bool, std::string> parse_op(std::string const & op) {
-  assert(is_delta_op(op) == true);
-  bool is_start = is_start_op(op);
+    if (is_start)
+    {
+        // Trim '_starts' (7 char) from the end
+        return {is_start, op.substr(0, op.size() - 7)};
+    }
 
-  if (is_start) {
-    // Trim '_starts' (7 char) from the end
-    return {is_start, op.substr(0, op.size() - 7)};
-  }
-
-  // Trim '_ends' (5 char) from the end
-  return {is_start, op.substr(0, op.size() - 5)};
+    // Trim '_ends' (5 char) from the end
+    return {is_start, op.substr(0, op.size() - 5)};
 }
 
 std::string perf_label_name(qdb_perf_label_t label)
@@ -149,29 +153,29 @@ std::string perf_label_name(qdb_perf_label_t label)
     case qdb_pl_affix_search_ends:
         return "affix_search_ends";
     case qdb_pl_eviction_starts:
-      return "eviction_starts";
+        return "eviction_starts";
     case qdb_pl_eviction_ends:
-      return "eviction_ends";
+        return "eviction_ends";
     case qdb_pl_time_vector_tracker_reading_starts:
-      return "time_vector_tracker_reading_starts";
+        return "time_vector_tracker_reading_starts";
     case qdb_pl_time_vector_tracker_reading_ends:
-      return "time_vector_tracker_reading_ends";
+        return "time_vector_tracker_reading_ends";
     case qdb_pl_bucket_reading_starts:
-      return "bucket_reading_starts";
+        return "bucket_reading_starts";
     case qdb_pl_bucket_reading_ends:
-      return "bucket_reading_ends";
+        return "bucket_reading_ends";
     case qdb_pl_entries_directory_reading_starts:
-      return "entries_directory_reading_starts";
+        return "entries_directory_reading_starts";
     case qdb_pl_entries_directory_reading_ends:
-      return "entries_directory_reading_ends";
+        return "entries_directory_reading_ends";
     case qdb_pl_acl_reading_starts:
-      return "acl_reading_starts";
+        return "acl_reading_starts";
     case qdb_pl_acl_reading_ends:
-      return "acl_reading_ends";
+        return "acl_reading_ends";
     case qdb_pl_time_vector_reading_starts:
-      return "time_vector_reading_starts";
+        return "time_vector_reading_starts";
     case qdb_pl_time_vector_reading_ends:
-      return "time_vector_reading_ends";
+        return "time_vector_reading_ends";
     case qdb_pl_unknown:
         return "unknown";
     }
@@ -200,83 +204,101 @@ public:
         qdb::qdb_throw_if_error(*_handle, qdb_perf_get_profiles(*_handle, &qdb_profiles, &count));
 
         profiles.reserve(count);
-        std::transform(qdb_profiles, qdb_profiles + count, std::back_inserter(profiles), [](const qdb_perf_profile_t & prof) {
-            std::vector<measurement> measurements;
-            measurements.reserve(prof.count);
-            std::transform(prof.measurements, prof.measurements + prof.count, std::back_inserter(measurements),
-                [](const qdb_perf_measurement_t & mes) {
-                    return std::make_pair(std::move(perf_label_name(mes.label)), std::chrono::nanoseconds{mes.elapsed});
-                });
-            return std::make_pair(std::move(std::string{prof.name.data, prof.name.length}), std::move(measurements));
-        });
+        std::transform(qdb_profiles, qdb_profiles + count, std::back_inserter(profiles),
+            [](const qdb_perf_profile_t & prof) {
+                std::vector<measurement> measurements;
+                measurements.reserve(prof.count);
+                std::transform(prof.measurements, prof.measurements + prof.count,
+                    std::back_inserter(measurements), [](const qdb_perf_measurement_t & mes) {
+                        return std::make_pair(
+                            perf_label_name(mes.label), std::chrono::nanoseconds{mes.elapsed});
+                    });
+                return std::make_pair(std::string{prof.name.data, prof.name.length}, measurements);
+            });
         qdb_release(*_handle, qdb_profiles);
 
         return profiles;
     }
 
-    std::vector<std::string>  get_flamegraph(std::string outfile) const {
-      std::vector<std::string> ret;
+    std::vector<std::string> get_flamegraph(std::string outfile) const
+    {
+        std::vector<std::string> ret;
 
-      for (profile p : get_profiles()) {
-        std::stack<std::string> stack;
+        for (profile p : get_profiles())
+        {
+            std::stack<std::string> stack;
 
-        stack.push(p.first); // operation name
-        std::map<std::string, std::chrono::nanoseconds> last;
+            stack.push(p.first); // operation name
+            std::map<std::string, std::chrono::nanoseconds> last;
 
-        for (measurement m : p.second) {
+            for (measurement m : p.second)
+            {
 
-          std::chrono::nanoseconds ns = m.second;
+                std::chrono::nanoseconds ns = m.second;
 
-          if (is_delta_op(m.first)) {
-            auto parsed = parse_op(m.first);
-            bool is_start = parsed.first;
-            std::string op = parsed.second;
+                if (is_delta_op(m.first))
+                {
+                    auto parsed    = parse_op(m.first);
+                    bool is_start  = parsed.first;
+                    std::string op = parsed.second;
 
-            if (is_start) {
-              if (stack.empty()) {
-                stack.push(op);
-              } else {
-                stack.push(stack.top() + ";" + op);
-              }
+                    if (is_start)
+                    {
+                        if (stack.empty())
+                        {
+                            stack.push(op);
+                        }
+                        else
+                        {
+                            stack.push(stack.top() + ";" + op);
+                        }
 
-              // Can't have the same op type nested twice?
-              assert(last.find(op) == last.end());
-              last.emplace(op, ns);
-            } else {
-              // May throw error, we assume an end always has a last
-              std::chrono::nanoseconds delta = ns - last.at(op);
-              last.erase(op);
+                        // Can't have the same op type nested twice?
+                        assert(last.find(op) == last.end());
+                        last.emplace(op, ns);
+                    }
+                    else
+                    {
+                        // May throw error, we assume an end always has a last
+                        std::chrono::nanoseconds delta = ns - last.at(op);
+                        last.erase(op);
 
-              std::string x = stack.top();
-              assert(ends_with(x, op));
-              stack.pop();
+                        std::string x = stack.top();
+                        assert(ends_with(x, op));
+                        stack.pop();
 
-              ret.push_back(x + " " + std::to_string(delta.count()));
+                        ret.push_back(x + " " + std::to_string(delta.count()));
+                    }
+                }
             }
-          }
-        }
-      }
-
-      if (outfile != "") {
-        std::ofstream f;
-        f.open(outfile);
-
-        for (std::string const & row : ret) {
-          f << row << std::endl;
         }
 
-        f.close();
-      }
+        if (outfile != "")
+        {
+            std::ofstream f;
+            f.open(outfile);
 
-      return ret;
+            for (std::string const & row : ret)
+            {
+                f << row << std::endl;
+            }
+
+            f.close();
+        }
+
+        return ret;
     }
 
-  py::object get(bool flamegraph, std::string outfile) const {
-      if (flamegraph) {
-        return py::cast(get_flamegraph(outfile));
-      } else {
-        return py::cast(get_profiles());
-      }
+    py::object get(bool flamegraph, std::string outfile) const
+    {
+        if (flamegraph)
+        {
+            return py::cast(get_flamegraph(outfile));
+        }
+        else
+        {
+            return py::cast(get_profiles());
+        }
     }
 
     void clear_all_profiles() const
@@ -304,11 +326,11 @@ static inline void register_perf(Module & m)
     namespace py = pybind11;
 
     py::class_<qdb::perf>(m, "Perf")
-        .def(py::init<qdb::handle_ptr>())                                                //
-        .def("get", &qdb::perf::get, py::arg("flame") = false, py::arg("outfile") = "")  //
-        .def("clear", &qdb::perf::clear_all_profiles)                                    //
-        .def("enable", &qdb::perf::enable_client_tracking)                               //
-        .def("disable", &qdb::perf::disable_client_tracking);                            //
+        .def(py::init<qdb::handle_ptr>())                                               //
+        .def("get", &qdb::perf::get, py::arg("flame") = false, py::arg("outfile") = "") //
+        .def("clear", &qdb::perf::clear_all_profiles)                                   //
+        .def("enable", &qdb::perf::enable_client_tracking)                              //
+        .def("disable", &qdb::perf::disable_client_tracking);                           //
 }
 
 } // namespace qdb

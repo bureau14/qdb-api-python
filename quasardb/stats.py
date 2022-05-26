@@ -1,5 +1,4 @@
 import re
-import copy
 import quasardb
 import logging
 from datetime import datetime
@@ -7,13 +6,14 @@ from datetime import datetime
 logger = logging.getLogger('quasardb.stats')
 
 
-stats_prefix  = '$qdb.statistics.'
-user_pattern  = re.compile(r'\$qdb.statistics.(.*).uid_([0-9]+)$')
+stats_prefix = '$qdb.statistics.'
+user_pattern = re.compile(r'\$qdb.statistics.(.*).uid_([0-9]+)$')
 total_pattern = re.compile(r'\$qdb.statistics.(.*)$')
 
 
 def is_user_stat(s):
     return user_pattern.match(s) is not None
+
 
 def is_cumulative_stat(s):
     # NOTE(leon): It's quite difficult to express in Python that you don't want any
@@ -26,6 +26,7 @@ def is_cumulative_stat(s):
     # As such, we define a 'cumulative' stat as anything that's not a user stat.
     # Simple but effective.
     return user_pattern.match(s) is None
+
 
 def by_node(conn):
     """
@@ -66,6 +67,7 @@ def of_node(conn, uri):
 
     return ret
 
+
 _stat_types = {'requests.bytes_out': 'counter',
                'requests.bytes_in': 'counter',
                'async_pipelines.merge.bucket_count': 'counter',
@@ -74,8 +76,10 @@ _stat_types = {'requests.bytes_out': 'counter',
                'async_pipelines.write.failures_count': 'counter',
                'async_pipelines.write.time_us': 'counter'}
 
+
 async_pipeline_bytes_pattern  = re.compile(r'async_pipelines.pipe_[0-9]+.merge_map.bytes')
 async_pipeline_count_pattern  = re.compile(r'async_pipelines.pipe_[0-9]+.merge_map.count')
+
 
 def _stat_type(stat_id):
     """

@@ -6,7 +6,7 @@ import quasardb
 
 
 def test_connect_throws_input_error__when_uri_is_invalid():
-    with pytest.raises(quasardb.Error):
+    with pytest.raises(quasardb.InvalidArgumentError):
         quasardb.Cluster(uri='invalid_uri')
 
 
