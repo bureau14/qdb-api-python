@@ -347,8 +347,6 @@ def test_returns_inserted_multi_data_with_star_select(
 
     assert len(res) == 100
 
-    print("blobs: ", type(inserted_blob_data[1][0]))
-
     for row, double, blob, int64, ts in zip(res,
                                             inserted_double_data[1],
                                             inserted_blob_data[1],

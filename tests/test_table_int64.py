@@ -22,7 +22,7 @@ def test_int64_get_ranges(table, intervals):
     start_time = tslib._start_time(intervals)
     column_name = tslib._int64_col_name(table)
 
-    inserted_int64_data = tslib._generate_int64_ts(start_time, 1000)
+    inserted_int64_data = tslib._generate_int64_ts(start_time, 16)
     table.int64_insert(column_name,
                        inserted_int64_data[0],
                        inserted_int64_data[1])
@@ -73,12 +73,25 @@ def test_int64_get_ranges(table, intervals):
             inserted_int64_data[0],
             inserted_int64_data[1])
 
+    # These are a bit more tricky, because under the hood, a np.datetime64 is
+    # represented as an int64. So verifying these is very important!
+    with pytest.raises(quasardb.IncompatibleTypeError):
+        table.timestamp_get_ranges(
+            column_name, [(start_time, start_time + np.timedelta64(10, 's'))])
+
+    with pytest.raises(quasardb.IncompatibleTypeError):
+        table.timestamp_insert(
+            column_name,
+            inserted_int64_data[0],
+            inserted_int64_data[1])
+
+
 
 def test_int64_erase_ranges(table, intervals):
     start_time = tslib._start_time(intervals)
     column_name = tslib._int64_col_name(table)
 
-    inserted_int64_data = tslib._generate_int64_ts(start_time, 1000)
+    inserted_int64_data = tslib._generate_int64_ts(start_time, 16)
     table.int64_insert(
         column_name,
         inserted_int64_data[0],

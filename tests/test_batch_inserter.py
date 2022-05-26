@@ -339,5 +339,5 @@ def test_push_truncate_throws_error_on_invalid_range(
 
     inserter = qdbd_connection.inserter(_make_inserter_info(table))
     _set_batch_inserter_data(inserter, many_intervals, data)
-    with pytest.raises(quasardb.Error):
+    with pytest.raises(quasardb.InvalidArgumentError):
         inserter.push_truncate(range=truncate_range)

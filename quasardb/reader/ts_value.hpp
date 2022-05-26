@@ -57,7 +57,10 @@ public:
         , _type{qdb_ts_column_uninitialized}
     {}
 
-    ts_value(handle_ptr handle, qdb_local_table_t local_table, int64_t index, qdb_ts_column_type_t type) noexcept
+    ts_value(handle_ptr handle,
+        qdb_local_table_t local_table,
+        int64_t index,
+        qdb_ts_column_type_t type) noexcept
         : _logger("quasardb.reader.ts_value")
         , _handle(handle)
         , _local_table{local_table}
@@ -104,7 +107,8 @@ public:
             return timestamp();
         };
 
-        throw std::runtime_error("Unable to cast QuasarDB type to Python type, unrecognized type: " + std::to_string(_type));
+        throw std::runtime_error(
+            "Unable to cast QuasarDB type to Python type, unrecognized type: " + std::to_string(_type));
     }
 
 private:
@@ -126,8 +130,8 @@ private:
 
     py::handle blob() const
     {
-        qdb::release_guard<const void *> v (_handle);
-        qdb_size_t l   = 0;
+        qdb::release_guard<const void *> v(_handle);
+        qdb_size_t l = 0;
 
         auto res = qdb_ts_row_get_blob(_local_table, _index, v.ptr(), &l);
         if (res == qdb_e_element_not_found)
@@ -137,14 +141,14 @@ private:
         }
 
         qdb::qdb_throw_if_error(*_handle, res);
-        return PyByteArray_FromStringAndSize(static_cast<const char *>(v.get()),
-                                             static_cast<Py_ssize_t>(l));
+        return PyByteArray_FromStringAndSize(
+            static_cast<const char *>(v.get()), static_cast<Py_ssize_t>(l));
     }
 
     py::handle string() const
     {
-        qdb::release_guard<const char *> v (_handle);
-        qdb_size_t l   = 0;
+        qdb::release_guard<const char *> v(_handle);
+        qdb_size_t l = 0;
 
         auto res = qdb_ts_row_get_string(_local_table, _index, v.ptr(), &l);
         if (res == qdb_e_element_not_found)

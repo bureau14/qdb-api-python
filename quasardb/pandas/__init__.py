@@ -29,13 +29,12 @@
 
 import quasardb
 import logging
-import time
+import quasardb.numpy as qdbnp
+
 from datetime import datetime
 from functools import partial
 
-
 logger = logging.getLogger('quasardb.pandas')
-
 
 class PandasRequired(ImportError):
     """
@@ -44,12 +43,13 @@ class PandasRequired(ImportError):
     """
     pass
 
-
 try:
     import numpy as np
+    import numpy.ma as ma
     import pandas as pd
     from pandas.core.api import DataFrame, Series
     from pandas.core.base import PandasObject
+
 except ImportError:
     raise PandasRequired(
         "The pandas library is required to handle pandas data formats")
@@ -80,17 +80,6 @@ _dtype_map = {
     'string': quasardb.ColumnType.String,
     'datetime64':  quasardb.ColumnType.Timestamp
 }
-
-# Based on QuasarDB column types, which dtype do we want?
-_dtypes_map_flip = {
-    quasardb.ColumnType.String: np.dtype('unicode'),
-    quasardb.ColumnType.Symbol: np.dtype('unicode'),
-    quasardb.ColumnType.Int64: np.dtype('int64'),
-    quasardb.ColumnType.Double: np.dtype('float64'),
-    quasardb.ColumnType.Blob: np.dtype('object'),
-    quasardb.ColumnType.Timestamp: np.dtype('datetime64[ns]')
-}
-
 
 def read_series(table, col_name, ranges=None):
     """
@@ -127,7 +116,7 @@ def read_series(table, col_name, ranges=None):
     # Dispatch based on column type
     t = table.column_type_by_id(col_name)
 
-    logger.debug("reading Series from column %s.%s with type %s",
+    logger.info("reading Series from column %s.%s with type %s",
                  table.get_name(), col_name, t)
 
     res = (read_with[t])(**kwargs)
@@ -135,7 +124,11 @@ def read_series(table, col_name, ranges=None):
     return Series(res[1], index=res[0])
 
 
-def write_series(series, table, col_name):
+def write_series(series,
+                 table,
+                 col_name,
+                 infer_types=True,
+                 dtype=None):
     """
     Writes a Pandas Timeseries to a single column.
 
@@ -152,25 +145,35 @@ def write_series(series, table, col_name):
     col_name : str
       Column name to store data in.
     """
-    write_with = {
-        quasardb.ColumnType.Double: table.double_insert,
-        quasardb.ColumnType.Blob: table.blob_insert,
-        quasardb.ColumnType.String: table.string_insert,
-        quasardb.ColumnType.Symbol: table.string_insert,
-        quasardb.ColumnType.Int64: table.int64_insert,
-        quasardb.ColumnType.Timestamp: table.timestamp_insert,
 
-    }
+    logger.debug("write_series, table=%s, col_name=%s, infer_types=%s, dtype=%s", table.get_name(), col_name, infer_types, dtype)
 
-    t = table.column_type_by_id(col_name)
+    data = None
+    index = None
 
-    xs = series.to_numpy(_dtypes_map_flip[t])
-    logger.debug("writing Series to column %s.%s with type %s",
-                 table.get_name(), col_name, t)
+    data = ma.masked_array(series.to_numpy(copy=False),
+                           mask=series.isna())
 
-    (write_with[t])(col_name, series.index.to_numpy(), xs)
+    if infer_types is True:
+        index = series.index.to_numpy('datetime64[ns]', copy=False)
+    else:
+        index = series.index.to_numpy(copy=False)
 
-def query(cluster, query, index=None, blobs=False, numpy=True):
+    assert data is not None
+    assert index is not None
+
+    return qdbnp.write_array(data=data,
+                             index=index,
+                             table=table,
+                             column=col_name,
+                             dtype=dtype,
+                             infer_types=infer_types)
+
+def query(cluster: quasardb.Cluster,
+          query,
+          index=None,
+          blobs=False,
+          numpy=True):
     """
     Execute a query and return the results as DataFrames. Returns a dict of
     tablename / DataFrame pairs.
@@ -194,21 +197,10 @@ def query(cluster, query, index=None, blobs=False, numpy=True):
 
     """
     logger.debug("querying and returning as DataFrame: %s", query)
-
-
-    m = {}
-    if numpy:
-        res = cluster.query_numpy(query)
-        m = {x[0]: x[1] for x in res}
-
-    else:
-        m = cluster.query(query, blobs=blobs)
-
+    (index, m) = qdbnp.query(cluster, query, index=index, dict=True)
     df = pd.DataFrame(m)
 
-    if index and index in m:
-        df.set_index(index, inplace=True)
-
+    df.set_index(index, inplace=True)
     return df
 
 def read_dataframe(table, row_index=False, columns=None, ranges=None):
@@ -243,7 +235,6 @@ def read_dataframe(table, row_index=False, columns=None, ranges=None):
         columns = list(c.name for c in table.list_columns())
 
     if not row_index:
-        logger.debug("reading DataFrame from %d series", len(columns))
         xs = dict((c, (read_series(table, c, ranges))) for c in columns)
         return DataFrame(data=xs)
 
@@ -269,98 +260,45 @@ def read_dataframe(table, row_index=False, columns=None, ranges=None):
 
     return DataFrame(data=xs, columns=columns)
 
+def _extract_columns(df, cinfos):
+    """
+    Converts dataframe to a number of numpy arrays, one for each column.
 
-def string_to_timestamp(x):
-    return np.datetime64(datetime.utcfromtimestamp(int(float(x))), 'ns')
+    Arrays will be indexed by relative offset, in the same order as the table's columns.
+    If a table column is not present in the dataframe, it it have a None entry.
+    If a dataframe column is not present in the table, it will be ommitted.
+    """
+    ret = list()
 
+    # Grab all columns from the DataFrame in the order of table columns,
+    # put None if not present in df.
+    for i in range(len(cinfos)):
+        (cname, ctype) = cinfos[i]
+        xs = None
 
-_null_value_by_column_type = {
-    quasardb.ColumnType.Int64: 0x8000000000000000,
-    quasardb.ColumnType.Double: None,
-    quasardb.ColumnType.Blob: b'',
-    quasardb.ColumnType.String: None,
-    quasardb.ColumnType.Symbol: None,
-    quasardb.ColumnType.Timestamp: np.datetime64('NaT', 'ns')
-}
+        if cname in df.columns:
+            arr = df.iloc[:, i].array
+            xs = ma.masked_array(arr.to_numpy(copy=False),
+                                 mask=arr.isna())
 
-def fnil(f, ct, x):
-    "Utility function, only apply f to x if x is not nillable"
+        ret.append(xs)
 
-    assert ct in _null_value_by_column_type
-
-    if pd.isnull(x) or x == b'nan' or x == 'nan':
-        return _null_value_by_column_type[ct]
-
-
-    return f(x)
-
-_infer_with = {
-    quasardb.ColumnType.Int64: {
-        'floating': np.int64,
-        'integer': np.int64,
-        'string': lambda x: np.float64(x).astype(np.int64),
-        'bytes': lambda x: np.float64(x.decode("utf-8")).astype(np.int64),
-        'datetime64': lambda x: np.int64(x.nanosecond),
-        'datetime': lambda x: np.int64(x.timestamp() * 1000000000),
-        '_': lambda x: np.float64(x).astype(np.int64)
-    },
-    quasardb.ColumnType.Double: {
-        'floating': lambda x: x,
-        'integer': np.float64,
-        'string': np.float64,
-        'bytes': lambda x: np.float64(x.decode("utf-8")),
-        'datetime64': lambda x: np.float64(x.nanosecond),
-        '_': np.float64
-    },
-    quasardb.ColumnType.Blob: {
-        'floating': lambda x: str(x).encode("utf-8"),
-        'integer': lambda x: str(x).encode("utf-8"),
-        'string': lambda x: str(x).encode("utf-8"),
-        'bytes': lambda x: x,
-        '_': lambda x: str(x).encode("utf-8"),
-    },
-    quasardb.ColumnType.String: {
-        'floating': str,
-        'integer': str,
-        'string': str,
-        'bytes': lambda x: x.decode("utf-8"),
-        '_': str
-    },
-    quasardb.ColumnType.Symbol: {
-        'floating': str,
-        'integer': str,
-        'string': str,
-        'bytes': lambda x: x.decode("utf-8"),
-        '_': str
-    },
-    quasardb.ColumnType.Timestamp: {
-        'floating': lambda x: np.datetime64(datetime.utcfromtimestamp(x), 'ns'),
-        'integer': lambda x: np.datetime64(datetime.utcfromtimestamp(x), 'ns'),
-        'string': string_to_timestamp,
-        'bytes': lambda x: string_to_timestamp(x.decode("utf-8")),
-        'datetime64': lambda x: np.datetime64(x, 'ns'),
-        '_': lambda x: np.datetime64(datetime.utcfromtimestamp(np.float64(x)), 'ns')
-    }
-}
-
-
-# Update all function pointers to wrap them in _fnil, so that we don't
-# accidentally convert e.g. None into string 'None'
-for ct in _infer_with:
-    for dt in _infer_with[ct]:
-        f = _infer_with[ct][dt]
-        _infer_with[ct][dt] = partial(fnil, f, ct)
+    assert len(ret) == len(cinfos)
+    return ret
 
 def write_dataframe(
         df,
         cluster,
         table,
+        dtype=None,
         create=False,
         shard_size=None,
         _async=False,
         fast=False,
         truncate=False,
-        infer_types=True):
+        drop_duplicates=False,
+        infer_types=True,
+        writer=None):
     """
     Store a dataframe into a table with the pin column API.
 
@@ -377,11 +315,27 @@ def write_dataframe(
       Either a string or a reference to a QuasarDB Timeseries table object.
       For example, 'my_table' or cluster.table('my_table') are both valid values.
 
+    dtype: optional dtype, list of dtype, or dict of dtype
+      Optional data type to force. If a single dtype, will force that dtype to all
+      columns. If list-like, will map dtypes to dataframe columns by their offset.
+      If dict-like, will map dtypes to dataframe columns by their label.
+
+      If a dtype for a column is provided in this argument, and infer_types is also
+      True, this argument takes precedence.
+
     create: optional bool
       Whether to create the table. Defaults to false.
 
     shard_size: optional bool
       The shard size of the timeseries you wish to create.
+
+    drop_duplicates: bool or list[str]
+      Enables server-side deduplication of data when it is written into the table.
+      When True, automatically deduplicates rows when all values of a row are identical.
+      When a list of strings is provided, deduplicates only based on the values of
+      these columns.
+
+      Defaults to False.
 
     infer_types: optional bool
       If true, will attemp to convert types from Python to QuasarDB natives types if
@@ -412,119 +366,52 @@ def write_dataframe(
 
     """
 
-    if not df.index.is_monotonic_increasing:
-        logger.warn("dataframe index is unsorted, resorting dataframe based on index")
-        df = df.sort_index().reindex()
+    logger.info("quasardb.pandas.write_dataframe, create = %s, dtype = %s", create, dtype)
+    assert isinstance(df, pd.DataFrame)
 
     # Acquire reference to table if string is provided
     if isinstance(table, str):
         table = cluster.table(table)
 
+    # Create table if requested
     if create:
         _create_table_from_df(df, table, shard_size)
 
     # Create batch column info from dataframe
-    writer = cluster.pinned_writer(table)
+    if writer is None:
+        writer = cluster.pinned_writer(table)
 
-    write_with = {
-        quasardb.ColumnType.Double: writer.set_double_column,
-        quasardb.ColumnType.Blob: writer.set_blob_column,
-        quasardb.ColumnType.String: writer.set_string_column,
-        quasardb.ColumnType.Symbol: writer.set_string_column,
-        quasardb.ColumnType.Int64: writer.set_int64_column,
-        quasardb.ColumnType.Timestamp: writer.set_timestamp_column
-    }
+    cinfos = [(x.name, x.type) for x in writer.column_infos()]
 
-    pin_dtypes_map_flip = {
-        quasardb.ColumnType.String: np.dtype('unicode'),
-        quasardb.ColumnType.Symbol: np.dtype('unicode'),
-        quasardb.ColumnType.Int64: np.dtype('int64'),
-        quasardb.ColumnType.Double: np.dtype('float64'),
-        quasardb.ColumnType.Blob: np.dtype('object'),
-        quasardb.ColumnType.Timestamp: np.dtype('datetime64[ns]')
-    }
+    if not df.index.is_monotonic_increasing:
+        logger.warn("dataframe index is unsorted, resorting dataframe based on index")
+        df = df.sort_index().reindex()
 
-    # We derive our column types from our table.
-    column_infos = writer.column_infos()
-    table_name = table.get_name()
+    # We pass everything else to our qdbnp.write_arrays function, as generally speaking
+    # it is (much) more sensible to deal with numpy arrays than Pandas dataframes:
+    # pandas has the bad habit of wanting to cast data to different types if your data
+    # is sparse, most notably forcing sparse integer arrays to floating points.
+    timestamps = df.index.to_numpy(copy=False,
+                                       dtype='datetime64[ns]')
+    data = _extract_columns(df, cinfos)
 
-    # Reorder & introduce new columns
-    # https://stackoverflow.com/questions/13148429/how-to-change-the-order-of-dataframe-columns
-    cnames = []
-    ctypes = []
-    for i in range(len(column_infos)):
-        cnames.append(column_infos[i].name)
-        ctypes.append(column_infos[i].type)
-        # Introduce new column
-        found = False
-        for c in df.columns:
-            if c == column_infos[i].name:
-                found = True
-        if found == False:
-            df.insert(i, column_infos[i].name, None)
-    # Reorder columns
-    df = df[cnames]
-
-    dtypes = _get_inferred_dtypes_indexed(df) if infer_types is True else list()
-
-    timestamps = df.index.view(np.dtype('int64')).tolist()
-    writer.set_timestamps(timestamps)
-    for i in range(len(df.columns)):
-        ct = ctypes[i]
-        tmp = df.iloc[:, i]
-        values = []
-        if infer_types is True:
-            dt = dtypes[i]
-            fn = None
-            try:
-                fn = _infer_with[ct][dt]
-            except KeyError:
-                # Fallback default
-                logger.warn("using default inference for dtype: %s", dt)
-                fn = _infer_with[ct]['_']
-
-            assert fn is not None
-
-            values = tmp.apply(fn).tolist()
-        else:
-            dt = pin_dtypes_map_flip[ct]
-            if (ct == quasardb.ColumnType.Int64):
-                # you need to fill with 0x8000000000000000 (which is quasardb value for null)
-                # astype(np.dtype('int64')) cannot convert None to int64
-                values = tmp.fillna(0x8000000000000000).astype(dt).tolist()
-            elif (ct == quasardb.ColumnType.Blob):
-                values = tmp.fillna(b'').astype(dt).tolist()
-            else:
-                values = tmp.astype(dt).tolist()
-
-        write_with[ct](i, values)
-
-    start = time.time()
-
-    logger.debug("push chunk of %d rows, fast?=%s, async?=%s",
-                 len(df.index), fast, _async)
-
-    if fast is True:
-        writer.push_fast()
-    elif truncate is True:
-        writer.push_truncate()
-    elif isinstance(truncate, tuple):
-        writer.push_truncate(range=truncate)
-    elif _async is True:
-        writer.push_async()
-    else:
-        writer.push()
-
-    logger.debug("pushed %d rows in %s seconds",
-                 len(df.index), (time.time() - start))
-
-    return table
+    return qdbnp.write_arrays(data, cluster, table,
+                              index=timestamps,
+                              dtype=dtype,
+                              _async=_async,
+                              fast=fast,
+                              truncate=truncate,
+                              drop_duplicates=drop_duplicates,
+                              infer_types=infer_types,
+                              writer=writer)
 
 
 def _create_table_from_df(df, table, shard_size=None):
     cols = list()
 
     dtypes = _get_inferred_dtypes(df)
+
+    logger.info("got inferred dtypes: %s", dtypes)
     for c in df.columns:
         dt = dtypes[c]
         ct = _dtype_to_column_type(df[c].dtype, dt)

@@ -68,8 +68,10 @@ class input_buffer_too_small_exception : public exception
 public:
     input_buffer_too_small_exception() noexcept
         : exception(qdb_e_network_inbuf_too_small,
-            std::string("Input buffer too small: result set too large. Hint: consider increasing the buffer size using "
-                        "cluster.options().set_client_max_in_buf_size(..) prior to address this error."))
+            std::string(
+                "Input buffer too small: result set too large. Hint: consider increasing the buffer "
+                "size using "
+                "cluster.options().set_client_max_in_buf_size(..) prior to address this error."))
     {}
 };
 
@@ -81,6 +83,18 @@ public:
     {}
 
     incompatible_type_exception(std::string const & what) noexcept
+        : exception(qdb_e_incompatible_type, what)
+    {}
+};
+
+class not_implemented_exception : public exception
+{
+public:
+    not_implemented_exception() noexcept
+        : exception(qdb_e_not_implemented, std::string("Method or class not implemented"))
+    {}
+
+    not_implemented_exception(std::string const & what) noexcept
         : exception(qdb_e_incompatible_type, what)
     {}
 };
@@ -97,6 +111,18 @@ public:
     {}
 };
 
+class internal_local_exception : public exception
+{
+public:
+    internal_local_exception() noexcept
+        : exception(qdb_e_internal_local, std::string("An unknown local internal error occurred"))
+    {}
+
+    internal_local_exception(std::string const & what) noexcept
+        : exception(qdb_e_internal_local, what)
+    {}
+};
+
 class alias_already_exists_exception : public exception
 {
 public:
@@ -110,14 +136,17 @@ class invalid_datetime_exception : public exception
 public:
     invalid_datetime_exception() noexcept
         : exception(qdb_e_incompatible_type,
-            std::string("Unable to interpret provided numpy datetime64. Hint: QuasarDB only works with nanosecond precision datetime64. "
-                        "You can correct this by explicitly casting your timestamps to the dtype datetime64[ns]"))
+            std::string("Unable to interpret provided numpy datetime64. Hint: QuasarDB only works with "
+                        "nanosecond precision datetime64. "
+                        "You can correct this by explicitly casting your timestamps to the dtype "
+                        "datetime64[ns]"))
     {}
 
     invalid_datetime_exception(py::object o)
         : exception(qdb_e_incompatible_type,
             std::string("Unable to interpret provided numpy datetime64: " + (std::string)(py::str(o))
-                        + ". Hint: QuasarDB only works with nanosecond precision datetime64. You can correct this by explicitly casting "
+                        + ". Hint: QuasarDB only works with nanosecond precision datetime64. You can "
+                          "correct this by explicitly casting "
                           "your timestamps to the dtype datetime64[ns]"))
 
     {}
@@ -140,7 +169,8 @@ struct no_op
 template <typename PreThrowFtor = detail::no_op>
 void qdb_throw_if_error(qdb_handle_t h, qdb_error_t err, PreThrowFtor && pre_throw = detail::no_op{})
 {
-    static_assert(noexcept(std::forward<PreThrowFtor &&>(pre_throw)()), "`pre_throw` argument must be noexcept");
+    static_assert(
+        noexcept(std::forward<PreThrowFtor &&>(pre_throw)()), "`pre_throw` argument must be noexcept");
 
     // HACKS(leon): we need to flush our log buffer a lot, ideally after every native qdb
     //              call. Guess which function is invoked exactly at those moments?
@@ -173,6 +203,15 @@ void qdb_throw_if_error(qdb_handle_t h, qdb_error_t err, PreThrowFtor && pre_thr
         case qdb_e_incompatible_type:
             throw qdb::incompatible_type_exception{msg_.data};
 
+        case qdb_e_not_implemented:
+            throw qdb::not_implemented_exception{msg_.data};
+
+        case qdb_e_internal_local:
+            throw qdb::internal_local_exception{msg_.data};
+
+        case qdb_e_invalid_argument:
+            throw qdb::invalid_argument_exception{msg_.data};
+
         default:
             throw qdb::exception{err_, msg_.data};
         };
@@ -187,6 +226,9 @@ static inline void register_errors(Module & m)
     py::register_exception<qdb::alias_already_exists_exception>(m, "AliasAlreadyExistsError");
     py::register_exception<qdb::invalid_datetime_exception>(m, "InvalidDatetimeError");
     py::register_exception<qdb::incompatible_type_exception>(m, "IncompatibleTypeError");
+    py::register_exception<qdb::not_implemented_exception>(m, "NotImplementedError");
+    py::register_exception<qdb::internal_local_exception>(m, "InternalLocalError");
+    py::register_exception<qdb::invalid_argument_exception>(m, "InvalidArgumentError");
 }
 
 } // namespace qdb

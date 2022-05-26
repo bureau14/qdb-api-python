@@ -57,7 +57,8 @@ public:
         size_t count         = 0;
 
         // don't throw if no prefix is found
-        const qdb_error_t err = qdb_direct_prefix_get(*_direct_handle, prefix.c_str(), max_count, &result, &count);
+        const qdb_error_t err =
+            qdb_direct_prefix_get(*_direct_handle, prefix.c_str(), max_count, &result, &count);
         qdb_throw_if_error(*_handle, err);
 
         return convert_strings_and_release(_handle, result, count);
@@ -84,8 +85,9 @@ static inline void register_node(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::node>(m, "Node") //
-                                     // no constructor: use quasardb.Cluster(uri).node(node_uri) to initialise
+    py::class_<qdb::node>(
+        m, "Node") //
+                   // no constructor: use quasardb.Cluster(uri).node(node_uri) to initialise
         .def("prefix_get", &qdb::node::prefix_get)
         .def("blob", &qdb::node::blob)
         .def("integer", &qdb::node::integer);

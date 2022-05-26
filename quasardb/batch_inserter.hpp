@@ -35,6 +35,7 @@
 #include "logger.hpp"
 #include "table.hpp"
 #include "utils.hpp"
+#include "convert/value.hpp"
 
 namespace qdb
 {
@@ -52,10 +53,11 @@ public:
     {
         std::vector<qdb_ts_batch_column_info_t> converted(ci.size());
 
-        std::transform(
-            ci.cbegin(), ci.cend(), converted.begin(), [](const batch_column_info & ci) -> qdb_ts_batch_column_info_t { return ci; });
+        std::transform(ci.cbegin(), ci.cend(), converted.begin(),
+            [](const batch_column_info & ci) -> qdb_ts_batch_column_info_t { return ci; });
 
-        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_table_init(*_handle, converted.data(), converted.size(), &_batch_table));
+        qdb::qdb_throw_if_error(*_handle,
+            qdb_ts_batch_table_init(*_handle, converted.data(), converted.size(), &_batch_table));
 
         _logger.debug("initialized batch reader with %d columns", ci.size());
     }
@@ -76,7 +78,7 @@ public:
 public:
     void start_row(py::object ts)
     {
-        const qdb_timespec_t converted = convert_timestamp(ts);
+        qdb_timespec_t const converted = convert::value<py::object, qdb_timespec_t>(ts);
         qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_start_row(_batch_table, &converted));
 
         // The block below is only necessary for insert_truncate, and even then if someone
@@ -103,14 +105,15 @@ public:
     void set_blob(std::size_t index, const py::bytes & blob)
     {
         std::string tmp = static_cast<std::string>(blob);
-        qdb::qdb_throw_if_error(
-            *_handle, qdb_ts_batch_row_set_blob(_batch_table, index, static_cast<void const *>(tmp.c_str()), tmp.length()));
+        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_row_set_blob(_batch_table, index,
+                                              static_cast<void const *>(tmp.c_str()), tmp.length()));
         ++_point_count;
     }
 
     void set_string(std::size_t index, const std::string & string)
     {
-        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_row_set_string(_batch_table, index, string.data(), string.size()));
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_ts_batch_row_set_string(_batch_table, index, string.data(), string.size()));
     }
 
     void set_double(std::size_t index, double v)
@@ -127,8 +130,9 @@ public:
 
     void set_timestamp(std::size_t index, py::object v)
     {
-        const qdb_timespec_t converted = convert_timestamp(v);
-        qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_row_set_timestamp(_batch_table, index, &converted));
+        qdb_timespec_t const converted = convert::value<py::object, qdb_timespec_t>(v);
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_ts_batch_row_set_timestamp(_batch_table, index, &converted));
         ++_point_count;
     }
 
@@ -165,17 +169,15 @@ public:
         // doesn't accidentally truncate his whole database without inserting anything.
         if (_row_count == 0)
         {
-            throw qdb::invalid_argument_exception{"Batch inserter is empty: you did not provide any rows to push."};
+            throw qdb::invalid_argument_exception{
+                "Batch inserter is empty: you did not provide any rows to push."};
         }
 
         qdb_ts_range_t tr;
 
         if (args.contains("range"))
         {
-            auto range = py::cast<py::tuple>(args["range"]);
-            _logger.debug("using explicit range for truncate: %s", range);
-            time_range input = prep_range(py::cast<obj_time_range>(range));
-            tr               = convert_range(input);
+            tr = convert::value<py::tuple, qdb_ts_range_t>(py::cast<py::tuple>(args["range"]));
         }
         else
         {
@@ -184,8 +186,9 @@ public:
             // *after* the last element in this batch.
             tr.end.tv_nsec++;
         }
-        _logger.debug("truncate pushing batch of %d rows with %d data points, start timestamp = %d.%d, end timestamp = %d.%d", _row_count,
-            _point_count, tr.begin.tv_sec, tr.begin.tv_nsec, tr.end.tv_sec, tr.end.tv_nsec);
+        _logger.debug("truncate pushing batch of %d rows with %d data points, start timestamp = %d.%d, "
+                      "end timestamp = %d.%d",
+            _row_count, _point_count, tr.begin.tv_sec, tr.begin.tv_nsec, tr.end.tv_sec, tr.end.tv_nsec);
 
         qdb::qdb_throw_if_error(*_handle, qdb_ts_batch_push_truncate(_batch_table, &tr, 1));
         _logger.debug("truncate pushed batch of %d rows with %d data points", _row_count, _point_count);
@@ -213,7 +216,8 @@ private:
     qdb_ts_range_t _min_max_ts;
 };
 
-// don't use shared_ptr, let Python do the reference counting, otherwise you will have an undefined behavior
+// don't use shared_ptr, let Python do the reference counting, otherwise you will have an undefined
+// behavior
 using batch_inserter_ptr = std::unique_ptr<batch_inserter>;
 
 template <typename Module>
@@ -221,20 +225,23 @@ static inline void register_batch_inserter(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::batch_inserter>{m, "TimeSeriesBatch"}                                                                            //
-        .def(py::init<qdb::handle_ptr, const std::vector<batch_column_info> &>())                                                    //
-        .def("start_row", &qdb::batch_inserter::start_row, "Calling this function marks the beginning of processing a new row.")     //
-        .def("set_blob", &qdb::batch_inserter::set_blob)                                                                             //
-        .def("set_string", &qdb::batch_inserter::set_string)                                                                         //
-        .def("set_double", &qdb::batch_inserter::set_double)                                                                         //
-        .def("set_int64", &qdb::batch_inserter::set_int64)                                                                           //
-        .def("set_timestamp", &qdb::batch_inserter::set_timestamp)                                                                   //
-        .def("push", &qdb::batch_inserter::push, "Regular batch push")                                                               //
-        .def("push_async", &qdb::batch_inserter::push_async, "Asynchronous batch push that buffers data inside the QuasarDB daemon") //
+    py::class_<qdb::batch_inserter>{m, "TimeSeriesBatch"}                         //
+        .def(py::init<qdb::handle_ptr, const std::vector<batch_column_info> &>()) //
+        .def("start_row", &qdb::batch_inserter::start_row,
+            "Calling this function marks the beginning of processing a new row.") //
+        .def("set_blob", &qdb::batch_inserter::set_blob)                          //
+        .def("set_string", &qdb::batch_inserter::set_string)                      //
+        .def("set_double", &qdb::batch_inserter::set_double)                      //
+        .def("set_int64", &qdb::batch_inserter::set_int64)                        //
+        .def("set_timestamp", &qdb::batch_inserter::set_timestamp)                //
+        .def("push", &qdb::batch_inserter::push, "Regular batch push")            //
+        .def("push_async", &qdb::batch_inserter::push_async,
+            "Asynchronous batch push that buffers data inside the QuasarDB daemon") //
         .def("push_fast", &qdb::batch_inserter::push_fast,
             "Fast, in-place batch push that is efficient when doing lots of small, incremental pushes.")
         .def("push_truncate", &qdb::batch_inserter::push_truncate,
-            "Before inserting data, truncates any existing data. This is useful when you want your insertions to be idempotent, e.g. in "
+            "Before inserting data, truncates any existing data. This is useful when you want your "
+            "insertions to be idempotent, e.g. in "
             "case of a retry.");
 }
 

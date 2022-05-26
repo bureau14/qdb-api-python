@@ -39,7 +39,7 @@ BreakBeforeBinaryOperators: NonAssignment
 BreakBeforeInheritanceComma: true         # clang-format 5
 BreakConstructorInitializers: BeforeComma # clang-format 5
 
-ColumnLimit: 140
+ColumnLimit: 104
 IndentPPDirectives: AfterHash
 IndentWidth: 4
 # KeepEmptyLinesAtTheStartOfBlocks: true

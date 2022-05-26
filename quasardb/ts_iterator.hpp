@@ -24,7 +24,8 @@ namespace qdb
 template <typename T>
 class ts_iterator
 {
-    using iterators = typename std::tuple<std::vector<qdb_timespec_t>::iterator, typename std::vector<T>::iterator>;
+    using iterators =
+        typename std::tuple<std::vector<qdb_timespec_t>::iterator, typename std::vector<T>::iterator>;
 
 public:
     using difference_type   = std::ptrdiff_t;
@@ -35,7 +36,8 @@ public:
 
     ts_iterator() = default;
 
-    explicit ts_iterator(std::vector<qdb_timespec_t>::iterator it_ts, typename std::vector<T>::iterator it_vs)
+    explicit ts_iterator(
+        std::vector<qdb_timespec_t>::iterator it_ts, typename std::vector<T>::iterator it_vs)
         : _its(std::make_tuple(it_ts, it_vs))
     {}
 
@@ -75,8 +77,10 @@ public:
     ts_iterator & operator+=(difference_type forward)
     {
         auto advance = [forward](auto & it) {
-            auto forward_to = static_cast<typename std::iterator_traits<std::decay_t<decltype(it)>>::difference_type>(forward);
-            it              = std::next(it, forward_to);
+            auto forward_to =
+                static_cast<typename std::iterator_traits<std::decay_t<decltype(it)>>::difference_type>(
+                    forward);
+            it = std::next(it, forward_to);
         };
         advance(std::get<0>(_its));
         advance(std::get<1>(_its));

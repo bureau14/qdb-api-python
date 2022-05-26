@@ -79,7 +79,7 @@ public:
     {
         const qdb_error_t err = qdb_attach_tag(*_handle, _alias.c_str(), tag.c_str());
 
-        if (err != qdb_e_tag_already_set)
+        if (err != qdb_e_tag_already_set) [[likely]]
         {
             qdb_throw_if_error(*_handle, err);
         }
@@ -90,16 +90,18 @@ public:
     {
         std::vector<const char *> tag_pointers(tags.size());
 
-        std::transform(tags.cbegin(), tags.cend(), tag_pointers.begin(), [](const std::string & s) { return s.c_str(); });
+        std::transform(tags.cbegin(), tags.cend(), tag_pointers.begin(),
+            [](const std::string & s) { return s.c_str(); });
 
-        qdb::qdb_throw_if_error(*_handle, qdb_attach_tags(*_handle, _alias.c_str(), tag_pointers.data(), tag_pointers.size()));
+        qdb::qdb_throw_if_error(*_handle,
+            qdb_attach_tags(*_handle, _alias.c_str(), tag_pointers.data(), tag_pointers.size()));
     }
 
     bool detach_tag(const std::string & tag)
     {
         const qdb_error_t err = qdb_detach_tag(*_handle, _alias.c_str(), tag.c_str());
 
-        if (err != qdb_e_tag_not_set)
+        if (err != qdb_e_tag_not_set) [[likely]]
         {
             qdb_throw_if_error(*_handle, err);
         }
@@ -111,9 +113,11 @@ public:
     {
         std::vector<const char *> tag_pointers(tags.size());
 
-        std::transform(tags.cbegin(), tags.cend(), tag_pointers.begin(), [](const std::string & s) { return s.c_str(); });
+        std::transform(tags.cbegin(), tags.cend(), tag_pointers.begin(),
+            [](const std::string & s) { return s.c_str(); });
 
-        qdb::qdb_throw_if_error(*_handle, qdb_detach_tags(*_handle, _alias.c_str(), tag_pointers.data(), tag_pointers.size()));
+        qdb::qdb_throw_if_error(*_handle,
+            qdb_detach_tags(*_handle, _alias.c_str(), tag_pointers.data(), tag_pointers.size()));
     }
 
     bool has_tag(const std::string & tag)
@@ -137,7 +141,7 @@ public:
         qdb::qdb_throw_if_error(*_handle, qdb_remove(*_handle, _alias.c_str()));
     }
 
-    qdb::hostname get_location() const
+    inline qdb::hostname get_location() const
     {
         qdb_remote_node_t rn;
 
@@ -150,7 +154,17 @@ public:
         return res;
     }
 
-    metadata get_metadata() const
+    inline bool exists() const
+    {
+        // There isn't an official way to do it, but quite reliable a way is
+        // to just check whether an entry has metadata.
+        qdb_entry_metadata_t md;
+        qdb_error_t err = qdb_get_metadata(*_handle, _alias.c_str(), &md);
+
+        return err == qdb_e_ok;
+    }
+
+    inline metadata get_metadata() const
     {
         qdb_entry_metadata_t md;
 
@@ -159,7 +173,7 @@ public:
         return metadata{md};
     }
 
-    qdb_entry_type_t get_entry_type() const
+    inline qdb_entry_type_t get_entry_type() const
     {
         return get_metadata().type;
     }
@@ -187,18 +201,22 @@ public:
         return tp == std::chrono::system_clock::time_point{}
                    ? qdb_time_t{0}
                    : qdb_time_t{1'000}
-                         * static_cast<qdb_time_t>(std::chrono::duration_cast<std::chrono::seconds>(tp.time_since_epoch()).count());
+                         * static_cast<qdb_time_t>(
+                             std::chrono::duration_cast<std::chrono::seconds>(tp.time_since_epoch())
+                                 .count());
     }
 
 public:
     void expires_at(const std::chrono::system_clock::time_point & expiry_time)
     {
-        qdb::qdb_throw_if_error(*_handle, qdb_expires_at(*_handle, _alias.c_str(), from_time_point(expiry_time)));
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_expires_at(*_handle, _alias.c_str(), from_time_point(expiry_time)));
     }
 
     void expires_from_now(std::chrono::milliseconds expiry_delta)
     {
-        qdb::qdb_throw_if_error(*_handle, qdb_expires_from_now(*_handle, _alias.c_str(), expiry_delta.count()));
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_expires_from_now(*_handle, _alias.c_str(), expiry_delta.count()));
     }
 
     std::chrono::system_clock::time_point get_expiry_time()
@@ -232,6 +250,8 @@ static inline void register_entry(Module & m)
         .def("has_tag", &qdb::entry::has_tag)               //
         .def("get_tags", &qdb::entry::get_tags)             //
         .def("remove", &qdb::entry::remove)                 //
+        .def("exists", &qdb::entry::exists,                 //
+            "Returns true if the entry exists")             //
         .def("get_location", &qdb::entry::get_location)     //
         .def("get_entry_type", &qdb::entry::get_entry_type) //
         .def("get_metadata", &qdb::entry::get_metadata)     //

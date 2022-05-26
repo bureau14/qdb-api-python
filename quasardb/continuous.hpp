@@ -43,7 +43,10 @@ namespace qdb
 class query_continuous : public std::enable_shared_from_this<query_continuous>
 {
 public:
-    query_continuous(qdb::handle_ptr h, qdb_query_continuous_mode_type_t mode, const std::string & query_string, const py::object & bools);
+    query_continuous(qdb::handle_ptr h,
+        qdb_query_continuous_mode_type_t mode,
+        const std::string & query_string,
+        const py::object & bools);
     query_continuous(const qdb::query_continuous & /*other*/) = delete;
     ~query_continuous();
 
@@ -60,8 +63,8 @@ public:
     dict_query_result_t results();
     // returns the results (non-blocking), empty if no results available yet
     // needed to be able to interface with other framework that can't wait for results to be available
-    // in that case you would poll probe_results(), the cost is low because it doesn't result in a remote call
-    // just acquiring the mutex and see if results have been updated
+    // in that case you would poll probe_results(), the cost is low because it doesn't result in a
+    // remote call just acquiring the mutex and see if results have been updated
     dict_query_result_t probe_results();
     void stop();
 
@@ -86,11 +89,11 @@ static inline void register_continuous(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::query_continuous, std::shared_ptr<qdb::query_continuous>>{m, "QueryContinuous"}                  //
-        .def(py::init<qdb::handle_ptr, qdb_query_continuous_mode_type_t, const std::string &, const py::object &>()) //
-        .def("results", &qdb::query_continuous::results)                                                             //
-        .def("probe_results", &qdb::query_continuous::probe_results)                                                 //
-        .def("stop", &qdb::query_continuous::stop)                                                                   //
+    py::class_<qdb::query_continuous, std::shared_ptr<qdb::query_continuous>>{m, "QueryContinuous"} //
+        .def(py::init<qdb::handle_ptr, qdb_query_continuous_mode_type_t, const std::string &,
+            const py::object &>())                       //
+        .def("results", &qdb::query_continuous::results) //
+        .def("stop", &qdb::query_continuous::stop)       //
 
         // required interface to use query_continuous as an iterator
         .def("__iter__", [](const std::shared_ptr<qdb::query_continuous> & cont) { return cont; }) //

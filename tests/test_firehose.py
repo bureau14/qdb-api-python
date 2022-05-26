@@ -1,12 +1,7 @@
 # pylint: disable=C0103,C0111,C0302,W0212
-import datetime
-import pytest
 import numpy as np
-import quasardb
-import quasardb.firehose as qdbfh
 import test_batch_inserter as batchlib
 import time
-import itertools
 import multiprocessing
 from sys import platform
 

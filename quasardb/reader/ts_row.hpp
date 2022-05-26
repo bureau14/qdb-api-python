@@ -36,7 +36,6 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl_bind.h>
 #include <numpy.hpp>
-#include <ts_convert.hpp>
 
 namespace py = pybind11;
 
@@ -137,7 +136,8 @@ public:
             {
                 throw py::index_error();
             }
-            return py::cast(ts_value(_handle, _local_table, col_index, _columns.at(col_index).type), py::return_value_policy::move);
+            return py::cast(ts_value(_handle, _local_table, col_index, _columns.at(col_index).type),
+                py::return_value_policy::move);
         }
     }
 
@@ -151,11 +151,12 @@ public:
         // This is inefficient because we first cast everything to Python objects, get the
         // string representation and then cast back to c++ strings, but it's correct and
         // effective, and it's used for debugging purposes only.
-        auto xs         = copy();
-        std::string kvs = std::accumulate(xs.cbegin(), xs.cend(), std::string(), [](std::string acc, auto x) {
-            std::string s = py::str(x);
-            return acc.empty() ? s : std::move(acc) + ", " + s;
-        });
+        auto xs = copy();
+        std::string kvs =
+            std::accumulate(xs.cbegin(), xs.cend(), std::string(), [](std::string acc, auto x) {
+                std::string s = py::str(x);
+                return acc.empty() ? s : std::move(acc) + ", " + s;
+            });
 
         return "[" + std::move(kvs) + "]";
     }
@@ -206,7 +207,8 @@ public:
                 res.insert(map_type::value_type(c.first, timestamp()));
             }
             else
-                res.insert(map_type::value_type(c.first, py::cast(ts_value(_handle, _local_table, index, c.second.type))));
+                res.insert(map_type::value_type(
+                    c.first, py::cast(ts_value(_handle, _local_table, index, c.second.type))));
         }
 
         return res;
@@ -228,7 +230,8 @@ public:
         }
         else
         {
-            return py::cast(ts_value(_handle, _local_table, indexed_column.index, indexed_column.type), py::return_value_policy::move);
+            return py::cast(ts_value(_handle, _local_table, indexed_column.index, indexed_column.type),
+                py::return_value_policy::move);
         }
     }
 
@@ -240,11 +243,12 @@ public:
     std::string repr() const
     {
         // Same as ts_fast_row::repr, this is inefficient but it's ok
-        auto xs           = copy();
-        std::string items = std::accumulate(xs.cbegin(), xs.cend(), std::string(), [](std::string acc, const auto & x) {
-            std::string s = "'" + x.first + "': " + std::string(py::str(x.second));
-            return acc.empty() ? s : std::move(acc) + ", " + s;
-        });
+        auto xs = copy();
+        std::string items =
+            std::accumulate(xs.cbegin(), xs.cend(), std::string(), [](std::string acc, const auto & x) {
+                std::string s = "'" + x.first + "': " + std::string(py::str(x.second));
+                return acc.empty() ? s : std::move(acc) + ", " + s;
+            });
 
         return "{" + std::move(items) + "}";
     }

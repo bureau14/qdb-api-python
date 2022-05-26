@@ -30,8 +30,10 @@
  */
 #pragma once
 
+#include "../error.hpp"
 #include <qdb/ts.h>
 #include <cassert>
+#include <string>
 
 namespace qdb
 {
@@ -39,42 +41,57 @@ namespace qdb
 namespace detail
 {
 
-std::string type_to_string (qdb_ts_column_type_t t) {
-  switch (t) {
-  case qdb_ts_column_double:
-    return "double";
-  case qdb_ts_column_blob:
-    return "blob";
-  case qdb_ts_column_int64:
-    return "int64";
-  case qdb_ts_column_timestamp:
-    return "timestamp";
-  case qdb_ts_column_string:
-    return "string";
-  case qdb_ts_column_symbol:
-    return "symbol";
-  default:
-    return "uninitialized";
-  }
+inline std::string type_to_string(qdb_ts_column_type_t t)
+{
+    switch (t)
+    {
+    case qdb_ts_column_double:
+        return "double";
+    case qdb_ts_column_blob:
+        return "blob";
+    case qdb_ts_column_int64:
+        return "int64";
+    case qdb_ts_column_timestamp:
+        return "timestamp";
+    case qdb_ts_column_string:
+        return "string";
+    case qdb_ts_column_symbol:
+        return "symbol";
+    default:
+        return "uninitialized";
+    }
 }
 
 struct column_info
 {
     column_info() = default;
 
-    column_info(qdb_ts_column_type_t t, const std::string & n, const std::string & s = {})
+    explicit column_info(qdb_ts_column_type_t t, const std::string & n)
+        : column_info{t, n, std::string{}}
+    {}
+
+    explicit column_info(qdb_ts_column_type_t t, const std::string & n, const std::string & s)
         : type{t}
         , name{n}
         , symtable{s}
     {
-        assert((t != qdb_ts_column_symbol) == s.empty());
+        if (t == qdb_ts_column_symbol && s.empty()) [[unlikely]]
+        {
+            throw qdb::invalid_argument_exception{
+                "column '" + n + "' is a symbol but no symbol table provided"};
+        }
+        else if (t != qdb_ts_column_symbol && s.empty() == false) [[unlikely]]
+        {
+            throw qdb::invalid_argument_exception{
+                "column '" + n + "' is a not a symbol but symbol table provided: '" + s + "'"};
+        }
     }
 
-    column_info(const qdb_ts_column_info_t & ci)
+    explicit column_info(const qdb_ts_column_info_t & ci)
         : column_info{ci.type, ci.name, {}}
     {}
 
-    column_info(const qdb_ts_column_info_ex_t & ci)
+    explicit column_info(const qdb_ts_column_info_ex_t & ci)
         : column_info{ci.type, ci.name, ci.symtable}
     {}
 
@@ -82,7 +99,6 @@ struct column_info
     {
         return "<quasardb.ColumnInfo name='" + name + "' type='" + type_to_string(type) + "'>";
     }
-
 
     operator qdb_ts_column_info_t() const noexcept
     {
@@ -118,46 +134,34 @@ struct column_info
     std::string symtable;
 };
 
-static std::vector<qdb_ts_column_info_t> convert_columns(const std::vector<column_info> & columns)
+static inline std::vector<qdb_ts_column_info_t> convert_columns(
+    const std::vector<column_info> & columns)
 {
     std::vector<qdb_ts_column_info_t> res(columns.size());
 
-    std::transform(columns.cbegin(), columns.cend(), res.begin(), [](const column_info & ci) -> qdb_ts_column_info_t { return ci; });
+    std::transform(columns.cbegin(), columns.cend(), res.begin(),
+        [](const column_info & ci) -> qdb_ts_column_info_t { return ci; });
 
     return res;
 }
-static std::vector<qdb_ts_column_info_ex_t> convert_columns_ex(const std::vector<column_info> & columns)
+static inline std::vector<qdb_ts_column_info_ex_t> convert_columns_ex(
+    const std::vector<column_info> & columns)
 {
     std::vector<qdb_ts_column_info_ex_t> res(columns.size());
 
-    std::transform(columns.cbegin(), columns.cend(), res.begin(), [](const column_info & ci) -> qdb_ts_column_info_ex_t { return ci; });
+    std::transform(columns.cbegin(), columns.cend(), res.begin(),
+        [](const column_info & ci) -> qdb_ts_column_info_ex_t { return ci; });
 
     return res;
 }
 
-static std::vector<column_info> convert_columns(const qdb_ts_column_info_t * columns, size_t count)
+static inline std::vector<column_info> convert_columns(
+    const qdb_ts_column_info_ex_t * columns, size_t count)
 {
     std::vector<column_info> res(count);
 
-    std::transform(columns, columns + count, res.begin(), [](const qdb_ts_column_info_t & ci) { return column_info{ci}; });
-
-    return res;
-}
-
-static std::vector<column_info> convert_columns(const qdb_ts_column_info_ex_t * columns, size_t count)
-{
-    std::vector<column_info> res(count);
-
-    std::transform(columns, columns + count, res.begin(), [](const qdb_ts_column_info_ex_t & ci) { return column_info{ci}; });
-
-    return res;
-}
-
-static std::vector<std::string> column_list_to_strings(const std::vector<column_info> & columns)
-{
-    std::vector<std::string> res(columns.size());
-
-    std::transform(columns.cbegin(), columns.cend(), res.begin(), [](const column_info & ci) -> std::string { return ci.name; });
+    std::transform(columns, columns + count, res.begin(),
+        [](const qdb_ts_column_info_ex_t & ci) { return column_info{ci}; });
 
     return res;
 }
@@ -187,7 +191,8 @@ static indexed_columns_t index_columns(const std::vector<ColumnType> & columns)
     indexed_columns_t i_columns;
     for (qdb_size_t i = 0; i < columns.size(); ++i)
     {
-        i_columns.insert(indexed_columns_t::value_type(columns[i].name, {columns[i].type, i, columns[i].symtable}));
+        i_columns.insert(
+            indexed_columns_t::value_type(columns[i].name, {columns[i].type, i, columns[i].symtable}));
     }
 
     return i_columns;
@@ -202,9 +207,9 @@ static inline void register_ts_column(Module & m)
         .def(py::init<qdb_ts_column_type_t, const std::string &>())                      //
         .def(py::init<qdb_ts_column_type_t, const std::string &, const std::string &>()) //
         .def("__repr__", &column_info::repr)
-        .def_readwrite("type", &column_info::type)                                       //
-        .def_readwrite("name", &column_info::name)                                       //
-        .def_readwrite("symtable", &column_info::symtable);                              //
+        .def_readwrite("type", &column_info::type)          //
+        .def_readwrite("name", &column_info::name)          //
+        .def_readwrite("symtable", &column_info::symtable); //
 
     py::class_<indexed_column_info>{m, "IndexedColumnInfo"}                     //
         .def(py::init<qdb_ts_column_type_t, qdb_size_t>())                      //
