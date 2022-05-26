@@ -281,7 +281,7 @@ def _coerce_data(data, dtype):
                     logger.exception(err)
                     raise err
 
-                logger.debuyg("array completely empty, re-initializing to empty array of '%s'", dtype_)
+                logger.debug("array completely empty, re-initializing to empty array of '%s'", dtype_)
                 data[i] = ma.masked_all(ma.size(data_),
                                         dtype=dtype_)
             assert data[i].dtype.kind == dtype_.kind
