@@ -170,13 +170,33 @@ requires(concepts::variable_width_dtype<DType>) inline py::array to_array(R cons
     std::size_t codepoints_per_item = ranges::size(head);
     assert(codepoints_per_item > 0);
 
-#ifndef NDEBUG
-    // Ensure all items inside range have the exact same number of words.
+    // We're playing a bit of a trick here: rather than iterating over the range,
+    // we just steal the pointer of the first item (which is also the beginning of
+    // the entire array), and we're not evaluating anything else.
+    //
+    // Because of range views' lazy behavior, this means that remaining view
+    // adapters / transform in the pipeline are not realized.
+    //
+    // As such, this check right here is not just for show, it ensures
+    // that we're actually _consuming_ the whole range.
+    //
+    // But it's also just a good check that ensures all our strides are actually
+    // the same size. :)
+
+    bool all_equal = true;
     for (auto x : xs)
     {
-        assert(ranges::size(x) == codepoints_per_item);
+        // Branchless, because we expect absolutely no `false` here ever, and
+        // this means it can be vectorized.
+        all_equal = all_equal && (ranges::size(x) == codepoints_per_item);
     };
-#endif
+
+    if (all_equal == false) [[unlikely]]
+    {
+        throw qdb::internal_local_exception{
+            "Internal error: array strides are not of equal lengths: codepoints_per_item: "
+            + std::to_string(codepoints_per_item)};
+    };
 
     py::array::ShapeContainer shape{ranges::size(xs)};
     py::array::StridesContainer strides{DType::itemsize(codepoints_per_item)};
