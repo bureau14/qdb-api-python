@@ -91,9 +91,10 @@ static inline void register_continuous(Module & m)
 
     py::class_<qdb::query_continuous, std::shared_ptr<qdb::query_continuous>>{m, "QueryContinuous"} //
         .def(py::init<qdb::handle_ptr, qdb_query_continuous_mode_type_t, const std::string &,
-            const py::object &>())                       //
-        .def("results", &qdb::query_continuous::results) //
-        .def("stop", &qdb::query_continuous::stop)       //
+            const py::object &>())                                   //
+        .def("results", &qdb::query_continuous::results)             //
+        .def("probe_results", &qdb::query_continuous::probe_results) //
+        .def("stop", &qdb::query_continuous::stop)                   //
 
         // required interface to use query_continuous as an iterator
         .def("__iter__", [](const std::shared_ptr<qdb::query_continuous> & cont) { return cont; }) //
