@@ -273,12 +273,12 @@ requires(
         //  2. feed all this through a transform function
         //  3. profit
         ////
-        using out_stride_t  = ranges::range_value_t<decltype(output_strides)>;
-        auto xform_and_pipe = [=](std::pair<qdb_string_view, out_stride_t> && x) {
+        using out_stride_t   = ranges::range_value_t<decltype(output_strides)>;
+        auto xform_and_store = [=](std::pair<qdb_string_view, out_stride_t> && x) {
             auto const & in = std::get<0>(x);
             auto & out      = std::get<1>(x);
 
-            _u32to8(in, ranges::begin(out));
+            _u8to32(in, ranges::begin(out));
 
             return out;
         };
@@ -286,7 +286,7 @@ requires(
         // Create a view that aligns our input qdb_string_t next to the data it needs
         // to write into.
         return ranges::zip_view(std::move(xs), std::move(output_strides))
-               | ranges::views::transform(xform_and_pipe);
+               | ranges::views::transform(xform_and_store);
     };
 
 private:
@@ -316,14 +316,15 @@ private:
      * iterators have the same type.
      */
     template <typename R, typename OutIterator>
-    inline OutIterator _u32to8(R && xs, OutIterator out) const noexcept
+    inline OutIterator _u8to32(R && xs, OutIterator out) const noexcept
     {
         auto start = ranges::begin(xs);
-        auto end   = ranges::end(xs);
 
         while (start != ranges::end(xs))
         {
-            (*out++) = utf::next(start);
+            // Note: this beautiful library takes a reference to the iterator and
+            // advances it in-place
+            *out++ = utf::next(start);
         }
 
         return out;
