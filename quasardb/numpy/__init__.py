@@ -160,7 +160,7 @@ def _add_desired_dtypes(dtype, columns):
         if dtype[i] is None:
             (cname, ctype) = columns[i]
             dtype_ = _best_dtype_for_ctype(ctype)
-            logger.info("using default dtype '%s' for column '%s' with type %s", dtype_, cname, ctype)
+            logger.debug("using default dtype '%s' for column '%s' with type %s", dtype_, cname, ctype)
             dtype[i] = dtype_
 
     return dtype
@@ -183,8 +183,7 @@ def _is_all_masked(xs):
         return all(x is None for x in xs)
 
 
-    logger.info("not a masked array, not convertible to requested type... ")
-    logger.info(xs)
+    logger.debug("{} is not a masked array, not convertible to requested type... ".format(type(xs)))
 
     # This array is *not* a masked array, it's *not* convertible to the type we want,
     # and it's *not* an object array.
@@ -195,7 +194,6 @@ def _is_all_masked(xs):
 
 
 def dtypes_equal(lhs, rhs):
-    logger.debug("lhs type:%s, rhs type: %s, lhs == rhs = %s", lhs, rhs, (lhs == rhs))
     if lhs.kind == 'U' or lhs.kind == 'S':
         # Unicode and string data has variable length encoding, which means their itemsize
         # can be anything.
@@ -267,7 +265,7 @@ def _coerce_data(data, dtype):
         data_ = data[i]
 
         if dtype_ is not None and dtypes_equal(data_.dtype, dtype_) == False:
-            logger.info("data for column with offset %d was provided in dtype '%s', but need '%s': converting data...", i, data_.dtype, dtype_)
+            logger.debug("data for column with offset %d was provided in dtype '%s', but need '%s': converting data...", i, data_.dtype, dtype_)
 
             logger.debug("type of data[%d] after: %s", i, type(data[i]))
             logger.debug("size of data[%d] after: %s", i, ma.size(data[i]))
@@ -283,7 +281,7 @@ def _coerce_data(data, dtype):
                     logger.exception(err)
                     raise err
 
-                logger.info("array completely empty, re-initializing to empty array of '%s'", dtype_)
+                logger.debuyg("array completely empty, re-initializing to empty array of '%s'", dtype_)
                 data[i] = ma.masked_all(ma.size(data_),
                                         dtype=dtype_)
             assert data[i].dtype.kind == dtype_.kind
@@ -306,7 +304,7 @@ def ensure_ma(xs, dtype=None):
         return xs
 
     if not isinstance(xs, np.ndarray):
-        logger.warn("Provided data is not a numpy array: %s", type(xs))
+        logger.debug("Provided data is not a numpy array: %s", type(xs))
         xs = np.array(xs, dtype=dtype)
 
     logger.debug("coercing array with dtype: %s", xs.dtype)
@@ -400,10 +398,6 @@ def write_array(
 
 
     data = ensure_ma(data, dtype=dtype)
-
-    logger.info("after ensure_ma, data type = %s", type(data))
-
-    logger.info("has column: %s", column)
     ctype =  table.column_type_by_id(column)
 
     # We try to reuse some of the other functions, which assume array-like
@@ -547,23 +541,17 @@ def write_arrays(
         writer = cluster.pinned_writer(table)
 
     cinfos = [(x.name, x.type) for x in writer.column_infos()]
-
-    logger.info("1, dtype = %s", dtype)
     dtype = _coerce_dtype(dtype, cinfos)
 
-    logger.info("2, dtype = %s", dtype)
     assert type(dtype) is list
     assert len(dtype) is len(cinfos)
 
     if infer_types is True:
         dtype = _add_desired_dtypes(dtype, cinfos)
-        logger.info("3, dtype = %s", dtype)
 
-    logger.info("4, dtype = %s", dtype)
     data = ensure_ma(data, dtype=dtype)
-
-    logger.info("5, after ensure_ma, data = %s", data)
     data = _coerce_data(data, dtype)
+
 
     # Just some additional friendly information about incorrect dtypes, we'd
     # prefer to have this information thrown from Python instead of native
@@ -589,14 +577,11 @@ def write_arrays(
         (cname, ctype) = cinfos[i]
 
         if data[i] is not None:
-            logger.debug("Setting values for column '%s'", cname)
-
             write_with[ctype](i, data[i])
 
-    start = time.time()
 
-    logger.debug("push chunk of %d rows, fast?=%s, async?=%s, truncate=%s",
-                 len(index), fast, _async, truncate)
+    logger.debug("pushing %d rows", len(index))
+    start = time.time()
 
     if fast is True:
         writer.push_fast(drop_duplicates=drop_duplicates)
