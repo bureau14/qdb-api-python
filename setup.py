@@ -75,9 +75,12 @@ class CMakeBuild(build_ext):
                             'QDB_LINKER': ['-D', 'QDB_LINKER={}'],
                             'CMAKE_BUILD_TYPE': ['-D', 'CMAKE_BUILD_TYPE={}'],
                             }
+        default_proxy_vals = {'CMAKE_BUILD_TYPE': 'Release'}
 
         for (env_var, cmake_args_) in proxied_env_vars.items():
-            value = os.environ.get(env_var, 0)
+            default_ = default_proxy_vals.get(env_var, 0)
+            value = os.environ.get(env_var, default_)
+
             if value:
                 cmake_args_[-1] = cmake_args_[-1].format(value)
                 print("Proxying CMake args: {}".format(cmake_args_))

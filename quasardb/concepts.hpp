@@ -2,7 +2,8 @@
 
 #include "traits.hpp" // We include traits.hpp only for static_asserts below
 #include <pybind11/numpy.h>
-#include <range/v3/all.hpp>
+#include <range/v3/range/concepts.hpp>
+#include <range/v3/range/traits.hpp>
 #include <iterator>
 #include <type_traits>
 

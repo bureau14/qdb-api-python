@@ -32,13 +32,19 @@
 
 #include "../concepts.hpp"
 #include "../masked_array.hpp"
+#include "../numpy.hpp"
 #include "../traits.hpp"
 #include "../utils.hpp"
 #include "range.hpp"
+#include "util.hpp"
 #include "value.hpp"
 #include <qdb/ts.h>
 #include <pybind11/pybind11.h>
-#include <range/v3/all.hpp>
+#include <range/v3/algorithm/max_element.hpp>
+#include <range/v3/range/conversion.hpp>
+#include <range/v3/range/traits.hpp>
+#include <range/v3/view/transform.hpp>
+#include <range/v3/view/zip.hpp>
 #include <cstring>
 #include <utf8.h> // utf-cpp
 
@@ -74,36 +80,10 @@ struct convert_array;
 //
 /////
 template <typename From, typename To>
-requires(concepts::fixed_width_dtype<
-             From> && !concepts::delegate_dtype<From> && concepts::qdb_primitive<To>) struct
+requires(concepts::dtype<From> && !concepts::delegate_dtype<From> && concepts::qdb_primitive<To>) struct
     convert_array<From, To>
 {
     using value_type = typename From::value_type;
-    static constexpr value_converter<From, To> const xform_{};
-
-    [[nodiscard]] constexpr inline auto operator()() const noexcept
-    {
-        return ranges::views::transform(xform_);
-    };
-};
-
-/////
-//
-// numpy->qdb
-// Variable-width transforms.
-//
-// Needs to handle variable-length numpy array encodings.
-//
-// Input: range of length N, type: variable-width numpy data
-// Output: range of length N, type: qdb primitives (i.e. qdb_string_t || qdb_blob_t)
-//
-/////
-template <typename From, typename To>
-requires(concepts::variable_width_dtype<
-             From> && !concepts::delegate_dtype<From> && concepts::qdb_primitive<To>) struct
-    convert_array<From, To>
-{
-    // e.g. unicode->qdb_string_t or bytestring->qdb_blob_t
     static constexpr value_converter<From, To> const xform_{};
 
     [[nodiscard]] constexpr inline auto operator()() const noexcept
@@ -232,37 +212,18 @@ requires(
         ////
         // Step 1: allocate one big bad buffer
         ////
-        std::size_t word_length{_largest_word_length(xs)};
-        std::size_t codepoint_count{word_length * ranges::size(xs)};
-        std::unique_ptr<out_char_type[]> buf{std::make_unique<out_char_type[]>(codepoint_count)};
+        std::size_t stride_size{_largest_word_length(xs)};
+        py::array::ShapeContainer shape{ranges::size(xs)};
+        py::array::StridesContainer strides{To::itemsize(stride_size)};
+
+        py::array arr{To::dtype(stride_size), shape, strides};
 
         ////
         // Step 2: expose this buffer as a range
-        //
-        // Expose this entire memory arena as a range, that we chop in "chunks"
-        // (i.e. array strides).
-        //
-        // The result is that we have a completely empty output range, with
-        // all memory preallocated as a single, contiguous range.
         ////
-        auto output         = ranges::views::counted(buf.release(), codepoint_count);
-        auto output_strides = ranges::chunk_view(output, word_length);
-
-        // Do we end up chopping the output in exactly as many strides as
-        // the input? If not, we have a logic error somewhere above.
-        assert(ranges::size(output_strides) == ranges::size(xs));
-
-        // We rely on the memory being zero-initialized, add additional validation step
-        // for this. This is guaranteed by make_unique's default value constructor, but
-        // let's validate this in debug. (?? if debug mode causes the compiler to
-        //                                   pedantically zero-initialize *all* memory,
-        //                                   this check will be useless and not catch
-        //                                   the actual error in release
-        //                                ?? )
-#ifndef NDEBUG
-        auto is_null = [](out_char_type x) -> bool { return x == 0; };
-        assert(ranges::all_of(output, is_null));
-#endif
+        auto output = _stride_array_view(arr);
+        assert(ranges::size(output) == ranges::size(xs));
+        //
 
         ////
         // Step 3: transcode + copy into output
@@ -273,7 +234,7 @@ requires(
         //  2. feed all this through a transform function
         //  3. profit
         ////
-        using out_stride_t   = ranges::range_value_t<decltype(output_strides)>;
+        using out_stride_t   = ranges::range_value_t<decltype(output)>;
         auto xform_and_store = [=, *this](std::pair<qdb_string_view, out_stride_t> && x) {
             auto const & in = std::get<0>(x);
             auto & out      = std::get<1>(x);
@@ -285,11 +246,22 @@ requires(
 
         // Create a view that aligns our input qdb_string_t next to the data it needs
         // to write into.
-        return ranges::zip_view(std::move(xs), std::move(output_strides))
-               | ranges::views::transform(xform_and_store);
+        auto output_ = ranges::zip_view(std::move(xs), std::move(output))
+                       | ranges::views::transform(xform_and_store);
+
+        // And last but not least: allow piggybacking our `py::array` onto the range
+        // so that we can access it again later.
+        return qdb::convert::detail::passenger_view(std::move(output_), std::move(arr));
     };
 
 private:
+    inline auto _stride_array_view(py::array xs) const noexcept
+    {
+        py::ssize_t stride_size = To::stride_size(xs.itemsize());
+        out_char_type * ptr     = xs.mutable_unchecked<out_char_type>().mutable_data();
+        return ranges::chunk_view(ranges::views::counted(ptr, stride_size * xs.size()), stride_size);
+    }
+
     /**
      * Returns the length of the largest word in a range. Length is in bytes,
      * not codepoints.

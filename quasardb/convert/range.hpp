@@ -31,7 +31,13 @@
 #pragma once
 
 #include "../concepts.hpp"
-#include <range/v3/all.hpp>
+#include <range/v3/algorithm/all_of.hpp>
+#include <range/v3/algorithm/copy.hpp>
+#include <range/v3/algorithm/find.hpp>
+#include <range/v3/range/traits.hpp>
+#include <range/v3/view/chunk.hpp>
+#include <range/v3/view/counted.hpp>
+#include <range/v3/view/transform.hpp>
 
 namespace qdb::convert::detail
 {
@@ -139,7 +145,7 @@ requires(concepts::variable_width_dtype<DType>) inline decltype(auto) to_range(p
  * Converts range R to np.ndarray of dtype DType. Copies underlying data.
  */
 template <concepts::dtype DType, ranges::input_range R>
-requires(concepts::fixed_width_dtype<DType>) inline py::array to_array(R const & xs)
+requires(concepts::fixed_width_dtype<DType>) inline py::array to_array(R && xs)
 {
     using value_type = typename DType::value_type;
 
@@ -155,21 +161,10 @@ requires(concepts::fixed_width_dtype<DType>) inline py::array to_array(R const &
 /**
  * Converts range R to np.ndarray of dtype DType. Copies underlying data.
  */
+
 template <concepts::dtype DType, ranges::input_range R>
-requires(concepts::variable_width_dtype<DType>) inline py::array to_array(R const & xs)
+requires(concepts::variable_width_dtype<DType>) inline py::array to_array(R && xs)
 {
-    assert(ranges::size(xs) > 0);
-
-    // Use the first element to determine the stride size
-    using value_type = typename DType::value_type;
-    auto head        = *(ranges::cbegin(xs));
-
-    // Ensure we have e.g. a range of u32char for unicode, u8char for bytestring, etc.
-    static_assert(concepts::input_range_t<decltype(head), value_type>);
-
-    std::size_t codepoints_per_item = ranges::size(head);
-    assert(codepoints_per_item > 0);
-
     // We're playing a bit of a trick here: rather than iterating over the range,
     // we just steal the pointer of the first item (which is also the beginning of
     // the entire array), and we're not evaluating anything else.
@@ -183,25 +178,22 @@ requires(concepts::variable_width_dtype<DType>) inline py::array to_array(R cons
     // But it's also just a good check that ensures all our strides are actually
     // the same size. :)
 
-    bool all_equal = true;
-    for (auto x : xs)
+    if (ranges::empty(xs) == false) [[likely]]
     {
-        // Branchless, because we expect absolutely no `false` here ever, and
-        // this means it can be vectorized.
-        all_equal = all_equal && (ranges::size(x) == codepoints_per_item);
+        auto sizes       = xs | ranges::views::transform([](auto x) { return ranges::size(x); });
+        auto stride_size = *(ranges::begin(sizes));
+
+        bool all_equal =
+            ranges::all_of(sizes, [&stride_size](std::size_t n) { return stride_size == n; });
+        if (all_equal == false) [[unlikely]]
+        {
+            throw qdb::internal_local_exception{
+                "Internal error: array strides are not of equal lengths: stride_size: "
+                + std::to_string(stride_size)};
+        };
     };
 
-    if (all_equal == false) [[unlikely]]
-    {
-        throw qdb::internal_local_exception{
-            "Internal error: array strides are not of equal lengths: codepoints_per_item: "
-            + std::to_string(codepoints_per_item)};
-    };
-
-    py::array::ShapeContainer shape{ranges::size(xs)};
-    py::array::StridesContainer strides{DType::itemsize(codepoints_per_item)};
-    //    py::dtype dt("<U18");
-    return py::array{DType::dtype(codepoints_per_item), shape, strides, ranges::cdata(head)};
+    return xs.cdata();
 };
 
 }; // namespace qdb::convert::detail
