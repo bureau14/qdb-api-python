@@ -274,7 +274,7 @@ requires(
         //  3. profit
         ////
         using out_stride_t   = ranges::range_value_t<decltype(output_strides)>;
-        auto xform_and_store = [=](std::pair<qdb_string_view, out_stride_t> && x) {
+        auto xform_and_store = [=, *this](std::pair<qdb_string_view, out_stride_t> && x) {
             auto const & in = std::get<0>(x);
             auto & out      = std::get<1>(x);
 
