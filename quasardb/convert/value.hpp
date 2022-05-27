@@ -36,6 +36,8 @@
 #include "../traits.hpp"
 #include <qdb/ts.h>
 #include <pybind11/pybind11.h>
+#include <range/v3/range/concepts.hpp>
+#include <range/v3/view/counted.hpp>
 #include <cstring>
 #include <utf8.h>
 

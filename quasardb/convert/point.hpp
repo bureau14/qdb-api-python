@@ -299,8 +299,8 @@ requires(concepts::input_range_t<R, point_type<From>>) static inline std::pair<p
 
     auto const && [timestamps, values] = xform(xs);
 
-    py::array timestamps_ = detail::to_array<traits::datetime64_ns_dtype>(timestamps);
-    py::array values_     = detail::to_array<To>(values);
+    py::array timestamps_ = detail::to_array<traits::datetime64_ns_dtype>(std::move(timestamps));
+    py::array values_     = detail::to_array<To>(std::move(values));
 
     assert(timestamps_.size() == values_.size());
 
