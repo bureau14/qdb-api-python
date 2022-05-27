@@ -39,6 +39,41 @@
 #include <string>
 #include <vector>
 
+namespace qdb
+{
+struct scoped_timer
+{
+    typedef std::chrono::time_point<std::chrono::high_resolution_clock> time_point_t;
+    using clock = std::chrono::high_resolution_clock;
+
+    std::string id_;
+    time_point_t start_;
+    scoped_timer(std::string id) noexcept
+        : id_{id}
+        , start_{clock::now()}
+    {}
+
+    ~scoped_timer() noexcept
+    {
+        done();
+    };
+
+    void done() noexcept
+    {
+        if (id_.empty() == false)
+        {
+            time_point_t end = clock::now();
+            auto delta       = end - start_;
+            std::cout << "[" << id_ << "] elapsed: "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(delta).count() << "ms"
+                      << std::endl;
+        };
+
+        id_.clear();
+    };
+};
+}; // namespace qdb
+
 static inline bool operator<(qdb_timespec_t const & lhs, qdb_timespec_t const & rhs)
 {
     if (lhs.tv_sec < rhs.tv_sec)
