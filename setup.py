@@ -72,7 +72,9 @@ class CMakeBuild(build_ext):
         proxied_env_vars = {'CMAKE_GENERATOR': ['-G', '{}'],
                             'CMAKE_C_COMPILER': ['-D', 'CMAKE_C_COMPILER={}'],
                             'CMAKE_CXX_COMPILER': ['-D', 'CMAKE_CXX_COMPILER={}'],
-                            'QDB_LINKER': ['-D', 'QDB_LINKER={}']}
+                            'QDB_LINKER': ['-D', 'QDB_LINKER={}'],
+                            'CMAKE_BUILD_TYPE': ['-D', 'CMAKE_BUILD_TYPE={}'],
+                            }
 
         for (env_var, cmake_args_) in proxied_env_vars.items():
             value = os.environ.get(env_var, 0)
@@ -84,7 +86,6 @@ class CMakeBuild(build_ext):
         # NOTE: Run `python setup.py build_ext --debug bdist_wheel ...` for Debug build.
         cfg = 'Debug' if self.debug else 'Release'
         build_args = ['--config', cfg]
-        # build_args += ['-j']
 
         if platform.system() == "Windows":
             cmake_args += [
@@ -95,8 +96,8 @@ class CMakeBuild(build_ext):
             else:
                 cmake_args += ['-A', 'Win32']
         #    build_args += ['--', '/m']
-        else:
-            cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
+        elif platform.system() == "Linux":
+            build_args += ['-j']
         #    build_args += ['--', '-j2']
 
         env = os.environ.copy()
