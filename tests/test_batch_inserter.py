@@ -57,7 +57,7 @@ def _make_inserter_info(table):
 
 
 def test_non_existing_bulk_insert(qdbd_connection, entry_name):
-    with pytest.raises(quasardb.Error):
+    with pytest.raises(quasardb.AliasNotFoundError):
         qdbd_connection.inserter(
             [quasardb.BatchColumnInfo(entry_name, "col", 10)])
 
@@ -229,7 +229,7 @@ def test_successful_fast_bulk_row_insert(
 
 def test_failed_local_table_with_wrong_columns(qdbd_connection, entry_name):
     columns = [quasardb.BatchColumnInfo(entry_name, "1000flavorsofwrong", 10)]
-    with pytest.raises(quasardb.Error):
+    with pytest.raises(quasardb.AliasNotFoundError):
         qdbd_connection.inserter(columns)
 
 
