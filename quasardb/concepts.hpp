@@ -53,10 +53,10 @@ concept qdb_primitive =
     traits::qdb_value<T>::is_qdb_primitive &&
 
     // Every primitive has a null representation
-    std::is_same_v<decltype(traits::qdb_value<T>::null_value()), T> &&
+    std::is_same_v<decltype(traits::null_value<T>()), T> &&
 
     // Every primitive should be able to check for null validity
-    std::is_same_v<decltype(traits::qdb_value<T>::is_null(T{})), bool> &&
+    std::is_same_v<decltype(traits::is_null<T>(T{})), bool> &&
 
     // And every primitive should have its "point" counterpart, which must
     // be a valid qdb_point.

@@ -229,7 +229,7 @@ struct value_converter<qdb_blob_t, py::bytes>
     {
         // Again, if we're already at the point that we're sure we can cast it to py::bytes,
         // it implies it is guaranteed not to be null.
-        assert(traits::qdb_value<qdb_blob_t>::is_null(x) == false);
+        assert(traits::is_null(x) == false);
 
         return py::bytes(static_cast<char const *>(x.content), x.content_length);
     }
@@ -244,7 +244,7 @@ struct value_converter<qdb_blob_t, py::object>
 
     inline py::object operator()(qdb_blob_t const & x) const
     {
-        if (traits::qdb_value<qdb_blob_t>::is_null(x))
+        if (traits::is_null(x))
         {
             return dtype::null_value();
         }
@@ -260,7 +260,7 @@ struct value_converter<qdb_string_t, py::str>
     {
         // Again, if we're already at the point that we're sure we can cast it to py::bytes,
         // it implies it is guaranteed not to be null.
-        assert(traits::qdb_value<qdb_string_t>::is_null(x) == false);
+        assert(traits::is_null(x) == false);
 
         return py::str(x.data, x.length);
     }
@@ -275,7 +275,7 @@ struct value_converter<qdb_string_t, py::object>
 
     inline py::object operator()(qdb_string_t const & x) const
     {
-        if (traits::qdb_value<qdb_string_t>::is_null(x))
+        if (traits::is_null(x))
         {
             return dtype::null_value();
         }
@@ -306,7 +306,7 @@ struct value_converter<py::object, qdb_blob_t>
     {
         if (dtype::is_null(x))
         {
-            return traits::qdb_value<qdb_blob_t>::null_value();
+            return traits::null_value<qdb_blob_t>();
         }
 
         return delegate_(x);
@@ -324,7 +324,7 @@ struct value_converter<py::object, qdb_timespec_t>
     {
         if (dtype::is_null(x))
         {
-            return traits::qdb_value<qdb_timespec_t>::null_value();
+            return traits::null_value<qdb_timespec_t>();
         }
 
         try

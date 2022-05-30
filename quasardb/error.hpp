@@ -238,7 +238,7 @@ void qdb_throw_if_query_error(qdb_handle_t h, qdb_error_t err, qdb_query_result_
 {
     if (err == qdb_e_invalid_query) [[unlikely]]
     {
-        if (traits::qdb_value<qdb_string_t>::is_null(result.error_message) == false)
+        if (traits::is_null(result.error_message) == false)
         {
             throw qdb::invalid_query_exception{
                 std::string{result.error_message.data, result.error_message.length}};

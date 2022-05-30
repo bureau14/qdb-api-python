@@ -122,7 +122,7 @@ struct fill_column_dispatch
     {
         qdb_exp_batch_push_column_t ret{};
 
-        ret.name      = traits::qdb_value<qdb_string_t>::null_value();
+        ret.name      = traits::null_value<qdb_string_t>();
         ret.data_type = ctype;
 
         // We swap the pointer inside the `qdb_exp_batch_push_column__t` with the pointer
@@ -195,7 +195,7 @@ std::vector<qdb_exp_batch_push_column_t> const & pinned_writer::prepare_columns(
         qdb_exp_batch_push_column_t column = dispatch::by_column_type<detail::fill_column_dispatch>(
             _column_infos[index].type, _columns.at(index));
 
-        assert(traits::qdb_value<qdb_string_t>::is_null(column.name));
+        assert(traits::is_null(column.name));
 
         // XXX(leon): reuses lifecycle of _column_infos[index], which *should* be fine,
         //            but ensuring we take a reference is super important here!

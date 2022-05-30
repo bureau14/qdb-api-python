@@ -589,4 +589,31 @@ struct datetime64_ns_dtype : public datetime64_dtype<datetime64_ns>
     }
 };
 
+// Easy accessors for some commonly requested functions
+template <typename T>
+inline bool is_null(T x) noexcept
+{
+    return qdb_value<T>::is_null(x);
+};
+
+template <typename T>
+inline T null_value() noexcept
+{
+    return qdb_value<T>::null_value();
+};
+
+// Easy accessors for some commonly requested functions
+template <typename T>
+inline bool is_null(typename T::value_type x) noexcept
+{
+    return T::is_null(x);
+};
+
+// Easy accessors for some commonly requested functions
+template <typename T>
+inline typename T::value_type null_value() noexcept
+{
+    return T::null_value();
+};
+
 }; // namespace qdb::traits
