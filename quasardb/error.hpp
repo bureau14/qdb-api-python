@@ -31,8 +31,10 @@
 #pragma once
 
 #include "logger.hpp"
+#include "traits.hpp"
 #include <qdb/client.h>
 #include <qdb/error.h>
+#include <qdb/query.h>
 #include <pybind11/pybind11.h>
 #include <iostream>
 #include <utility>
@@ -107,6 +109,18 @@ public:
     {}
 
     invalid_argument_exception(std::string const & what) noexcept
+        : exception(qdb_e_invalid_argument, what)
+    {}
+};
+
+class invalid_query_exception : public exception
+{
+public:
+    invalid_query_exception() noexcept
+        : exception(qdb_e_invalid_argument, std::string("Invalid query"))
+    {}
+
+    invalid_query_exception(std::string const & what) noexcept
         : exception(qdb_e_invalid_argument, what)
     {}
 };
@@ -194,6 +208,7 @@ void qdb_throw_if_error(qdb_handle_t h, qdb_error_t err, PreThrowFtor && pre_thr
 
         switch (err)
         {
+
         case qdb_e_alias_already_exists:
             throw qdb::alias_already_exists_exception{};
 
@@ -244,6 +259,7 @@ static inline void register_errors(Module & m)
     py::register_exception<qdb::not_implemented_exception>(m, "NotImplementedError");
     py::register_exception<qdb::internal_local_exception>(m, "InternalLocalError");
     py::register_exception<qdb::invalid_argument_exception>(m, "InvalidArgumentError");
+    py::register_exception<qdb::invalid_query_exception>(m, "InvalidQueryError");
 }
 
 } // namespace qdb
