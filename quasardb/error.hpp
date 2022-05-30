@@ -117,11 +117,11 @@ class invalid_query_exception : public exception
 {
 public:
     invalid_query_exception() noexcept
-        : exception(qdb_e_invalid_argument, std::string("Invalid query"))
+        : exception(qdb_e_invalid_query, std::string("Invalid query"))
     {}
 
     invalid_query_exception(std::string const & what) noexcept
-        : exception(qdb_e_invalid_argument, what)
+        : exception(qdb_e_invalid_query, what)
     {}
 };
 
@@ -142,6 +142,22 @@ class alias_already_exists_exception : public exception
 public:
     alias_already_exists_exception() noexcept
         : exception(qdb_e_alias_already_exists, std::string("Alias already exists"))
+    {}
+
+    alias_already_exists_exception(std::string const & what) noexcept
+        : exception(qdb_e_alias_already_exists, what)
+    {}
+};
+
+class alias_not_found_exception : public exception
+{
+public:
+    alias_not_found_exception() noexcept
+        : exception(qdb_e_alias_not_found, std::string("Alias not found"))
+    {}
+
+    alias_not_found_exception(std::string const & what) noexcept
+        : exception(qdb_e_alias_not_found, what)
     {}
 };
 
@@ -181,7 +197,8 @@ struct no_op
 // (such as calls to `qdb_release`)
 // `pre_throw` defaults to a `no_op` functor that does nothing.
 template <typename PreThrowFtor = detail::no_op>
-void qdb_throw_if_error(qdb_handle_t h, qdb_error_t err, PreThrowFtor && pre_throw = detail::no_op{})
+inline void qdb_throw_if_error(
+    qdb_handle_t h, qdb_error_t err, PreThrowFtor && pre_throw = detail::no_op{})
 {
     static_assert(
         noexcept(std::forward<PreThrowFtor &&>(pre_throw)()), "`pre_throw` argument must be noexcept");
@@ -190,7 +207,7 @@ void qdb_throw_if_error(qdb_handle_t h, qdb_error_t err, PreThrowFtor && pre_thr
     //              call. Guess which function is invoked exactly at those moments?
     qdb::native::flush();
 
-    if ((qdb_e_ok != err) && (qdb_e_ok_created != err))
+    if ((qdb_e_ok != err) && (qdb_e_ok_created != err)) [[unlikely]]
     {
         qdb_string_t msg_;
         qdb_error_t err_;
@@ -209,8 +226,14 @@ void qdb_throw_if_error(qdb_handle_t h, qdb_error_t err, PreThrowFtor && pre_thr
         switch (err)
         {
 
+        case qdb_e_invalid_query:
+            throw qdb::invalid_query_exception{msg_.data};
+
         case qdb_e_alias_already_exists:
-            throw qdb::alias_already_exists_exception{};
+            throw qdb::alias_already_exists_exception{msg_.data};
+
+        case qdb_e_alias_not_found:
+            throw qdb::alias_not_found_exception{msg_.data};
 
         case qdb_e_network_inbuf_too_small:
             throw qdb::input_buffer_too_small_exception{};
@@ -234,15 +257,13 @@ void qdb_throw_if_error(qdb_handle_t h, qdb_error_t err, PreThrowFtor && pre_thr
 }
 
 template <typename PreThrowFtor = detail::no_op>
-void qdb_throw_if_query_error(qdb_handle_t h, qdb_error_t err, qdb_query_result_t const & result)
+inline void qdb_throw_if_query_error(qdb_handle_t h, qdb_error_t err, qdb_query_result_t const * result)
 {
-    if (err == qdb_e_invalid_query) [[unlikely]]
+    if (err == qdb_e_invalid_query && result != nullptr
+        && traits::is_null(result->error_message) == false) [[unlikely]]
     {
-        if (traits::is_null(result.error_message) == false)
-        {
-            throw qdb::invalid_query_exception{
-                std::string{result.error_message.data, result.error_message.length}};
-        };
+        throw qdb::invalid_query_exception{
+            std::string{result->error_message.data, result->error_message.length}};
     }
 
     return qdb_throw_if_error(h, err);
@@ -254,6 +275,7 @@ static inline void register_errors(Module & m)
     py::register_exception<qdb::exception>(m, "Error");
     py::register_exception<qdb::input_buffer_too_small_exception>(m, "InputBufferTooSmallError");
     py::register_exception<qdb::alias_already_exists_exception>(m, "AliasAlreadyExistsError");
+    py::register_exception<qdb::alias_not_found_exception>(m, "AliasNotFoundError");
     py::register_exception<qdb::invalid_datetime_exception>(m, "InvalidDatetimeError");
     py::register_exception<qdb::incompatible_type_exception>(m, "IncompatibleTypeError");
     py::register_exception<qdb::not_implemented_exception>(m, "NotImplementedError");
