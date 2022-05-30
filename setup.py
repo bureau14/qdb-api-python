@@ -27,6 +27,12 @@ qdb_version = "3.15.0.dev0"
 # package this.
 package_modules = glob.glob(os.path.join('quasardb', 'lib*'))
 package_name = 'quasardb'
+packages = [
+    package_name,
+    "quasardb.pandas",
+    "quasardb.numpy",
+    "quasardb.extensions",
+    ]
 
 
 class CMakeExtension(Extension):
@@ -190,7 +196,7 @@ setup(name=package_name,
               "teamcity-messages >= 1.29"]
       },
 
-      packages=[package_name],
+      packages=packages,
       package_data={package_name: package_modules},
       ext_modules=[CMakeExtension('quasardb', 'quasardb/')],
       include_package_data=True,
