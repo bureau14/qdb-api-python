@@ -43,6 +43,7 @@
 #include <range/v3/algorithm/max_element.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/range/traits.hpp>
+#include <range/v3/view/common.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/zip.hpp>
 #include <cstring>
@@ -234,20 +235,18 @@ requires(
         //  2. feed all this through a transform function
         //  3. profit
         ////
-        using out_stride_t   = ranges::range_value_t<decltype(output)>;
-        auto xform_and_store = [=, *this](std::pair<qdb_string_view, out_stride_t> && x) {
-            auto const & in = std::get<0>(x);
-            auto & out      = std::get<1>(x);
+        auto xform_and_store = [=, *this](auto && x) {
+            auto in  = ranges::views::common(std::get<0>(x));
+            auto out = std::get<1>(x);
 
-            _u8to32(in, ranges::begin(out));
-
+            utf::utf8to32(ranges::begin(in), ranges::end(in), ranges::begin(out));
             return out;
         };
 
         // Create a view that aligns our input qdb_string_t next to the data it needs
         // to write into.
         auto output_ = ranges::zip_view(std::move(xs), std::move(output))
-                       | ranges::views::transform(xform_and_store);
+                       | ranges::views::transform(std::move(xform_and_store));
 
         // And last but not least: allow piggybacking our `py::array` onto the range
         // so that we can access it again later.
@@ -281,25 +280,6 @@ private:
         auto iter = ranges::max_element(xs_);
 
         return std::max(*iter, std::size_t(1));
-    };
-
-    /**
-     * Small loop to work around utfcpp's limitation of assuming begin and end
-     * iterators have the same type.
-     */
-    template <typename R, typename OutIterator>
-    inline OutIterator _u8to32(R && xs, OutIterator out) const noexcept
-    {
-        auto start = ranges::begin(xs);
-
-        while (start != ranges::end(xs))
-        {
-            // Note: this beautiful library takes a reference to the iterator and
-            // advances it in-place
-            *out++ = utf::next(start);
-        }
-
-        return out;
     };
 };
 
