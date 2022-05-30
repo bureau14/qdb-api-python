@@ -26,7 +26,7 @@ def test_remove(blob_entry, random_blob):
     blob_entry.put(random_blob)
     blob_entry.remove()
 
-    with pytest.raises(quasardb.Error):
+    with pytest.raises(quasardb.AliasNotFoundError):
         blob_entry.get()
 
 
@@ -34,7 +34,7 @@ def test_remove_throws_exception_when_called_twice(blob_entry, random_blob):
     blob_entry.put(random_blob)
     blob_entry.remove()
 
-    with pytest.raises(quasardb.Error):
+    with pytest.raises(quasardb.AliasNotFoundError):
         blob_entry.remove()
 
 
@@ -79,7 +79,7 @@ def test_get_and_remove(blob_entry, random_blob):
     got = blob_entry.get_and_remove()
     assert random_blob == got
 
-    with pytest.raises(quasardb.Error):
+    with pytest.raises(quasardb.AliasNotFoundError):
         blob_entry.get()
 
 
@@ -97,7 +97,7 @@ def test_remove_if(blob_entry, random_blob):
 
     blob_entry.remove_if(random_blob)
 
-    with pytest.raises(quasardb.Error):
+    with pytest.raises(quasardb.AliasNotFoundError):
         blob_entry.get()
 
 

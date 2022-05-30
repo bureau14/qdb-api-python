@@ -94,17 +94,17 @@ def test_returns_invalid_argument_for_null_query(qdbd_connection):
 
 
 def test_returns_invalid_argument_for_empty_query(qdbd_connection):
-    with pytest.raises(quasardb.Error):
+    with pytest.raises(quasardb.InvalidQueryError):
         qdbd_connection.query('')
 
 
 def test_returns_invalid_argument_with_invalid_query(qdbd_connection):
-    with pytest.raises(quasardb.Error):
+    with pytest.raises(quasardb.InvalidQueryError):
         qdbd_connection.query('select * from')
 
 
 def test_returns_alias_not_found_when_ts_doesnt_exist(qdbd_connection):
-    with pytest.raises(quasardb.Error):
+    with pytest.raises(quasardb.AliasNotFoundError):
         qdbd_connection.query(
             'select * from ' +
             'this_ts_doesnt_exist' +
@@ -112,7 +112,7 @@ def test_returns_alias_not_found_when_ts_doesnt_exist(qdbd_connection):
 
 
 def test_returns_alias_not_found_when_untagged(qdbd_connection, tag_name):
-    with pytest.raises(quasardb.Error):
+    with pytest.raises(quasardb.AliasNotFoundError):
         qdbd_connection.query(
             "select * from find(tag='" + tag_name + "') in range(2017, +10d)")
 

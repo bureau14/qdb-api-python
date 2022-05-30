@@ -18,7 +18,7 @@ def test_expires_at(blob_entry, random_blob):
     """
 
     # entry does not exist yet
-    with pytest.raises(quasardb.Error):
+    with pytest.raises(quasardb.AliasNotFoundError):
         blob_entry.get_expiry_time()
 
     blob_entry.put(random_blob)
@@ -37,7 +37,7 @@ def test_expires_at(blob_entry, random_blob):
 
 def test_expires_from_now(blob_entry, random_blob):
     # entry does not exist yet
-    with pytest.raises(quasardb.Error):
+    with pytest.raises(quasardb.AliasNotFoundError):
         blob_entry.get_expiry_time()
 
     blob_entry.put(random_blob)
