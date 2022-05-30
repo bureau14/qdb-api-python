@@ -494,17 +494,21 @@ gen_any_cdype = all_cdtypes
 #
 # It works by overwriting the output of 'gen_cdtype', which affects the
 # entire fixture chain/tree.
-def override_cdtypes(x):
+def override_cdtypes(args):
+    if not isinstance(args, list):
+        return override_cdtypes([args])
+
     m = {'native': native_cdtypes,
          'inferrable': inferrable_cdtypes,
          'any': all_cdtypes}
 
-    xs = None
+    xs = []
 
-    if x in m:
-        xs = m[x]
-    elif isinstance(x, np.dtype):
-        xs = _filter_cdtypes(lambda ctype, dtype, native: dtype == x)
+    for arg in args:
+        if arg in m:
+            xs.extend(m[arg])
+        elif isinstance(arg, np.dtype):
+            xs.extend(list(_filter_cdtypes(lambda ctype, dtype, native: dtype == arg)))
 
 
     param_ids = [_cdtype_to_param_id(x) for x in xs]

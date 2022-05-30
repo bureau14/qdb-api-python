@@ -279,3 +279,29 @@ def test_query_masked_index(array_with_index_and_table, qdbd_connection):
     with pytest.raises(ValueError):
         # We know we always have a partially masked array
         qdbnp.query(qdbd_connection, q, index=col)
+
+
+def test_query_empty_result(array_with_index_and_table, qdbd_connection):
+    (ctype, dtype, data, index, table) = array_with_index_and_table
+
+    q = 'SELECT * FROM "{}"'.format(table.get_name())
+    (idx, res) = qdbnp.query(qdbd_connection, q)
+
+    assert len(idx) == 0
+    assert len(res) == len(idx)
+
+
+@conftest.override_sparsify('none')
+@conftest.override_cdtypes([np.dtype('int64'),
+                            np.dtype('float64')])
+def test_query_insert(array_with_index_and_table, qdbd_connection):
+    (ctype, dtype, data, index, table) = array_with_index_and_table
+
+    col = table.column_id_by_index(0)
+    val = data[0]
+
+    q = 'INSERT INTO "{}" ($timestamp, {}) VALUES (NOW(), {})'.format(table.get_name(), col, val)
+    (idx, res) = qdbnp.query(qdbd_connection, q)
+
+    assert len(idx) == 0
+    assert len(res) == len(idx)

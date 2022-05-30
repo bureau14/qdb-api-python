@@ -602,7 +602,7 @@ def write_arrays(
 
 def _xform_query_results(xs, index, dict):
     if len(xs) == 0:
-        return None
+        return (np.array([], np.dtype('datetime64[ns]')), np.array([]))
 
     n = None
     for x in xs:
