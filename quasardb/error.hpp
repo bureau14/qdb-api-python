@@ -218,6 +218,21 @@ void qdb_throw_if_error(qdb_handle_t h, qdb_error_t err, PreThrowFtor && pre_thr
     }
 }
 
+template <typename PreThrowFtor = detail::no_op>
+void qdb_throw_if_query_error(qdb_handle_t h, qdb_error_t err, qdb_query_result_t const & result)
+{
+    if (err == qdb_e_invalid_query) [[unlikely]]
+    {
+        if (traits::is_null(result.error_message) == false)
+        {
+            throw qdb::invalid_query_exception{
+                std::string{result.error_message.data, result.error_message.length}};
+        };
+    }
+
+    return qdb_throw_if_error(h, err);
+}
+
 template <typename Module>
 static inline void register_errors(Module & m)
 {
