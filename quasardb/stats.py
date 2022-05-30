@@ -146,7 +146,7 @@ def _get_stat(dconn, k):
     # blob
     try:
         return dconn.integer(k).get()
-    except quasardb.quasardb.Error:
+    except quasardb.quasardb.AliasNotFoundError:
         blob = dconn.blob(k).get()
         return blob.decode('utf-8', 'replace')
 
