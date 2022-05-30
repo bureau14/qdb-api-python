@@ -122,9 +122,9 @@ def test_returns_columns_not_found(qdbd_connection, table, column_name):
         qdbd_connection.query(
             "select " +
             column_name +
-            " from " +
+            " from \"" +
             table.get_name() +
-            " in range(2017, +10d)")
+            "\" in range(2017, +10d)")
 
 def test_invalid_query_message(qdbd_connection, table):
     with pytest.raises(quasardb.Error) as excinfo:
