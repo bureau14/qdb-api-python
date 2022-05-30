@@ -47,7 +47,7 @@ def test_invalid_utf8_logs_qdb3361(qdbd_connection, caplog):
     table = qdbd_connection.table(tablename)
     try:
         table.remove()
-    except quasardb.Error:
+    except quasardb.AliasNotFoundError:
         # AliasNotFound
         pass
 
