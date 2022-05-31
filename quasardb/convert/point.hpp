@@ -186,7 +186,9 @@ requires(concepts::qdb_primitive<From> && concepts::dtype<To>) struct convert_po
 
         auto const && [timestamps, values] = qdb::make_unzip_views(range_of_pairs);
 
-        return std::make_pair(ts_delegate_(timestamps), value_delegate_(values));
+        auto timestamps_ = timestamps | ts_delegate_();
+        auto values_     = values | value_delegate_();
+        return std::make_pair(timestamps_, values_);
     }
 };
 

@@ -31,12 +31,17 @@
 #pragma once
 
 #include "../concepts.hpp"
+#include "../error.hpp"
+#include "util.hpp"
 #include <range/v3/algorithm/all_of.hpp>
 #include <range/v3/algorithm/copy.hpp>
 #include <range/v3/algorithm/find.hpp>
+#include <range/v3/algorithm/for_each.hpp>
+#include <range/v3/algorithm/max_element.hpp>
 #include <range/v3/range/traits.hpp>
 #include <range/v3/view/chunk.hpp>
 #include <range/v3/view/counted.hpp>
+#include <range/v3/view/remove_if.hpp>
 #include <range/v3/view/transform.hpp>
 
 namespace qdb::convert::detail
@@ -161,39 +166,80 @@ requires(concepts::fixed_width_dtype<DType>) inline py::array to_array(R && xs)
 /**
  * Converts range R to np.ndarray of dtype DType. Copies underlying data.
  */
-
-template <concepts::dtype DType, ranges::input_range R>
-requires(concepts::variable_width_dtype<DType>) inline py::array to_array(R && xs)
+template <concepts::dtype Dtype, ranges::input_range R>
+requires(concepts::variable_width_dtype<Dtype>) inline py::array to_array(R && xs)
 {
-    // We're playing a bit of a trick here: rather than iterating over the range,
-    // we just steal the pointer of the first item (which is also the beginning of
-    // the entire array), and we're not evaluating anything else.
-    //
-    // Because of range views' lazy behavior, this means that remaining view
-    // adapters / transform in the pipeline are not realized.
-    //
-    // As such, this check right here is not just for show, it ensures
-    // that we're actually _consuming_ the whole range.
-    //
-    // But it's also just a good check that ensures all our strides are actually
-    // the same size. :)
+    using out_char_type = typename Dtype::value_type;
 
-    if (ranges::empty(xs) == false) [[likely]]
-    {
-        auto sizes       = xs | ranges::views::transform([](auto x) { return ranges::size(x); });
-        auto stride_size = *(ranges::begin(sizes));
+    //
+    // Our input range is a view of words with varying lengths, which may
+    // have a complicated range view pipeline which does unicode conversions
+    // and whatnot.
+    //
+    // In order to encode this data as a numpy contiguous, variable width
+    // array (i.e. of dtype('U') or dtype('S')), we need to:
+    //
+    ////
+    //  1. know the length of the longest word:
+    //
+    std::size_t stride_size = largest_word_length(xs);
 
-        bool all_equal =
-            ranges::all_of(sizes, [&stride_size](std::size_t n) { return stride_size == n; });
-        if (all_equal == false) [[unlikely]]
-        {
-            throw qdb::internal_local_exception{
-                "Internal error: array strides are not of equal lengths: stride_size: "
-                + std::to_string(stride_size)};
-        };
-    };
+    ////
+    //  2. know the size (in bytes) of a single character;
+    //
+    py::array::StridesContainer strides{Dtype::itemsize(stride_size)};
 
-    return xs.cdata();
+    ////
+    //  3. know the total number of words;
+    //
+    py::array::ShapeContainer shape{ranges::size(xs)};
+
+    ////
+    //  4. allocate a single, contiguous array of [1] * [2] * [3] bytes;
+    //
+    py::array arr{Dtype::dtype(stride_size), shape, strides};
+    assert(Dtype::stride_size(arr.itemsize()) == stride_size);
+
+    ////
+    //  5. expose this contiguous array as chunks of `stride_size`
+    //
+    out_char_type * ptr = arr.mutable_unchecked<out_char_type>().mutable_data();
+    auto dst =
+        ranges::views::counted(ptr, stride_size * arr.size()) | ranges::views::chunk(stride_size);
+    assert(ranges::size(dst) == ranges::size(xs));
+
+    ////
+    // 6. zip in and out ranges
+    //
+    // This will align each input stride (input range of length [0...stride_size>) next to
+    // the output stride (output range of fixed size `stride_size`.
+    //
+    auto inout = ranges::zip_view(std::move(xs), std::move(dst));
+
+    ////
+    // 7. skip null values
+    //
+    // It's now safe to skip any null values
+    auto inout_ = ranges::views::remove_if(
+        std::move(inout), [](auto const & x) -> bool { return ranges::empty(std::get<0>(x)); });
+
+    ////
+    // 7. write the results into each stride.
+    //
+    ranges::for_each(inout_, [stride_size](auto && x) -> void {
+        auto && [in, out] = x;
+
+        static_assert(ranges::input_range<decltype(in)>);
+        static_assert(ranges::output_range<decltype(out), out_char_type>);
+
+        assert(ranges::size(out) == stride_size);
+        assert(ranges::size(in) <= ranges::size(out));
+        assert(ranges::empty(in) == false);
+
+        ranges::copy(in, ranges::begin(out));
+    });
+
+    return arr;
 };
 
 }; // namespace qdb::convert::detail
