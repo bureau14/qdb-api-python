@@ -3,8 +3,6 @@
 #include <range/v3/range_fwd.hpp>
 #include <range/v3/view/cache1.hpp>
 #include <range/v3/view_adaptor.hpp>
-#include <tcb/utf_ranges/detail/utf.hpp>
-#include <iostream>
 
 namespace qdb::convert::unicode
 {
