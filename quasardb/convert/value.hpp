@@ -40,7 +40,6 @@
 #include <range/v3/algorithm/copy.hpp>
 #include <range/v3/range/concepts.hpp>
 #include <range/v3/view/counted.hpp>
-#include <tcb/utf_ranges/detail/utf.hpp>
 #include <cstring>
 
 namespace qdb::convert::detail
