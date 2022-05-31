@@ -34,12 +34,14 @@
 #include "../error.hpp"
 #include "../object_tracker.hpp"
 #include "../traits.hpp"
+#include "unicode.hpp"
 #include <qdb/ts.h>
 #include <pybind11/pybind11.h>
+#include <range/v3/algorithm/copy.hpp>
 #include <range/v3/range/concepts.hpp>
 #include <range/v3/view/counted.hpp>
+#include <tcb/utf_ranges/detail/utf.hpp>
 #include <cstring>
-#include <utf8.h>
 
 namespace qdb::convert::detail
 {
@@ -183,15 +185,35 @@ struct value_converter<traits::unicode_dtype, qdb_string_t>
     requires(ranges::sized_range<R> && ranges::contiguous_range<R>) inline qdb_string_t operator()(
         R && x) const
     {
+        // Calculate total size of output buffer; we *could* do it more
+        // accurately by first scanning everything and then filling it,
+        // but trades memory efficiency for performance.
+        //
+        // As such, we just allocate the maximum amount of theoretical bytes.
         std::size_t n_codepoints  = ranges::size(x);
         std::size_t max_bytes_out = n_codepoints * sizeof(in_char_type);
 
-        out_char_type * data = qdb::object_tracker::alloc<out_char_type>(max_bytes_out);
-        out_char_type * end  = utf8::utf32to8(ranges::begin(x), ranges::end(x), data);
+        // Note: we allocate the buffer on our object_tracker heap!
+        out_char_type * out = qdb::object_tracker::alloc<out_char_type>(max_bytes_out);
 
-        qdb_size_t n = static_cast<qdb_size_t>(std::distance(data, end));
+        // Get some range representation for this output buffer
+        auto out_      = ranges::views::counted(out, max_bytes_out);
+        auto out_begin = ranges::begin(out_);
 
-        return qdb_string_t{data, n};
+        // Project our input data (in UTF32 / code points) to UTF8
+        auto encoded = unicode::encode::utf8_view(std::move(x));
+
+        // Copy everything and keep track of the end
+        auto [in_end, out_end] = ranges::copy(encoded, out_begin);
+
+        // We can use the position of the output iterator to calculate
+        // the length of the generated string.
+        qdb_size_t n = static_cast<qdb_size_t>(std::distance(out_begin, out_end));
+
+        // UTF32->UTF8 we always expect at least as many items
+        assert(n >= ranges::size(x));
+
+        return qdb_string_t{out, n};
     }
 };
 
@@ -292,6 +314,17 @@ struct value_converter<qdb_string_t, qdb_string_view>
     inline qdb_string_view operator()(qdb_string_t const & x) const
     {
         return qdb_string_view(x.data, static_cast<std::size_t>(x.length));
+    }
+};
+
+template <>
+struct value_converter<qdb_string_t, traits::unicode_dtype>
+{
+    value_converter<qdb_string_t, qdb_string_view> delegate_{};
+
+    inline auto operator()(qdb_string_t const & x) const
+    {
+        return unicode::decode::utf8_view(delegate_(x));
     }
 };
 

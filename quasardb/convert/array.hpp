@@ -47,13 +47,11 @@
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/zip.hpp>
 #include <cstring>
-#include <utf8.h> // utf-cpp
 
 namespace qdb::convert::detail
 {
 
-namespace py  = pybind11;
-namespace utf = utf8::unchecked;
+namespace py = pybind11;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -146,140 +144,13 @@ requires(concepts::delegate_dtype<From> && concepts::qdb_primitive<To>) struct c
 //
 /////
 template <typename From, typename To>
-requires(
-    concepts::qdb_primitive<From> &&
-        concepts::fixed_width_dtype<To> && !concepts::delegate_dtype<To>) struct convert_array<From, To>
+requires(concepts::qdb_primitive<From> && !concepts::delegate_dtype<To>) struct convert_array<From, To>
 {
     static constexpr value_converter<From, To> const xform_{};
 
-    template <typename Rng>
-    [[nodiscard]] inline auto operator()(Rng && xs) const noexcept
+    [[nodiscard]] inline auto operator()() const noexcept
     {
-        assert(ranges::empty(xs) == false);
-        return xs | ranges::views::transform(xform_);
-    };
-};
-
-/////
-//
-// qdb->numpy
-// Variable-width transforms
-//
-// Returns a range that is backed by a single, large memory arena and chopped
-// in pieces.
-//
-// Input:  range of length N, type: qdb_string or qdb_blob
-// Output: range of length N, dtype: To
-//
-/////
-
-template <typename From, typename To>
-requires(
-    concepts::qdb_primitive<From> && concepts::variable_width_dtype<To>) struct convert_array<From, To>
-{
-    using in_char_type  = qdb_char_type;
-    using out_char_type = std::u32string::value_type;
-
-    /**
-     * range<qdb_string_t> -> range<qdb_string_view>
-     */
-    template <concepts::input_range_t<qdb_string_t> Rng>
-    [[nodiscard]] inline auto operator()(Rng && xs) const noexcept
-    {
-        static constexpr value_converter<From, qdb_string_view> const xform_{};
-        return operator()(ranges::views::transform(std::move(xs), xform_));
-    }
-
-    /**
-     * range<qdb_string_view> -> range<chunk_view<out_char_type>>
-     */
-    template <concepts::input_range_t<qdb_string_view> Rng>
-    [[nodiscard]] inline auto operator()(Rng && xs) const noexcept
-    {
-        assert(ranges::empty(xs) == false);
-
-        // What we have as input data is an array of just QuasarDB native objects, i.e.
-        // qdb_string_t or qdb_blob_t.
-        //
-        // We must transform this into a single, contiguous buffer, and convert it
-        // into a different representation in the process.
-        //
-        // The flow of the code below is as follows:
-        //  - determine the size & allocate the destination buffer in one big swoop;
-        //  - expose this buffer as a range with subranges of strides;
-        //  - merge the input qdb_string_t into this output range, while transcoding
-        //    it from UTF8 to UTF32.
-
-        ////
-        // Step 1: allocate one big bad buffer
-        ////
-        std::size_t stride_size{_largest_word_length(xs)};
-        py::array::ShapeContainer shape{ranges::size(xs)};
-        py::array::StridesContainer strides{To::itemsize(stride_size)};
-
-        py::array arr{To::dtype(stride_size), shape, strides};
-
-        ////
-        // Step 2: expose this buffer as a range
-        ////
-        auto output = _stride_array_view(arr);
-        assert(ranges::size(output) == ranges::size(xs));
-        //
-
-        ////
-        // Step 3: transcode + copy into output
-        //
-        // The approach we take here is:
-        //  1. zip the input and output ranges, so that we have the source qdb_primitive
-        //    right next to the memory area it needs to be written into
-        //  2. feed all this through a transform function
-        //  3. profit
-        ////
-        auto xform_and_store = [=, *this](auto && x) {
-            auto in  = ranges::views::common(std::get<0>(x));
-            auto out = std::get<1>(x);
-
-            utf::utf8to32(ranges::begin(in), ranges::end(in), ranges::begin(out));
-            return out;
-        };
-
-        // Create a view that aligns our input qdb_string_t next to the data it needs
-        // to write into.
-        auto output_ = ranges::zip_view(std::move(xs), std::move(output))
-                       | ranges::views::transform(std::move(xform_and_store));
-
-        // And last but not least: allow piggybacking our `py::array` onto the range
-        // so that we can access it again later.
-        return qdb::convert::detail::passenger_view(std::move(output_), std::move(arr));
-    };
-
-private:
-    inline auto _stride_array_view(py::array xs) const noexcept
-    {
-        py::ssize_t stride_size = To::stride_size(xs.itemsize());
-        out_char_type * ptr     = xs.mutable_unchecked<out_char_type>().mutable_data();
-        return ranges::chunk_view(ranges::views::counted(ptr, stride_size * xs.size()), stride_size);
-    }
-
-    /**
-     * Returns the length of the largest word in a range. Length is in bytes,
-     * not codepoints.
-     *
-     * Smallest value returned is 1.
-     */
-    template <typename R>
-    inline std::size_t _largest_word_length(R const & xs) const noexcept
-    {
-
-        // Transform into a range of sizes
-        auto xs_ = xs | ranges::views::transform([](auto const & x) -> std::size_t {
-            return ranges::size(x);
-        });
-
-        // Return the element with the largest size
-        auto iter = ranges::max_element(xs_);
-
-        return std::max(*iter, std::size_t(1));
+        return ranges::views::transform(xform_);
     };
 };
 
