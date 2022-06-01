@@ -272,16 +272,19 @@ inline void qdb_throw_if_query_error(qdb_handle_t h, qdb_error_t err, qdb_query_
 template <typename Module>
 static inline void register_errors(Module & m)
 {
-    py::register_exception<qdb::exception>(m, "Error");
-    py::register_exception<qdb::input_buffer_too_small_exception>(m, "InputBufferTooSmallError");
-    py::register_exception<qdb::alias_already_exists_exception>(m, "AliasAlreadyExistsError");
-    py::register_exception<qdb::alias_not_found_exception>(m, "AliasNotFoundError");
-    py::register_exception<qdb::invalid_datetime_exception>(m, "InvalidDatetimeError");
-    py::register_exception<qdb::incompatible_type_exception>(m, "IncompatibleTypeError");
-    py::register_exception<qdb::not_implemented_exception>(m, "NotImplementedError");
-    py::register_exception<qdb::internal_local_exception>(m, "InternalLocalError");
-    py::register_exception<qdb::invalid_argument_exception>(m, "InvalidArgumentError");
-    py::register_exception<qdb::invalid_query_exception>(m, "InvalidQueryError");
+    auto base_class = py::register_exception<qdb::exception>(m, "Error", PyExc_RuntimeError);
+
+    py::register_exception<qdb::input_buffer_too_small_exception>(
+        m, "InputBufferTooSmallError", base_class);
+    py::register_exception<qdb::alias_already_exists_exception>(
+        m, "AliasAlreadyExistsError", base_class);
+    py::register_exception<qdb::alias_not_found_exception>(m, "AliasNotFoundError", base_class);
+    py::register_exception<qdb::invalid_datetime_exception>(m, "InvalidDatetimeError", base_class);
+    py::register_exception<qdb::incompatible_type_exception>(m, "IncompatibleTypeError", base_class);
+    py::register_exception<qdb::not_implemented_exception>(m, "NotImplementedError", base_class);
+    py::register_exception<qdb::internal_local_exception>(m, "InternalLocalError", base_class);
+    py::register_exception<qdb::invalid_argument_exception>(m, "InvalidArgumentError", base_class);
+    py::register_exception<qdb::invalid_query_exception>(m, "InvalidQueryError", base_class);
 }
 
 } // namespace qdb
