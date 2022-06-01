@@ -353,6 +353,9 @@ def _gen_unicode(n):
     if max_word_length > 256:
         max_word_length = 256
 
+    if max_word_length < 16:
+        max_word_length = 16
+
     wordslengths = np.random.randint(8, 100, n)
     xs = list(_gen_unicode_word(random.randint(min_word_length, max_word_length)) for i in range(n))
     return np.array(xs, dtype=np.unicode_)
