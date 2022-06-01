@@ -42,11 +42,6 @@ public:
         : xs_{{_1, _2, _3, _4}}
         , n_{4}
     {}
-
-    constexpr inline std::size_t size() const noexcept
-    {
-        return n_;
-    }
     constexpr inline CharT pop() noexcept
     {
         assert(p_ < n_);
@@ -57,12 +52,6 @@ public:
     {
         return p_ == n_;
     };
-
-    friend constexpr bool operator==(const next_chars & lhs, const next_chars & rhs)
-    {
-        return std::equal(std::begin(lhs.buf_), std::begin(lhs.buf_) + lhs.n_, std::begin(rhs.s_),
-            std::begin(rhs.xs_) + rhs.n_);
-    }
 
 private:
     std::array<CharT, Width> xs_{{}};
