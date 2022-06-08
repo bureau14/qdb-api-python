@@ -96,10 +96,10 @@ std::vector<typename traits::qdb_column<T>::value_type> & access_column(
     {
         return std::get<column_type>(columns[index]);
     }
-    catch (std::bad_variant_access const & e)
+    catch (std::bad_variant_access const & /*e*/)
     {
         throw qdb::incompatible_type_exception{};
-    };
+    }
 }
 
 template <qdb_ts_column_type_t T>

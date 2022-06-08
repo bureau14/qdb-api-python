@@ -2,7 +2,7 @@
 
 #include <range/v3/range_fwd.hpp>
 #include <range/v3/view/cache1.hpp>
-#include <range/v3/view_adaptor.hpp>
+#include <range/v3/view/adaptor.hpp>
 
 namespace qdb::convert::unicode
 {
