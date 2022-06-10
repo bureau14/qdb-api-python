@@ -268,17 +268,17 @@ public:
     }
 
     std::shared_ptr<qdb::query_continuous> query_continuous_full(
-        const std::string & query_string, const py::object & blobs)
+        const std::string & query_string, std::chrono::milliseconds pace, const py::object & blobs)
     {
         return std::make_shared<qdb::query_continuous>(
-            _handle, qdb_query_continuous_full, query_string, blobs);
+            _handle, qdb_query_continuous_full, pace, query_string, blobs);
     }
 
     std::shared_ptr<qdb::query_continuous> query_continuous_new_values(
-        const std::string & query_string, const py::object & blobs)
+        const std::string & query_string, std::chrono::milliseconds pace, const py::object & blobs)
     {
         return std::make_shared<qdb::query_continuous>(
-            _handle, qdb_query_continuous_new_values_only, query_string, blobs);
+            _handle, qdb_query_continuous_new_values_only, pace, query_string, blobs);
     }
 
 public:
@@ -402,9 +402,11 @@ static inline void register_cluster(Module & m)
             py::arg("query"))                                                           //
         .def("query_continuous_full", &qdb::cluster::query_continuous_full,             //
             py::arg("query"),                                                           //
+            py::arg("pace"),                                                            //
             py::arg("blobs") = false)                                                   //
         .def("query_continuous_new_values", &qdb::cluster::query_continuous_new_values, //
             py::arg("query"),                                                           //
+            py::arg("pace"),                                                            //
             py::arg("blobs") = false)                                                   //
         .def("prefix_get", &qdb::cluster::prefix_get)                                   //
         .def("prefix_count", &qdb::cluster::prefix_count)                               //
