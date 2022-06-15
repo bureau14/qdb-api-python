@@ -30,59 +30,59 @@
  */
 #pragma once
 
-#include "entry.hpp"
-#include <qdb/integer.h>
+#include <qdb/client.h>
+#include <pybind11/pybind11.h>
+#include <ctime>
+#include <datetime.h> // from python
+#include <iostream>
+#include <time.h>
 
 namespace qdb
 {
+namespace py = pybind11;
 
-class integer_entry : public expirable_entry
+/**
+ * Wrapper for `datetime.datetime`.
+ */
+class pydatetime : public py::object
 {
 public:
-    integer_entry(handle_ptr h, std::string a) noexcept
-        : expirable_entry{h, a}
-    {}
+    PYBIND11_OBJECT_DEFAULT(pydatetime, object, PyDateTime_Check);
 
-public:
-    qdb_int_t get()
+    inline int year() const noexcept
     {
-        qdb_int_t result;
-        qdb::qdb_throw_if_error(*_handle, qdb_int_get(*_handle, _alias.c_str(), &result));
-        return result;
-    }
+        return PyDateTime_GET_YEAR(ptr());
+    };
 
-    void put(qdb_int_t integer)
+    inline int month() const noexcept
     {
-        qdb::qdb_throw_if_error(
-            *_handle, qdb_int_put(*_handle, _alias.c_str(), integer, qdb_time_t{0}));
-    }
+        return PyDateTime_GET_MONTH(ptr());
+    };
 
-    void update(qdb_int_t integer)
+    inline int day() const noexcept
     {
-        qdb::qdb_throw_if_error(
-            *_handle, qdb_int_update(*_handle, _alias.c_str(), integer, qdb_time_t{0}));
-    }
+        return PyDateTime_GET_DAY(ptr());
+    };
 
-    qdb_int_t add(qdb_int_t integer)
+    inline int hour() const noexcept
     {
-        qdb_int_t result;
-        qdb::qdb_throw_if_error(*_handle, qdb_int_add(*_handle, _alias.c_str(), integer, &result));
-        return result;
-    }
+        return PyDateTime_DATE_GET_HOUR(ptr());
+    };
+
+    inline int minute() const noexcept
+    {
+        return PyDateTime_DATE_GET_MINUTE(ptr());
+    };
+
+    inline int second() const noexcept
+    {
+        return PyDateTime_DATE_GET_SECOND(ptr());
+    };
+
+    inline int microsecond() const noexcept
+    {
+        return PyDateTime_DATE_GET_MICROSECOND(ptr());
+    };
 };
 
-template <typename Module>
-static inline void register_integer(Module & m)
-{
-    namespace py = pybind11;
-
-    py::class_<qdb::integer_entry, qdb::expirable_entry>(m, "Integer")  //
-        .def(py::init<qdb::handle_ptr, std::string>())                  //
-        .def("get", &qdb::integer_entry::get)                           //
-        .def("put", &qdb::integer_entry::put, py::arg("integer"))       //
-        .def("update", &qdb::integer_entry::update, py::arg("integer")) //
-        .def("add", &qdb::integer_entry::add, py::arg("addend"))        //
-        ;                                                               //
-}
-
-} // namespace qdb
+}; // namespace qdb

@@ -1,4 +1,5 @@
 # pylint: disable=C0103,C0111,C0302,W0212
+import numpy as np
 import datetime
 import pytest
 import quasardb
@@ -6,7 +7,7 @@ import quasardb
 
 def _make_expiry_time(td):
     # expires in one minute
-    now = datetime.datetime.now()
+    now = datetime.datetime.utcnow()
     # get rid of the microsecond for the testcases
     return now + td - datetime.timedelta(microseconds=now.microsecond)
 
@@ -53,7 +54,7 @@ def test_expires_from_now(blob_entry, random_blob):
     # these testcases may run in debug. This will be enough however to check that
     # the interval has properly been converted and the time zone is
     # correct.
-    future_exp_lower_bound = datetime.datetime.now() + datetime.timedelta(seconds=50)
+    future_exp_lower_bound = datetime.datetime.utcnow() + datetime.timedelta(seconds=50)
     future_exp_higher_bound = future_exp_lower_bound + \
         datetime.timedelta(seconds=80)
 
@@ -61,42 +62,3 @@ def test_expires_from_now(blob_entry, random_blob):
     assert isinstance(exp, datetime.datetime)
     assert future_exp_lower_bound < exp
     assert future_exp_higher_bound > exp
-
-
-def test_methods(blob_entry, random_blob):
-
-    future_exp = _make_expiry_time(datetime.timedelta(minutes=1))
-
-    blob_entry.put(random_blob, future_exp)
-
-    exp = blob_entry.get_expiry_time()
-
-    assert isinstance(exp, datetime.datetime)
-    assert exp == future_exp
-
-    future_exp = _make_expiry_time(datetime.timedelta(minutes=2))
-
-    blob_entry.update(random_blob, future_exp)
-
-    exp = blob_entry.get_expiry_time()
-
-    assert isinstance(exp, datetime.datetime)
-    assert exp == future_exp
-
-    future_exp = _make_expiry_time(datetime.timedelta(minutes=3))
-
-    blob_entry.get_and_update(random_blob, future_exp)
-
-    exp = blob_entry.get_expiry_time()
-
-    assert isinstance(exp, datetime.datetime)
-    assert exp == future_exp
-
-    future_exp = _make_expiry_time(datetime.timedelta(minutes=4))
-
-    blob_entry.compare_and_swap(random_blob, random_blob, future_exp)
-
-    exp = blob_entry.get_expiry_time()
-
-    assert isinstance(exp, datetime.datetime)
-    assert exp == future_exp

@@ -33,6 +33,7 @@
 #include "../concepts.hpp"
 #include "../error.hpp"
 #include "../object_tracker.hpp"
+#include "../pytypes.hpp"
 #include "../traits.hpp"
 #include "unicode.hpp"
 #include <qdb/ts.h>
@@ -41,6 +42,7 @@
 #include <range/v3/range/concepts.hpp>
 #include <range/v3/view/counted.hpp>
 #include <cstring>
+#include <datetime.h> // from python, for pydatetime functions
 
 namespace qdb::convert::detail
 {
@@ -143,6 +145,51 @@ struct value_converter<qdb_timespec_t, std::int64_t>
     {
         // XXX(leon): potential overflow
         return x.tv_nsec + x.tv_sec * 1'000'000'000ull;
+    }
+};
+
+/**
+ * qdb_timespec_t -> datetime.datetime
+ */
+template <>
+struct value_converter<qdb_timespec_t, qdb::pydatetime>
+{
+    inline qdb::pydatetime operator()(qdb_timespec_t const & x) const
+    {
+        std::time_t t{x.tv_sec};
+        std::tm tm;
+        std::tm * time_ptr = gmtime_r(&t, &tm);
+        assert(time_ptr != nullptr);
+        assert(tm.tm_year == time_ptr->tm_year);
+
+        return py::reinterpret_steal<qdb::pydatetime>(
+            PyDateTime_FromDateAndTime(time_ptr->tm_year + 1900, time_ptr->tm_mon + 1,
+                time_ptr->tm_mday, time_ptr->tm_hour, time_ptr->tm_min, time_ptr->tm_sec, 0));
+    }
+};
+
+template <>
+struct value_converter<qdb::pydatetime, qdb_time_t>
+{
+    inline qdb_time_t operator()(pydatetime const & x) const
+    {
+        if (x.is_none())
+        {
+
+            return qdb_time_t{0};
+        }
+        else
+        {
+            std::tm tm{};
+            tm.tm_year = x.year() - 1900;
+            tm.tm_mon  = x.month() - 1;
+            tm.tm_mday = x.day();
+            tm.tm_hour = x.hour();
+            tm.tm_min  = x.minute();
+            tm.tm_sec  = x.second();
+
+            return qdb_time_t{1'000} * static_cast<qdb_time_t>(timegm(&tm));
+        }
     }
 };
 

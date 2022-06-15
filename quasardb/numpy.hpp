@@ -475,11 +475,11 @@ class datetime64 : public py::object
 public:
     PYBIND11_OBJECT_DEFAULT(datetime64, object, detail::PyDatetime64_Check)
 
-    datetime64(std::int64_t ts)
+    explicit datetime64(std::int64_t ts)
         : py::object(py::reinterpret_steal<py::object>(detail::to_datetime64(ts)))
     {}
 
-    datetime64(qdb_timespec_t const & ts);
+    explicit datetime64(qdb_timespec_t const & ts);
 };
 
 } // namespace numpy
