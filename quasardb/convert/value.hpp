@@ -252,7 +252,16 @@ struct value_converter<qdb_timespec_t, clock_t::time_point>
 {
     inline clock_t::time_point operator()(qdb_timespec_t const & x) const
     {
-        return clock_t::time_point(seconds_t(x.tv_sec)) + nanoseconds_t(x.tv_nsec);
+        // We *could* feed chrono the nanoseconds_t directly, but:
+        // - python is not able to represent nanoseconds;
+        // - some architectures are unable to represent the system_clock with
+        //   nanosecond precision; it requires some pretty big integers.
+        //
+        // As such, let's first truncate things to milliseconds
+        milliseconds_t millis{x.tv_nsec / 1'000'000};
+        seconds_t seconds{x.tv_sec};
+
+        return clock_t::time_point(millis + seconds);
     }
 };
 
