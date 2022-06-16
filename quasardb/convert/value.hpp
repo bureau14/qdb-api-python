@@ -252,7 +252,8 @@ struct value_converter<qdb_timespec_t, clock_t::time_point>
 {
     inline clock_t::time_point operator()(qdb_timespec_t const & x) const
     {
-        return clock_t::time_point{clock_t::duration{seconds_t{x.tv_sec} + nanoseconds_t{x.tv_nsec}}};
+        // clock_t::duration dur = seconds_t(x.tv_sec); + nanoseconds_t(x.tv_nsec);
+        return clock_t::time_point(seconds_t(x.tv_sec));
     }
 };
 
