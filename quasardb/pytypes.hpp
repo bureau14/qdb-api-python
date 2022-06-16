@@ -31,15 +31,54 @@
 #pragma once
 
 #include <qdb/client.h>
-#include <pybind11/pybind11.h>
-#include <ctime>
+#include <pybind11/pytypes.h>
 #include <datetime.h> // from python
-#include <iostream>
-#include <time.h>
 
 namespace qdb
 {
 namespace py = pybind11;
+
+class pytimedelta : public py::object
+{
+public:
+    PYBIND11_OBJECT_DEFAULT(pytimedelta, object, PyDelta_Check);
+
+    static pytimedelta from_dsu(py::ssize_t days, py::ssize_t seconds, py::ssize_t usec)
+    {
+        return py::reinterpret_steal<pytimedelta>(PyDelta_FromDSU(days, seconds, usec));
+    };
+
+    inline int days() const noexcept
+    {
+        return PyDateTime_DELTA_GET_DAYS(ptr());
+    };
+
+    inline int seconds() const noexcept
+    {
+        return PyDateTime_DELTA_GET_SECONDS(ptr());
+    };
+
+    inline int microseconds() const noexcept
+    {
+        return PyDateTime_DELTA_GET_MICROSECONDS(ptr());
+    };
+};
+
+class pytzinfo : public py::object
+{
+    PYBIND11_OBJECT_DEFAULT(pytzinfo, object, PyTZInfo_Check);
+
+    pytimedelta utcoffset(py::object dt) const
+    {
+        py::object fn = attr("utcoffset");
+        return py::reinterpret_borrow<pytimedelta>(fn(dt));
+    };
+
+    static pytzinfo utc() noexcept
+    {
+        return py::reinterpret_borrow<pytzinfo>(PyDateTime_TimeZone_UTC);
+    };
+};
 
 /**
  * Wrapper for `datetime.datetime`.
@@ -48,6 +87,31 @@ class pydatetime : public py::object
 {
 public:
     PYBIND11_OBJECT_DEFAULT(pydatetime, object, PyDateTime_Check);
+
+    static pydatetime from_date_and_time(int year,
+        int month,
+        int day,
+        int hour,
+        int minute,
+        int second,
+        int microsecond,
+        pytzinfo tz = pytzinfo::utc())
+    {
+        assert(-32767 <= year && year <= 32767);
+        assert(1 <= month && month <= 12);
+        assert(1 <= day && day <= 31);
+        assert(0 <= hour && hour <= 23);
+        assert(0 <= second && second <= 59);
+        assert(0 <= microsecond && microsecond <= 1'000'000);
+
+        // For funky kwarg syntax from pybind11 with _a literal
+        using namespace pybind11::literals;
+
+        return py::reinterpret_steal<pydatetime>(
+            PyDateTime_FromDateAndTime(year, month, day, hour, minute, second, microsecond))
+
+            .replace("tzinfo"_a = tz);
+    };
 
     inline int year() const noexcept
     {
@@ -82,6 +146,60 @@ public:
     inline int microsecond() const noexcept
     {
         return PyDateTime_DATE_GET_MICROSECOND(ptr());
+    };
+
+    template <typename... KWargs>
+    inline pydatetime replace(KWargs &&... args)
+    {
+        py::object fn = attr("replace");
+
+        return fn(std::forward<KWargs...>(args...));
+    }
+
+    /**
+     * proxy for `datetime.datetime.astimezone()` invoked without any arguments,
+     * which effectively adds the local time zone to the datetime object.
+     */
+    inline pydatetime astimezone() const
+    {
+        py::object fn = attr("astimezone");
+        return fn();
+    };
+
+    /**
+     * convert this datetime to another timezone in such a way that the UTC
+     * representation of both remains the same.
+     */
+    inline pydatetime astimezone(pytzinfo tz) const
+    {
+        py::object fn = attr("astimezone");
+        return fn(tz);
+    };
+
+    inline pytzinfo tzinfo() const noexcept
+    {
+        // PyObject *tz_or_none = PyObject_GetAttrString(ptr(), "tzinfo");
+        pytzinfo tz_ = py::reinterpret_borrow<pytzinfo>(PyDateTime_DATE_GET_TZINFO(ptr()));
+
+        if (tz_.is_none())
+        {
+            // either `datetime.now()` or `datetime.utcnow()`.
+            //
+            // since the use of `datetime .utcnow()` is actively discouraged in favor
+            // of `datetime.now(tz=timezone.utc)`, we are going to assume that no timezone
+            // means local time.
+            //
+            // the most elegant way to handle this is to amend this datetime
+            // object with the local timezone and recurse.
+            return astimezone().tzinfo();
+        };
+
+        return tz_;
+    };
+
+    inline pytimedelta utcoffset() const noexcept
+    {
+        return tzinfo().utcoffset(*this);
     };
 };
 
