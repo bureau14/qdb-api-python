@@ -31,7 +31,7 @@
 #pragma once
 
 #include <qdb/client.h>
-#include <pybind11/pytypes.h>
+#include <pybind11/pybind11.h>
 #include <datetime.h> // from python
 
 namespace qdb
@@ -76,7 +76,16 @@ class pytzinfo : public py::object
 
     static pytzinfo utc() noexcept
     {
-        return py::reinterpret_borrow<pytzinfo>(PyDateTime_TimeZone_UTC);
+#if (PY_VERSION_HEX < 0x03070000)
+#    warning "Python <= 3.6 detected, using slower introspection for UTC timezone lookup"
+        py::module m   = py::module::import("datetime");
+        py::object ret = m.attr("timezone").attr("utc");
+        assert(ret.is_none() == false);
+        return py::reinterpret_borrow<pytzinfo>(ret);
+#else
+        PyObject * ret = PyDateTime_TimeZone_UTC;
+#endif
+        return py::reinterpret_borrow<pytzinfo>(ret);
     };
 };
 
@@ -183,7 +192,7 @@ public:
 #    warning "Python <= 3.9 detected, using slower attribute lookup for tzinfo"
         PyObject * tz = PyObject_GetAttrString(ptr(), "tzinfo");
 #else
-        PyObject * tz = PyDateTime_DATE_GET_TZINFO(ptr());
+        PyObject * tz  = PyDateTime_DATE_GET_TZINFO(ptr());
 #endif
         pytzinfo tz_ = py::reinterpret_borrow<pytzinfo>(tz);
 
