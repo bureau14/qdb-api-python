@@ -178,8 +178,14 @@ public:
 
     inline pytzinfo tzinfo() const noexcept
     {
-        // PyObject *tz_or_none = PyObject_GetAttrString(ptr(), "tzinfo");
-        pytzinfo tz_ = py::reinterpret_borrow<pytzinfo>(PyDateTime_DATE_GET_TZINFO(ptr()));
+
+#if (PY_VERSION_HEX < 0x030A0000)
+#    warning "Python <= 3.9 detected, using slower attribute lookup for tzinfo"
+        PyObject * tz = PyObject_GetAttrString(ptr(), "tzinfo");
+#else
+        PyObject * tz = PyDateTime_DATE_GET_TZINFO(ptr());
+#endif
+        pytzinfo tz_ = py::reinterpret_borrow<pytzinfo>(tz);
 
         if (tz_.is_none())
         {
