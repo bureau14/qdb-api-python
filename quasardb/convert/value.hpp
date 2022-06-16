@@ -37,12 +37,13 @@
 #include "../traits.hpp"
 #include "unicode.hpp"
 #include <qdb/ts.h>
+#include <date/date.h>
 #include <pybind11/pybind11.h>
 #include <range/v3/algorithm/copy.hpp>
 #include <range/v3/range/concepts.hpp>
 #include <range/v3/view/counted.hpp>
+#include <chrono>
 #include <cstring>
-#include <datetime.h> // from python, for pydatetime functions
 
 namespace qdb::convert::detail
 {
@@ -120,6 +121,172 @@ template <typename From>
 struct value_converter<From, traits::pyobject_dtype> : public value_converter<From, py::object>
 {};
 
+////////////////////////////////////////////////////////////////////////////////
+//
+// qdb_timespec_t converters
+//
+///////////////////
+//
+// These converters focus on converting qdb_timespec_t to/from other types.
+//
+/////
+
+using clock_t = std::chrono::system_clock;
+
+/**
+ * datetime.timedelta -> std::chrono::duration
+ *
+ * Useful for converting a datetime timezone offset to a chrono duration, among others.
+ */
+template <>
+struct value_converter<qdb::pytimedelta, clock_t::duration>
+{
+    inline std::chrono::system_clock::duration operator()(pytimedelta const & x) const
+    {
+        assert(x.is_none() == false);
+
+        using namespace std::chrono;
+        return days{x.days()} + seconds{x.seconds()} + microseconds{x.microseconds()};
+    };
+};
+
+/**
+ * datetime.datetime -> std::chrono::time_point
+ *
+ * Takes the input datetime, and converts it to a time point. ensures that the timezone
+ * offset of datetime is taken into account, and output time_point is in UTC.
+ */
+
+template <>
+struct value_converter<qdb::pydatetime, clock_t::time_point>
+{
+    value_converter<qdb::pytimedelta, clock_t::duration> offset_convert_{};
+
+    inline clock_t::time_point operator()(qdb::pydatetime const & x) const
+
+    {
+        using namespace std::chrono;
+
+        // Construct the date
+        date::year_month_day ymd{
+            date::year{x.year()}, date::month{(unsigned)x.month()}, date::day{(unsigned)x.day()}};
+
+        // Calculate the number of days since epoch
+        date::sys_days days_since_epoch{ymd};
+
+        // Calculate the time of day as a duration
+        clock_t::duration time_of_day{hours{x.hour()} + minutes{x.minute()} + seconds{x.second()}
+                                      + microseconds{x.microsecond()}};
+
+        // Adjust for UTC
+        clock_t::duration tz_offset = offset_convert_(x.utcoffset());
+
+        // Compose the whole thing together
+        return clock_t::time_point(days_since_epoch) + time_of_day - tz_offset;
+    }
+};
+
+/**
+ * clock_t::time_point -> qdb_time_t
+ *
+ * Returns the qdb_time_t representation of a time_point; qdb_time_t is assumed
+ * to be using milliseconds.
+ */
+template <>
+struct value_converter<clock_t::time_point, qdb_time_t>
+{
+    inline qdb_time_t operator()(clock_t::time_point const & x) const
+    {
+        using namespace std::chrono;
+
+        auto time_since_epoch = x.time_since_epoch();
+
+        return static_cast<qdb_time_t>(duration_cast<milliseconds>(time_since_epoch).count());
+    }
+};
+
+/**
+ * datetime.datetime -> qdb_time_t
+ */
+template <>
+struct value_converter<qdb::pydatetime, qdb_time_t>
+{
+    value_converter<qdb::pydatetime, clock_t::time_point> dt_to_tp_{};
+    value_converter<clock_t::time_point, qdb_time_t> tp_to_qt_{};
+
+    inline qdb_time_t operator()(pydatetime const & x) const
+    {
+        if (x.is_none())
+        {
+
+            return qdb_time_t{0};
+        }
+        else
+        {
+            return tp_to_qt_(dt_to_tp_(x));
+        }
+    }
+};
+
+/**
+ * qdb_timespec_t -> std::chrono::time_point
+ */
+
+template <>
+struct value_converter<qdb_timespec_t, clock_t::time_point>
+{
+    inline clock_t::time_point operator()(qdb_timespec_t const & x) const
+    {
+        using namespace std::chrono;
+        return clock_t::time_point{clock_t::duration{seconds{x.tv_sec} + nanoseconds{x.tv_nsec}}};
+    }
+};
+
+/**
+ * std::chrono::time_point -> datetime.datetime
+ *
+ * time point is assumed to be UTC.
+ */
+template <>
+struct value_converter<clock_t::time_point, qdb::pydatetime>
+{
+    inline qdb::pydatetime operator()(clock_t::time_point const & tp) const
+    {
+        using namespace std::chrono;
+        auto date_point = date::floor<date::days>(tp);
+
+        auto time      = date::make_time(duration_cast<milliseconds>(tp - date_point));
+        auto ymd       = date::year_month_day{date_point};
+        int year       = (int)ymd.year();
+        unsigned month = (unsigned)ymd.month();
+        unsigned day   = (unsigned)ymd.day();
+
+        return qdb::pydatetime::from_date_and_time(
+            year, month, day, time.hours().count(), time.minutes().count(), time.seconds().count(), 0);
+    }
+};
+
+/**
+ * qdb_timespec_t -> datetime.datetime
+ *
+ * composes two converters to convert a timespec into a datetime.datetime object in one
+ * swoop:
+ *
+ * - first convert the qdb_timespec_t to a (utc) time point;
+ * - use the utc time point to create a datetime object
+ */
+template <>
+struct value_converter<qdb_timespec_t, qdb::pydatetime>
+{
+    value_converter<qdb_timespec_t, clock_t::time_point> ts_to_tp_{};
+    value_converter<clock_t::time_point, qdb::pydatetime> tp_to_dt_{};
+
+    inline qdb::pydatetime operator()(qdb_timespec_t const & x) const
+    {
+        return tp_to_dt_(ts_to_tp_(x));
+    }
+};
+
 template <>
 struct value_converter<std::int64_t, qdb_timespec_t>
 {
@@ -148,51 +315,6 @@ struct value_converter<qdb_timespec_t, std::int64_t>
     }
 };
 
-/**
- * qdb_timespec_t -> datetime.datetime
- */
-template <>
-struct value_converter<qdb_timespec_t, qdb::pydatetime>
-{
-    inline qdb::pydatetime operator()(qdb_timespec_t const & x) const
-    {
-        std::time_t t{x.tv_sec};
-        std::tm tm;
-        std::tm * time_ptr = gmtime_r(&t, &tm);
-        assert(time_ptr != nullptr);
-        assert(tm.tm_year == time_ptr->tm_year);
-
-        return py::reinterpret_steal<qdb::pydatetime>(
-            PyDateTime_FromDateAndTime(time_ptr->tm_year + 1900, time_ptr->tm_mon + 1,
-                time_ptr->tm_mday, time_ptr->tm_hour, time_ptr->tm_min, time_ptr->tm_sec, 0));
-    }
-};
-
-template <>
-struct value_converter<qdb::pydatetime, qdb_time_t>
-{
-    inline qdb_time_t operator()(pydatetime const & x) const
-    {
-        if (x.is_none())
-        {
-
-            return qdb_time_t{0};
-        }
-        else
-        {
-            std::tm tm{};
-            tm.tm_year = x.year() - 1900;
-            tm.tm_mon  = x.month() - 1;
-            tm.tm_mday = x.day();
-            tm.tm_hour = x.hour();
-            tm.tm_min  = x.minute();
-            tm.tm_sec  = x.second();
-
-            return qdb_time_t{1'000} * static_cast<qdb_time_t>(timegm(&tm));
-        }
-    }
-};
-
 template <>
 struct value_converter<qdb_timespec_t, traits::datetime64_ns_dtype>
     : public value_converter<qdb_timespec_t, std::int64_t>
@@ -202,6 +324,18 @@ template <>
 struct value_converter<traits::datetime64_ns_dtype, qdb_timespec_t>
     : public value_converter<std::int64_t, qdb_timespec_t>
 {};
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// qdb_blob_t/qdb_string_t converters
+//
+///////////////////
+//
+// These converters focus on converting qdb_blob_t or qdb_string_t to/from
+// other types. They *may* allocate free pointers on the heap, in which case
+// those are tracked using the qdb::object_tracker
+//
+/////
 
 template <>
 struct value_converter<traits::bytestring_dtype, qdb_string_t>
