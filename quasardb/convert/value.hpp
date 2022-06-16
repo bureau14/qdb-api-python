@@ -133,6 +133,17 @@ struct value_converter<From, traits::pyobject_dtype> : public value_converter<Fr
 
 using clock_t = std::chrono::system_clock;
 
+// Explicitly specifying the durations here, rather than relying on type
+// inference of the integer type, avoids pitfalls like Python using an
+// `int` to represent seconds which isn't enough for chrono.
+using nanoseconds_t  = std::chrono::duration<std::int64_t, std::nano>;
+using microseconds_t = std::chrono::duration<std::int64_t, std::micro>;
+using milliseconds_t = std::chrono::duration<std::int64_t, std::milli>;
+using seconds_t      = std::chrono::duration<std::int64_t>;
+using minutes_t      = std::chrono::duration<std::int32_t, std::ratio<60>>;
+using hours_t        = std::chrono::duration<std::int32_t, std::ratio<3600>>;
+using days_t         = std::chrono::duration<std::int32_t, std::ratio<86400>>;
+
 /**
  * datetime.timedelta -> std::chrono::duration
  *
@@ -145,8 +156,11 @@ struct value_converter<qdb::pytimedelta, clock_t::duration>
     {
         assert(x.is_none() == false);
 
-        using namespace std::chrono;
-        return days{x.days()} + seconds{x.seconds()} + microseconds{x.microseconds()};
+        static_assert(sizeof(decltype(x.days())) <= sizeof(days_t::rep));
+        static_assert(sizeof(decltype(x.seconds())) <= sizeof(seconds_t::rep));
+        static_assert(sizeof(decltype(x.microseconds())) <= sizeof(microseconds_t::rep));
+
+        return days_t{x.days()} + seconds_t{x.seconds()} + microseconds_t{x.microseconds()};
     };
 };
 
@@ -165,8 +179,6 @@ struct value_converter<qdb::pydatetime, clock_t::time_point>
     inline clock_t::time_point operator()(qdb::pydatetime const & x) const
 
     {
-        using namespace std::chrono;
-
         // Construct the date
         date::year_month_day ymd{
             date::year{x.year()}, date::month{(unsigned)x.month()}, date::day{(unsigned)x.day()}};
@@ -174,9 +186,13 @@ struct value_converter<qdb::pydatetime, clock_t::time_point>
         // Calculate the number of days since epoch
         date::sys_days days_since_epoch{ymd};
 
+        static_assert(sizeof(decltype(x.hour())) <= sizeof(hours_t::rep));
+        static_assert(sizeof(decltype(x.second())) <= sizeof(seconds_t::rep));
+        static_assert(sizeof(decltype(x.microsecond())) <= sizeof(microseconds_t::rep));
+
         // Calculate the time of day as a duration
-        clock_t::duration time_of_day{hours{x.hour()} + minutes{x.minute()} + seconds{x.second()}
-                                      + microseconds{x.microsecond()}};
+        clock_t::duration time_of_day{hours_t{x.hour()} + minutes_t{x.minute()} + seconds_t{x.second()}
+                                      + microseconds_t{x.microsecond()}};
 
         // Adjust for UTC
         clock_t::duration tz_offset = offset_convert_(x.utcoffset());
@@ -197,11 +213,10 @@ struct value_converter<clock_t::time_point, qdb_time_t>
 {
     inline qdb_time_t operator()(clock_t::time_point const & x) const
     {
-        using namespace std::chrono;
-
         auto time_since_epoch = x.time_since_epoch();
 
-        return static_cast<qdb_time_t>(duration_cast<milliseconds>(time_since_epoch).count());
+        return static_cast<qdb_time_t>(
+            std::chrono::duration_cast<milliseconds_t>(time_since_epoch).count());
     }
 };
 
@@ -237,8 +252,7 @@ struct value_converter<qdb_timespec_t, clock_t::time_point>
 {
     inline clock_t::time_point operator()(qdb_timespec_t const & x) const
     {
-        using namespace std::chrono;
-        return clock_t::time_point{clock_t::duration{seconds{x.tv_sec} + nanoseconds{x.tv_nsec}}};
+        return clock_t::time_point{clock_t::duration{seconds_t{x.tv_sec} + nanoseconds_t{x.tv_nsec}}};
     }
 };
 
@@ -252,10 +266,9 @@ struct value_converter<clock_t::time_point, qdb::pydatetime>
 {
     inline qdb::pydatetime operator()(clock_t::time_point const & tp) const
     {
-        using namespace std::chrono;
         auto date_point = date::floor<date::days>(tp);
 
-        auto time      = date::make_time(duration_cast<milliseconds>(tp - date_point));
+        auto time      = date::make_time(std::chrono::duration_cast<milliseconds_t>(tp - date_point));
         auto ymd       = date::year_month_day{date_point};
         int year       = (int)ymd.year();
         unsigned month = (unsigned)ymd.month();
