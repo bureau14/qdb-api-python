@@ -36,7 +36,6 @@
 #include "utils.hpp"
 #include <qdb/tag.h>
 #include "convert/value.hpp"
-#include <pybind11/chrono.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <chrono>
@@ -200,13 +199,7 @@ public:
 public:
     static qdb_time_t from_pydatetime(qdb::pydatetime const & dt) noexcept
     {
-        py::print("ENTRY::from_pydatetime:: datetime: ");
-        py::print(dt);
-
-        auto ret = convert::value<qdb::pydatetime, qdb_time_t>(dt);
-
-        py::print("ENTRY::from_pydtateime:: qdb_time_t: " + std::to_string(ret));
-        return ret;
+        return qdb::convert::value<qdb::pydatetime, qdb_time_t>(dt);
     }
 
 public:
