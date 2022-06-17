@@ -4,15 +4,16 @@ ARG PLATFORM="${POLICY}_${ARCH}"
 
 FROM quay.io/pypa/$PLATFORM
 
+ENV PATH="/opt/rh/devtoolset-11/root/usr/bin:$PATH"
+
 ARG PYTHON_VERSION
 
 ADD set-python-version.sh /set-python-version.sh
 RUN bash /set-python-version.sh ${PYTHON_VERSION} \
     && rm /set-python-version.sh
 
-# For start-services.sh / stop-services.sh, in case you would like to run
-# these directly from the container
-RUN yum install -y lsof
+RUN yum install -y devtoolset-11-toolchain \
+    && g++ --version
 
 RUN python3 --version && \
     python3 -m pip install --upgrade pip && \

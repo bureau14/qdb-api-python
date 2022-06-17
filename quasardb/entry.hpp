@@ -32,9 +32,10 @@
 
 #include "error.hpp"
 #include "handle.hpp"
+#include "pytypes.hpp"
 #include "utils.hpp"
 #include <qdb/tag.h>
-#include <pybind11/chrono.h>
+#include "convert/value.hpp"
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <chrono>
@@ -55,17 +56,17 @@ public:
 
         // we need to adjust for timezone as quasardb is UTC and pybind11 will
         // assume local date time points
-        metadata(const qdb_entry_metadata_t & md) noexcept
+        metadata(qdb_entry_metadata_t const & md) noexcept
             : type{md.type}
             , size{md.size}
-            , modification_time{std::chrono::seconds{md.modification_time.tv_sec}}
-            , expiry_time{std::chrono::seconds{md.expiry_time.tv_sec}}
+            , modification_time{md.modification_time.tv_sec}
+            , expiry_time{md.expiry_time.tv_sec}
         {}
 
         qdb_entry_type_t type{qdb_entry_uninitialized};
         qdb_uint_t size{0};
-        std::chrono::system_clock::time_point modification_time;
-        std::chrono::system_clock::time_point expiry_time;
+        qdb_timespec_t modification_time;
+        qdb_timespec_t expiry_time;
     };
 
 public:
@@ -196,21 +197,16 @@ public:
     {}
 
 public:
-    static qdb_time_t from_time_point(const std::chrono::system_clock::time_point & tp) noexcept
+    static qdb_time_t from_pydatetime(qdb::pydatetime const & dt) noexcept
     {
-        return tp == std::chrono::system_clock::time_point{}
-                   ? qdb_time_t{0}
-                   : qdb_time_t{1'000}
-                         * static_cast<qdb_time_t>(
-                             std::chrono::duration_cast<std::chrono::seconds>(tp.time_since_epoch())
-                                 .count());
+        return qdb::convert::value<qdb::pydatetime, qdb_time_t>(dt);
     }
 
 public:
-    void expires_at(const std::chrono::system_clock::time_point & expiry_time)
+    void expires_at(const qdb::pydatetime & expiry_time)
     {
         qdb::qdb_throw_if_error(
-            *_handle, qdb_expires_at(*_handle, _alias.c_str(), from_time_point(expiry_time)));
+            *_handle, qdb_expires_at(*_handle, _alias.c_str(), from_pydatetime(expiry_time)));
     }
 
     void expires_from_now(std::chrono::milliseconds expiry_delta)
@@ -219,9 +215,9 @@ public:
             *_handle, qdb_expires_from_now(*_handle, _alias.c_str(), expiry_delta.count()));
     }
 
-    std::chrono::system_clock::time_point get_expiry_time()
+    qdb::pydatetime get_expiry_time()
     {
-        return get_metadata().expiry_time;
+        return convert::value<qdb_timespec_t, qdb::pydatetime>(get_metadata().expiry_time);
     }
 };
 

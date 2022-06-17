@@ -662,6 +662,72 @@ def column_type(request):
     yield param
 
 
+timedelta_min = datetime.timedelta(minutes=5)
+timedelta_max = datetime.timedelta(days=7)
+timedelta_delta = timedelta_max - timedelta_min
+timedelta_exp = 2
+timedeltas = list()
+offset = 1
+
+
+def jitter(n, low=0.9, high=1.1):
+    # Jittering helps randomize the values a bit, and also ensure we're
+    # getting microseconds and the likes.
+    return n * random.uniform(low, high)
+
+
+
+while offset < timedelta_delta.total_seconds():
+    timedeltas.append(timedelta_min + datetime.timedelta(seconds=offset))
+    offset *= int(jitter(timedelta_exp))
+
+
+@pytest.fixture(params=timedeltas, ids=['delta={}s'.format(int(x.total_seconds())) for x in timedeltas])
+def timedelta(request):
+    return request.param
+
+
+@pytest.fixture(params=[datetime.timezone.utc], ids=['utc'])
+def timezone(request):
+    yield request.param
+
+
+@pytest.fixture
+def datetime_utcnow():
+    return datetime.datetime.utcnow()
+
+
+@pytest.fixture
+def datetime_now():
+    return datetime.datetime.now()
+
+
+@pytest.fixture
+def datetime_now_tz(timezone):
+    return datetime.datetime.now(tz=timezone)
+
+
+@pytest.fixture(params=['now_without_tz', 'now_with_local_tz', 'now_with_utc_tz'])
+def datetime_(request):
+    x = None
+    if request.param == 'now_without_tz':
+        # Just calling `now()` yields a "bare" datetime, which is _implied_ to be
+        # local time (but not guaranteed). Specifically, `utcnow()` also creates
+        # a bare datetime but instead reflects UTC time, but using this method
+        # is actively discouraged in favor of `now(tz=timezone.utc)`.
+        x = datetime.datetime.now()
+    elif request.param == 'now_with_utc_tz':
+        x = datetime.datetime.now(tz=datetime.timezone.utc)
+    elif request.param == 'now_with_local_tz':
+        # This is a bit of a trick, but just calling `astimezone()` without arguments
+        # reinterprets a "bare" datetime as local time
+        x = datetime.datetime.now().astimezone()
+    else:
+        raise RuntimeError("unrecognized: " + request.param)
+
+    return x - datetime.timedelta(microseconds=x.microsecond)
+
+
 @pytest.fixture(params=[qdbpd.write_dataframe])
 def qdbpd_write_fn(request):
     yield request.param
