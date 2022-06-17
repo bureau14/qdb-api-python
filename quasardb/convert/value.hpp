@@ -163,7 +163,7 @@ struct value_converter<qdb::pytimedelta, clock_t::duration>
         static_assert(sizeof(decltype(x.microseconds())) <= sizeof(microseconds_t::rep));
 
         return days_t{x.days()} + seconds_t{x.seconds()} + microseconds_t{x.microseconds()};
-    };
+    }
 };
 
 /**
@@ -613,7 +613,7 @@ struct value_converter<traits::bytestring_dtype, qdb_blob_t>
         return qdb_blob_t{static_cast<void const *>(s.data), s.length};
     }
 };
-}; // namespace qdb::convert::detail
+} // namespace qdb::convert::detail
 
 namespace qdb::convert
 {
@@ -637,4 +637,4 @@ static inline constexpr To value(From const & x)
     return c(x);
 }
 
-}; // namespace qdb::convert
+} // namespace qdb::convert

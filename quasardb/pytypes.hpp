@@ -46,22 +46,22 @@ public:
     static pytimedelta from_dsu(py::ssize_t days, py::ssize_t seconds, py::ssize_t usec)
     {
         return py::reinterpret_steal<pytimedelta>(PyDelta_FromDSU(days, seconds, usec));
-    };
+    }
 
     inline int days() const noexcept
     {
         return PyDateTime_DELTA_GET_DAYS(ptr());
-    };
+    }
 
     inline int seconds() const noexcept
     {
         return PyDateTime_DELTA_GET_SECONDS(ptr());
-    };
+    }
 
     inline int microseconds() const noexcept
     {
         return PyDateTime_DELTA_GET_MICROSECONDS(ptr());
-    };
+    }
 };
 
 class pytzinfo : public py::object
@@ -72,7 +72,7 @@ class pytzinfo : public py::object
     {
         py::object fn = attr("utcoffset");
         return py::reinterpret_borrow<pytimedelta>(fn(dt));
-    };
+    }
 
     static pytzinfo utc() noexcept
     {
@@ -86,7 +86,7 @@ class pytzinfo : public py::object
         PyObject * ret = PyDateTime_TimeZone_UTC;
 #endif
         return py::reinterpret_borrow<pytzinfo>(ret);
-    };
+    }
 };
 
 /**
@@ -120,42 +120,42 @@ public:
             PyDateTime_FromDateAndTime(year, month, day, hour, minute, second, microsecond))
 
             .replace("tzinfo"_a = tz);
-    };
+    }
 
     inline int year() const noexcept
     {
         return PyDateTime_GET_YEAR(ptr());
-    };
+    }
 
     inline int month() const noexcept
     {
         return PyDateTime_GET_MONTH(ptr());
-    };
+    }
 
     inline int day() const noexcept
     {
         return PyDateTime_GET_DAY(ptr());
-    };
+    }
 
     inline int hour() const noexcept
     {
         return PyDateTime_DATE_GET_HOUR(ptr());
-    };
+    }
 
     inline int minute() const noexcept
     {
         return PyDateTime_DATE_GET_MINUTE(ptr());
-    };
+    }
 
     inline int second() const noexcept
     {
         return PyDateTime_DATE_GET_SECOND(ptr());
-    };
+    }
 
     inline int microsecond() const noexcept
     {
         return PyDateTime_DATE_GET_MICROSECOND(ptr());
-    };
+    }
 
     template <typename... KWargs>
     inline pydatetime replace(KWargs &&... args)
@@ -173,7 +173,7 @@ public:
     {
         py::object fn = attr("astimezone");
         return fn();
-    };
+    }
 
     /**
      * convert this datetime to another timezone in such a way that the UTC
@@ -183,7 +183,7 @@ public:
     {
         py::object fn = attr("astimezone");
         return fn(tz);
-    };
+    }
 
     inline pytzinfo tzinfo() const noexcept
     {
@@ -207,15 +207,15 @@ public:
             // the most elegant way to handle this is to amend this datetime
             // object with the local timezone and recurse.
             return astimezone().tzinfo();
-        };
+        }
 
         return tz_;
-    };
+    }
 
     inline pytimedelta utcoffset() const noexcept
     {
         return tzinfo().utcoffset(*this);
-    };
+    }
 };
 
-}; // namespace qdb
+} // namespace qdb
