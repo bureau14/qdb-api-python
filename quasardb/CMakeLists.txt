@@ -144,6 +144,7 @@ elseif (MSVC)
   add_compile_options(/wd5033) # register is no longer a supported storage class
   add_compile_options(/EHa)
   add_compile_options(/MT)
+  add_compile_options(-DHAS_UNCAUGHT_EXCEPTIONS) # Workaround for date on MSVC
 
   # Core2
   add_compile_options(/arch:AVX)
@@ -154,7 +155,6 @@ endif()
 # Link options based on compiler/OS
 #
 ###
-
 
 if (CLANG)
   if(QDB_LINKER)
