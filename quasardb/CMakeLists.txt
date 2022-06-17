@@ -296,25 +296,6 @@ pybind11_add_module(
 )
 
 
-###
-#
-# We need Python UCS4/UTF32 -> UTF8 conversion, and cuchar provides a fast
-# API for this. It isn't availalbe by default on FreeBSD and OSX, and as
-# such we need to defer to a slower alternative there.
-#
-###
-find_path(UcharIncludes uchar.h)
-if(UcharIncludes)
-  message(STATUS "[qdb-api-python] Found uchar.h")
-  # target_compile_definitions(quasardb PUBLIC QDB_USE_UCHAR=1)
-
-else()
-  message(STATUS "[qdb-api-python] Did not find uchar.h")
-endif()
-
-
-
-
 target_compile_definitions(quasardb PUBLIC QDB_PY_VERSION="${QDB_PY_VERSION}")
 if(QDB_LINK_STATIC_LIB)
   add_definitions(-DQDB_API_STATIC_LINK=1)
