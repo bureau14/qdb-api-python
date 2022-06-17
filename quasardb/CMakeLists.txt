@@ -1,7 +1,9 @@
-cmake_minimum_required(VERSION 3.5.1)
+cmake_minimum_required(VERSION 3.9.4)
 project(quasardb)
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+
+include(CheckIPOSupported)
 
 option(QDB_LINK_STATIC_LIB "Link qdb_api_static instead of dynamic qdb_api." OFF)
 
@@ -184,7 +186,6 @@ if (CLANG)
   endif()
 
 endif()
-
 
 ###
 #
@@ -407,4 +408,11 @@ if(APPLE)
   set_target_properties(quasardb PROPERTIES INSTALL_RPATH "@loader_path")
 else()
   set_target_properties(quasardb PROPERTIES INSTALL_RPATH "$ORIGIN/")
+endif()
+
+
+check_ipo_supported(RESULT LTO_SUPPORTED OUTPUT error)
+if (LTO_SUPPORTED)
+  message(STATUS "[qdb-api-python] Enabling LTO")
+  set_target_properties(quasardb PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
