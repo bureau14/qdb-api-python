@@ -77,7 +77,7 @@ class pytzinfo : public py::object
     static pytzinfo utc() noexcept
     {
 #if (PY_VERSION_HEX < 0x03070000)
-#    warning "Python <= 3.6 detected, using slower introspection for UTC timezone lookup"
+#    pragma message("Python <= 3.6 detected, using slower introspection for UTC timezone lookup")
         py::module m   = py::module::import("datetime");
         py::object ret = m.attr("timezone").attr("utc");
         assert(ret.is_none() == false);
@@ -189,7 +189,7 @@ public:
     {
 
 #if (PY_VERSION_HEX < 0x030A0000)
-#    warning "Python <= 3.9 detected, using slower attribute lookup for tzinfo"
+#    pragma message("Python <= 3.9 detected, using slower attribute lookup for tzinfo")
         PyObject * tz = PyObject_GetAttrString(ptr(), "tzinfo");
 #else
         PyObject * tz  = PyDateTime_DATE_GET_TZINFO(ptr());
