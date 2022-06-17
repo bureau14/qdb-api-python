@@ -144,7 +144,6 @@ elseif (MSVC)
   add_compile_options(/wd5033) # register is no longer a supported storage class
   add_compile_options(/EHa)
   add_compile_options(/MT)
-  add_compile_options(-DHAS_UNCAUGHT_EXCEPTIONS) # Workaround for date on MSVC
 
   # Core2
   add_compile_options(/arch:AVX)
@@ -196,7 +195,6 @@ message(STATUS "[qdb-api-python] Including thirdparty libraries with binary dire
 add_subdirectory(../thirdparty/ ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 
 include_directories(SYSTEM ../thirdparty/range-v3/include)
-include_directories(SYSTEM ../thirdparty/date/include)
 
 include_directories(SYSTEM qdb/include)
 include_directories(${CMAKE_SOURCE_DIR})
