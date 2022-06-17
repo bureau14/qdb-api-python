@@ -51,18 +51,16 @@ public:
         return result;
     }
 
-    void put(qdb_int_t integer,
-        std::chrono::system_clock::time_point expiry = std::chrono::system_clock::time_point{})
+    void put(qdb_int_t integer)
     {
-        qdb::qdb_throw_if_error(*_handle,
-            qdb_int_put(*_handle, _alias.c_str(), integer, expirable_entry::from_time_point(expiry)));
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_int_put(*_handle, _alias.c_str(), integer, qdb_time_t{0}));
     }
 
-    void update(qdb_int_t integer,
-        std::chrono::system_clock::time_point expiry = std::chrono::system_clock::time_point{})
+    void update(qdb_int_t integer)
     {
-        qdb::qdb_throw_if_error(*_handle, qdb_int_update(*_handle, _alias.c_str(), integer,
-                                              expirable_entry::from_time_point(expiry)));
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_int_update(*_handle, _alias.c_str(), integer, qdb_time_t{0}));
     }
 
     qdb_int_t add(qdb_int_t integer)
@@ -78,15 +76,13 @@ static inline void register_integer(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::integer_entry, qdb::expirable_entry>(m, "Integer") //
-        .def(py::init<qdb::handle_ptr, std::string>())                 //
-        .def("get", &qdb::integer_entry::get)                          //
-        .def("put", &qdb::integer_entry::put, py::arg("integer"),
-            py::arg("expiry") = std::chrono::system_clock::time_point{}) //
-        .def("update", &qdb::integer_entry::update, py::arg("integer"),
-            py::arg("expiry") = std::chrono::system_clock::time_point{}) //
-        .def("add", &qdb::integer_entry::add, py::arg("addend"))         //
-        ;                                                                //
+    py::class_<qdb::integer_entry, qdb::expirable_entry>(m, "Integer")  //
+        .def(py::init<qdb::handle_ptr, std::string>())                  //
+        .def("get", &qdb::integer_entry::get)                           //
+        .def("put", &qdb::integer_entry::put, py::arg("integer"))       //
+        .def("update", &qdb::integer_entry::update, py::arg("integer")) //
+        .def("add", &qdb::integer_entry::add, py::arg("addend"))        //
+        ;                                                               //
 }
 
 } // namespace qdb
