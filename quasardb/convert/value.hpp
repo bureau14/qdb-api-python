@@ -37,7 +37,6 @@
 #include "../traits.hpp"
 #include "unicode.hpp"
 #include <qdb/ts.h>
-#include <date/date.h>
 #include <pybind11/pybind11.h>
 #include <range/v3/algorithm/copy.hpp>
 #include <range/v3/range/concepts.hpp>
@@ -183,11 +182,11 @@ struct value_converter<qdb::pydatetime, clock_t::time_point>
 
     {
         // Construct the date
-        date::year_month_day ymd{
-            date::year{x.year()}, date::month{(unsigned)x.month()}, date::day{(unsigned)x.day()}};
+        std::chrono::year_month_day ymd{std::chrono::year{x.year()},
+            std::chrono::month{(unsigned)x.month()}, std::chrono::day{(unsigned)x.day()}};
 
         // Calculate the number of days since epoch
-        date::sys_days days_since_epoch{ymd};
+        std::chrono::sys_days days_since_epoch{ymd};
 
         static_assert(sizeof(decltype(x.hour())) <= sizeof(hours_t::rep));
         static_assert(sizeof(decltype(x.second())) <= sizeof(seconds_t::rep));
