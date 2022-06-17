@@ -143,6 +143,9 @@ using seconds_t      = std::chrono::duration<std::int64_t>;
 using minutes_t      = std::chrono::duration<std::int32_t, std::ratio<60>>;
 using hours_t        = std::chrono::duration<std::int32_t, std::ratio<3600>>;
 using days_t         = std::chrono::duration<std::int32_t, std::ratio<86400>>;
+using weeks_t        = std::chrono::duration<std::int32_t, std::ratio<604800>>;
+using months_t       = std::chrono::duration<std::int32_t, std::ratio<2629746>>;
+using years_t        = std::chrono::duration<std::int32_t, std::ratio<31556952>>;
 
 /**
  * datetime.timedelta -> std::chrono::duration
@@ -275,16 +278,13 @@ struct value_converter<clock_t::time_point, qdb::pydatetime>
 {
     inline qdb::pydatetime operator()(clock_t::time_point const & tp) const
     {
-        auto date_point = date::floor<date::days>(tp);
+        std::chrono::sys_days dp = std::chrono::floor<days_t>(tp);
+        std::chrono::year_month_day ymd{dp};
+        std::chrono::hh_mm_ss hms{std::chrono::floor<seconds_t>(tp - dp)};
 
-        auto time      = date::make_time(std::chrono::duration_cast<milliseconds_t>(tp - date_point));
-        auto ymd       = date::year_month_day{date_point};
-        int year       = (int)ymd.year();
-        unsigned month = (unsigned)ymd.month();
-        unsigned day   = (unsigned)ymd.day();
-
-        return qdb::pydatetime::from_date_and_time(
-            year, month, day, time.hours().count(), time.minutes().count(), time.seconds().count(), 0);
+        return qdb::pydatetime::from_date_and_time(static_cast<int>(ymd.year()),
+            static_cast<unsigned>(ymd.month()), static_cast<unsigned>(ymd.day()), hms.hours().count(),
+            hms.minutes().count(), hms.seconds().count(), 0);
     }
 };
 
