@@ -29,6 +29,14 @@ find_library(
   PATHS ${QDB_API_DIR}/lib
   NO_DEFAULT_PATH)
 
+if (NOT QDB_API_LIB)
+  find_library(
+    QDB_API_LIB
+    NAMES qdb_apid
+    PATHS ${QDB_API_DIR}/lib
+    NO_DEFAULT_PATH)
+endif()
+
 if(QDB_API_LIB)
   if(NOT IS_DIRECTORY "${QDB_API_DIR}/include")
     message(FATAL_ERROR "[qdb-api-python] Please unzip qdb c-api into ${QDB_API_DIR}")
