@@ -16,6 +16,14 @@ set(PACKAGE_NAME quasardb)
 #
 ###
 
+
+set(QDB_API_NAME qdb_api)
+if (CMAKE_BUILD_TYPE STREQUAL Debug)
+  set(QDB_API_NAME qdb_apid)
+endif()
+
+message(STATUS "[qdb-api-python] Using qdb api name ${QDB_API_NAME}")
+
 if(DEFINED ENV{QDB_API_PATH})
   message(STATUS "[qdb-api-python] Getting qdb API from environment variable QDB_API_PATH: $ENV{QDB_API_PATH}")
   set(QDB_API_DIR $ENV{QDB_API_PATH})
@@ -25,17 +33,9 @@ endif()
 
 find_library(
   QDB_API_LIB
-  NAMES qdb_api
+  NAMES ${QDB_API_NAME}
   PATHS ${QDB_API_DIR}/lib
   NO_DEFAULT_PATH)
-
-if (NOT QDB_API_LIB)
-  find_library(
-    QDB_API_LIB
-    NAMES qdb_apid
-    PATHS ${QDB_API_DIR}/lib
-    NO_DEFAULT_PATH)
-endif()
 
 if(QDB_API_LIB)
   if(NOT IS_DIRECTORY "${QDB_API_DIR}/include")
@@ -43,7 +43,7 @@ if(QDB_API_LIB)
   endif()
   include_directories(SYSTEM ${QDB_API_DIR}/include)
 else()
-  find_library(QDB_API_LIB NAMES qdb_api)
+  find_library(QDB_API_LIB NAMES ${QDB_API_NAME})
 endif()
 
 message(STATUS "[qdb-api-python] Resolved QDB API library location: ${QDB_API_LIB}")
@@ -126,9 +126,6 @@ if(CLANG OR GNU)
     # Clang + Ninja eats colors
     add_compile_options(
       -fdiagnostics-color=always
-      # -Rpass=loop-vectorize
-      # -Rpass-missed=loop-vectorize
-      # -Rpass-analysis=loop-vectorize
       -ftemplate-backtrace-limit=0
       -fmacro-backtrace-limit=0)
   endif()
@@ -137,26 +134,70 @@ if(CLANG OR GNU)
     add_compile_options(
       -Wno-register
       -Wall
+      -march=core2
 
       $<$<CONFIG:Debug>:-Og>
-      $<$<CONFIG:Release>:-O2>
-      $<$<CONFIG:Release>:-ftree-vectorize>)
+      $<$<CONFIG:Release>:-O3>
+      )
 
     # Can we perhaps make different builds, one for core2 and another
     # for haswell?
-    add_compile_options(-march=core2)
   endif()
+
+  if (CLANG)
+    add_compile_options(
+      -fcolor-diagnostics # force color output on ninja
+      -fmacro-backtrace-limit=0
+      $<$<CONFIG:Release>:-O3>
+      $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:-g>
+      $<$<CONFIG:Release>:-ftree-vectorize>)
+  elseif (GNU)
+    add_compile_options(
+      -fdata-sections
+      -ffunction-sections
+      -fno-stack-protector
+
+      -fnon-call-exceptions
+      -ftrack-macro-expansion=0
+      $<$<CONFIG:Release>:-O3>
+      $<$<CONFIG:Debug>:-Og>
+      $<$<CONFIG:Debug>:-fno-eliminate-unused-debug-types>
+      $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:-ggdb>)
+  endif()
+
 
 elseif (MSVC)
   message(STATUS "[qdb-api-python] Detected: msvc")
   add_definitions(/DSTATIC_LINKED)
   add_definitions(/D_CRT_SECURE_NO_WARNINGS=1)
-  add_compile_options(/wd5033) # register is no longer a supported storage class
-  add_compile_options(/EHa)
-  add_compile_options(/MT)
 
-  # Core2
-  add_compile_options(/arch:AVX)
+  add_compile_options(
+    /volatile:iso
+    /Gy
+    /Zc:wchar_t
+    /wd5033
+    /MT
+    /EHa
+    /GR
+    /GF
+
+    $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:/Zi> # Produces a program database (PDB) that contains type information and symbolic debugging information for use with the debugger
+
+    # Debug: Turns off all optimizations in the program and speeds compilation.
+    # Non-debug: Selects full optimization.
+    $<IF:$<CONFIG:Debug>,/Od,/Ox>
+    $<$<CONFIG:Debug>:/RTC1>       # Enable the run-time error checks feature, in conjunction with the runtime_checks pragma.
+
+    $<$<NOT:$<CONFIG:Debug>>:/Oi>  # Replaces some function calls with intrinsic or otherwise special forms of the function that help your application run faster.
+    $<$<NOT:$<CONFIG:Debug>>:/Ot>  # Maximizes the speed of EXEs and DLLs by instructing the compiler to favor speed over size.
+    $<$<NOT:$<CONFIG:Debug>>:/Oy>  # Suppresses creation of frame pointers on the call stack.
+    $<$<NOT:$<CONFIG:Debug>>:/GS-> # Suppresses Buffer Security Check
+
+
+
+    # Enable AVX as we target Core2 and later
+    /arch:AVX
+  )
 endif()
 
 ###
@@ -224,7 +265,7 @@ if(NOT QDB_LINK_STATIC_LIB)
   set(FILES_TO_COPY)
 
   if(WIN32)
-    list(APPEND FILES_TO_COPY "${QDB_API_DIR}/bin/qdb_api.dll")
+    list(APPEND FILES_TO_COPY "${QDB_API_DIR}/bin/${QDB_API_NAME}.dll")
   elseif(APPLE)
     file(
       GLOB SO_LIBS
@@ -252,8 +293,8 @@ if(NOT QDB_LINK_STATIC_LIB)
   # for Apple we need to change the id otherwise we won't be able to load the
   # extension
   if(APPLE)
-    execute_process(COMMAND install_name_tool -id "@loader_path/libqdb_api.dylib"
-                            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libqdb_api.dylib)
+    execute_process(COMMAND install_name_tool -id "@loader_path/lib${QDB_API_NAME}.dylib"
+                            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${QDB_API_NAME}.dylib)
   endif()
 endif()
 
