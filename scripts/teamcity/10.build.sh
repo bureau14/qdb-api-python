@@ -16,7 +16,7 @@ function relabel_wheel {
 
 PYTHON="${PYTHON_CMD:-python3}"
 
-rm -r -f dist/
+rm -r -f build/ dist/
 
 ${PYTHON} -m pip install --upgrade pip
 ${PYTHON} -m pip install --upgrade wheel
