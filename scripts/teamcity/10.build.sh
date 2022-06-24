@@ -15,17 +15,17 @@ function relabel_wheel {
 }
 
 PYTHON="${PYTHON_CMD:-python3}"
+DIST_DIR=dist
 
-rm -r -f build/ dist/
+rm -r -f build/ ${DIST_DIR}/
 
-${PYTHON} -m pip install --upgrade pip
-${PYTHON} -m pip install --upgrade wheel
-${PYTHON} -m pip install --upgrade "setuptools<=58.4"
+${PYTHON} -m pip install --user --upgrade setuptools wheel
+${PYTHON} -m pip install --user -r dev-requirements.txt
 
-${PYTHON} setup.py sdist -d dist/
-${PYTHON} setup.py bdist_egg -d dist/
-${PYTHON} setup.py bdist_wheel -d dist/
+${PYTHON} setup.py sdist -d ${DIST_DIR}/
+${PYTHON} setup.py bdist_egg -d ${DIST_DIR}/
+${PYTHON} setup.py bdist_wheel -d ${DIST_DIR}/
 
-for whl in dist/*.whl; do
+for whl in ${DIST_DIR}/*.whl; do
     relabel_wheel "$whl"
 done
