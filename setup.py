@@ -71,7 +71,6 @@ class CMakeBuild(build_ext):
             '-DQDB_PY_VERSION=' + qdb_version,
         ]
 
-
         # If certain environment variables are set, we pass them along
         # to cmake. This allows for greater flexibility for an end-user
         # to configure builds.
@@ -80,6 +79,7 @@ class CMakeBuild(build_ext):
                             'CMAKE_CXX_COMPILER': ['-D', 'CMAKE_CXX_COMPILER={}'],
                             'QDB_LINKER': ['-D', 'QDB_LINKER={}'],
                             'CMAKE_BUILD_TYPE': ['-D', 'CMAKE_BUILD_TYPE={}'],
+                            'CMAKE_OSX_DEPLOYMENT_TARGET': ['-D', 'CMAKE_OSX_DEPLOYMENT_TARGET={}'],
                             }
         default_proxy_vals = {'CMAKE_BUILD_TYPE': 'Release'}
 
