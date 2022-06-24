@@ -80,6 +80,7 @@ class CMakeBuild(build_ext):
                             'QDB_LINKER': ['-D', 'QDB_LINKER={}'],
                             'CMAKE_BUILD_TYPE': ['-D', 'CMAKE_BUILD_TYPE={}'],
                             'CMAKE_OSX_DEPLOYMENT_TARGET': ['-D', 'CMAKE_OSX_DEPLOYMENT_TARGET={}'],
+                            'CMAKE_VERBOSE_MAKEFILE': ['-D', 'CMAKE_VERBOSE_MAKEFILE={}'],
                             }
         default_proxy_vals = {'CMAKE_BUILD_TYPE': 'Release'}
 
