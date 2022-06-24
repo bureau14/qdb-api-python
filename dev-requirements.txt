@@ -7,7 +7,7 @@
 
 numpy == 1.19.5; python_version <= '3.9' and sys_platform != "freebsd13"
 pandas >= 1.0.0; python_version <= '3.9' and sys_platform != "freebsd13"
-numpy == 1.21.2; python_version > '3.9' and sys_platform != "freebsd13"
+numpy == 1.22.4; python_version > '3.9' and sys_platform != "freebsd13"
 pandas == 1.3.4; python_version > '3.9' and sys_platform != "freebsd13"
 
 wheel == 0.37.0; sys_platform != "freebsd13"
