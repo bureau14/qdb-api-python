@@ -2,7 +2,7 @@
 # (c)quasardb SAS. All rights reserved.
 # qdb is a trademark of quasardb SAS
 
-# pylint: disable=C0103,C0111,C0326,W0201
+# pylint: disable=C0103,C0111,C0326,W0201,line-too-long
 
 
 import os
@@ -12,11 +12,11 @@ import platform
 import subprocess
 import glob
 
+from distutils.version import LooseVersion
 from setuptools.command.build_ext import build_ext
 from setuptools import setup, Extension
 from setuptools.command.bdist_egg import bdist_egg as old_bdist_egg  # pylint: disable=C0412
 # NOTE: Import distutils after setuptools.
-from distutils.version import LooseVersion
 from pkg_resources import get_build_platform
 from wheel.bdist_wheel import bdist_wheel as old_bdist_wheel
 
