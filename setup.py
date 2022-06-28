@@ -59,9 +59,32 @@ class CMakeBuild(build_ext):
         for ext in self.extensions:
             self.build_extension(ext)
 
+    def find_sysroot(self):
+        if platform.system() == "Darwin":
+            # Override sysroot, because otherwise bdist (setuptools) will set it to the latest SDK.
+            # Cf. https://github.com/pypa/setuptools/blob/eb75ea6eb827acf1be6c350850b350de7b500efd/setuptools/_distutils/unixccompiler.py#L326-L350 # noqa
+
+            # Paths can be different depending on XCode version installed:
+            # /Library/Developer/CommandLineTools/SDKs/MacOSX11.sdk
+            # /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX11.sdk
+            sdks = ['10.14', '10.15', '11.0', '11.1', '11.2', '11.3',
+                    '11.4', '11.5', '12.0', '12.1', '12.2', '12.3']
+            for sdk in sdks:
+                try:
+                    out = subprocess.check_output(
+                        ['xcrun', '--sdk', 'macosx' + sdk, '--show-sdk-path'])
+                    print(out.decode().strip())
+                    return out.decode().strip()
+                except subprocess.CalledProcessError:
+                    # Just try another SDK
+                    pass
+        return ''
+
     def build_extension(self, ext):
         extdir = os.path.join(
             os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name))), 'quasardb')
+
+        osx_sysroot = self.find_sysroot()
 
         # We provide CMAKE_LIBRARY_OUTPUT_DIRECTORY to cmake, where it will copy libqdb_api.so (or
         # whatever the OS uses). It is important that this path matches `package_modules`, so that
@@ -70,6 +93,7 @@ class CMakeBuild(build_ext):
             '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
             '-DPYTHON_EXECUTABLE=' + sys.executable,
             '-DQDB_PY_VERSION=' + qdb_version,
+            '-DCMAKE_OSX_SYSROOT:PATH=' + osx_sysroot,
         ]
 
         # If certain environment variables are set, we pass them along
@@ -81,6 +105,7 @@ class CMakeBuild(build_ext):
                             'QDB_LINKER': ['-D', 'QDB_LINKER={}'],
                             'CMAKE_BUILD_TYPE': ['-D', 'CMAKE_BUILD_TYPE={}'],
                             'CMAKE_OSX_DEPLOYMENT_TARGET': ['-D', 'CMAKE_OSX_DEPLOYMENT_TARGET={}'],
+                            'CMAKE_OSX_SYSROOT': ['-D', 'CMAKE_OSX_SYSROOT={}'],
                             'CMAKE_VERBOSE_MAKEFILE': ['-D', 'CMAKE_VERBOSE_MAKEFILE={}'],
                             }
         default_proxy_vals = {'CMAKE_BUILD_TYPE': 'Release'}
@@ -121,26 +146,6 @@ class CMakeBuild(build_ext):
         c_cxx_flags = [
             '-DVERSION_INFO=\\"{}\\"'.format(self.distribution.get_version()),
         ]
-
-        if platform.system() == "Darwin":
-            # Override sysroot, because otherwise bdist (setuptools) will set it to the latest SDK.
-            # Cf. https://github.com/pypa/setuptools/blob/eb75ea6eb827acf1be6c350850b350de7b500efd/setuptools/_distutils/unixccompiler.py#L326-L350 # noqa
-
-            # Paths can be different depending on XCode version installed:
-            # /Library/Developer/CommandLineTools/SDKs/MacOSX11.sdk
-            # /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX11.sdk
-            sdks = ['10.14', '10.15', '11.0', '11.1', '11.2', '11.3', '11.4', '11.5', '12.0', '12.1', '12.2', '12.3']
-            for sdk in sdks:
-                try:
-                    out = subprocess.check_output(['xcrun', '--sdk', 'macosx' + sdk, '--show-sdk-path'])
-                    print(out.decode().strip())
-                    c_cxx_flags += [
-                        "-isysroot " + out.decode().strip(),
-                    ]
-                    break
-                except subprocess.CalledProcessError:
-                    # Just try another SDK
-                    pass
 
         joined_c_cxx_flags = ' '.join(c_cxx_flags)
         env['CFLAGS']   = '{} {}'.format(env.get('CFLAGS', ''),   joined_c_cxx_flags)
