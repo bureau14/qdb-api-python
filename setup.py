@@ -67,18 +67,11 @@ class CMakeBuild(build_ext):
             # Paths can be different depending on XCode version installed:
             # /Library/Developer/CommandLineTools/SDKs/MacOSX11.sdk
             # /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX11.sdk
-            sdks = ['10.14', '10.15', '11.0', '11.1', '11.2', '11.3',
-                    '11.4', '11.5', '12.0', '12.1', '12.2', '12.3']
-            for sdk in sdks:
-                try:
-                    out = subprocess.check_output(
-                        ['xcrun', '--sdk', 'macosx' + sdk, '--show-sdk-path'])
-                    print(out.decode().strip())
-                    return out.decode().strip()
-                except subprocess.CalledProcessError:
-                    # Just try another SDK
-                    pass
-        return ''
+            sdk = '10.14'
+            out = subprocess.check_output(
+                ['xcrun', '--sdk', 'macosx' + sdk, '--show-sdk-path'])
+            print(out.decode().strip())
+            return out.decode().strip()
 
     def build_extension(self, ext):
         extdir = os.path.join(

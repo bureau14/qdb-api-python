@@ -16,7 +16,7 @@ function relabel_wheel {
 
 PYTHON="${PYTHON_CMD:-python3}"
 DIST_DIR=dist
-PLATFORM="-p macosx-11.0-x86_64"
+PLATFORM="-p macosx-10.14-x86_64"
 
 rm -r -f build/ ${DIST_DIR}/
 
