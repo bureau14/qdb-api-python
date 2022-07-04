@@ -65,7 +65,8 @@ public:
         const std::string & user_name          = {},
         const std::string & user_private_key   = {},
         const std::string & cluster_public_key = {},
-        std::chrono::milliseconds timeout      = std::chrono::minutes{1})
+        std::chrono::milliseconds timeout      = std::chrono::minutes{1},
+        bool do_version_check = true)
         : _uri{uri}
         , _handle{make_handle_ptr()}
         , _json_loads{pybind11::module::import("json").attr("loads")}
@@ -73,7 +74,10 @@ public:
     {
         // Check that the C API version installed on the target system matches
         // the one used during the build
-        check_qdb_c_api_version(qdb_version());
+        if (do_version_check)
+        {
+            check_qdb_c_api_version(qdb_version());
+        }
         // must specify everything or nothing
         if (user_name.empty() != user_private_key.empty())
             throw qdb::exception{qdb_e_invalid_argument,
@@ -368,12 +372,13 @@ static inline void register_cluster(Module & m)
     py::class_<qdb::cluster>(m, "Cluster",
         "Represents a connection to the QuasarDB cluster. ") //
         .def(py::init<const std::string &, const std::string &, const std::string &,
-                 const std::string &, std::chrono::milliseconds>(), //
+                 const std::string &, std::chrono::milliseconds, bool>(), //
             py::arg("uri"),                                         //
             py::arg("user_name")          = std::string{},          //
             py::arg("user_private_key")   = std::string{},          //
             py::arg("cluster_public_key") = std::string{},          //
-            py::arg("timeout")            = std::chrono::minutes{1})           //
+            py::arg("timeout")            = std::chrono::minutes{1},//
+            py::arg("do_version_check")   = true)                   //
         .def("__enter__", &qdb::cluster::enter)                     //
         .def("__exit__",
             &qdb::cluster::exit) //                                                                   //

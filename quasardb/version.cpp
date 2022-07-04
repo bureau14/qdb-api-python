@@ -33,12 +33,37 @@
 #include <sstream>
 #include <stdexcept>
 
+static std::pair<int, int> get_version_pair(const char * version)
+{
+    std::regex re("([0-9]+)\\.([0-9]+)\\..*");
+    std::cmatch m;
+    if (!std::regex_match(version, m, re))
+    {
+        std::ostringstream sstr;
+        sstr << "Got an invalid QuasarDB C API version string (" << version << ").";
+        throw std::invalid_argument(sstr.str());
+    }
+    const auto major = std::stoi(m[1].str());
+    const auto minor = std::stoi(m[2].str());
+    return std::make_pair(major, minor);
+}
+
 namespace qdb
 {
 
 const char * const qdb_c_api_version = QDB_PY_VERSION;
 
 void check_qdb_c_api_version(const char * candidate)
-{}
+{
+    const auto ver_c   = get_version_pair(candidate);
+    const auto ver_ref = get_version_pair(qdb_c_api_version);
+    if (ver_c != ver_ref)
+    {
+        std::ostringstream sstr;
+        sstr << "QuasarDB C API version mismatch. Expected " << ver_ref.first << '.' << ver_ref.second << " but got " << ver_c.first << '.'
+             << ver_c.second << " instead.";
+        throw std::runtime_error(sstr.str());
+    }
+}
 
 } // namespace qdb
