@@ -329,8 +329,7 @@ def test_returns_count_data_with_sum_select(
     res = qdbd_connection.query(query)
 
     assert len(res) == 1
-    assert pytest.approx(res[0]['sum(the_double)'],
-                         np.sum(inserted_double_data[1]))
+    assert res[0]['sum(the_double)'] == pytest.approx(np.sum(inserted_double_data[1]))
 
 
 def test_returns_inserted_multi_data_with_star_select(
