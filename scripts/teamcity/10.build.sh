@@ -30,7 +30,7 @@ ${PYTHON} -m pip install --user -r dev-requirements.txt
 export DISTUTILS_DEBUG=1
 
 ${PYTHON} setup.py sdist -v -d ${DIST_DIR}/
-# ${PYTHON} setup.py bdist_egg -v -d ${DIST_DIR}/ ${PLATFORM}
+${PYTHON} setup.py bdist_egg -v -d ${DIST_DIR}/ ${PLATFORM}
 ${PYTHON} setup.py bdist_wheel -v -d ${DIST_DIR}/ ${PLATFORM}
 
 for whl in ${DIST_DIR}/*.whl; do
