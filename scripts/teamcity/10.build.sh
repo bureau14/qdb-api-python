@@ -24,7 +24,7 @@ fi
 
 rm -r -f build/ ${DIST_DIR}/
 
-if [[ "$OSTYPE" == "darwin"* && $PYTHON == "3.9"* ]]; then
+if [[ "$OSTYPE" == "darwin"* && $PYTHON == "python3.9"* ]]; then
     ${PYTHON} -m pip install --user --upgrade setuptools==63.0.0b1 wheel
 else
     ${PYTHON} -m pip install --user --upgrade setuptools wheel
