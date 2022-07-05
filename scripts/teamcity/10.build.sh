@@ -24,7 +24,7 @@ fi
 
 rm -r -f build/ ${DIST_DIR}/
 
-${PYTHON} -m pip install --user --upgrade setuptools wheel
+${PYTHON} -m pip install --user --upgrade setuptools==63.0.0b1 wheel
 ${PYTHON} -m pip install --user -r dev-requirements.txt
 
 export DISTUTILS_DEBUG=1
