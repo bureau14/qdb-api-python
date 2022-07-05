@@ -27,9 +27,11 @@ rm -r -f build/ ${DIST_DIR}/
 ${PYTHON} -m pip install --user --upgrade setuptools wheel
 ${PYTHON} -m pip install --user -r dev-requirements.txt
 
-${PYTHON} setup.py sdist -d ${DIST_DIR}/
-${PYTHON} setup.py bdist_egg -d ${DIST_DIR}/ ${PLATFORM}
-${PYTHON} setup.py bdist_wheel -d ${DIST_DIR}/ ${PLATFORM}
+export DISTUTILS_DEBUG=1
+
+${PYTHON} setup.py sdist -v -d ${DIST_DIR}/
+${PYTHON} setup.py bdist_egg -v -d ${DIST_DIR}/ ${PLATFORM}
+${PYTHON} setup.py bdist_wheel -v -d ${DIST_DIR}/ ${PLATFORM}
 
 for whl in ${DIST_DIR}/*.whl; do
     relabel_wheel "$whl"
