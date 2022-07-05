@@ -192,7 +192,7 @@ class InstallCommand(install):
 cmdclass = {
     'install': InstallCommand,
     'build_ext': CMakeBuild,
-    # 'bdist_egg': EggRetagger,
+    'bdist_egg': EggRetagger,
     'bdist_wheel': WheelRetagger,
 }
 
