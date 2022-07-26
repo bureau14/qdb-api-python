@@ -3,6 +3,7 @@ import pdoc
 import quasardb
 import quasardb.pool
 import quasardb.stats
+import quasardb.numpy as qdbnp
 import quasardb.pandas as qdbpd
 
 context = pdoc.Context()
