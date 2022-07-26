@@ -30,6 +30,7 @@ class Module(pdoc.Module):
 module_qdb = Module(quasardb.quasardb, context=context,
                     submodules=[pdoc.Module(quasardb.pool, context=context),
                                 pdoc.Module(quasardb.stats, context=context),
+                                pdoc.Module(quasardb.numpy, context=context),
                                 pdoc.Module(quasardb.pandas, context=context)])
 
 modules = [module_qdb]
