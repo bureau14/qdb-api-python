@@ -150,6 +150,21 @@ def test_arrays_read_write_inferrable_dtypes(array_with_index_and_table, qdbd_co
     res = qdbnp.read_array(table, col)
     _assert_arrays_equal((index, data), res)
 
+@conftest.override_cdtypes('native')
+def test_arrays_read_write_data_as_dict(array_with_index_and_table, qdbd_connection):
+    """
+     * qdbnp.write_arrays()
+     * => pinned writer
+     * => no conversion
+    """
+    (ctype, dtype, data, index, table) = array_with_index_and_table
+
+    col = table.column_id_by_index(0)
+    qdbnp.write_arrays({col: data}, qdbd_connection, table, index=index, dtype=dtype, infer_types=False, truncate=True)
+
+    res = qdbnp.read_array(table, col)
+    _assert_arrays_equal((index, data), res)
+
 
 ######
 #
@@ -305,3 +320,25 @@ def test_query_insert(array_with_index_and_table, qdbd_connection):
 
     assert len(idx) == 0
     assert len(res) == len(idx)
+
+def test_regression_sc10919(qdbd_connection, table_name, start_date, row_count):
+    t = qdbd_connection.table(table_name)
+
+    # Specific regresion test used in Python user guide / API documentation
+    cols = [quasardb.ColumnInfo(quasardb.ColumnType.Double, "open"),
+            quasardb.ColumnInfo(quasardb.ColumnType.Double, "close"),
+            quasardb.ColumnInfo(quasardb.ColumnType.Double, "high"),
+            quasardb.ColumnInfo(quasardb.ColumnType.Double, "low"),
+            quasardb.ColumnInfo(quasardb.ColumnType.Int64, "volume")]
+
+    t.create(cols)
+
+    idx = np.array([start_date + np.timedelta64(i, 's')
+                    for i in range(row_count)]).astype('datetime64[ns]')
+
+    # Note, partially sparse data just to increase some test surface
+    data = {'open': np.random.uniform(100, 200, row_count),
+            'close': np.random.uniform(100, 200, row_count),
+            'volume': np.random.randint(10000, 20000, row_count)}
+
+    qdbnp.write_arrays(data, qdbd_connection, t, index=idx)
