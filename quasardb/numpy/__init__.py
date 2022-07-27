@@ -294,6 +294,34 @@ def _coerce_data(data, dtype):
     return data
 
 
+def _ensure_list(xs, cinfos):
+    """
+    If input data is a dict, ensures it's converted to a list with the correct
+    offsets.
+    """
+    if isinstance(xs, list):
+        return xs
+
+    # As we only accept list-likes or dicts as input data, it *must* be a dict at this
+    # point
+    assert isinstance(xs, dict)
+
+    logger.debug("data was provided as dict, coercing to list")
+
+    ret = list()
+
+    for i in range(len(cinfos)):
+        (cname, ctype) = cinfos[i]
+
+        xs_ = None
+        if cname in xs:
+            xs_ = xs[cname]
+
+        ret.append(xs_)
+
+    return ret
+
+
 def ensure_ma(xs, dtype=None):
     if isinstance(dtype, list):
         assert(isinstance(xs, list) == True)
@@ -549,6 +577,7 @@ def write_arrays(
     if infer_types is True:
         dtype = _add_desired_dtypes(dtype, cinfos)
 
+    data = _ensure_list(data, cinfos)
     data = ensure_ma(data, dtype=dtype)
     data = _coerce_data(data, dtype)
 
