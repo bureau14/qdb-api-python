@@ -713,7 +713,7 @@ def query(cluster,
       that column as the index. If int (e.g. `1`), looks up the column based on that offset.
 
     dict : bool
-      If provided, returns data arrays as a dict, otherwise a list of np.arrays.
+      If true, returns data arrays as a dict, otherwise a list of np.arrays.
       Defaults to False.
 
     """
