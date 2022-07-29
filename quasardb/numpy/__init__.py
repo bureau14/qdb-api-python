@@ -293,6 +293,19 @@ def _coerce_data(data, dtype):
 
     return data
 
+def _probe_length(xs):
+    """
+    Returns the length of the first non-null array in `xs`, or None if all arrays
+    are null.
+    """
+    if isinstance(xs, dict):
+        return _probe_length(xs.values())
+
+    for x in xs:
+        if x is not None:
+            return x.size
+
+    return None
 
 def _ensure_list(xs, cinfos):
     """
@@ -308,6 +321,11 @@ def _ensure_list(xs, cinfos):
 
     logger.debug("data was provided as dict, coercing to list")
 
+    # As we may have non-existing keys, we would like to initialize those as a masked
+    # array with all elements masked. In those cases, though, we need to know the size
+    # of the array.
+    n = _probe_length(xs)
+
     ret = list()
 
     for i in range(len(cinfos)):
@@ -316,6 +334,8 @@ def _ensure_list(xs, cinfos):
         xs_ = None
         if cname in xs:
             xs_ = xs[cname]
+        else:
+            xs_ = ma.masked_all(n, dtype=_best_dtype_for_ctype(ctype))
 
         ret.append(xs_)
 

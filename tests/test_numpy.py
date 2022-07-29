@@ -341,4 +341,4 @@ def test_regression_sc10919(qdbd_connection, table_name, start_date, row_count):
             'close': np.random.uniform(100, 200, row_count),
             'volume': np.random.randint(10000, 20000, row_count)}
 
-    qdbnp.write_arrays(data, qdbd_connection, t, index=idx)
+    qdbnp.write_arrays(data, qdbd_connection, t, index=idx, infer_types=False)
