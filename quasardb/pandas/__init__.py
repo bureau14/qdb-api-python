@@ -326,7 +326,7 @@ def write_dataframe(
     create: optional bool
       Whether to create the table. Defaults to false.
 
-    shard_size: optional bool
+    shard_size: optional datetime.timedelta
       The shard size of the timeseries you wish to create.
 
     drop_duplicates: bool or list[str]
@@ -342,8 +342,9 @@ def write_dataframe(
       the provided dataframe has incompatible types. For example, a dataframe with integers
       will automatically convert these to doubles if the QuasarDB table expects it.
 
-      Defaults to True. For production use cases where you want to avoid implicit conversions,
-      we recommend setting this to False.
+      **Important**: as conversions are expensive and often the majority of time spent
+      when inserting data into QuasarDB, we strongly recommend setting this to ``False``
+      for performance-sensitive code.
 
     truncate: optional bool
       Truncate (also referred to as upsert) the data in-place. Will detect time range to truncate
