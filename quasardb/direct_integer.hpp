@@ -53,6 +53,23 @@ public:
         return result;
     }
 
+    void put(qdb_int_t integer)
+    {
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_direct_int_put(*_direct_handle, _alias.c_str(), integer, qdb_time_t{0}));
+    }
+
+    void update(qdb_int_t integer)
+    {
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_direct_int_update(*_direct_handle, _alias.c_str(), integer, qdb_time_t{0}));
+    }
+
+    void remove()
+    {
+        qdb::qdb_throw_if_error(*_handle, qdb_direct_remove(*_direct_handle, _alias.c_str()));
+    }
+
 private:
     handle_ptr _handle;
     direct_handle_ptr _direct_handle;
@@ -66,7 +83,12 @@ static inline void register_direct_integer(Module & m)
 
     py::class_<qdb::direct_integer_entry>(m, "DirectInteger")
         .def(py::init<qdb::handle_ptr, qdb::direct_handle_ptr, std::string>())
-        .def("get", &qdb::direct_integer_entry::get); //
+        .def("get", &qdb::direct_integer_entry::get)
+        .def("put", &qdb::direct_integer_entry::put, py::arg("integer"))
+        .def("update", &qdb::direct_integer_entry::update, py::arg("integer"))
+        .def("remove", &qdb::direct_integer_entry::remove)
+
+        ; //
 }
 
 } // namespace qdb
