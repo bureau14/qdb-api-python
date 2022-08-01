@@ -321,7 +321,8 @@ def test_query_insert(array_with_index_and_table, qdbd_connection):
     assert len(idx) == 0
     assert len(res) == len(idx)
 
-def test_regression_sc10919(qdbd_connection, table_name, start_date, row_count):
+
+def test_regression_sc10919_sc10933(qdbd_connection, table_name, start_date, row_count):
     t = qdbd_connection.table(table_name)
 
     # Specific regresion test used in Python user guide / API documentation
@@ -342,3 +343,8 @@ def test_regression_sc10919(qdbd_connection, table_name, start_date, row_count):
             'volume': np.random.randint(10000, 20000, row_count)}
 
     qdbnp.write_arrays(data, qdbd_connection, t, index=idx, infer_types=False)
+
+    # Retrieve just a single column, so that we know for sure we didn't
+    # accidentally insert all null values.
+    q = 'SELECT open FROM "{}"'.format(table_name)
+    (idx, (res)) = qdbnp.query(qdbd_connection, q)
