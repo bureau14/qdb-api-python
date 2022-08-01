@@ -58,6 +58,23 @@ public:
         return convert_and_release_content(content, content_length);
     }
 
+    void put(std::string const & data)
+    {
+        qdb::qdb_throw_if_error(*_handle, qdb_direct_blob_put(*_direct_handle, _alias.c_str(),
+                                              data.data(), data.size(), qdb_time_t{0}));
+    }
+
+    void update(std::string const & data)
+    {
+        qdb::qdb_throw_if_error(*_handle, qdb_direct_blob_update(*_direct_handle, _alias.c_str(),
+                                              data.data(), data.size(), qdb_time_t{0}));
+    }
+
+    void remove()
+    {
+        qdb::qdb_throw_if_error(*_handle, qdb_direct_remove(*_direct_handle, _alias.c_str()));
+    }
+
 private:
     pybind11::bytes convert_and_release_content(const void * content, qdb_size_t content_length)
     {
@@ -82,7 +99,10 @@ static inline void register_direct_blob(Module & m)
 
     py::class_<qdb::direct_blob_entry>(m, "DirectBlob")
         .def(py::init<qdb::handle_ptr, qdb::direct_handle_ptr, std::string>())
-        .def("get", &qdb::direct_blob_entry::get);
-}
+        .def("get", &qdb::direct_blob_entry::get)
+        .def("put", &qdb::direct_blob_entry::put, py::arg("data"))
+        .def("update", &qdb::direct_blob_entry::update, py::arg("data"))
+        .def("remove", &qdb::direct_blob_entry::remove);
+};
 
 } // namespace qdb
