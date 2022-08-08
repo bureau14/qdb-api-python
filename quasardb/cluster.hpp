@@ -66,7 +66,7 @@ public:
         const std::string & user_private_key   = {},
         const std::string & cluster_public_key = {},
         std::chrono::milliseconds timeout      = std::chrono::minutes{1},
-        bool do_version_check = true)
+        bool do_version_check                  = true)
         : _uri{uri}
         , _handle{make_handle_ptr()}
         , _json_loads{pybind11::module::import("json").attr("loads")}
@@ -78,19 +78,8 @@ public:
         {
             check_qdb_c_api_version(qdb_version());
         }
-        // must specify everything or nothing
-        if (user_name.empty() != user_private_key.empty())
-            throw qdb::exception{qdb_e_invalid_argument,
-                "Either all security settings must be provided, or none at all"};
-        if (user_name.empty() != cluster_public_key.empty())
-            throw qdb::exception{qdb_e_invalid_argument,
-                "Either all security settings must be provided, or none at all"};
 
-        if (!user_name.empty())
-        {
-            options().set_user_credentials(user_name, user_private_key);
-            options().set_cluster_public_key(cluster_public_key);
-        }
+        options().apply_credentials(user_name, user_private_key, cluster_public_key);
 
         options().set_timeout(timeout);
 
@@ -114,7 +103,7 @@ public:
 public:
     qdb::node node(const std::string & uri)
     {
-        return qdb::node(_handle, uri);
+        return qdb::node(uri, _handle);
     }
 
 private:
@@ -373,13 +362,13 @@ static inline void register_cluster(Module & m)
         "Represents a connection to the QuasarDB cluster. ") //
         .def(py::init<const std::string &, const std::string &, const std::string &,
                  const std::string &, std::chrono::milliseconds, bool>(), //
-            py::arg("uri"),                                         //
-            py::arg("user_name")          = std::string{},          //
-            py::arg("user_private_key")   = std::string{},          //
-            py::arg("cluster_public_key") = std::string{},          //
-            py::arg("timeout")            = std::chrono::minutes{1},//
-            py::arg("do_version_check")   = true)                   //
-        .def("__enter__", &qdb::cluster::enter)                     //
+            py::arg("uri"),                                               //
+            py::arg("user_name")          = std::string{},                //
+            py::arg("user_private_key")   = std::string{},                //
+            py::arg("cluster_public_key") = std::string{},                //
+            py::arg("timeout")            = std::chrono::minutes{1},      //
+            py::arg("do_version_check")   = true)                           //
+        .def("__enter__", &qdb::cluster::enter)                           //
         .def("__exit__",
             &qdb::cluster::exit) //                                                                   //
         .def("is_open", &qdb::cluster::is_open)                                         //

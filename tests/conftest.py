@@ -19,19 +19,13 @@ pp = pprint.PrettyPrinter()
 def connect(uri):
     return quasardb.Cluster(uri)
 
-
-def direct_connect(conn, node_uri):
-    return conn.node(node_uri)
-
-
 def config():
     return {"uri":
             {"insecure": "qdb://127.0.0.1:2836",
              "secure": "qdb://127.0.0.1:2838"}}
 
 
-@pytest.fixture(scope="module")
-def qdbd_settings():
+def _qdbd_settings():
     user_key = {}
     cluster_key = ""
 
@@ -47,6 +41,11 @@ def qdbd_settings():
             "user_name": user_key['username'],
             "user_private_key": user_key['secret_key'],
             "cluster_public_key": cluster_key}}
+
+
+@pytest.fixture(scope="module")
+def qdbd_settings():
+    return _qdbd_settings()
 
 
 def create_qdbd_connection(settings, purge=False):
@@ -77,20 +76,19 @@ def qdbd_secure_connection(qdbd_settings):
     conn.close()
 
 
-@pytest.fixture(scope="module")
-def qdbd_direct_connection(qdbd_settings, qdbd_connection):
-    return direct_connect(qdbd_connection, qdbd_settings.get(
-        "uri").get("insecure").replace("qdb://", ""))
+@pytest.fixture(params=['secure', 'insecure'])
+def qdbd_direct_connection(request):
+    settings = _qdbd_settings()
 
-
-@pytest.fixture(scope="module")
-def qdbd_direct_secure_connection(qdbd_settings, qdbd_secure_connection):
-    return direct_connect(
-        qdbd_secure_connection,
-        qdbd_settings.get("uri").get("secure").replace(
-            "qdb://",
-            ""))
-
+    if request.param == 'insecure':
+        return quasardb.Node(
+            settings.get("uri").get("insecure").replace("qdb://", ""))
+    elif request.param == 'secure':
+        return quasardb.Node(
+            settings.get("uri").get("secure").replace("qdb://", ""),
+            user_name=settings.get("security").get("user_name"),
+            user_private_key=settings.get("security").get("user_private_key"),
+            cluster_public_key=settings.get("security").get("cluster_public_key"))
 
 def _random_identifier():
     return ''.join(random.choice(string.ascii_lowercase) for _ in range(16))

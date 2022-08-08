@@ -36,24 +36,20 @@ def by_node(conn):
     conn: quasardb.Cluster
       Active connection to the QuasarDB cluster
     """
-    return {x: of_node(conn, x) for x in conn.endpoints()}
+    return {x: of_node(conn.node(x)) for x in conn.endpoints()}
 
 
-def of_node(conn, uri):
+def of_node(dconn):
     """
     Returns statistic for a single node.
 
     Parameters:
-    conn: quasardb.Cluster
-      Active connection to the QuasarDB cluster
+    dconn: quasardb.Node
+      Direct node connection to the node we wish to connect to
 
-    uri: str
-      URI of a node in the cluster, e.g. '127.0.0.1:2836'.
     """
 
     start = datetime.now()
-
-    dconn = conn.node(uri)
     raw = {
         k: _get_stat(dconn,k) for k in dconn.prefix_get(stats_prefix, 1000)}
 
