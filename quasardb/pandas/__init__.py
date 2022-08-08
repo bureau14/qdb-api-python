@@ -268,7 +268,7 @@ def _extract_columns(df, cinfos):
     If a table column is not present in the dataframe, it it have a None entry.
     If a dataframe column is not present in the table, it will be ommitted.
     """
-    ret = list()
+    ret = {}
 
     # Grab all columns from the DataFrame in the order of table columns,
     # put None if not present in df.
@@ -277,13 +277,10 @@ def _extract_columns(df, cinfos):
         xs = None
 
         if cname in df.columns:
-            arr = df.iloc[:, i].array
-            xs = ma.masked_array(arr.to_numpy(copy=False),
-                                 mask=arr.isna())
+            arr = df[cname].array
+            ret[cname] = ma.masked_array(arr.to_numpy(copy=False),
+                                         mask=arr.isna())
 
-        ret.append(xs)
-
-    assert len(ret) == len(cinfos)
     return ret
 
 def write_dataframe(
