@@ -425,7 +425,6 @@ def _create_table_from_df(df, table, shard_size=None):
         logger.debug("probed pandas dtype %s to inferred dtype %s and map to quasardb column type %s", df[c].dtype, dt, ct)
         cols.append(quasardb.ColumnInfo(ct, c))
 
-
     try:
         if not shard_size:
             table.create(cols)
@@ -437,6 +436,7 @@ def _create_table_from_df(df, table, shard_size=None):
 
     return table
 
+
 def _dtype_to_column_type(dt, inferred):
     res = _dtype_map.get(inferred, None)
     if res is None:
@@ -447,6 +447,7 @@ def _dtype_to_column_type(dt, inferred):
 
     return res
 
+
 def _get_inferred_dtypes(df):
     dtypes = dict()
     for i in range(len(df.columns)):
@@ -455,6 +456,7 @@ def _get_inferred_dtypes(df):
         logger.debug("Determined dtype of column %s to be %s", c, dt)
         dtypes[c] = dt
     return dtypes
+
 
 def _get_inferred_dtypes_indexed(df):
     dtypes = _get_inferred_dtypes(df)
