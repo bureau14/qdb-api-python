@@ -45,6 +45,28 @@ public:
     {}
 
 public:
+    /**
+     * Applies credentials if provided, throws exception when credentials are invalid.
+     */
+    void apply_credentials(const std::string & user_name,
+        const std::string & user_private_key,
+        const std::string & cluster_public_key)
+    {
+        // must specify everything or nothing
+        if (user_name.empty() != user_private_key.empty())
+            throw qdb::exception{qdb_e_invalid_argument,
+                "Either all security settings must be provided, or none at all"};
+        if (user_name.empty() != cluster_public_key.empty())
+            throw qdb::exception{qdb_e_invalid_argument,
+                "Either all security settings must be provided, or none at all"};
+
+        if (!user_name.empty())
+        {
+            set_user_credentials(user_name, user_private_key);
+            set_cluster_public_key(cluster_public_key);
+        }
+    };
+
     void set_timeout(std::chrono::milliseconds ms)
     {
         qdb::qdb_throw_if_error(

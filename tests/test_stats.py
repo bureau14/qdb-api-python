@@ -58,6 +58,27 @@ _expected_cumulative_stats = [
     'partitions_count']
 
 
+def _validate_node_stats(stats):
+    assert 'by_uid' in stats
+    assert 'cumulative' in stats
+
+    # Test user stats
+    for uid, xs in stats['by_uid'].items():
+        assert isinstance(uid, int)
+
+        for expected in _expected_user_stats:
+            assert expected in xs
+
+        for _, v in xs.items():
+            # As far as I know, per-user statistics should *always* be
+            # integers
+            assert isinstance(v, int)
+
+    # Test cumulative stats
+    xs = stats['cumulative']
+    for expected in _expected_cumulative_stats:
+        assert expected in xs
+
 def test_stats_by_node(qdbd_secure_connection,
                        secure_table):
     assert(len(_expected_cumulative_stats) > len(_expected_user_stats))
@@ -67,25 +88,24 @@ def test_stats_by_node(qdbd_secure_connection,
     assert len(xs) == 1
 
     for _, stats in xs.items():
-        assert 'by_uid' in stats
-        assert 'cumulative' in stats
+        _validate_node_stats(stats)
 
-        # Test user stats
-        for uid, xs in stats['by_uid'].items():
-            assert isinstance(uid, int)
 
-            for expected in _expected_user_stats:
-                assert expected in xs
+def test_stats_of_node(qdbd_settings,
+                       qdbd_secure_connection,
+                       secure_table):
+    # First seed the table
+    # _ensure_stats(qdbd_secure_connection, secure_table)
 
-            for _, v in xs.items():
-                # As far as I know, per-user statistics should *always* be
-                # integers
-                assert isinstance(v, int)
+    # Now establish direct connection
+    conn = quasardb.Node(
+            qdbd_settings.get("uri").get("secure").replace("qdb://", ""),
+            user_name=qdbd_settings.get("security").get("user_name"),
+            user_private_key=qdbd_settings.get("security").get("user_private_key"),
+            cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"))
 
-        # Test cumulative stats
-        xs = stats['cumulative']
-        for expected in _expected_cumulative_stats:
-            assert expected in xs
+    qdbst.of_node(conn)
+
 
 def test_stats_regex():
     # This is mostly to test a regression, where user-stats for users with multi-digit ids

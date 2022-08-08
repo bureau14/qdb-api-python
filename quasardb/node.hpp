@@ -33,8 +33,8 @@
 #include "direct_blob.hpp"
 #include "direct_handle.hpp"
 #include "direct_integer.hpp"
+#include "options.hpp"
 #include "utils.hpp"
-#include <iostream>
 #include <memory>
 
 namespace qdb
@@ -43,9 +43,27 @@ namespace qdb
 class node
 {
 public:
-    node(const handle_ptr h, const std::string & node_uri)
+    /**
+     * Construct a direct node connection directly, possibly with security credentials.
+     */
+    node(const std::string & node_uri,
+        const std::string & user_name          = {},
+        const std::string & user_private_key   = {},
+        const std::string & cluster_public_key = {})
         : _uri{node_uri}
-        , _handle{h}
+        , _handle{make_handle_ptr()}
+        , _direct_handle{make_direct_handle_ptr()}
+    {
+        qdb::options{_handle}.apply_credentials(user_name, user_private_key, cluster_public_key);
+        _direct_handle->connect(_handle, node_uri);
+    }
+
+    /**
+     * Construct a direct node from a cluster handle, reusing its security credentials if applicable.
+     */
+    node(const std::string & node_uri, handle_ptr handle)
+        : _uri{node_uri}
+        , _handle{handle}
         , _direct_handle{make_direct_handle_ptr()}
     {
         _direct_handle->connect(_handle, node_uri);
@@ -85,9 +103,13 @@ static inline void register_node(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::node>(
-        m, "Node") //
-                   // no constructor: use quasardb.Cluster(uri).node(node_uri) to initialise
+    py::class_<qdb::node>(m, "Node")
+        .def(py::init<std::string const &, std::string const &, std::string const &,
+                 std::string const &>(),
+            py::arg("uri"),                                //
+            py::arg("user_name")          = std::string{}, //
+            py::arg("user_private_key")   = std::string{}, //
+            py::arg("cluster_public_key") = std::string{}) //
         .def("prefix_get", &qdb::node::prefix_get)
         .def("blob", &qdb::node::blob)
         .def("integer", &qdb::node::integer);
