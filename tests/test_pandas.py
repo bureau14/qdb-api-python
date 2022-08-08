@@ -314,3 +314,31 @@ def test_inference(
     # throw.
     (_, _, df, table) = df_with_table
     qdbpd_write_fn(df, qdbd_connection, table, infer_types=True)
+
+
+def test_shuffled_columns(qdbpd_write_fn, qdbd_connection, table_name, start_date, row_count):
+    t = qdbd_connection.table(table_name)
+
+    # Specific regresion test used in Python user guide / API documentation
+    cols = [quasardb.ColumnInfo(quasardb.ColumnType.Double, "open"),
+            quasardb.ColumnInfo(quasardb.ColumnType.Double, "close"),
+            quasardb.ColumnInfo(quasardb.ColumnType.Double, "high"),
+            quasardb.ColumnInfo(quasardb.ColumnType.Double, "low"),
+            quasardb.ColumnInfo(quasardb.ColumnType.Int64, "volume")]
+
+    t.create(cols)
+
+    idx = np.array([start_date + np.timedelta64(i, 's')
+                    for i in range(row_count)]).astype('datetime64[ns]')
+
+    data = {
+        '$timestamp': idx,
+        '$table': [table_name for i in range(row_count)],
+        'close': np.random.uniform(100, 200, row_count),
+        'volume': np.random.randint(10000, 20000, row_count),
+        'open': np.random.uniform(100, 200, row_count),
+}
+
+    df = pd.DataFrame(data).set_index('$timestamp').reindex()
+
+    qdbpd_write_fn(df, qdbd_connection, t, infer_types=True)
