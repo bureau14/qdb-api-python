@@ -407,6 +407,15 @@ def write_dataframe(
                               writer=writer)
 
 
+def write_pinned_dataframe(*args, **kwargs):
+    """
+    Legacy wrapper around write_dataframe()
+    """
+    logger.warn("write_pinned_dataframe is deprecated and will be removed in a future release.")
+    logger.warn("Please use write_dataframe directly instead")
+    return write_dataframe(*args, **kwargs)
+
+
 def _create_table_from_df(df, table, shard_size=None):
     cols = list()
 
