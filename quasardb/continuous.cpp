@@ -5,7 +5,6 @@ namespace qdb
 
 query_continuous::query_continuous(qdb::handle_ptr h,
     qdb_query_continuous_mode_type_t mode,
-    std::chrono::milliseconds pace,
     const std::string & query_string,
     const py::object & bools)
     : _handle{h}
@@ -17,7 +16,7 @@ query_continuous::query_continuous(qdb::handle_ptr h,
     , _last_error{qdb_e_uninitialized}
 {
     qdb::qdb_throw_if_error(*_handle,
-        qdb_query_continuous(*_handle, query_string.c_str(), mode, static_cast<unsigned>(pace.count()), _callback, this, &_cont_handle));
+        qdb_query_continuous(*_handle, query_string.c_str(), mode, _callback, this, &_cont_handle));
 }
 
 query_continuous::~query_continuous()
