@@ -76,17 +76,8 @@ using numpy_query_result_t = std::vector<numpy_query_column_t>;
 dict_query_result_t convert_query_results(const qdb_query_result_t * r, const py::object & blobs);
 dict_query_result_t dict_query(qdb::handle_ptr h, const std::string & query, const py::object & blobs);
 numpy_query_result_t numpy_query(qdb::handle_ptr h, const std::string & query);
+py::object arrow_query(qdb::handle_ptr h, const std::string & query);
 
-template <typename Module>
-static inline void register_query(Module & m)
-{
-    namespace py = pybind11;
-
-    py::class_<qdb::find_query>{m, "FindQuery"}                //
-        .def(py::init<qdb::handle_ptr, const std::string &>()) //
-        .def("run", &qdb::find_query::run);                    //
-
-    m.def("dict_query", &qdb::dict_query);
-}
+void register_query(py::module & m);
 
 } // namespace qdb

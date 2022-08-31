@@ -36,6 +36,9 @@
 #include "utils.hpp"
 #include "convert/value.hpp"
 #include "detail/qdb_resource.hpp"
+#include <arrow/api.h>
+#include <arrow/array.h>
+#include <arrow/python/pyarrow.h>
 #include <pybind11/stl.h>
 #include <iostream>
 #include <set>
@@ -404,6 +407,49 @@ numpy_query_result_t numpy_query(qdb::handle_ptr h, const std::string & q)
     qdb::qdb_throw_if_query_error(*h, err, r.get());
 
     return numpy_query_results(r);
+}
+
+py::object arrow_query(qdb::handle_ptr h, const std::string & q)
+{
+    // auto pa_       = pybind11::module::import("pyarrow");
+    // auto pa_buffer = pa_.attr("py_buffer");
+
+    detail::qdb_resource<qdb_query_result_t> r{h};
+    qdb_error_t err = qdb_query(*h, q.c_str(), &r);
+
+    qdb::qdb_throw_if_query_error(*h, err, r.get());
+
+    qdb_query_arrow_result_t * arrow{nullptr};
+    err = qdb_query_to_arrow(*h, r.get(), &arrow);
+    qdb::qdb_throw_if_query_error(*h, err, r.get());
+
+    assert(arrow != nullptr);
+    for (qdb_size_t i = 0; i < arrow->column_count; ++i)
+    {
+
+        // .schema and .data
+        qdb_arrow_column_t column = arrow->columns[i];
+
+        ArrowArray * arr = &column.data;
+    }
+
+    return py::none{};
+}
+
+void register_query(py::module & m)
+{
+    if (arrow::py::import_pyarrow() != 0)
+    {
+        abort();
+    }
+
+    namespace py = pybind11;
+
+    py::class_<qdb::find_query>{m, "FindQuery"}                //
+        .def(py::init<qdb::handle_ptr, const std::string &>()) //
+        .def("run", &qdb::find_query::run);                    //
+
+    m.def("dict_query", &qdb::dict_query);
 }
 
 } // namespace qdb

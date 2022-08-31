@@ -35,6 +35,17 @@
 .. moduleauthor: quasardb SAS. All rights reserved
 """
 
+def _prepare_pyarrow():
+    import pyarrow as pa
+    import os
+
+    libdirs = pa.get_library_dirs()
+    assert len(libdirs) == 1
+
+    os.environ['LD_LIBRARY_PATH'] = libdirs[0]
+    pa.create_library_symlinks()
+
+
 def generic_error_msg(msg, e):
     msg_str = "\n".join(msg)
     return """
@@ -79,9 +90,13 @@ def glibc_error_msg(e):
 
     return generic_error_msg(msg, e)
 
+
+_prepare_pyarrow()
+
 try:
     from quasardb.quasardb import *
 except BaseException as e:
+    print(e)
     if "undefined symbol" in str(e):
         print(link_error_msg(e))
         raise e

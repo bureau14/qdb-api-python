@@ -68,6 +68,17 @@ endif()
 
 
 
+###
+#
+# PyArrow include/link path
+#
+###
+if(NOT IS_DIRECTORY ${PYARROW_INCLUDE_PATH})
+  message(FATAL_ERROR "[qdb-api-python] No PyArrow include path: not a directory: '${PYARROW_INCLUDE_PATH}'")
+endif()
+
+include_directories(SYSTEM ${PYARROW_INCLUDE_PATH})
+
 
 ###
 #
@@ -344,6 +355,17 @@ pybind11_add_module(
   utils/permutation.hpp
   utils/stable_sort.hpp
 )
+
+if(NOT IS_DIRECTORY ${PYARROW_LIBRARY_PATH})
+  message(FATAL_ERROR "[qdb-api-python] No PyArrow library path: not a directory: '${PYARROW_LIBRARY_PATH}'")
+endif()
+message(STATUS "[qdb-api-python] PyArrow library path: '${PYARROW_LIBRARY_PATH}'")
+link_directories(quasardb PUBLIC "${PYARROW_LIBRARY_PATH}")
+target_link_libraries(quasardb PRIVATE
+  "/home/lmergen/git/qdb-api-python/.env/lib/python3.10/site-packages/pyarrow/lib.cpython-310-x86_64-linux-gnu.so"
+)
+file(COPY "/home/lmergen/git/qdb-api-python/.env/lib/python3.10/site-packages/pyarrow/lib.cpython-310-x86_64-linux-gnu.so" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+
 
 
 target_compile_definitions(quasardb PUBLIC QDB_PY_VERSION="${QDB_PY_VERSION}")

@@ -203,7 +203,8 @@ def test_returns_inserted_data_with_star_select(
 
 
 @pytest.mark.parametrize("query_handler", ['dict',
-                                           'numpy'])
+                                           'numpy',
+                                           'arrow'])
 @pytest.mark.parametrize("value_type", ['double',
                                         'int64',
                                         'blob',
@@ -231,14 +232,19 @@ def test_supports_all_column_types(value_type, query_handler, qdbd_connection, t
             val_out = res[i][column_name]
 
             assert val_in == val_out
+    elif query_handler == 'arrow':
+        res = qdbd_connection.query_arrow(query)
+        print("got result: ", res)
+
 
     else:
         raise RuntimeError("Unrecognized query handler: {}".format(query_handler))
 
 
-@pytest.mark.skip(reason="Skip unless you're benching the pinned writer")
+# @pytest.mark.skip(reason="Skip unless you're benching the query APIs")
 @pytest.mark.parametrize("query_handler", ['dict',
-                                           'numpy'])
+                                           'numpy',
+                                           'arrow'])
 @pytest.mark.parametrize("value_type", ['double',
                                         'int64',
                                         'blob',
@@ -249,17 +255,15 @@ def test_query_handler_benchmark(benchmark, value_type, row_count, query_handler
 
 
 
-    query_fn = None
-    if query_handler == 'numpy':
-        query_fn = qdbd_connection.query_numpy
-    elif query_handler == 'dict':
-        query_fn = qdbd_connection.query
-    else:
-        raise RuntimeError("Unrecognized query handler: {}".format(query_handler))
+    query_fns = {
+        'dict': qdbd_connection.query,
+        'numpy': qdbd_connection.query_numpy,
+        'arrow': qdbd_connection.query_arrow
+        }
 
+    query_fn = query_fns[query_handler]
 
-
-    inserted_data = _insert_points(value_type, table, intervals=intervals, points=row_count)
+    xs = _insert_points(value_type, table, intervals=intervals, points=row_count)
     column_name = _column_name(table, value_type)
     query = "SELECT \"{}\" FROM \"{}\"".format(column_name, table.get_name())
 

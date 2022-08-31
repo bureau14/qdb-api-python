@@ -72,6 +72,21 @@ class CMakeBuild(build_ext):
         print(out.decode().strip())
         return out.decode().strip()
 
+    def find_pyarrow_cmake_args(self):
+        import pyarrow as pa
+
+        libs = pa.get_libraries()
+        assert 'arrow' in libs
+        assert 'arrow_python' in libs
+
+        libdirs = pa.get_library_dirs()
+
+        # How to propagate to cmake in case of multiple libdirs?
+        assert len(libdirs) == 1
+
+        return ['-DPYARROW_INCLUDE_PATH={}'.format(pa.get_include()),
+                '-DPYARROW_LIBRARY_PATH={}'.format(libdirs[0])]
+
     def build_extension(self, ext):
         extdir = os.path.join(
             os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name))), 'quasardb')
@@ -87,6 +102,8 @@ class CMakeBuild(build_ext):
 
         if platform.system() == "Darwin":
             cmake_args += ['-DCMAKE_OSX_SYSROOT:PATH=' + self.find_osx_sysroot()]
+
+        cmake_args.extend(self.find_pyarrow_cmake_args())
 
         # If certain environment variables are set, we pass them along
         # to cmake. This allows for greater flexibility for an end-user
@@ -128,6 +145,8 @@ class CMakeBuild(build_ext):
             build_args += ['-j']
         #    build_args += ['--', '-j2']
 
+
+
         env = os.environ.copy()
 
         additional_cmake_params = env.get('ADDITIONAL_CMAKE_PARAMETERS')
@@ -135,9 +154,7 @@ class CMakeBuild(build_ext):
             additional_cmake_params = additional_cmake_params.split(':')
             cmake_args += additional_cmake_params
 
-        c_cxx_flags = [
-            '-DVERSION_INFO=\\"{}\\"'.format(self.distribution.get_version()),
-        ]
+        c_cxx_flags = []
 
         joined_c_cxx_flags = ' '.join(c_cxx_flags)
         env['CFLAGS']   = '{} {}'.format(env.get('CFLAGS', ''),   joined_c_cxx_flags)
@@ -222,7 +239,7 @@ setup(name=package_name,
       ],
       keywords='quasardb timeseries database API driver ',
       setup_requires=["setuptools-git"],
-      install_requires=["numpy"],
+      install_requires=["numpy", "PyArrow >= 8.0.0"],
       extras_require={
           "pandas": ["pandas"],
           "tests": [

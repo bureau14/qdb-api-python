@@ -32,6 +32,7 @@ pytest-benchmark; sys_platform == "freebsd13"
 
 
 ## Any environment
+PyArrow == 8.0.0
 
 # XXX(leon): Later versions of pdoc3 are incompatible with our doc process!
 pdoc3 == 0.7.5
