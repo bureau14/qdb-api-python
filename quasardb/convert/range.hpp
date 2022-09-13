@@ -42,6 +42,7 @@
 #include <range/v3/view/chunk.hpp>
 #include <range/v3/view/counted.hpp>
 #include <range/v3/view/remove_if.hpp>
+#include <range/v3/view/stride.hpp>
 #include <range/v3/view/transform.hpp>
 
 namespace qdb::convert::detail
@@ -85,11 +86,45 @@ requires(concepts::fixed_width_dtype<DType>) inline decltype(auto) to_range(py::
 {
     // Lowest-level codepoint representation inside numpy, e.g. wchar_t for unicode
     // or short for int16.
-    using value_type = typename DType::value_type;
-
+    using value_type       = typename DType::value_type;
     value_type const * xs_ = xs.unchecked<value_type>().data();
 
-    return ranges::views::counted(xs_, xs.size());
+    // Numpy can sometimes use larger strides, e.g. pack int64 in a container with
+    // 128-byte strides. In these case, we need to increase the size of our step.
+    //
+    // Related ticket: SC-11057
+    py::ssize_t stride_size{0};
+    switch (xs.ndim())
+    {
+        // This can happen in case an array contains only a single number, then it will
+        // not have any dimensions. In this case, it's best to just use the itemsize as
+        // the stride size, because we'll not have to forward the iterator anyway.
+        [[unlikely]] case 0 : stride_size = xs.itemsize();
+        break;
+
+        // Default case: use stride size of the first (and only) dimension. Most of the
+        //               time this will be identical to the itemsize.
+        [[likely]] case 1 : stride_size = xs.strides(0);
+        break;
+    default:
+        throw qdb::incompatible_type_exception{
+            "Multi-dimensional arrays are not supported. Eexpected 0 or 1 dimensions, got: "
+            + std::to_string(xs.ndim())};
+    };
+
+    assert(stride_size > 0);
+
+    py::ssize_t item_size = xs.itemsize();
+
+    // Sanity check; stride_size is number of bytes per item for a whole "step", item_size
+    // is the number of bytes per item. As such, stride_size should always be a multiple
+    // of item_size.
+    assert(stride_size % item_size == 0);
+
+    // The number of "steps" of <value_type> we need to take per iteration.
+    py::ssize_t step_size = stride_size / item_size;
+
+    return ranges::views::stride(ranges::views::counted(xs_, (xs.size() * step_size)), step_size);
 };
 
 // Variable length encoding: split into chunks of <itemsize() / codepoint_size>
