@@ -1,6 +1,6 @@
 # pylint: disable=missing-module-docstring,missing-function-docstring,not-an-iterable,invalid-name
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 import logging
 import numpy as np
 import numpy.ma as ma
@@ -342,3 +342,26 @@ def test_shuffled_columns(qdbpd_write_fn, qdbd_connection, table_name, start_dat
     df = pd.DataFrame(data).set_index('$timestamp').reindex()
 
     qdbpd_write_fn(df, qdbd_connection, t, infer_types=True)
+
+
+def test_regression_sc11057(qdbd_connection, table_name):
+    idx  = [np.datetime64('2022-09-08T12:00:01', 'ns'),
+            np.datetime64('2022-09-08T12:00:02', 'ns'),
+            np.datetime64('2022-09-08T12:00:03', 'ns')]
+    data = {'record_timestamp': [np.datetime64('2022-09-08T13:00:04', 'ns'),
+                                 np.datetime64('2022-09-08T13:00:05', 'ns'),
+                                 np.datetime64('2022-09-08T13:00:06', 'ns')],
+            'unique_tagname': np.array(['ABC', 'DEF', 'GHI'], dtype='unicode')}
+    df = pd.DataFrame(data=data, index=idx)
+
+    qdbpd.write_dataframe(df, qdbd_connection, table_name, create=True, infer_types=True)
+
+    q = 'select $timestamp, record_timestamp, unique_tagname from "{}"'.format(table_name)
+    df_ = qdbpd.query(qdbd_connection, q)
+    df_ = df_.groupby('unique_tagname').last().set_index('$timestamp')
+
+    qdbpd.write_dataframe(df_, qdbd_connection, '{}_out'.format(table_name), create=True, infer_types=True)
+
+    result = qdbpd.read_dataframe(qdbd_connection.table('{}_out'.format(table_name)))
+
+    _assert_df_equal(df_, result)
