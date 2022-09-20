@@ -52,14 +52,15 @@ enum mask_probe_t
  */
 inline std::uint8_t probe_chunk(bool const * xs, std::size_t n) noexcept
 {
-    std::uint8_t state = mask_unknown;
+    std::uint8_t state{static_cast<std::uint8_t>(mask_unknown)};
 
     // XXX(leon): Super hot code path, but it's auto-vectorized which makes it
     //            faster than any alternative (including reinterpreting them
     //            as 64-bit integers).
     while (n--)
     {
-        state |= (*xs++ ? mask_all_true : mask_all_false);
+        state |= (*xs++ ? static_cast<std::uint8_t>(mask_all_true)
+                        : static_cast<std::uint8_t>(mask_all_false));
     }
 
     return state;
@@ -78,14 +79,17 @@ inline enum qdb::detail::mask_probe_t probe_mask(bool const * xs, std::size_t n)
     constexpr std::size_t chunk_size = 256; // not chosen scientifically
     std::uint8_t state               = mask_unknown;
 
-    for (; n > chunk_size && state != mask_mixed; n -= chunk_size)
+    bool const * xs_ = xs;
+
+    for (; n >= chunk_size && state != mask_mixed; xs_ += chunk_size, n -= chunk_size)
     {
-        state |= probe_chunk(xs, std::min(n, chunk_size));
+        state |= probe_chunk(xs_, std::min(n, chunk_size));
     };
 
     if (n > 0 && state != mask_mixed)
     {
-        state |= probe_chunk(xs, n);
+        assert(chunk_size > n);
+        state |= probe_chunk(xs_, n);
     };
 
     return static_cast<mask_probe_t>(state);
@@ -435,7 +439,7 @@ public:
             //
             // Only condition would be when masked_array is default-constructed and
             // not initialized.
-            qdb::internal_local_exception{"Mask probe is unknown, masked array not initialized?"};
+            throw qdb::internal_local_exception{"Mask probe is unknown, masked array not initialized?"};
 
         default:
             throw qdb::internal_local_exception{
