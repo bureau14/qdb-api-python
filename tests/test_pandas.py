@@ -345,6 +345,14 @@ def test_shuffled_columns(qdbpd_write_fn, qdbd_connection, table_name, start_dat
 
 
 def test_regression_sc11057(qdbd_connection, table_name):
+    """
+    Our query results (apparently) return datetime64 arrays with a itemsize of 8,
+    but a stride size of 16 -- i.e. every other item is "skipped".
+
+    By re-writing query results as a dataframe, we validate that our backend
+    properly deals with these arrays.
+    """
+
     idx  = [np.datetime64('2022-09-08T12:00:01', 'ns'),
             np.datetime64('2022-09-08T12:00:02', 'ns'),
             np.datetime64('2022-09-08T12:00:03', 'ns')]
@@ -365,3 +373,27 @@ def test_regression_sc11057(qdbd_connection, table_name):
     result = qdbpd.read_dataframe(qdbd_connection.table('{}_out'.format(table_name)))
 
     _assert_df_equal(df_, result)
+
+
+def test_regression_sc11084(qdbd_connection, table_name):
+    """
+    This test validates that, if one array starts with a significant amount of
+    NULL values, it works properly. This addresses a bug that our "probe_mask" function
+    inside our C++ masked_array implementation considers more than just the first chunk
+    of 256 values.
+    """
+
+    n_rows = 8192
+    start = np.datetime64('2022-09-08T12:00:00', 'ns')
+    idx = [start + np.timedelta64(i, 'ns') for i in range(0, n_rows)]
+
+    data1 = np.full(int(n_rows / 2), np.nan, dtype='float64')
+    data2 = np.full(int(n_rows / 2), 1.11, dtype='float64')
+    data = {'val': np.concatenate([data1, data2])}
+
+    df = pd.DataFrame(data=data, index=idx)
+    qdbpd.write_dataframe(df, qdbd_connection, table_name, create=True, infer_types=True)
+
+    df_ = qdbpd.query(qdbd_connection, "select $timestamp, val from \"{}\"".format(table_name), index='$timestamp')
+
+    _assert_df_equal(df, df_)

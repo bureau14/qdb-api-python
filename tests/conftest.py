@@ -203,7 +203,7 @@ def many_intervals():
     return create_many_intervals()
 
 
-@pytest.fixture(params=[256], ids=['row_count=256'])
+@pytest.fixture(params=[224, 288], ids=['row_count=224', 'row_count=288'])
 def row_count(request):
     yield request.param
 
