@@ -35,6 +35,9 @@
 #include "traits.hpp"
 #include <pybind11/numpy.h>
 #include <pybind11/stl_bind.h>
+#include <range/v3/algorithm/for_each.hpp>
+#include <range/v3/view/chunk.hpp>
+#include <range/v3/view/counted.hpp>
 
 namespace qdb::detail
 {
@@ -50,26 +53,31 @@ enum mask_probe_t
 /**
  * Efficiently probes one chunk, without returning early.
  */
-inline std::uint8_t probe_chunk(bool const * xs, std::size_t n) noexcept
+template <typename Rng>
+inline std::uint8_t probe_chunk(Rng const & xs) noexcept
 {
     std::uint8_t state{static_cast<std::uint8_t>(mask_unknown)};
 
     // XXX(leon): Super hot code path, but it's auto-vectorized which makes it
     //            faster than any alternative (including reinterpreting them
     //            as 64-bit integers).
-    while (n--)
-    {
-        state |= (*xs++ ? static_cast<std::uint8_t>(mask_all_true)
-                        : static_cast<std::uint8_t>(mask_all_false));
-    }
+    ranges::for_each(xs, [&state](bool x) -> void {
+        state |=
+            (x ? static_cast<std::uint8_t>(mask_all_true) : static_cast<std::uint8_t>(mask_all_false));
+    });
 
     return state;
 }
 
-inline enum qdb::detail::mask_probe_t probe_mask(bool const * xs, std::size_t n) noexcept
+template <typename Rng>
+inline enum qdb::detail::mask_probe_t probe_mask(Rng const & xs) noexcept
 {
-    // In order for auto-vectorization to work, we use an outer loop which divides
-    // work into chunks of 256 booleans; these are then processed as one work unit.
+    // We don't accept empty arrays
+    assert(ranges::size(xs) > 0);
+
+    // In order for auto-vectorization to work, we use an outer loop (this function)
+    // which divides work into chunks of 256 booleans; these are then processed as
+    // one work unit.
     //
     // The outer loop checks whether we already have a mixed mask, and shortcuts when
     // that's the case.
@@ -79,20 +87,27 @@ inline enum qdb::detail::mask_probe_t probe_mask(bool const * xs, std::size_t n)
     constexpr std::size_t chunk_size = 256; // not chosen scientifically
     std::uint8_t state               = mask_unknown;
 
-    bool const * xs_ = xs;
+    // Interpret the booleans as a range with `chunk_size` chunks of data.
+    auto rng = xs | ranges::views::chunk(chunk_size);
 
-    for (; n >= chunk_size && state != mask_mixed; xs_ += chunk_size, n -= chunk_size)
+    for (auto chunk : rng)
     {
-        state |= probe_chunk(xs_, std::min(n, chunk_size));
-    };
+        state |= probe_chunk(chunk);
 
-    if (n > 0 && state != mask_mixed)
-    {
-        assert(chunk_size > n);
-        state |= probe_chunk(xs_, n);
-    };
+        if (state == mask_mixed)
+        {
+            // Exit early if we have found mixed data.
+            break;
+        }
+    }
 
+    assert(0 < state && state <= 3);
     return static_cast<mask_probe_t>(state);
+}
+
+inline enum qdb::detail::mask_probe_t probe_mask(bool const * xs, std::size_t n) noexcept
+{
+    return probe_mask(ranges::views::counted(xs, n));
 };
 
 inline enum mask_probe_t probe_mask(py::array const & xs) noexcept
