@@ -112,6 +112,7 @@ def test_returns_rows_new_value_iterator(qdbd_connection, table, intervals):
         _test_against_table(res, table, inserted_double_data[1])
         break
 
+@pytest.mark.skip(reason="Temporarily disabled, under investigation")
 def test_returns_rows_full_value_iterator_multiple(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
     inserted_double_data = _insert_double_points(table, start_time, 1)
@@ -133,6 +134,7 @@ def test_returns_rows_full_value_iterator_multiple(qdbd_connection, table, inter
         if i == 3:
             break
 
+@pytest.mark.skip(reason="Temporarily disabled, under investigation")
 def test_returns_rows_new_value_iterator_multiple(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
     inserted_double_data = _insert_double_points(table, start_time, 1)
