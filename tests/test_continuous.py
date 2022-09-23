@@ -112,49 +112,45 @@ def test_returns_rows_new_value_iterator(qdbd_connection, table, intervals):
         _test_against_table(res, table, inserted_double_data[1])
         break
 
-@pytest.mark.skip(reason="Temporarily disabled, under investigation")
+
+def __wait_for(cont, f, max_ticks=10):
+    i = 0
+
+    for res in cont:
+
+        v = f(res)
+        if v:
+            return v
+
+        i += 1
+
+        # we must not wait for the value too long
+        assert i < max_ticks
+
+
 def test_returns_rows_full_value_iterator_multiple(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
     inserted_double_data = _insert_double_points(table, start_time, 1)
     q = "select * from \"" + table.get_name() + "\""
     cont = qdbd_connection.query_continuous_full(q, datetime.timedelta(milliseconds=100))
 
-    i = 0
+    assert True is __wait_for(cont, lambda x: len(x) == 1)
 
-    for res in cont:
-        assert len(res) == 1 + i
+    start_time += np.timedelta64(1, 'm')
+    inserted_double_data = _insert_double_points(table, start_time, 1)
 
-        start_time += np.timedelta64(1, 'm')
+    assert True is __wait_for(cont, lambda x: len(x) == 2)
 
-        time.sleep(3)
 
-        inserted_double_data = _insert_double_points(table, start_time, 1)
-
-        i +=1
-        if i == 3:
-            break
-
-@pytest.mark.skip(reason="Temporarily disabled, under investigation")
 def test_returns_rows_new_value_iterator_multiple(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
     inserted_double_data = _insert_double_points(table, start_time, 1)
     q = "select * from \"" + table.get_name() + "\""
     cont = qdbd_connection.query_continuous_new_values(q, datetime.timedelta(milliseconds=100))
 
-    i = 0
+    assert True is __wait_for(cont, lambda x: len(x) == 1)
 
-    for res in cont:
-        assert len(res) == 1
-        # we should have only the diff
-        _test_against_table(res, table, inserted_double_data[1])
+    start_time += np.timedelta64(1, 'm')
+    inserted_double_data = _insert_double_points(table, start_time, 1)
 
-        start_time += np.timedelta64(1, 'm')
-
-        time.sleep(3)
-
-        inserted_double_data = _insert_double_points(table, start_time, 1)
-
-        i +=1
-        if i == 3:
-            break
-
+    assert True is __wait_for(cont, lambda x: len(x) == 1)
