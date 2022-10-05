@@ -197,7 +197,7 @@ public:
                 return qdb_string_t{column.c_str(), column.size()};
             });
 
-        out.options               = qdb_exp_batch_option_unique;
+        out.options               = qdb_exp_batch_option_unique_drop;
         out.where_duplicate       = where_duplicate.release();
         out.where_duplicate_count = columns.size();
     }
