@@ -180,7 +180,7 @@ public:
 
     static inline void _set_push_options(bool arg, qdb_exp_batch_push_table_t & out)
     {
-        out.options = (arg == true ? qdb_exp_batch_option_unique : qdb_exp_batch_option_standard);
+        out.options = (arg == true ? qdb_exp_batch_option_unique_drop : qdb_exp_batch_option_standard);
     }
 
     static inline void _set_push_options(
