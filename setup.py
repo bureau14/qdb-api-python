@@ -136,7 +136,7 @@ class CMakeBuild(build_ext):
             cmake_args += additional_cmake_params
 
         c_cxx_flags = [
-            '-DVERSION_INFO=\\"{}\\"'.format(self.distribution.get_version()),
+            '-DVERSION_INFO="{}"'.format(self.distribution.get_version()),
         ]
 
         joined_c_cxx_flags = ' '.join(c_cxx_flags)

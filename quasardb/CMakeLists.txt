@@ -243,10 +243,11 @@ endif()
 #
 ###
 
+include_directories(SYSTEM ../thirdparty/boost)
+include_directories(SYSTEM ../thirdparty/range-v3/include)
+
 message(STATUS "[qdb-api-python] Including thirdparty libraries with binary directory ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 add_subdirectory(../thirdparty/ ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
-
-include_directories(SYSTEM ../thirdparty/range-v3/include)
 
 
 include_directories(SYSTEM qdb/include)
