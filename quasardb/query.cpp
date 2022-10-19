@@ -36,6 +36,8 @@
 #include "utils.hpp"
 #include "convert/value.hpp"
 #include "detail/qdb_resource.hpp"
+#include <arrow/c/bridge.h>
+#include <arrow/python/pyarrow.h>
 #include <pybind11/stl.h>
 #include <iostream>
 #include <set>
@@ -404,6 +406,35 @@ numpy_query_result_t numpy_query(qdb::handle_ptr h, const std::string & q)
     qdb::qdb_throw_if_query_error(*h, err, r.get());
 
     return numpy_query_results(r);
+}
+
+PyObject * arrow_query(qdb::handle_ptr h, const std::string & q)
+{
+    // TODO(vianney): place this call at a more appropriate location
+    // arrow::py::import_pyarrow();
+
+    // we first need to collect the result
+    detail::qdb_resource<qdb_query_result_t> r{h};
+    {
+        qdb_error_t err = qdb_query(*h, q.c_str(), &r);
+        qdb::qdb_throw_if_query_error(*h, err, r.get());
+    }
+
+    // then convert it into arrow columns
+    detail::qdb_resource<qdb_query_arrow_result_t> ra{h};
+    {
+        qdb_error_t err = qdb_query_to_arrow(*h, r.get(), &ra);
+        qdb::qdb_throw_if_query_error(*h, err, r.get());
+    }
+
+    std::vector<std::shared_ptr<arrow::Array>> columns;
+    columns.reserve(ra.get()->column_count);
+    for (size_t idx = 0; idx < ra.get()->column_count; ++idx)
+    {
+        auto & col = ra.get()->columns[idx];
+        auto res   = arrow::ImportArray(&col.data, &col.schema);
+        columns.push_back(res.ValueOrDie());
+    }
 }
 
 } // namespace qdb

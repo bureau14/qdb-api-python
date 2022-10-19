@@ -243,6 +243,7 @@ endif()
 #
 ###
 
+include_directories(SYSTEM ../thirdparty/arrow/src)
 include_directories(SYSTEM ../thirdparty/boost)
 include_directories(SYSTEM ../thirdparty/range-v3/include)
 
@@ -425,6 +426,7 @@ if(QDB_LINK_STATIC_LIB)
   endif()
 else()
   target_link_libraries(quasardb PUBLIC ${QDB_API_LIB})
+  target_link_libraries(quasardb PUBLIC arrow)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX)
