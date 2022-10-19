@@ -61,7 +61,7 @@ if(PARQUET_REQUIRE_ENCRYPTION)
   list(APPEND ARROW_PYTHON_SRCS parquet_encryption.cc)
 endif()
 
-set(ARROW_PYTHON_DEPENDENCIES arrow_dependencies)
+# set(ARROW_PYTHON_DEPENDENCIES arrow_dependencies)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   set_property(SOURCE pyarrow.cc

@@ -721,3 +721,43 @@ index 8bbce52517..ef52d72f7c 100644
 -- 
 2.29.2.windows.1
 
+diff --git a/thirdparty/arrow/src/arrow/CMakeLists.txt b/thirdparty/arrow/src/arrow/CMakeLists.txt
+index 542e9d8..d12cbbb 100644
+--- a/thirdparty/arrow/src/arrow/CMakeLists.txt
++++ b/thirdparty/arrow/src/arrow/CMakeLists.txt
+@@ -396,7 +396,7 @@ if(ARROW_COMPUTE)
+        compute/exec/hash_join.cc
+        compute/exec/hash_join_dict.cc
+        compute/exec/hash_join_node.cc
+-       compute/exec/ir_consumer.cc
++      #  compute/exec/ir_consumer.cc
+        compute/exec/key_compare.cc
+        compute/exec/key_encode.cc
+        compute/exec/key_hash.cc
+
+diff --git a/thirdparty/arrow/src/arrow/dataset/CMakeLists.txt b/thirdparty/arrow/src/arrow/dataset/CMakeLists.txt
+index 6aa4794..ff22ef3 100644
+--- a/thirdparty/arrow/src/arrow/dataset/CMakeLists.txt
++++ b/thirdparty/arrow/src/arrow/dataset/CMakeLists.txt
+@@ -60,7 +60,6 @@ add_arrow_lib(arrow_dataset
+               PRECOMPILED_HEADERS
+               "$<$<COMPILE_LANGUAGE:CXX>:arrow/dataset/pch.h>"
+               DEPENDENCIES
+-              toolchain
+               PRIVATE_INCLUDES
+               ${ARROW_DATASET_PRIVATE_INCLUDES}
+               SHARED_LINK_LIBS
+
+diff --git a/thirdparty/arrow/src/arrow/python/CMakeLists.txt b/thirdparty/arrow/src/arrow/python/CMakeLists.txt
+index 23c97cc..75d06d4 100644
+--- a/thirdparty/arrow/src/arrow/python/CMakeLists.txt
++++ b/thirdparty/arrow/src/arrow/python/CMakeLists.txt
+@@ -61,7 +61,7 @@ if(PARQUET_REQUIRE_ENCRYPTION)
+   list(APPEND ARROW_PYTHON_SRCS parquet_encryption.cc)
+ endif()
+ 
+-set(ARROW_PYTHON_DEPENDENCIES arrow_dependencies)
++# set(ARROW_PYTHON_DEPENDENCIES arrow_dependencies)
+ 
+ if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+   set_property(SOURCE pyarrow.cc
