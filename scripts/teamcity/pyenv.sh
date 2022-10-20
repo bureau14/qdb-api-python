@@ -2,8 +2,6 @@
 
 set -e -u -x
 
-PYTHON="${PYTHON_CMD:-python3}"
-
 # remove previous environment
 if [ -d .env ]; then
     case "$(uname)" in
