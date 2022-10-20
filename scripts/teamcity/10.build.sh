@@ -2,8 +2,7 @@
 
 set -e -u -x
 
-SCRIPT_DIR="$(cd "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
-source ${SCRIPT_DIR}/pyenv.sh
+source pyenv.sh
 
 function relabel_wheel {
     wheel="$1"
