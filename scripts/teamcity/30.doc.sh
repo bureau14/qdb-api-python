@@ -1,5 +1,8 @@
-python3 -m pip install dist/quasardb*.whl
-python3 -m pip install -r dev-requirements.txt
+#!/bin/bash
+
+source pyenv.sh
+
+${PYTHON} -m pip install dist/quasardb*.whl
 mkdir doc || true
-python3 docgen.py
+${PYTHON} docgen.py
 tar -czvf dist/doc.tar.gz doc/*
