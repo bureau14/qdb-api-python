@@ -118,7 +118,7 @@ class CMakeBuild(build_ext):
         if platform.system() == "Windows":
             cmake_args += [
                 '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(), extdir)]
-            cmake_args += ['-DPython_ROOT_DIR="C:\Python3.8-64"']
+            cmake_args += ['-DPython_ROOT_DIR=C:\Python3.8-64', '-DPYTHON_LIBRARY=C:\Python3.8-64\libs/python38.lib']
             cmake_args += ['-T', 'host=x64']
             if sys.maxsize > 2**32:
                 cmake_args += ['-A', 'x64']
