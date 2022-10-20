@@ -761,3 +761,16 @@ index 23c97cc..75d06d4 100644
  
  if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
    set_property(SOURCE pyarrow.cc
+
+diff --git a/thirdparty/arrow/src/arrow/dataset/CMakeLists.txt b/thirdparty/arrow/src/arrow/dataset/CMakeLists.txt
+index ff22ef3..481847f 100644
+--- a/thirdparty/arrow/src/arrow/dataset/CMakeLists.txt
++++ b/thirdparty/arrow/src/arrow/dataset/CMakeLists.txt
+@@ -59,7 +59,6 @@ add_arrow_lib(arrow_dataset
+               ${ARROW_DATASET_SRCS}
+               PRECOMPILED_HEADERS
+               "$<$<COMPILE_LANGUAGE:CXX>:arrow/dataset/pch.h>"
+-              DEPENDENCIES
+               PRIVATE_INCLUDES
+               ${ARROW_DATASET_PRIVATE_INCLUDES}
+               SHARED_LINK_LIBS
