@@ -245,6 +245,7 @@ endif()
 
 include_directories(SYSTEM ../thirdparty/arrow/src)
 include_directories(SYSTEM ../thirdparty/boost)
+include_directories(SYSTEM ../thirdparty/rapidjson/include)
 include_directories(SYSTEM ../thirdparty/range-v3/include)
 
 message(STATUS "[qdb-api-python] Including thirdparty libraries with binary directory ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
@@ -379,7 +380,6 @@ if(QDB_LINK_STATIC_LIB)
       "${LIB_DIR}/${LIB_PREFIX}geohash${LIB_SUFFIX}"
       "${LIB_DIR}/${LIB_PREFIX}qdb_timeseries${LIB_SUFFIX}"
       "${LIB_DIR}/${LIB_PREFIX}qdb_query_dsl${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}arrow${LIB_SUFFIX}"
       "${LIB_DIR}/${LIB_PREFIX}qdb_metadata${LIB_SUFFIX}"
       "${LIB_DIR}/${LIB_PREFIX}qdb_config${LIB_SUFFIX}"
       "${LIB_DIR}/${LIB_PREFIX}boost_program_options${LIB_SUFFIX}"
@@ -426,8 +426,8 @@ if(QDB_LINK_STATIC_LIB)
   endif()
 else()
   target_link_libraries(quasardb PUBLIC ${QDB_API_LIB})
-  target_link_libraries(quasardb PUBLIC arrow)
 endif()
+target_link_libraries(quasardb PUBLIC arrow arrow_python_static)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
   target_link_options(

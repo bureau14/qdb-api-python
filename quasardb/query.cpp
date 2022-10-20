@@ -435,6 +435,8 @@ PyObject * arrow_query(qdb::handle_ptr h, const std::string & q)
         auto res   = arrow::ImportArray(&col.data, &col.schema);
         columns.push_back(res.ValueOrDie());
     }
+
+    return arrow::py::wrap_array(columns[0]);
 }
 
 } // namespace qdb

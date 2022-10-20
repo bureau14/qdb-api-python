@@ -128,6 +128,9 @@ class CMakeBuild(build_ext):
             build_args += ['-j']
         #    build_args += ['--', '-j2']
 
+        # Add arrow python
+        cmake_args += ['-DARROW_PYTHON=ON', '-DARROW_BUILD_STATIC=ON']
+
         env = os.environ.copy()
 
         additional_cmake_params = env.get('ADDITIONAL_CMAKE_PARAMETERS')
