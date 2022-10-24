@@ -24,3 +24,6 @@ pytest-benchmark == 3.4.1; python_version <= '3.6'
 pdoc3 == 0.7.5
 teamcity-messages == 1.29
 setuptools-git == 1.2
+
+# Add SSL dependency
+certifi
