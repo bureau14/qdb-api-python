@@ -126,6 +126,7 @@ class CMakeBuild(build_ext):
         #    build_args += ['--', '/m']
         elif platform.system() == "Linux":
             build_args += ['-j']
+            cmake_args += ['-DPYTHON_EXECUTABLE:FILEPATH=/usr/local/bin/python3', '-DPYTHON_LIBRARY=/usr/local/lib/libpython3.8.so', '-DPYTHON_LIBRARIES=/usr/local/lib/libpython3.8.so']
         #    build_args += ['--', '-j2']
 
         # Add arrow python
