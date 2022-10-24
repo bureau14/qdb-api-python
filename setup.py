@@ -13,6 +13,8 @@ import subprocess
 import glob
 
 from distutils.version import LooseVersion
+from distutils.sysconfig import get_python_inc
+import distutils.sysconfig as sysconfig
 from setuptools.command.build_ext import build_ext
 from setuptools import setup, Extension
 from setuptools.command.bdist_egg import bdist_egg as old_bdist_egg  # pylint: disable=C0412
@@ -126,7 +128,7 @@ class CMakeBuild(build_ext):
         #    build_args += ['--', '/m']
         elif platform.system() == "Linux":
             build_args += ['-j']
-            cmake_args += ['-DPYTHON_EXECUTABLE:FILEPATH=/usr/local/bin/python3', '-DPYTHON_LIBRARY=/usr/local/lib/libpython3.8.so', '-DPYTHON_LIBRARIES=/usr/local/lib/libpython3.8.so']
+            cmake_args += ['-DPYTHON_EXECUTABLE:FILEPATH=/usr/local/bin/python3']
         #    build_args += ['--', '-j2']
 
         # Add arrow python
@@ -138,6 +140,9 @@ class CMakeBuild(build_ext):
             '-DRAPIDJSON_BUILD_TESTS=OFF',
             '-DRAPIDJSON_BUILD_THIRDPARTY_GTEST=OFF',
         ]
+
+        cmake_args += ['-DPYTHON_INCLUDE_DIR', get_python_inc()]
+        cmake_args += ['-DPYTHON_LIBRARY', sysconfig.get_config_var('LIBDIR'))]
 
         print("___ CMAKE ARGS: ", ' '.join(cmake_args))
 
