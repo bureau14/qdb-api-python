@@ -142,7 +142,7 @@ class CMakeBuild(build_ext):
         ]
 
         cmake_args += ['-DPYTHON_INCLUDE_DIR', get_python_inc()]
-        cmake_args += ['-DPYTHON_LIBRARY', sysconfig.get_config_var('LIBDIR'))]
+        cmake_args += ['-DPYTHON_LIBRARY', sysconfig.get_config_var('LIBDIR')]
 
         print("___ CMAKE ARGS: ", ' '.join(cmake_args))
 
