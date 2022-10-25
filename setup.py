@@ -129,24 +129,20 @@ class CMakeBuild(build_ext):
         #    build_args += ['--', '/m']
         elif platform.system() == "Linux":
             build_args += ['-j']
-            cmake_args += ['-DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/python3']
+            cmake_args += ['-DPYTHON_EXECUTABLE=/usr/bin/python3']
+            cmake_args += ['-DPython3_EXECUTABLE=/usr/bin/python3']
         #    build_args += ['--', '-j2']
 
         # Add arrow python
         cmake_args += [
             '-DARROW_PYTHON=ON',
             '-DARROW_BUILD_STATIC=ON',
+            '-DARROW_BUILD_TESTS=OFF',
             '-DRAPIDJSON_BUILD_DOC=OFF',
             '-DRAPIDJSON_BUILD_EXAMPLES=OFF',
             '-DRAPIDJSON_BUILD_TESTS=OFF',
             '-DRAPIDJSON_BUILD_THIRDPARTY_GTEST=OFF',
         ]
-
-        # Specify headers
-        ext.include_dirs.insert(0, numpy.get_include())
-        cmake_args += ['-DPYTHON_INCLUDE_DIR={}'.format(get_python_inc())]
-        cmake_args += ['-DPYTHON_LIBRARY={}'.format(sysconfig.get_config_var('LIBDIR'))]
-        cmake_args += ['-DPython3_NumPy_INCLUDE_DIRS={}'.format(numpy.get_include())]
 
         print("___ CMAKE ARGS: ", ' '.join(cmake_args))
 
