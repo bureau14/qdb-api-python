@@ -141,8 +141,8 @@ class CMakeBuild(build_ext):
             '-DRAPIDJSON_BUILD_THIRDPARTY_GTEST=OFF',
         ]
 
-        cmake_args += ['-DPYTHON_INCLUDE_DIR', get_python_inc()]
-        cmake_args += ['-DPYTHON_LIBRARY', sysconfig.get_config_var('LIBDIR')]
+        cmake_args += ['-DPYTHON_INCLUDE_DIR={}'.format(get_python_inc())]
+        cmake_args += ['-DPYTHON_LIBRARY={}'.format(sysconfig.get_config_var('LIBDIR'))]
 
         print("___ CMAKE ARGS: ", ' '.join(cmake_args))
 
