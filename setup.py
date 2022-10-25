@@ -146,6 +146,7 @@ class CMakeBuild(build_ext):
         ext.include_dirs.insert(0, numpy.get_include())
         cmake_args += ['-DPYTHON_INCLUDE_DIR={}'.format(get_python_inc())]
         cmake_args += ['-DPYTHON_LIBRARY={}'.format(sysconfig.get_config_var('LIBDIR'))]
+        cmake_args += ['-DPython3_NumPy_INCLUDE_DIRS={}'.format(numpy.get_include())]
 
         print("___ CMAKE ARGS: ", ' '.join(cmake_args))
 
