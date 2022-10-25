@@ -11,6 +11,7 @@ import sys
 import platform
 import subprocess
 import glob
+import numpy
 
 from distutils.version import LooseVersion
 from distutils.sysconfig import get_python_inc
@@ -141,6 +142,8 @@ class CMakeBuild(build_ext):
             '-DRAPIDJSON_BUILD_THIRDPARTY_GTEST=OFF',
         ]
 
+        # Specify headers
+        ext.include_dirs.insert(0, numpy.get_include())
         cmake_args += ['-DPYTHON_INCLUDE_DIR={}'.format(get_python_inc())]
         cmake_args += ['-DPYTHON_LIBRARY={}'.format(sysconfig.get_config_var('LIBDIR'))]
 
