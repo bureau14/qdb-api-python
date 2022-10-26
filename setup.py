@@ -14,8 +14,6 @@ import glob
 import numpy
 
 from distutils.version import LooseVersion
-from distutils.sysconfig import get_python_inc
-import distutils.sysconfig as sysconfig
 from setuptools.command.build_ext import build_ext
 from setuptools import setup, Extension
 from setuptools.command.bdist_egg import bdist_egg as old_bdist_egg  # pylint: disable=C0412
@@ -129,8 +127,6 @@ class CMakeBuild(build_ext):
         #    build_args += ['--', '/m']
         elif platform.system() == "Linux":
             build_args += ['-j']
-            cmake_args += ['-DPYTHON_EXECUTABLE=/usr/bin/python3']
-            cmake_args += ['-DPython3_EXECUTABLE=/usr/bin/python3']
         #    build_args += ['--', '-j2']
 
         # Add arrow python
@@ -144,7 +140,11 @@ class CMakeBuild(build_ext):
             '-DRAPIDJSON_BUILD_THIRDPARTY_GTEST=OFF',
         ]
 
-        print("___ CMAKE ARGS: ", ' '.join(cmake_args))
+        # Set python executable
+        python_executable = os.getenv('PYTHON_EXECUTABLE', 'python3')
+
+        cmake_args += ['-DPYTHON_EXECUTABLE={}'.format(python_executable)]
+        cmake_args += ['-DPython3_EXECUTABLE{}'.format(python_executable)]
 
         env = os.environ.copy()
 
