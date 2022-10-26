@@ -143,6 +143,8 @@ class CMakeBuild(build_ext):
         # Set python executable
         python_executable = os.getenv('PYTHON_EXECUTABLE', 'python3')
 
+        print('python_executable:', python_executable)
+
         cmake_args += ['-DPYTHON_EXECUTABLE={}'.format(python_executable)]
         cmake_args += ['-DPython3_EXECUTABLE={}'.format(python_executable)]
 
