@@ -45,7 +45,43 @@ namespace qdb
 namespace detail
 {
 
-using drop_duplicates = std::variant<std::vector<std::string>, bool>;
+using deduplicate = std::variant<std::vector<std::string>, bool>;
+
+enum deduplication_mode_t
+{
+    deduplication_mode_drop,
+    deduplication_mode_upsert
+
+};
+
+constexpr inline qdb_exp_batch_push_options_t to_push_options(enum detail::deduplication_mode_t mode)
+{
+    switch (mode)
+    {
+    case deduplication_mode_drop:
+        return qdb_exp_batch_option_unique_drop;
+    case deduplication_mode_upsert:
+        return qdb_exp_batch_option_unique_upsert;
+    default:
+        return qdb_exp_batch_option_standard;
+    }
+}
+
+struct deduplicate_options
+{
+    detail::deduplicate columns_;
+    deduplication_mode_t mode_;
+
+    deduplicate_options()
+    {
+        columns_ = false;
+        mode_    = deduplication_mode_drop;
+    };
+
+    deduplicate_options(deduplication_mode_t mode, detail::deduplicate columns)
+        : columns_{columns}
+        , mode_{mode} {};
+};
 
 using int64_column     = std::vector<qdb_int_t>;
 using double_column    = std::vector<double>;
@@ -178,15 +214,16 @@ public:
         return table_data;
     }
 
-    static inline void _set_push_options(bool arg, qdb_exp_batch_push_table_t & out)
+    static inline void _set_push_options(
+        enum detail::deduplication_mode_t mode, bool columns, qdb_exp_batch_push_table_t & out)
     {
-        out.options = (arg == true ? qdb_exp_batch_option_unique_drop : qdb_exp_batch_option_standard);
+        out.options = (columns == true ? detail::to_push_options(mode) : qdb_exp_batch_option_standard);
     }
 
-    static inline void _set_push_options(
-        std::vector<std::string> const & columns, qdb_exp_batch_push_table_t & out)
+    static inline void _set_push_options(enum detail::deduplication_mode_t mode,
+        std::vector<std::string> const & columns,
+        qdb_exp_batch_push_table_t & out)
     {
-
         auto where_duplicate = std::make_unique<qdb_string_t[]>(columns.size());
 
         std::transform(std::cbegin(columns), std::cend(columns), where_duplicate.get(),
@@ -197,13 +234,13 @@ public:
                 return qdb_string_t{column.c_str(), column.size()};
             });
 
-        out.options               = qdb_exp_batch_option_unique_drop;
+        out.options               = detail::to_push_options(mode);
         out.where_duplicate       = where_duplicate.release();
         out.where_duplicate_count = columns.size();
     }
 
     qdb_exp_batch_push_table_t prepare_batch(qdb_exp_batch_push_mode_t mode,
-        detail::drop_duplicates const & drop_duplicates,
+        detail::deduplicate_options const & deduplicate_options,
         qdb_ts_range_t * ranges)
     {
         qdb_exp_batch_push_table_t batch;
@@ -220,16 +257,19 @@ public:
         batch.where_duplicate_count = 0;
         batch.options               = qdb_exp_batch_option_standard;
 
-        std::visit([&batch](auto const & arg) { _set_push_options(arg, batch); }, drop_duplicates);
+        enum detail::deduplication_mode_t mode_ = deduplicate_options.mode_;
+
+        std::visit([&mode_, &batch](auto const & columns) { _set_push_options(mode_, columns, batch); },
+            deduplicate_options.columns_);
 
         return batch;
     }
 
     void _push_impl(qdb_exp_batch_push_mode_t mode,
-        detail::drop_duplicates drop_duplicates,
+        detail::deduplicate_options deduplicate_options,
         qdb_ts_range_t * ranges = nullptr)
     {
-        auto batch = prepare_batch(mode, drop_duplicates, ranges);
+        auto batch = prepare_batch(mode, deduplicate_options, ranges);
 
         if (batch.data.column_count == 0)
         {
@@ -243,27 +283,52 @@ public:
         _clear_columns();
     }
 
-    detail::drop_duplicates _drop_duplicates_from_args(py::kwargs args)
+    detail::deduplicate_options _deduplicate_from_args(py::kwargs args)
     {
-        if (!args.contains("drop_duplicates"))
+        py::print("coercing deduplicate option from args = ", args);
+
+        if (!args.contains("deduplicate") || !args.contains("deduplication_mode"))
         {
-            return false;
+            return {};
         }
 
-        auto drop_duplicates = args["drop_duplicates"];
+        std::string deduplication_mode = args["deduplication_mode"].cast<std::string>();
 
-        if (py::isinstance<py::list>(drop_duplicates))
+        py::print("deduplication mode = {}", deduplication_mode);
+
+        enum detail::deduplication_mode_t deduplication_mode_;
+        if (deduplication_mode == "drop")
         {
-            return py::cast<std::vector<std::string>>(drop_duplicates);
+            deduplication_mode_ = detail::deduplication_mode_drop;
         }
-        else if (py::isinstance<py::bool_>(drop_duplicates))
+        else if (deduplication_mode == "upsert")
         {
-            return py::cast<bool>(drop_duplicates);
+            deduplication_mode_ = detail::deduplication_mode_upsert;
+        }
+        else
+        {
+            std::string error_msg = "Invalid argument provided for `deduplication_mode`: expected "
+                                    "'drop' or 'upsert', got: ";
+            error_msg += deduplication_mode;
+
+            throw qdb::invalid_argument_exception{error_msg};
         }
 
-        std::string error_msg =
-            "Invalid argument provided for `drop_duplicates`: expected bool or list, got: ";
-        error_msg += py::type(drop_duplicates).cast<py::str>();
+        auto deduplicate = args["deduplicate"];
+
+        if (py::isinstance<py::list>(deduplicate))
+        {
+            return detail::deduplicate_options{
+                deduplication_mode_, py::cast<std::vector<std::string>>(deduplicate)};
+        }
+        else if (py::isinstance<py::bool_>(deduplicate))
+        {
+            return detail::deduplicate_options{deduplication_mode_, py::cast<bool>(deduplicate)};
+        }
+
+        std::string error_msg = "Invalid argument provided for `deduplicate`: expected bool, list or "
+                                "str('$timestamp'), got: ";
+        error_msg += deduplicate.cast<py::str>();
 
         throw qdb::invalid_argument_exception{error_msg};
     };

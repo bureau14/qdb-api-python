@@ -293,7 +293,8 @@ def write_dataframe(
         _async=False,
         fast=False,
         truncate=False,
-        drop_duplicates=False,
+        deduplicate=False,
+        deduplication_mode='drop',
         infer_types=True,
         writer=None):
     """
@@ -326,7 +327,7 @@ def write_dataframe(
     shard_size: optional datetime.timedelta
       The shard size of the timeseries you wish to create.
 
-    drop_duplicates: bool or list[str]
+    deduplicate: bool or list[str]
       Enables server-side deduplication of data when it is written into the table.
       When True, automatically deduplicates rows when all values of a row are identical.
       When a list of strings is provided, deduplicates only based on the values of
@@ -399,7 +400,8 @@ def write_dataframe(
                               _async=_async,
                               fast=fast,
                               truncate=truncate,
-                              drop_duplicates=drop_duplicates,
+                              deduplicate=deduplicate,
+                              deduplication_mode=deduplication_mode,
                               infer_types=infer_types,
                               writer=writer)
 

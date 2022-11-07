@@ -557,11 +557,32 @@ def start_date(request):
 def gen_array(gen_cdtype, sparsify, row_count):
     return _gen_array(gen_cdtype, sparsify, row_count)
 
-
 @pytest.fixture
-def array_with_index_and_table(qdbd_connection, table_name, column_name,
-                               gen_array, start_date, row_count):
-    (ctype, dtype, array) = gen_array
+def gen_arrays(gen_cdtype, sparsify, row_count):
+    """
+    Like gen_array, but instead returns multiple arrays with the same row count, column type and data type.
+    Useful if you want to test inserting multiple arrays of the same type.
+    """
+    column_count = 2
+
+    (ctype1, dtype1, xs1) = _gen_array(gen_cdtype, sparsify, row_count)
+    (ctype2, dtype2, xs2) = _gen_array(gen_cdtype, sparsify, row_count)
+
+    assert ctype1 == ctype2
+    assert dtype1 == dtype2
+
+    return (ctype1, dtype1, [xs1, xs2])
+
+
+
+def _array_with_index_and_table(qdbd_connection,
+                                table_name,
+                                column_name,
+                                ctype,
+                                dtype,
+                                data,
+                                start_date,
+                                row_count):
 
     index = pd.Index(
         pd.date_range(start_date, periods=row_count, freq='S'),
@@ -571,17 +592,54 @@ def array_with_index_and_table(qdbd_connection, table_name, column_name,
 
     columns = [quasardb.ColumnInfo(ctype, column_name)]
     table.create(columns)
-    return (ctype, dtype, array, index, table)
+    return (ctype, dtype, data, index, table)
+
+@pytest.fixture
+def array_with_index_and_table(qdbd_connection, table_name, column_name,
+                               gen_array, start_date, row_count):
+    (ctype, dtype, array) = gen_array
+
+    return _array_with_index_and_table(qdbd_connection,
+                                       table_name,
+                                       column_name,
+                                       ctype,
+                                       dtype,
+                                       array,
+                                       start_date,
+                                       row_count)
 
 
-@pytest.fixture(params=['bool', 'list'], ids=['drop_duplicates=True',
-                                              'drop_duplicates=[column_name]'])
-def drop_duplicates(request, column_name):
+@pytest.fixture
+def arrays_with_index_and_table(qdbd_connection, table_name, column_name,
+                                gen_arrays, start_date, row_count):
+    (ctype, dtype, arrays) = gen_arrays
+
+    return _array_with_index_and_table(qdbd_connection,
+                                       table_name,
+                                       column_name,
+                                       ctype,
+                                       dtype,
+                                       arrays,
+                                       start_date,
+                                       row_count)
+
+
+
+@pytest.fixture(params=['bool', 'column_name', '$timestamp'], ids=['deduplicate=True',
+                                                                   'deduplicate=[$timestamp, column_name]',
+                                                                   'deduplicate=[$timestamp]'])
+def deduplicate(request, column_name):
     if request.param == 'bool':
         return True
+    elif request.param == 'column_name':
+        return ['$timestamp', column_name]
     else:
-        return [column_name]
+        assert request.param == '$timestamp'
+        return '$timestamp'
 
+@pytest.fixture(params=['drop', 'upsert'])
+def deduplication_mode(request):
+    return request.param
 
 @pytest.fixture
 def gen_index(start_date, row_count):

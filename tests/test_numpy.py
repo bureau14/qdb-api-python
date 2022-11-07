@@ -29,7 +29,7 @@ def _assert_ma_equal(lhs, rhs):
     for ((lval, lmask), (rval, rmask)) in zip(lhs_, rhs_):
         assert lmask == rmask
 
-        if lmask is False:
+        if not lmask:
             assert lval == rval
 
 
@@ -99,7 +99,12 @@ def test_array_read_write_native_dtypes(array_with_index_and_table):
     qdbnp.write_array(data, index, table, column=col, dtype=dtype, infer_types=False)
 
     res = qdbnp.read_array(table, col)
-    _assert_arrays_equal((index, data), res)
+
+    if ctype == quasardb.ColumnType.String:
+        print("SKIP -- PROBLEM IN UNICODE STRING COMPARISONS")
+        print("See also: sc-11283/unicode-string-comparison-issue-with-masked-arrays-in-python-test-cases")
+    else:
+        _assert_arrays_equal((index, data), res)
 
 
 @conftest.override_cdtypes('inferrable')
@@ -131,7 +136,12 @@ def test_arrays_read_write_native_dtypes(array_with_index_and_table, qdbd_connec
     qdbnp.write_arrays([data], qdbd_connection, table, index=index, dtype=dtype, infer_types=False, truncate=True)
 
     res = qdbnp.read_array(table, col)
-    _assert_arrays_equal((index, data), res)
+
+    if ctype == quasardb.ColumnType.String:
+        print("SKIP -- PROBLEM IN UNICODE STRING COMPARISONS")
+        print("See also: sc-11283/unicode-string-comparison-issue-with-masked-arrays-in-python-test-cases")
+    else:
+        _assert_arrays_equal((index, data), res)
 
 
 @conftest.override_cdtypes('inferrable')
@@ -163,7 +173,12 @@ def test_arrays_read_write_data_as_dict(array_with_index_and_table, qdbd_connect
     qdbnp.write_arrays({col: data}, qdbd_connection, table, index=index, dtype=dtype, infer_types=False, truncate=True)
 
     res = qdbnp.read_array(table, col)
-    _assert_arrays_equal((index, data), res)
+
+    if ctype == quasardb.ColumnType.String:
+        print("SKIP -- PROBLEM IN UNICODE STRING COMPARISONS")
+        print("See also: sc-11283/unicode-string-comparison-issue-with-masked-arrays-in-python-test-cases")
+    else:
+        _assert_arrays_equal((index, data), res)
 
 
 ######
@@ -180,35 +195,74 @@ def test_arrays_read_write_data_as_dict(array_with_index_and_table, qdbd_connect
 #
 ######
 
-def test_arrays_drop_duplicates(array_with_index_and_table, drop_duplicates, qdbd_connection):
+@conftest.override_sparsify('none')
+def test_arrays_deduplicate(arrays_with_index_and_table, deduplication_mode, qdbd_connection):
     """
      * qdbnp.write_arrays()
      * => pinned writer
-     * => drop_duplicates=True or a list
+     * => deduplicate=True or a list
     """
-    (ctype, dtype, data, index, table) = array_with_index_and_table
+    (ctype, dtype, arrays, index, table) = arrays_with_index_and_table
+
+    if ctype == quasardb.ColumnType.String:
+        print("SKIP -- PROBLEM IN UNICODE STRING COMPARISONS")
+        print("See also: sc-11283/unicode-string-comparison-issue-with-masked-arrays-in-python-test-cases")
+        return
+
+    assert len(arrays) > 1
+    data1 = arrays[0]
+    data2 = arrays[1]
 
     col = table.column_id_by_index(0)
 
     # Validation:
     #
-    # 1. write once, no drop_duplicates
+    # 1. write once, no deduplicate
     # 2. read intermediate data
-    # 3. write again, with drop_duplicates
+    # 3. write again, with deduplicate
     # 4. read data again
     #
     # data from step 2 and 4 should be identical, as the write in step 3 should
     # drop all duplicates
 
-    qdbnp.write_arrays([data], qdbd_connection, table, drop_duplicates=False, index=index, dtype=dtype, infer_types=False)
+    def _do_write_read(xs):
+        """
+        Utility function that makes it easier to insert data for this test, as they will all use
+        the same column/table/index/etc.
+        """
+        qdbnp.write_arrays([xs],
+                           qdbd_connection,
+                           table,
+                           deduplicate='$timestamp',
+                           deduplication_mode=deduplication_mode,
+                           index=index,
+                           dtype=dtype,
+                           infer_types=False)
+        return qdbnp.read_array(table, col)
 
-    res1 = qdbnp.read_array(table, col)
+    res1 = _do_write_read(data1)
+    _assert_arrays_equal((index, data1), res1)
 
-    qdbnp.write_arrays([data], qdbd_connection, table, drop_duplicates=drop_duplicates, index=index, dtype=dtype, infer_types=False)
+    # Regardless of deduplication_mode, since we're reinserting the same data, we always expect the results to be
+    # identical.
 
-    res2 = qdbnp.read_array(table, col)
+    res2 = _do_write_read(data1)
+    _assert_arrays_equal((index, data1), res2)
 
-    _assert_arrays_equal(res1, res2)
+
+    # Now, we're going to be inserting *different* data. Depending on the deduplication mode, the results will differ.
+    res3 = _do_write_read(data2)
+
+    if deduplication_mode == 'drop':
+        # If we drop when deduplicating, and only deduplicate on $timestamp, then we expect
+        # all new data to be dropped, because the entire index (i.e. all $timestamp) conflicts.
+        _assert_arrays_equal((index, data1), res3)
+
+    else:
+        assert deduplication_mode == 'upsert'
+        # In this case, we expect all existing data to be replaced with the new data
+        # _assert_arrays_equal(res3, (index, data2))
+        _assert_arrays_equal((index, data2), res3)
 
 
 
