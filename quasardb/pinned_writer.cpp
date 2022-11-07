@@ -218,29 +218,29 @@ std::vector<qdb_exp_batch_push_column_t> const & pinned_writer::prepare_columns(
 
 void pinned_writer::push(py::kwargs args)
 {
-    _push_impl(qdb_exp_batch_push_transactional, _drop_duplicates_from_args(args));
+    _push_impl(qdb_exp_batch_push_transactional, _deduplicate_from_args(args));
 }
 
 void pinned_writer::push_async(py::kwargs args)
 {
-    _push_impl(qdb_exp_batch_push_async, _drop_duplicates_from_args(args));
+    _push_impl(qdb_exp_batch_push_async, _deduplicate_from_args(args));
 }
 
 void pinned_writer::push_fast(py::kwargs args)
 {
-    _push_impl(qdb_exp_batch_push_fast, _drop_duplicates_from_args(args));
+    _push_impl(qdb_exp_batch_push_fast, _deduplicate_from_args(args));
 }
 
 void pinned_writer::push_truncate(py::kwargs args)
 {
-    auto drop_duplicates = _drop_duplicates_from_args(args);
+    auto deduplicate = _deduplicate_from_args(args);
 
     // Sanity check, this should be checked for in the python-side of things as well,
     // but people can invoke this manually if they want.
-    if (!std::holds_alternative<bool>(drop_duplicates) || std::get<bool>(drop_duplicates) != false)
-        [[unlikely]]
+    if (!std::holds_alternative<bool>(deduplicate.columns_)
+        || std::get<bool>(deduplicate.columns_) != false) [[unlikely]]
     {
-        throw qdb::invalid_argument_exception{"Cannot set `drop_duplicates` for push_truncate."};
+        throw qdb::invalid_argument_exception{"Cannot set `deduplicate` for push_truncate."};
     };
 
     // As we are actively removing data, let's add an additional check to ensure the user
@@ -262,7 +262,7 @@ void pinned_writer::push_truncate(py::kwargs args)
         // *after* the last element in this batch.
         tr.end.tv_nsec++;
     }
-    _push_impl(qdb_exp_batch_push_truncate, drop_duplicates, &tr);
+    _push_impl(qdb_exp_batch_push_truncate, deduplicate, &tr);
 }
 
 void register_pinned_writer(py::module_ & m)

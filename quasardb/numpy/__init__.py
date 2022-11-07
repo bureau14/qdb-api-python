@@ -233,25 +233,31 @@ def _validate_dtypes(data, columns):
     if len(errors) > 0:
         raise IncompatibleDtypeErrors(errors)
 
-
-def _validate_drop_duplicates(drop_duplicates, columns):
+def _coerce_deduplicate(deduplicate, deduplication_mode, columns):
     """
-    Throws an error when 'drop_duplicates' refers to a column not present in the table.
+    Throws an error when 'deduplicate' options are incorrect.
     """
-    if isinstance(drop_duplicates, bool):
-        return True
-
-    if not isinstance(drop_duplicates, list):
-        raise TypeError("drop_duplicates should be either a bool or a list, got: " + type(drop_duplicates))
-
     cnames = [cname for (cname, ctype) in columns]
 
-    for column_name in drop_duplicates:
+    if deduplication_mode not in ['drop', 'upsert']:
+        raise RuntimeError("deduplication_mode should be one of ['drop', 'upsert'], got: {}".format(deduplication_mode))
+
+    if isinstance(deduplicate, bool):
+        return deduplicate
+
+    # Special value of $timestamp, hardcoded
+    if isinstance(deduplicate, str) and deduplicate == '$timestamp':
+        deduplicate = ['$timestamp']
+    cnames.append('$timestamp')
+
+    if not isinstance(deduplicate, list):
+        raise TypeError("drop_duplicates should be either a bool or a list, got: " + type(deduplicate))
+
+    for column_name in deduplicate:
         if not column_name in cnames:
             raise RuntimeError("Provided deduplication column name '{}' not found in table columns.".format(column_name))
 
-
-    return True
+    return deduplicate
 
 def _coerce_data(data, dtype):
     """
@@ -494,7 +500,8 @@ def write_arrays(
         _async = False,
         fast = False,
         truncate = False,
-        drop_duplicates=False,
+        deduplicate=False,
+        deduplication_mode='drop',
         infer_types = True,
         writer = None):
     """
@@ -537,13 +544,20 @@ def write_arrays(
       If a dtype for a column is provided in this argument, and infer_types is also
       True, this argument takes precedence.
 
-    drop_duplicates: bool or list[str]
+    deduplicate: bool or list[str]
       Enables server-side deduplication of data when it is written into the table.
       When True, automatically deduplicates rows when all values of a row are identical.
       When a list of strings is provided, deduplicates only based on the values of
       these columns.
 
-    Defaults to False.
+      Defaults to False.
+
+    deduplication_mode: 'drop' or 'upsert'
+      When `deduplicate` is enabled, decides how deduplication is performed. 'drop' means
+      any newly written duplicates are dropped, where 'upsert' means that the previously
+      written data is updated to reflect the new data.
+
+      Defaults to 'drop'.
 
     infer_types: optional bool
       If true, will attemp to convert types from Python to QuasarDB natives types if
@@ -607,7 +621,7 @@ def write_arrays(
     # code as it generally makes for somewhat better error context.
     _validate_dtypes(data, cinfos)
 
-    _validate_drop_duplicates(drop_duplicates, cinfos)
+    deduplicate = _coerce_deduplicate(deduplicate, deduplication_mode, cinfos)
 
     write_with = {
         quasardb.ColumnType.Double: writer.set_double_column,
@@ -633,15 +647,15 @@ def write_arrays(
     start = time.time()
 
     if fast is True:
-        writer.push_fast(drop_duplicates=drop_duplicates)
+        writer.push_fast(deduplicate=deduplicate, deduplication_mode=deduplication_mode)
     elif truncate is True:
-        writer.push_truncate(drop_duplicates=drop_duplicates)
+        writer.push_truncate(deduplicate=deduplicate, deduplication_mode=deduplication_mode)
     elif isinstance(truncate, tuple):
-        writer.push_truncate(range=truncate, drop_duplicates=drop_duplicates)
+        writer.push_truncate(range=truncate, deduplicate=deduplicate, deduplication_mode=deduplication_mode)
     elif _async is True:
-        writer.push_async(drop_duplicates=drop_duplicates)
+        writer.push_async(deduplicate=deduplicate, deduplication_mode=deduplication_mode)
     else:
-        writer.push(drop_duplicates=drop_duplicates)
+        writer.push(deduplicate=deduplicate, deduplication_mode=deduplication_mode)
 
     logger.debug("pushed %d rows in %s seconds",
                  len(index), (time.time() - start))

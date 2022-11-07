@@ -241,20 +241,20 @@ def test_write_dataframe_push_truncate(qdbpd_write_fn, qdbd_connection, df_with_
 
     _assert_df_equal(df1, df2)
 
-def test_write_dataframe_drop_duplicates(qdbpd_write_fn, qdbd_connection, df_with_table, drop_duplicates):
+def test_write_dataframe_deduplicate(qdbpd_write_fn, qdbd_connection, df_with_table, deduplicate):
     (_, _, df1, table) = df_with_table
 
     # Main validation:
-    # 1. write once, no drop_duplicates
-    # 2. write again, with drop_duplicates
+    # 1. write once, no deduplication
+    # 2. write again, with deduplication
     # 3. read data again
     #
     # data from step 3 should be identical to the input dataframe, as all data
     # should be deduplicated upon insertion.
 
     # Ensures that we can do a full-circle write and read of a dataframe
-    qdbpd_write_fn(df1, qdbd_connection, table, drop_duplicates=False)
-    qdbpd_write_fn(df1, qdbd_connection, table, drop_duplicates=drop_duplicates)
+    qdbpd_write_fn(df1, qdbd_connection, table, deduplicate=False, deduplication_mode='drop')
+    qdbpd_write_fn(df1, qdbd_connection, table, deduplicate=deduplicate, deduplication_mode='drop')
 
     df2 = qdbpd.read_dataframe(table)
 
