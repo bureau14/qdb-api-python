@@ -63,40 +63,40 @@ def of_node(dconn):
 
     return ret
 
-_stat_types = {'node_id': 'gauge',
-               'operating_system': 'gauge',
-               'partitions_count': 'gauge',
+_stat_types = {'node_id': ('constant', None),
+               'operating_system': ('constant', None),
+               'partitions_count': ('constant', 'count'),
 
-               'cpu.system': 'counter',
-               'cpu.user': 'counter',
-               'cpu.idle': 'counter',
-               'startup': 'gauge',
-               'startup_time': 'gauge',
+               'cpu.system': ('counter', 'ns'),
+               'cpu.user': ('counter', 'ns'),
+               'cpu.idle': ('counter', 'ns'),
+               'startup': ('constant', None),
+               'startup_time': ('constant', None),
 
-               'network.current_users_count': 'gauge',
-               'hardware_concurrency': 'gauge',
+               'network.current_users_count': ('gauge', 'count'),
+               'hardware_concurrency': ('gauge', 'count'),
 
-               'check.online': 'gauge',
-               'check.duration_ms': 'gauge',
+               'check.online': ('constant', None),
+               'check.duration_ms': ('constant', 'ms'),
 
-               'requests.bytes_in': 'counter',
-               'requests.bytes_out': 'counter',
-               'requests.errors_count': 'counter',
-               'requests.successes_count': 'counter',
-               'requests.total_count': 'counter',
+               'requests.bytes_in': ('counter', 'bytes'),
+               'requests.bytes_out': ('counter', 'bytes'),
+               'requests.errors_count': ('counter', 'count'),
+               'requests.successes_count': ('counter', 'count'),
+               'requests.total_count': ('counter', 'count'),
 
-               'async_pipelines.merge.bucket_count': 'counter',
-               'async_pipelines.merge.duration_us': 'counter',
-               'async_pipelines.write.successes_count': 'counter',
-               'async_pipelines.write.failures_count': 'counter',
-               'async_pipelines.write.time_us': 'counter',
+               'async_pipelines.merge.bucket_count': ('counter', 'count'),
+               'async_pipelines.merge.duration_us': ('counter', 'us'),
+               'async_pipelines.write.successes_count': ('counter', 'count'),
+               'async_pipelines.write.failures_count': ('counter', 'count'),
+               'async_pipelines.write.time_us': ('counter', 'us'),
 
-               'async_pipelines.merge.max_bucket_count': 'gauge',
-               'async_pipelines.merge.max_depth_count': 'gauge',
-               'async_pipelines.merge.requests_count': 'counter',
+               'async_pipelines.merge.max_bucket_count': ('gauge', 'count'),
+               'async_pipelines.merge.max_depth_count': ('gauge', 'count'),
+               'async_pipelines.merge.requests_count': ('counter', 'count'),
 
-               'evicted.count': 'counter',
-               'pageins.count': 'counter',
+               'evicted.count': ('counter', 'count'),
+               'pageins.count': ('counter', 'count'),
 
                }
 
@@ -107,31 +107,31 @@ def _stat_type(stat_id):
     if stat_id in _stat_types:
         return _stat_types[stat_id]
     elif stat_id.endswith('total_ns'):
-        return 'counter'
+        return ('counter', 'ns')
     elif stat_id.endswith('total_bytes'):
-        return 'counter'
+        return ('counter', 'bytes')
     elif stat_id.endswith('read_bytes'):
-        return 'counter'
+        return ('counter', 'bytes')
     elif stat_id.endswith('written_bytes'):
-        return 'counter'
+        return ('counter', 'bytes')
     elif stat_id.endswith('total_count'):
-        return 'counter'
+        return ('counter', 'count')
     elif stat_id.startswith('network.sessions.'):
-        return 'gauge'
+        return ('gauge', 'count')
     elif stat_id.startswith('memory.'):
         # memory statistics are all gauges i think, describes how much memory currently allocated where
-        return 'gauge'
+        return ('gauge', 'bytes')
     elif stat_id.startswith('persistence.') or stat_id.startswith('disk'):
         # persistence are also all gauges, describes mostly how much is currently available/used on storage
-        return 'gauge'
+        return ('gauge', 'bytes')
     elif stat_id.startswith('license.'):
-        return 'gauge'
+        return ('gauge', None)
     elif stat_id.startswith('engine_'):
-        return 'gauge'
+        return ('constant', None)
     elif async_pipeline_bytes_pattern.match(stat_id):
-        return 'gauge'
+        return ('gauge', 'bytes')
     elif async_pipeline_count_pattern.match(stat_id):
-        return 'gauge'
+        return ('gauge', 'count')
     else:
         return None
 
