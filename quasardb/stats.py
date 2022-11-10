@@ -63,39 +63,90 @@ def of_node(dconn):
 
     return ret
 
+_stat_types = {'node_id': 'gauge',
+               'operating_system': 'gauge',
+               'partitions_count': 'gauge',
 
-_stat_types = {'requests.bytes_out': 'counter',
+               'cpu.system': 'counter',
+               'cpu.user': 'counter',
+               'cpu.idle': 'counter',
+               'startup': 'gauge',
+               'startup_time': 'gauge',
+
+               'network.current_users_count': 'gauge',
+               'hardware_concurrency': 'gauge',
+
+               'check.online': 'gauge',
+               'check.duration_ms': 'gauge',
+
                'requests.bytes_in': 'counter',
+               'requests.bytes_out': 'counter',
+               'requests.errors_count': 'counter',
+               'requests.successes_count': 'counter',
+               'requests.total_count': 'counter',
+
                'async_pipelines.merge.bucket_count': 'counter',
                'async_pipelines.merge.duration_us': 'counter',
                'async_pipelines.write.successes_count': 'counter',
                'async_pipelines.write.failures_count': 'counter',
-               'async_pipelines.write.time_us': 'counter'}
+               'async_pipelines.write.time_us': 'counter',
 
+               'async_pipelines.merge.max_bucket_count': 'gauge',
+               'async_pipelines.merge.max_depth_count': 'gauge',
+               'async_pipelines.merge.requests_count': 'counter',
+
+               'evicted.count': 'counter',
+               'pageins.count': 'counter',
+
+               }
 
 async_pipeline_bytes_pattern  = re.compile(r'async_pipelines.pipe_[0-9]+.merge_map.bytes')
 async_pipeline_count_pattern  = re.compile(r'async_pipelines.pipe_[0-9]+.merge_map.count')
 
-
 def _stat_type(stat_id):
-    """
-    Returns the statistic type by a stat id. Returns one of:
-
-     - 'gauge'
-     - 'counter'
-
-    This is useful for determining which value should be reported in a dashboard.
-    """
     if stat_id in _stat_types:
         return _stat_types[stat_id]
     elif stat_id.endswith('total_ns'):
         return 'counter'
+    elif stat_id.endswith('total_bytes'):
+        return 'counter'
+    elif stat_id.endswith('read_bytes'):
+        return 'counter'
+    elif stat_id.endswith('written_bytes'):
+        return 'counter'
+    elif stat_id.endswith('total_count'):
+        return 'counter'
+    elif stat_id.startswith('network.sessions.'):
+        return 'gauge'
+    elif stat_id.startswith('memory.'):
+        # memory statistics are all gauges i think, describes how much memory currently allocated where
+        return 'gauge'
+    elif stat_id.startswith('persistence.') or stat_id.startswith('disk'):
+        # persistence are also all gauges, describes mostly how much is currently available/used on storage
+        return 'gauge'
+    elif stat_id.startswith('license.'):
+        return 'gauge'
+    elif stat_id.startswith('engine_'):
+        return 'gauge'
     elif async_pipeline_bytes_pattern.match(stat_id):
         return 'gauge'
     elif async_pipeline_count_pattern.match(stat_id):
         return 'gauge'
     else:
         return None
+
+def stat_type(stat_id):
+    """
+    Returns the statistic type by a stat id. Returns one of:
+
+     - 'gauge'
+     - 'counter'
+     - None in case of unrecognized statistics
+
+    This is useful for determining which value should be reported in a dashboard.
+    """
+    return _stat_type(stat_id)
+
 
 def _calculate_delta_stat(stat_id, prev, cur):
     logger.info("calculating delta for stat_id = {}, prev = {}. cur = {}".format(stat_id, prev, cur))
@@ -137,14 +188,20 @@ def calculate_delta(prev, cur):
 
     return ret
 
+def _clean_blob(x):
+    x_ = x.decode('utf-8', 'replace')
+
+    # remove trailing zero-terminator
+    return ''.join(c for c in x_ if ord(c) != 0)
+
+
 def _get_stat(dconn, k):
     # Ugly, but works: try to retrieve as integer, if not an int, retrieve as
     # blob
     try:
         return dconn.integer(k).get()
     except quasardb.quasardb.AliasNotFoundError:
-        blob = dconn.blob(k).get()
-        return blob.decode('utf-8', 'replace')
+        return _clean_blob(dconn.blob(k).get())
 
 def _by_uid(stats):
     xs = {}
