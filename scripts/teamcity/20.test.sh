@@ -34,10 +34,10 @@ case "$(uname)" in
 esac
 
 # first remove system then user
-${PYTHON} -m pip uninstall -r dev-requirements.txt -y
+# ${PYTHON} -m pip uninstall -r dev-requirements.txt -y
 ${PYTHON} -m pip install --upgrade pip
 ${PYTHON} -m pip install --upgrade wheel
-${PYTHON} -m pip install --upgrade "setuptools<=58.4"
+${PYTHON} -m pip install --upgrade setuptools
 ${PYTHON} -m pip install -r dev-requirements.txt
 
 TEST_OPTS="-s"
