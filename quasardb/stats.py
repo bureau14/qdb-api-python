@@ -72,6 +72,7 @@ _stat_types = {'node_id': ('constant', None),
                'cpu.idle': ('counter', 'ns'),
                'startup': ('constant', None),
                'startup_time': ('constant', None),
+               'shutdown_time': ('constant', None),
 
                'network.current_users_count': ('gauge', 'count'),
                'hardware_concurrency': ('gauge', 'count'),
