@@ -11,6 +11,21 @@ option(QDB_LINK_STATIC_LIB "Link qdb_api_static instead of dynamic qdb_api." OFF
 
 set(PACKAGE_NAME quasardb)
 
+if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "arm"
+        OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64"
+        OR "${CMAKE_SYSTEM_PROCESSOR}" MATCHES "cortex"
+        OR CMAKE_GENERATOR MATCHES "ARM"
+        OR CMAKE_GENERATOR_PLATFORM MATCHES "ARM")
+    set(QDB_CPU_IS_ARM ON)
+elseif("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86"
+        OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64"
+        OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "i686"
+        OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "AMD64"
+        OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "amd64")
+    set(QDB_CPU_IS_X86 ON)
+else()
+    message(FATAL_ERROR "Unknown CMAKE_SYSTEM_PROCESSOR = ${CMAKE_SYSTEM_PROCESSOR}")
+endif()
 
 ###
 #
@@ -136,7 +151,6 @@ if(CLANG OR GNU)
     add_compile_options(
       -Wno-register
       -Wall
-      -march=core2
 
       $<$<CONFIG:Debug>:-Og>
       $<$<CONFIG:Release>:-O3>
@@ -144,6 +158,10 @@ if(CLANG OR GNU)
 
     # Can we perhaps make different builds, one for core2 and another
     # for haswell?
+
+    if(QDB_CPU_IS_X86)
+      add_compile_options(-march=core2)
+    endif()
   endif()
 
   if (CLANG)
@@ -196,10 +214,13 @@ elseif (MSVC)
     $<$<NOT:$<CONFIG:Debug>>:/GS-> # Suppresses Buffer Security Check
 
 
-
-    # Enable AVX as we target Core2 and later
-    /arch:AVX
   )
+  if(QDB_CPU_IS_X86)
+    add_compile_options(
+      # Enable AVX as we target Core2 and later
+      /arch:AVX
+    )
+  endif()
 endif()
 
 ###
