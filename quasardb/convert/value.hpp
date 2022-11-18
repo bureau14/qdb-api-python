@@ -37,6 +37,7 @@
 #include "../traits.hpp"
 #include "unicode.hpp"
 #include <qdb/ts.h>
+#include <date/date.h> // We cannot use <chrono> until we upgrade to at least GCC11 (ARM).
 #include <pybind11/pybind11.h>
 #include <range/v3/algorithm/copy.hpp>
 #include <range/v3/range/concepts.hpp>
@@ -183,11 +184,11 @@ struct value_converter<qdb::pydatetime, clock_t::time_point>
 
     {
         // Construct the date
-        std::chrono::year_month_day ymd{std::chrono::year{x.year()},
-            std::chrono::month{(unsigned)x.month()}, std::chrono::day{(unsigned)x.day()}};
+        date::year_month_day ymd{
+            date::year{x.year()}, date::month{(unsigned)x.month()}, date::day{(unsigned)x.day()}};
 
         // Calculate the number of days since epoch
-        std::chrono::sys_days days_since_epoch{ymd};
+        date::sys_days days_since_epoch{ymd};
 
         static_assert(sizeof(decltype(x.hour())) <= sizeof(hours_t::rep));
         static_assert(sizeof(decltype(x.second())) <= sizeof(seconds_t::rep));
@@ -278,9 +279,9 @@ struct value_converter<clock_t::time_point, qdb::pydatetime>
 {
     inline qdb::pydatetime operator()(clock_t::time_point const & tp) const
     {
-        std::chrono::sys_days dp = std::chrono::floor<days_t>(tp);
-        std::chrono::year_month_day ymd{dp};
-        std::chrono::hh_mm_ss hms{std::chrono::floor<seconds_t>(tp - dp)};
+        date::sys_days dp = date::floor<days_t>(tp);
+        date::year_month_day ymd{dp};
+        date::hh_mm_ss hms{date::floor<seconds_t>(tp - dp)};
 
         return qdb::pydatetime::from_date_and_time(static_cast<int>(ymd.year()),
             static_cast<unsigned>(ymd.month()), static_cast<unsigned>(ymd.day()), hms.hours().count(),

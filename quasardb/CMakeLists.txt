@@ -246,8 +246,8 @@ endif()
 message(STATUS "[qdb-api-python] Including thirdparty libraries with binary directory ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 add_subdirectory(../thirdparty/ ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 
+include_directories(SYSTEM ../thirdparty/date/include)
 include_directories(SYSTEM ../thirdparty/range-v3/include)
-
 
 include_directories(SYSTEM qdb/include)
 include_directories(${CMAKE_SOURCE_DIR})
@@ -344,7 +344,6 @@ pybind11_add_module(
   utils/permutation.hpp
   utils/stable_sort.hpp
 )
-
 
 target_compile_definitions(quasardb PUBLIC QDB_PY_VERSION="${QDB_PY_VERSION}")
 if(QDB_LINK_STATIC_LIB)
