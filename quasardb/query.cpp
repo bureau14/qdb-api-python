@@ -408,7 +408,7 @@ numpy_query_result_t numpy_query(qdb::handle_ptr h, const std::string & q)
     return numpy_query_results(r);
 }
 
-PyObject * arrow_query(qdb::handle_ptr h, const std::string & q)
+std::vector<PyObject *> arrow_query(qdb::handle_ptr h, const std::string & q)
 {
     // TODO(vianney): place this call at a more appropriate location
     // arrow::py::import_pyarrow();
@@ -427,16 +427,16 @@ PyObject * arrow_query(qdb::handle_ptr h, const std::string & q)
         qdb::qdb_throw_if_query_error(*h, err, r.get());
     }
 
-    std::vector<std::shared_ptr<arrow::Array>> columns;
+    std::vector<PyObject *> columns;
     columns.reserve(ra.get()->column_count);
     for (size_t idx = 0; idx < ra.get()->column_count; ++idx)
     {
         auto & col = ra.get()->columns[idx];
         auto res   = arrow::ImportArray(&col.data, &col.schema);
-        columns.push_back(res.ValueOrDie());
+        columns.push_back(arrow::py::wrap_array(res.ValueOrDie()));
     }
 
-    return arrow::py::wrap_array(columns[0]);
+    return columns;
 }
 
 } // namespace qdb
