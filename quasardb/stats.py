@@ -77,7 +77,7 @@ _stat_types = {'node_id': ('constant', None),
                'network.current_users_count': ('gauge', 'count'),
                'hardware_concurrency': ('gauge', 'count'),
 
-               'check.online': ('constant', None),
+               'check.online': ('gauge', 'count'),
                'check.duration_ms': ('constant', 'ms'),
 
                'requests.bytes_in': ('counter', 'bytes'),
