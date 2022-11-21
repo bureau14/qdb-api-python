@@ -212,8 +212,8 @@ template <concepts::dtype T>
  * and whatnot.
  */
 template <concepts::dtype T>
-requires(concepts::fixed_width_dtype<T>) inline value_type_t<T> * fill_with_mask(
-    value_type_t<T> const * input,
+    requires(concepts::fixed_width_dtype<T>)
+inline value_type_t<T> * fill_with_mask(value_type_t<T> const * input,
     bool const * mask,
     std::size_t size,
     std::size_t /* itemsize */,
@@ -236,8 +236,8 @@ requires(concepts::fixed_width_dtype<T>) inline value_type_t<T> * fill_with_mask
  * "length" for all items.
  */
 template <concepts::dtype T>
-requires(concepts::variable_width_dtype<T>) inline value_type_t<T> * fill_with_mask(
-    value_type_t<T> const * input,
+    requires(concepts::variable_width_dtype<T>)
+inline value_type_t<T> * fill_with_mask(value_type_t<T> const * input,
     bool const * mask,
     std::size_t size,
     std::size_t itemsize,
@@ -324,16 +324,16 @@ static void fill(py::array & xs, ValueType x) noexcept
 
 // Create empty array, do not fill any values.
 template <typename ValueType>
-requires(std::is_trivial_v<ValueType>) static py::array
-    initialize(py::array::ShapeContainer shape) noexcept
+    requires(std::is_trivial_v<ValueType>)
+static py::array initialize(py::array::ShapeContainer shape) noexcept
 {
     return py::array(py::dtype::of<ValueType>(), shape);
 }
 
 // Create empty array, filled with `x`
 template <typename ValueType>
-requires(std::is_trivial_v<ValueType>) static py::array
-    initialize(py::array::ShapeContainer shape, ValueType x) noexcept
+    requires(std::is_trivial_v<ValueType>)
+static py::array initialize(py::array::ShapeContainer shape, ValueType x) noexcept
 {
     py::array xs = initialize<ValueType>(shape);
     fill(xs, x);
@@ -342,15 +342,16 @@ requires(std::is_trivial_v<ValueType>) static py::array
 
 // Create empty array, do not fill any values.
 template <typename ValueType>
-requires(std::is_trivial_v<ValueType>) static py::array initialize(py::ssize_t size) noexcept
+    requires(std::is_trivial_v<ValueType>)
+static py::array initialize(py::ssize_t size) noexcept
 {
     return initialize<ValueType>({size});
 }
 
 // Create empty array, filled with `x`
 template <typename ValueType>
-requires(std::is_trivial_v<ValueType>) static py::array
-    initialize(py::ssize_t size, ValueType x) noexcept
+    requires(std::is_trivial_v<ValueType>)
+static py::array initialize(py::ssize_t size, ValueType x) noexcept
 {
     return initialize<ValueType>(py::array::ShapeContainer{size}, x);
 }
@@ -371,7 +372,8 @@ static py::array initialize(py::ssize_t size, value_type_t<D> x) noexcept
 }
 
 template <concepts::dtype T>
-requires(concepts::fixed_width_dtype<T>) py::array of_list(py::list xs)
+    requires(concepts::fixed_width_dtype<T>)
+py::array of_list(py::list xs)
 {
     using value_type = typename T::value_type;
     std::array<py::ssize_t, 1> shape{{static_cast<py::ssize_t>(xs.size())}};
@@ -393,7 +395,8 @@ requires(concepts::fixed_width_dtype<T>) py::array of_list(py::list xs)
 };
 
 template <concepts::dtype T>
-requires(concepts::fixed_width_dtype<T>) std::pair<py::array, py::array> of_list_with_mask(py::list xs)
+    requires(concepts::fixed_width_dtype<T>)
+std::pair<py::array, py::array> of_list_with_mask(py::list xs)
 {
     std::array<py::ssize_t, 1> shape{{static_cast<py::ssize_t>(xs.size())}};
 

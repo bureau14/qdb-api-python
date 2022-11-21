@@ -61,7 +61,7 @@ public:
         , p_(p)
     {}
 
-    qdb_resource(qdb_resource const &) = delete;
+    qdb_resource(qdb_resource const &)             = delete;
     qdb_resource & operator=(qdb_resource const &) = delete;
 
     ~qdb_resource()

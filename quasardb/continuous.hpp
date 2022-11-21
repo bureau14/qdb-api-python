@@ -91,7 +91,8 @@ static inline void register_continuous(Module & m)
     namespace py = pybind11;
 
     py::class_<qdb::query_continuous, std::shared_ptr<qdb::query_continuous>>{m, "QueryContinuous"} //
-        .def(py::init<qdb::handle_ptr, qdb_query_continuous_mode_type_t, std::chrono::milliseconds, const std::string &,
+        .def(py::init<qdb::handle_ptr, qdb_query_continuous_mode_type_t, std::chrono::milliseconds,
+            const std::string &,
             const py::object &>())                                   //
         .def("results", &qdb::query_continuous::results)             //
         .def("probe_results", &qdb::query_continuous::probe_results) //

@@ -51,7 +51,8 @@ namespace qdb::convert::detail
 namespace py = pybind11;
 
 template <concepts::dtype DType>
-requires(concepts::variable_width_dtype<DType>) struct clean_stride
+    requires(concepts::variable_width_dtype<DType>)
+struct clean_stride
 {
     using stride_type = typename DType::stride_type;      // e.g. std::u32string
     using value_type  = typename stride_type::value_type; // e.g. wchar_t
@@ -59,8 +60,8 @@ requires(concepts::variable_width_dtype<DType>) struct clean_stride
     static constexpr value_type const null_value_ = DType::null_value();
 
     template <concepts::input_range_t<value_type> InputRange>
-    requires(ranges::sized_range<InputRange>) inline decltype(auto) operator()(
-        InputRange && stride) const noexcept
+        requires(ranges::sized_range<InputRange>)
+    inline decltype(auto) operator()(InputRange && stride) const noexcept
     {
 
         auto first = ranges::begin(stride);
@@ -82,7 +83,8 @@ requires(concepts::variable_width_dtype<DType>) struct clean_stride
 };
 
 template <concepts::dtype DType>
-requires(concepts::fixed_width_dtype<DType>) inline decltype(auto) to_range(py::array const & xs)
+    requires(concepts::fixed_width_dtype<DType>)
+inline decltype(auto) to_range(py::array const & xs)
 {
     // Lowest-level codepoint representation inside numpy, e.g. wchar_t for unicode
     // or short for int16.
@@ -96,15 +98,17 @@ requires(concepts::fixed_width_dtype<DType>) inline decltype(auto) to_range(py::
     py::ssize_t stride_size{0};
     switch (xs.ndim())
     {
-        // This can happen in case an array contains only a single number, then it will
-        // not have any dimensions. In this case, it's best to just use the itemsize as
-        // the stride size, because we'll not have to forward the iterator anyway.
-        [[unlikely]] case 0 : stride_size = xs.itemsize();
+    // This can happen in case an array contains only a single number, then it will
+    // not have any dimensions. In this case, it's best to just use the itemsize as
+    // the stride size, because we'll not have to forward the iterator anyway.
+    [[unlikely]] case 0:
+        stride_size = xs.itemsize();
         break;
 
-        // Default case: use stride size of the first (and only) dimension. Most of the
-        //               time this will be identical to the itemsize.
-        [[likely]] case 1 : stride_size = xs.strides(0);
+    // Default case: use stride size of the first (and only) dimension. Most of the
+    //               time this will be identical to the itemsize.
+    [[likely]] case 1:
+        stride_size = xs.strides(0);
         break;
     default:
         throw qdb::incompatible_type_exception{
@@ -129,7 +133,8 @@ requires(concepts::fixed_width_dtype<DType>) inline decltype(auto) to_range(py::
 
 // Variable length encoding: split into chunks of <itemsize() / codepoint_size>
 template <concepts::dtype DType>
-requires(concepts::variable_width_dtype<DType>) inline decltype(auto) to_range(py::array const & xs)
+    requires(concepts::variable_width_dtype<DType>)
+inline decltype(auto) to_range(py::array const & xs)
 {
     using stride_type = typename DType::stride_type;
     using value_type  = typename stride_type::value_type;
@@ -185,7 +190,8 @@ requires(concepts::variable_width_dtype<DType>) inline decltype(auto) to_range(p
  * Converts range R to np.ndarray of dtype DType. Copies underlying data.
  */
 template <concepts::dtype DType, ranges::input_range R>
-requires(concepts::fixed_width_dtype<DType>) inline py::array to_array(R && xs)
+    requires(concepts::fixed_width_dtype<DType>)
+inline py::array to_array(R && xs)
 {
     using value_type = typename DType::value_type;
 
@@ -202,7 +208,8 @@ requires(concepts::fixed_width_dtype<DType>) inline py::array to_array(R && xs)
  * Converts range R to np.ndarray of dtype DType. Copies underlying data.
  */
 template <concepts::dtype Dtype, ranges::input_range R>
-requires(concepts::variable_width_dtype<Dtype>) inline py::array to_array(R && xs)
+    requires(concepts::variable_width_dtype<Dtype>)
+inline py::array to_array(R && xs)
 {
     using out_char_type = typename Dtype::value_type;
 

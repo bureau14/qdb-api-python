@@ -338,8 +338,8 @@ struct fixed_width_dtype : public dtype<Kind>
  * UTF-32 / UCS-4 this would be 4, as each character is represented using 4 bytes.
  */
 template <dtype_kind Kind, typename StrideType, py::ssize_t CodePointSize>
-requires(CodePointSize == sizeof(typename StrideType::value_type)) struct variable_width_dtype
-    : public dtype<Kind>
+    requires(CodePointSize == sizeof(typename StrideType::value_type))
+struct variable_width_dtype : public dtype<Kind>
 {
     using dtype<Kind>::is_dtype;
     using stride_type = StrideType;

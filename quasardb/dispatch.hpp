@@ -26,20 +26,21 @@ template <template <qdb_ts_column_type_t, typename> class Callback,
     qdb_ts_column_type_t ColumnType,
     typename DType,
     typename... Args>
-concept valid_callback = requires(Args... args)
-{
-    {Callback<ColumnType, DType>{}};
-    {Callback<ColumnType, DType>{}(std::forward<Args>(args)...)};
-};
+concept valid_callback = requires(Args... args) {
+                             {
+                                 Callback<ColumnType, DType>{}
+                             };
+                             {
+                                 Callback<ColumnType, DType>{}(std::forward<Args>(args)...)
+                             };
+                         };
 
 template <template <qdb_ts_column_type_t, typename> class Callback,
     qdb_ts_column_type_t ColumnType,
     concepts::dtype DType,
     typename... Args>
-requires(not valid_callback<Callback,
-         ColumnType,
-         DType,
-         Args...>) static inline constexpr void by_dtype_(Args &&... args)
+    requires(not valid_callback<Callback, ColumnType, DType, Args...>)
+static inline constexpr void by_dtype_(Args &&... args)
 {
     throw qdb::incompatible_type_exception{"Dtype dispatcher not implemented for ColumnType '"
                                            + std::to_string(ColumnType)
@@ -53,8 +54,8 @@ template <template <qdb_ts_column_type_t, typename> class Callback,
     concepts::dtype DType,
     typename... Args>
 
-requires(valid_callback<Callback, ColumnType, DType, Args...>) static inline constexpr decltype(auto)
-    by_dtype_(Args &&... args)
+    requires(valid_callback<Callback, ColumnType, DType, Args...>)
+static inline constexpr decltype(auto) by_dtype_(Args &&... args)
 {
     return Callback<ColumnType, DType>{}(std::forward<Args>(args)...);
 };

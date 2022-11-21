@@ -60,8 +60,8 @@ void check_qdb_c_api_version(const char * candidate)
     if (ver_c != ver_ref)
     {
         std::ostringstream sstr;
-        sstr << "QuasarDB C API version mismatch. Expected " << ver_ref.first << '.' << ver_ref.second << " but got " << ver_c.first << '.'
-             << ver_c.second << " instead.";
+        sstr << "QuasarDB C API version mismatch. Expected " << ver_ref.first << '.' << ver_ref.second
+             << " but got " << ver_c.first << '.' << ver_c.second << " instead.";
         throw std::runtime_error(sstr.str());
     }
 }

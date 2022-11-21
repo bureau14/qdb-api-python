@@ -1,11 +1,11 @@
 #pragma once
 
+#include <qdb/client.h>
 #include <cassert>
 #include <cstddef>
 #include <cstring>
 #include <forward_list>
 #include <vector>
-#include <qdb/client.h>
 
 namespace utils
 {
@@ -34,8 +34,8 @@ class blob_deque
         qdb_blob_t add(qdb_blob_t blob) noexcept
         {
             assert(can_store(blob.content_length));
-            auto dst = qdb_blob_t{static_cast<void*>(storage.get() + size), blob.content_length};
-            std::memcpy(const_cast<void*>(dst.content), blob.content, blob.content_length);
+            auto dst = qdb_blob_t{static_cast<void *>(storage.get() + size), blob.content_length};
+            std::memcpy(const_cast<void *>(dst.content), blob.content, blob.content_length);
             size += blob.content_length;
             return dst;
         }
@@ -59,7 +59,6 @@ public:
 
     qdb_blob_t add(qdb_blob_t blob)
     {
-        
         while (!_cur_block->can_store(blob.content_length))
         {
             _filled_blocks_size += _cur_block->size;

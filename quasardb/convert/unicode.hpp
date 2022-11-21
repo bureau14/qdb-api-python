@@ -1,8 +1,8 @@
 #pragma once
 
 #include <range/v3/range_fwd.hpp>
-#include <range/v3/view/cache1.hpp>
 #include <range/v3/view/adaptor.hpp>
+#include <range/v3/view/cache1.hpp>
 
 namespace qdb::convert::unicode
 {
@@ -18,7 +18,8 @@ template <typename CharT>
 struct fn_;
 
 template <typename CharT, std::size_t Width = (sizeof(cp_type) / sizeof(CharT))>
-requires(1 <= Width && Width <= 4) struct next_chars
+    requires(1 <= Width && Width <= 4)
+struct next_chars
 {
 public:
     constexpr next_chars() = default;
@@ -28,19 +29,22 @@ public:
         , n_{1}
     {}
 
-    constexpr next_chars(CharT _1, CharT _2) requires(Width >= 2)
-        : xs_{{_1, _2}}
-        , n_{2}
+    constexpr next_chars(CharT _1, CharT _2)
+        requires(Width >= 2)
+    : xs_{{_1, _2}}
+    , n_{2}
     {}
 
-    constexpr next_chars(CharT _1, CharT _2, CharT _3) requires(Width >= 3)
-        : xs_{{_1, _2, _3}}
-        , n_{3}
+    constexpr next_chars(CharT _1, CharT _2, CharT _3)
+        requires(Width >= 3)
+    : xs_{{_1, _2, _3}}
+    , n_{3}
     {}
 
-    constexpr next_chars(CharT _1, CharT _2, CharT _3, CharT _4) requires(Width == 4)
-        : xs_{{_1, _2, _3, _4}}
-        , n_{4}
+    constexpr next_chars(CharT _1, CharT _2, CharT _3, CharT _4)
+        requires(Width == 4)
+    : xs_{{_1, _2, _3, _4}}
+    , n_{4}
     {}
     constexpr inline CharT pop() noexcept
     {
@@ -97,8 +101,8 @@ struct fn_<u8_type>
  * conversion from numpy to qdb.
  */
 template <typename OutCharT, typename Rng>
-requires(ranges::sized_range<Rng>) class view_
-    : public ranges::view_facade<view_<OutCharT, Rng>, ranges::finite>
+    requires(ranges::sized_range<Rng>)
+class view_ : public ranges::view_facade<view_<OutCharT, Rng>, ranges::finite>
 {
     friend ranges::range_access;
     using iterator_t = ranges::iterator_t<Rng>;
@@ -217,8 +221,8 @@ struct fn_<u8_type>
  */
 
 template <typename InCharT, typename Rng>
-requires(ranges::sized_range<Rng>) class view_
-    : public ranges::view_facade<view_<InCharT, Rng>, ranges::finite>
+    requires(ranges::sized_range<Rng>)
+class view_ : public ranges::view_facade<view_<InCharT, Rng>, ranges::finite>
 {
     friend ranges::range_access;
     using iterator_t = ranges::iterator_t<Rng>;

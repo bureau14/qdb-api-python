@@ -98,19 +98,21 @@ static_assert(not qdb_primitive<qdb_ts_string_point>);
 template <typename Dtype>
 concept dtype = std::is_base_of_v<traits::dtype<Dtype::kind>, Dtype>
 
-    && std::is_enum_v<decltype(Dtype::kind)>
+                && std::is_enum_v<decltype(Dtype::kind)>
 
     ;
 
 template <typename Dtype>
-concept fixed_width_dtype = dtype<Dtype>
+concept fixed_width_dtype =
+    dtype<Dtype>
 
     // Check base class
     && std::is_base_of_v<traits::fixed_width_dtype<Dtype::kind, Dtype::size>, Dtype>;
 
 // Test dtypes against their size
 template <typename Dtype, py::ssize_t Size>
-concept dtype_of_width = fixed_width_dtype<Dtype> && Dtype::size == Size;
+concept dtype_of_width = fixed_width_dtype<Dtype> && Dtype::size ==
+Size;
 
 // 64bit dtype
 template <typename Dtype>
@@ -131,14 +133,14 @@ concept dtype8 = dtype_of_width<Dtype, 1>;
 template <typename Dtype>
 concept datetime64_dtype = fixed_width_dtype<Dtype>
 
-    // Verify base class is datetime64_dtype
-    && std::is_base_of_v<traits::datetime64_dtype<Dtype::precision>, Dtype>
+                           // Verify base class is datetime64_dtype
+                           && std::is_base_of_v<traits::datetime64_dtype<Dtype::precision>, Dtype>
 
-    // datetime64 is always a 64bit object
-    && dtype64<Dtype>
+                           // datetime64 is always a 64bit object
+                           && dtype64<Dtype>
 
-    // It needs to have a precision
-    && std::is_enum_v<decltype(Dtype::precision)>;
+                           // It needs to have a precision
+                           && std::is_enum_v<decltype(Dtype::precision)>;
 
 template <typename Dtype>
 concept variable_width_dtype =
@@ -157,11 +159,11 @@ concept variable_width_dtype =
 template <typename Dtype>
 concept object_dtype = dtype<Dtype>
 
-    // Objects are always fixed width (64-bit pointers, effectively)
-    && fixed_width_dtype<Dtype>
+                       // Objects are always fixed width (64-bit pointers, effectively)
+                       && fixed_width_dtype<Dtype>
 
-    // Verify base class
-    && std::is_base_of_v<traits::object_dtype<typename Dtype::value_type>, Dtype>;
+                       // Verify base class
+                       && std::is_base_of_v<traits::object_dtype<typename Dtype::value_type>, Dtype>;
 
 // Trivial dtypes are useful for deciding whether you can use fast memcpy-based
 // conversions, e.g. when numpy's int64 has the exact same representation as
