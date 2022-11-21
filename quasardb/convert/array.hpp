@@ -79,8 +79,8 @@ struct convert_array;
 //
 /////
 template <typename From, typename To>
-requires(concepts::dtype<From> && !concepts::delegate_dtype<From> && concepts::qdb_primitive<To>) struct
-    convert_array<From, To>
+    requires(concepts::dtype<From> && !concepts::delegate_dtype<From> && concepts::qdb_primitive<To>)
+struct convert_array<From, To>
 {
     using value_type = typename From::value_type;
     static constexpr value_converter<From, To> const xform_{};
@@ -105,7 +105,8 @@ requires(concepts::dtype<From> && !concepts::delegate_dtype<From> && concepts::q
 //
 /////
 template <typename From, typename To>
-requires(concepts::delegate_dtype<From> && concepts::qdb_primitive<To>) struct convert_array<From, To>
+    requires(concepts::delegate_dtype<From> && concepts::qdb_primitive<To>)
+struct convert_array<From, To>
 {
     // Source value_type, e.g. std::int32_t
     using value_type = typename From::value_type;
@@ -144,7 +145,8 @@ requires(concepts::delegate_dtype<From> && concepts::qdb_primitive<To>) struct c
 //
 /////
 template <typename From, typename To>
-requires(concepts::qdb_primitive<From> && !concepts::delegate_dtype<To>) struct convert_array<From, To>
+    requires(concepts::qdb_primitive<From> && !concepts::delegate_dtype<To>)
+struct convert_array<From, To>
 {
     static constexpr value_converter<From, To> const xform_{};
 

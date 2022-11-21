@@ -65,7 +65,8 @@ template <typename From, typename To>
 struct value_converter;
 
 template <typename From, typename To>
-requires(std::is_same_v<From, To>) struct value_converter<From, To>
+    requires(std::is_same_v<From, To>)
+struct value_converter<From, To>
 {
     inline To operator()(From const & x) const
     {
@@ -364,8 +365,8 @@ struct value_converter<traits::bytestring_dtype, qdb_string_t>
     using char_t = std::string::value_type;
 
     template <concepts::input_range_t<char_t> R>
-    requires(ranges::sized_range<R> && ranges::contiguous_range<R>) inline qdb_string_t operator()(
-        R && x) const
+        requires(ranges::sized_range<R> && ranges::contiguous_range<R>)
+    inline qdb_string_t operator()(R && x) const
     {
         std::size_t n     = (ranges::size(x) + 1) * sizeof(char_t);
         char_t const * x_ = ranges::data(x);
@@ -383,8 +384,8 @@ struct value_converter<traits::unicode_dtype, qdb_string_t>
     typedef qdb_char_type out_char_type;
 
     template <concepts::input_range_t<in_char_type> R>
-    requires(ranges::sized_range<R> && ranges::contiguous_range<R>) inline qdb_string_t operator()(
-        R && x) const
+        requires(ranges::sized_range<R> && ranges::contiguous_range<R>)
+    inline qdb_string_t operator()(R && x) const
     {
         // Calculate total size of output buffer; we *could* do it more
         // accurately by first scanning everything and then filling it,

@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <functional>
 
-
 namespace utils
 {
 
