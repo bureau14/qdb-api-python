@@ -1,10 +1,11 @@
 # Date
 
+[![Build Status](https://travis-ci.org/HowardHinnant/date.svg?branch=master)](https://travis-ci.org/HowardHinnant/date)
 [![Join the chat at https://gitter.im/HowardHinnant/date](https://badges.gitter.im/HowardHinnant/date.svg)](https://gitter.im/HowardHinnant/date?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ---
 
-**[Try it out on wandbox!](https://wandbox.org/permlink/L8MwjzSSC3fXXrMd)**
+**[Try it out on wandbox!](https://wandbox.org/permlink/oyXjibyF680HHoyS)**
 
 ## Summary
 
@@ -42,12 +43,30 @@ Slightly modified versions of `"date.h"` and `"tz.h"` were voted into the C++20 
 
 ## Build & Test
 
+The recommended way to use any of these libraries besides `"tz.h"` is to just include it.  These are header-only libraries (except `"tz.h"`).
+
+To use `"tz.h"`, there is a single source file (`src/tz.cpp`) that needs to be compiled. Here are the recommended directions:  https://howardhinnant.github.io/date/tz.html#Installation.
+
+One can run tests by cd'ing into the `test` subdirectory and running `testit`.  There are known failures on all platforms except for macOS.  And even on macOS if C++11 is used.  If any of these failures present problems for you, there exist workarounds.
+
+Additionally there is _unsupported_ support for [vcpkg](https://github.com/Microsoft/vcpkg) and [CMake](https://cmake.org/).  I don't personally use or maintain these systems as for me they cause more problems than they solve (for this small project).  If you would like to contribute to these build systems please feel free to file a PR.
+
+You can download and install Date using the [vcpkg](https://github.com/Microsoft/vcpkg) dependency manager:
+
+    git clone https://github.com/Microsoft/vcpkg.git
+    cd vcpkg
+    ./bootstrap-vcpkg.sh
+    ./vcpkg integrate install
+    vcpkg install date
+
+The Date port in vcpkg is updated by Microsoft team members and community contributors. If the version falls behind, please [create an issue or pull request](https://github.com/Microsoft/vcpkg) on the vcpkg repository.
+
 You can optionally build using [CMake](https://cmake.org/). Here is a guide of how to build and test using the CMake Makefile generator.
 
 ```bash
 mkdir build
 cd build
-cmake ../
+cmake -DENABLE_DATE_TESTING=ON -DBUILD_TZ_LIB=ON ../
 cmake --build . --target testit # Consider '-- -j4' for multithreading
 ```
 ## Projects using this library
@@ -57,5 +76,10 @@ cmake --build . --target testit # Consider '-- -j4' for multithreading
 * https://github.com/ViewTouch/viewtouch
 * https://routinghub.com
 * https://github.com/valhalla
+* https://github.com/siodb/siodb
+* https://github.com/KomodoPlatform/atomicDEX-Pro
+* https://github.com/Kotlin/kotlinx-datetime
+* https://github.com/royalbee/jewish_date
+* https://github.com/apache/arrow/
 
 If you would like your project (or product) on this list, just let me know.
