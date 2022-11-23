@@ -408,10 +408,10 @@ numpy_query_result_t numpy_query(qdb::handle_ptr h, const std::string & q)
     return numpy_query_results(r);
 }
 
-std::vector<PyObject *> arrow_query(qdb::handle_ptr h, const std::string & q)
+std::vector<pybind11::object> arrow_query(qdb::handle_ptr h, const std::string & q)
 {
     // TODO(vianney): place this call at a more appropriate location
-    // arrow::py::import_pyarrow();
+    arrow::py::import_pyarrow();
 
     // we first need to collect the result
     detail::qdb_resource<qdb_query_result_t> r{h};
@@ -427,13 +427,14 @@ std::vector<PyObject *> arrow_query(qdb::handle_ptr h, const std::string & q)
         qdb::qdb_throw_if_query_error(*h, err, r.get());
     }
 
-    std::vector<PyObject *> columns;
+    std::vector<pybind11::object> columns;
     columns.reserve(ra.get()->column_count);
     for (size_t idx = 0; idx < ra.get()->column_count; ++idx)
     {
         auto & col = ra.get()->columns[idx];
         auto res   = arrow::ImportArray(&col.data, &col.schema);
-        columns.push_back(arrow::py::wrap_array(res.ValueOrDie()));
+        columns.push_back(pybind11::reinterpret_steal<pybind11::object>(
+            pybind11::handle(arrow::py::wrap_array(res.ValueOrDie()))));
     }
 
     return columns;
