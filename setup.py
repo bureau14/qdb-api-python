@@ -242,8 +242,8 @@ setup(name=package_name,
           "License :: OSI Approved :: BSD License",
       ],
       keywords='quasardb timeseries database API driver ',
-      setup_requires=["setuptools-git"],
-      install_requires=["numpy", "pyarrow == 8"],
+      setup_requires=["setuptools-git", "pyarrow == 8"],
+      install_requires=["numpy"],
       extras_require={
           "pandas": ["pandas"],
           "tests": [
