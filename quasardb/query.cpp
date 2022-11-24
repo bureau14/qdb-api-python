@@ -36,7 +36,9 @@
 #include "utils.hpp"
 #include "convert/value.hpp"
 #include "detail/qdb_resource.hpp"
+#include <arrow/api.h>
 #include <arrow/c/bridge.h>
+#include <arrow/python/arrow_to_pandas.h>
 #include <arrow/python/pyarrow.h>
 #include <pybind11/stl.h>
 #include <iostream>
@@ -408,10 +410,9 @@ numpy_query_result_t numpy_query(qdb::handle_ptr h, const std::string & q)
     return numpy_query_results(r);
 }
 
-std::vector<pybind11::object> arrow_query(qdb::handle_ptr h, const std::string & q)
+std::shared_ptr<arrow::Table> arrow_query_impl(qdb::handle_ptr h, const std::string & q)
 {
     // TODO(vianney): place this call at a more appropriate location
-    arrow::py::import_pyarrow();
 
     // we first need to collect the result
     detail::qdb_resource<qdb_query_result_t> r{h};
@@ -427,17 +428,42 @@ std::vector<pybind11::object> arrow_query(qdb::handle_ptr h, const std::string &
         qdb::qdb_throw_if_query_error(*h, err, r.get());
     }
 
-    std::vector<pybind11::object> columns;
-    columns.reserve(ra.get()->column_count);
+    std::vector<std::shared_ptr<arrow::Array>> arrow_arrays;
+    std::vector<std::shared_ptr<arrow::Field>> fields;
     for (size_t idx = 0; idx < ra.get()->column_count; ++idx)
     {
         auto & col = ra.get()->columns[idx];
         auto res   = arrow::ImportArray(&col.data, &col.schema);
-        columns.push_back(pybind11::reinterpret_steal<pybind11::object>(
-            pybind11::handle(arrow::py::wrap_array(res.ValueOrDie()))));
+        auto array = *res;
+        fields.emplace_back(
+            std::make_shared<arrow::Field>(std::string{col.schema.name}, array->type()));
+        arrow_arrays.emplace_back(array);
     }
+    auto arrow_schema = std::make_shared<arrow::Schema>(fields);
+    return arrow::Table::Make(arrow_schema, arrow_arrays);
+}
 
-    return columns;
+pybind11::object arrow_query(qdb::handle_ptr h, const std::string & q)
+{
+    arrow::py::import_pyarrow();
+    auto table = arrow_query_impl(h, q);
+    return pybind11::reinterpret_steal<pybind11::object>(
+        pybind11::handle(arrow::py::wrap_table(table)));
+}
+
+pybind11::object arrow_query_as_df(qdb::handle_ptr h, const std::string & q)
+{
+    arrow::py::import_pyarrow();
+    arrow::py::PandasOptions opts{};
+    // opts.allow_zero_copy_blocks = true;
+    // opts.zero_copy_only = true;
+    opts.self_destruct               = true;
+    opts.coerce_temporal_nanoseconds = true;
+
+    auto table = arrow_query_impl(h, q);
+    PyObject * out;
+    arrow::py::ConvertTableToPandas(opts, std::move(table), &out);
+    return pybind11::reinterpret_steal<pybind11::object>(pybind11::handle(out));
 }
 
 } // namespace qdb
