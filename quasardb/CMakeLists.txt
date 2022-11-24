@@ -348,7 +348,7 @@ pybind11_add_module(
   utils/stable_sort.hpp
 )
 
-target_compile_definitions(quasardb PUBLIC QDB_PY_VERSION="${QDB_PY_VERSION}" QDB_INCLUDE_ARROW)
+target_compile_definitions(quasardb PUBLIC QDB_PY_VERSION="${QDB_PY_VERSION}" QDB_USE_ARROW_INCLUDE)
 if(QDB_LINK_STATIC_LIB)
   add_definitions(-DQDB_API_STATIC_LINK=1)
 
