@@ -243,14 +243,14 @@ endif()
 #
 ###
 
-include_directories(SYSTEM ../thirdparty/arrow/src)
-include_directories(SYSTEM ../thirdparty/boost)
-include_directories(SYSTEM ../thirdparty/rapidjson/include)
-include_directories(SYSTEM ../thirdparty/range-v3/include)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake_modules)
+find_package(Arrow)
 
-message(STATUS "[qdb-api-python] Including thirdparty libraries with binary directory ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 add_subdirectory(../thirdparty/ ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 
+include_directories(SYSTEM ${ARROW_INCLUDE_DIR})
+include_directories(SYSTEM ../thirdparty/date/include)
+include_directories(SYSTEM ../thirdparty/range-v3/include)
 
 include_directories(SYSTEM qdb/include)
 include_directories(${CMAKE_SOURCE_DIR})
@@ -348,8 +348,7 @@ pybind11_add_module(
   utils/stable_sort.hpp
 )
 
-
-target_compile_definitions(quasardb PUBLIC QDB_PY_VERSION="${QDB_PY_VERSION}")
+target_compile_definitions(quasardb PUBLIC QDB_PY_VERSION="${QDB_PY_VERSION}" QDB_INCLUDE_ARROW)
 if(QDB_LINK_STATIC_LIB)
   add_definitions(-DQDB_API_STATIC_LINK=1)
 
@@ -427,7 +426,9 @@ if(QDB_LINK_STATIC_LIB)
 else()
   target_link_libraries(quasardb PUBLIC ${QDB_API_LIB})
 endif()
-target_link_libraries(quasardb PUBLIC arrow arrow_python_static)
+message("ARROW_STATIC_LIB: ${ARROW_STATIC_LIB}")
+message("ARROW_PYTHON_STATIC_LIB: ${ARROW_PYTHON_STATIC_LIB}")
+target_link_libraries(quasardb PUBLIC ${ARROW_STATIC_LIB} ${ARROW_PYTHON_STATIC_LIB})
 
 if(CMAKE_COMPILER_IS_GNUCXX)
   target_link_options(
