@@ -305,6 +305,24 @@ def test_query(qdbpd_write_fn, # parametrized
 
     _assert_df_equal(df1, df2)
 
+@pytest.mark.skip(reason="Skip until arrow dataframe is properly implemented")
+def test_query_arrow(qdbpd_write_fn, # parametrized
+               qdbpd_query_fn, # parametrized
+               df_with_table,  # parametrized
+               qdbd_connection,
+               column_name,
+               table_name):
+    (_, _, df1, table) = df_with_table
+    qdbpd_write_fn(df1, qdbd_connection, table)
+
+    res = qdbd_connection.query_arrow_as_df(
+                         "SELECT $timestamp, {} FROM \"{}\"".format(column_name, table_name)
+                         )
+    print(res)
+    df2 = res #.set_index('$timestamp').reindex()
+
+    _assert_df_equal(df1, df2)
+
 
 def test_inference(
         qdbpd_write_fn, # parametrized

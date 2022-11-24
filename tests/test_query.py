@@ -1,6 +1,7 @@
 # # pylint: disable=C0103,C0111,C0302,W0212
 import pytest
 import quasardb
+import quasardb.pandas as qdbpd
 import numpy as np
 
 import test_table as tslib
@@ -235,10 +236,37 @@ def test_supports_all_column_types(value_type, query_handler, qdbd_connection, t
     else:
         raise RuntimeError("Unrecognized query handler: {}".format(query_handler))
 
+def query_pandas(qdbd_connection, query):
+    return qdbpd.query(qdbd_connection, query)
 
-@pytest.mark.skip(reason="Skip unless you're benching the pinned writer")
-@pytest.mark.parametrize("query_handler", ['dict',
-                                           'numpy'])
+def query_arrow(qdbd_connection, query):
+    return qdbd_connection.query_arrow_as_df(query)
+
+@pytest.mark.skip(reason="Skip unless you're benching arrow dataframe")
+@pytest.mark.parametrize("query_handler", ['pandas', 'arrow'])
+@pytest.mark.parametrize("value_type", ['double',
+                                        'int64',
+                                        'blob',
+                                        'string',
+                                        'timestamp'])
+@pytest.mark.parametrize("row_count", [16384, 131072, 1048576])
+def test_query_handler_benchmark_pandas(benchmark, value_type, row_count, query_handler, qdbd_connection, table, intervals):
+    query_fn = None
+    if query_handler == 'pandas':
+        query_fn = query_pandas
+    elif query_handler == 'arrow':
+        query_fn = query_arrow
+    else:
+        raise RuntimeError("Unrecognized query handler: {}".format(query_handler))
+
+    inserted_data = _insert_points(value_type, table, intervals=intervals, points=row_count)
+    column_name = _column_name(table, value_type)
+    query = "SELECT \"{}\" FROM \"{}\"".format(column_name, table.get_name())
+
+    benchmark(query_fn, qdbd_connection, query)
+
+@pytest.mark.skip(reason="Skip unless you're benching arrow dataframe")
+@pytest.mark.parametrize("query_handler", ['dict', 'numpy', 'arrow'])
 @pytest.mark.parametrize("value_type", ['double',
                                         'int64',
                                         'blob',
@@ -246,18 +274,15 @@ def test_supports_all_column_types(value_type, query_handler, qdbd_connection, t
                                         'timestamp'])
 @pytest.mark.parametrize("row_count", [16384, 131072, 1048576])
 def test_query_handler_benchmark(benchmark, value_type, row_count, query_handler, qdbd_connection, table, intervals):
-
-
-
     query_fn = None
     if query_handler == 'numpy':
         query_fn = qdbd_connection.query_numpy
     elif query_handler == 'dict':
         query_fn = qdbd_connection.query
+    elif query_handler == 'arrow':
+        query_fn = qdbd_connection.query_arrow
     else:
         raise RuntimeError("Unrecognized query handler: {}".format(query_handler))
-
-
 
     inserted_data = _insert_points(value_type, table, intervals=intervals, points=row_count)
     column_name = _column_name(table, value_type)
