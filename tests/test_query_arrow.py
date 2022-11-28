@@ -70,6 +70,17 @@ def _insert_points(value_type, table, start_time=None, intervals=None, points=10
     fn = point_inserter_by_type[value_type]
     return fn(table, start_time, points)
 
+def _column_name(table, value_type):
+    value_type_to_fn = {'double': tslib._double_col_name,
+                        'int64': tslib._int64_col_name,
+                        'blob': tslib._blob_col_name,
+                        'string': tslib._string_col_name,
+                        'timestamp': tslib._ts_col_name,
+                        'symbol': tslib._symbol_col_name}
+
+    fn = value_type_to_fn[value_type]
+    return fn(table)
+
 def test_returns_alias_not_found_when_ts_doesnt_exist(qdbd_connection):
     with pytest.raises(quasardb.AliasNotFoundError):
         qdbd_connection.query_arrow(
@@ -87,10 +98,37 @@ def test_returns_empty_result(qdbd_connection, table):
     for x in res.columns:
         assert x.is_null()
 
-def test_supports_all_column_types(value_type, query_handler, qdbd_connection, table, intervals):
+@pytest.mark.parametrize("value_type", ['double',
+                                        'int64',
+                                        'blob',
+                                        'string',
+                                        'timestamp'])
+def test_supports_all_column_types(value_type, qdbd_connection, table, intervals):
     inserted_data = _insert_points(value_type, table, intervals=intervals)
     column_name = _column_name(table, value_type)
     query = "SELECT \"{}\" FROM \"{}\"".format(column_name, table.get_name())
 
     res = qdbd_connection.query_arrow(query)
     print(res)
+
+
+# def test_returns_inserted_data_with_column_select(
+#         qdbd_connection, table, intervals):
+#     start_time = tslib._start_time(intervals)
+#     inserted_double_data = _insert_double_points(table, start_time, 10)
+#     query = "select " + tslib._double_col_name(table) + \
+#         " from \"" + table.get_name() + "\" in range(" + \
+#         str(tslib._start_year(intervals)) + ", +100d)"
+
+#     res = qdbd_connection.query(query)
+
+#     assert len(res) == 10
+
+#     for row, v in zip(res, inserted_double_data[1]):
+#         assert '$table' not in row
+#         assert '$timestamp' not in row
+#         assert 'the_blob' not in row
+#         assert 'the_int64' not in row
+#         assert 'the_ts' not in row
+
+#         assert row['the_double'] == v
