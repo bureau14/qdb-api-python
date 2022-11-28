@@ -12,6 +12,7 @@ import platform
 import subprocess
 import glob
 import numpy
+import pyarrow
 
 from distutils.version import LooseVersion
 from setuptools.command.build_ext import build_ext
@@ -130,15 +131,8 @@ class CMakeBuild(build_ext):
         #    build_args += ['--', '-j2']
 
         # Add arrow python
-        cmake_args += [
-            '-DARROW_PYTHON=ON',
-            '-DARROW_BUILD_STATIC=ON',
-            '-DARROW_BUILD_TESTS=OFF',
-            '-DRAPIDJSON_BUILD_DOC=OFF',
-            '-DRAPIDJSON_BUILD_EXAMPLES=OFF',
-            '-DRAPIDJSON_BUILD_TESTS=OFF',
-            '-DRAPIDJSON_BUILD_THIRDPARTY_GTEST=OFF',
-        ]
+        pyarrow_path = os.path.dirname(pyarrow.__file__)
+        cmake_args += ['ARROW_HOME="{}"'.format(pyarrow_path)]
 
         # Set python executable
         python_executable = os.getenv('PYTHON_EXECUTABLE', 'python3')
