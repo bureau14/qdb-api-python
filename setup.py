@@ -132,7 +132,7 @@ class CMakeBuild(build_ext):
 
         # Add arrow python
         pyarrow_path = os.path.dirname(pyarrow.__file__)
-        cmake_args += ['ARROW_HOME="{}"'.format(pyarrow_path)]
+        cmake_args += ['-DARROW_HOME={}'.format(pyarrow_path)]
 
         # Set python executable
         python_executable = os.getenv('PYTHON_EXECUTABLE', 'python3')
