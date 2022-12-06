@@ -352,8 +352,6 @@ pybind11_add_module(
   tag.hpp
   utils.cpp
   utils.hpp
-  version.hpp
-  version.cpp
   logger.hpp
   logger.cpp
   detail/ts_column.hpp

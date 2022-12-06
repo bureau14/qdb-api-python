@@ -4,6 +4,7 @@ from datetime import timedelta
 import logging
 import numpy as np
 import numpy.ma as ma
+import pandas as pd
 import pytest
 import conftest
 
@@ -402,3 +403,47 @@ def test_regression_sc10919_sc10933(qdbd_connection, table_name, start_date, row
     # accidentally insert all null values.
     q = 'SELECT open FROM "{}"'.format(table_name)
     (idx, (res)) = qdbnp.query(qdbd_connection, q)
+
+
+
+def test_regression_sc11333(qdbd_connection, table_name, start_date, row_count):
+    """
+    Ensures that we can provide data as numpy arrays as well as regular lists.
+    """
+    t = qdbd_connection.table(table_name)
+
+    # Specific regresion test used in Python user guide / API documentation
+    cols = [quasardb.ColumnInfo(quasardb.ColumnType.Double, "open"),
+            quasardb.ColumnInfo(quasardb.ColumnType.Double, "close"),
+            quasardb.ColumnInfo(quasardb.ColumnType.Int64, "volume")]
+    t.create(cols)
+
+
+    idx = np.array([start_date + np.timedelta64(i, 's')
+                    for i in range(row_count)]).astype('datetime64[ns]')
+
+    # Note, partially sparse data just to increase some test surface
+    data = {'open': np.random.uniform(100, 200, row_count),
+            'close': np.random.uniform(100, 200, row_count),
+            'volume': np.random.randint(10000, 20000, row_count)}
+
+    df = pd.DataFrame(data, index=idx)
+    data = df.to_numpy()
+
+    # Degenerate use case: by default, df.to_numpy() pivots the data incorrectly, in which case we
+    # expect an error to be raised.
+    assert len(data) == row_count
+    assert len(data[0]) == len(cols)
+
+    with pytest.raises(qdbnp.InvalidDataCardinalityError):
+        qdbnp.write_arrays(data, qdbd_connection, t, index=idx, infer_types=False)
+
+    data = data.transpose()
+    qdbnp.write_arrays(data, qdbd_connection, t, index=idx, infer_types=True)
+
+    cols = ['open', 'close', 'volume']
+    for i in range(len(cols)):
+        col = cols[i]
+
+        res = qdbnp.read_array(t, col)
+        _assert_arrays_equal((idx, data[i]), res)
