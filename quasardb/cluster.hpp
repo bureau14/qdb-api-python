@@ -46,7 +46,6 @@
 #include "table_reader.hpp"
 #include "tag.hpp"
 #include "utils.hpp"
-#include "version.hpp"
 #include <qdb/node.h>
 #include <qdb/prefix.h>
 #include <qdb/suffix.h>
@@ -66,17 +65,16 @@ public:
         const std::string & user_private_key   = {},
         const std::string & cluster_public_key = {},
         std::chrono::milliseconds timeout      = std::chrono::minutes{1},
-        bool do_version_check                  = true)
+        bool do_version_check                  = false)
         : _uri{uri}
         , _handle{make_handle_ptr()}
         , _json_loads{pybind11::module::import("json").attr("loads")}
         , _logger("quasardb.cluster")
     {
-        // Check that the C API version installed on the target system matches
-        // the one used during the build
-        if (do_version_check)
+        if (do_version_check == true)
         {
-            check_qdb_c_api_version(qdb_version());
+            _logger.warn("do_version_check parameter has been deprecated and will be removed from a "
+                         "future release");
         }
 
         options().apply_credentials(user_name, user_private_key, cluster_public_key);

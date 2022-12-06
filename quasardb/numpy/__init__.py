@@ -81,6 +81,19 @@ class IncompatibleDtypeErrors(TypeError):
     def msg(self):
         return "\n".join(x.msg() for x in self.xs)
 
+class InvalidDataCardinalityError(ValueError):
+    """
+    Raised when the provided data arrays doesn't match the table's columns.
+    """
+    def __init__(self, data, cinfos):
+        self.data = data
+        self.cinfos = cinfos
+        super().__init__(self.msg())
+
+    def msg(self):
+        return "Provided data array length '{}' exceeds amount of table columns '{}', unable to map data to columns".format(len(self.data), len(self.cinfos))
+
+
 # Based on QuasarDB column types, which dtype do we accept?
 # First entry will always be the 'preferred' dtype, other ones
 # those that we can natively convert in native code.
@@ -320,6 +333,13 @@ def _ensure_list(xs, cinfos):
     """
     if isinstance(xs, list):
         return xs
+
+    if isinstance(xs, np.ndarray):
+        ret = []
+        for x in xs:
+            ret.append(x)
+
+        return ret
 
     # As we only accept list-likes or dicts as input data, it *must* be a dict at this
     # point
@@ -612,6 +632,10 @@ def write_arrays(
         dtype = _add_desired_dtypes(dtype, cinfos)
 
     data = _ensure_list(data, cinfos)
+
+    if len(data) != len(cinfos):
+        raise InvalidDataCardinalityError(data, cinfos)
+
     data = ensure_ma(data, dtype=dtype)
     data = _coerce_data(data, dtype)
 
