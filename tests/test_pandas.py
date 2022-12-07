@@ -397,3 +397,19 @@ def test_regression_sc11084(qdbd_connection, table_name):
     df_ = qdbpd.query(qdbd_connection, "select $timestamp, val from \"{}\"".format(table_name), index='$timestamp')
 
     _assert_df_equal(df, df_)
+
+@pytest.mark.parametrize('sparsify', conftest.no_sparsify)
+def test_regression_sc11337(qdbpd_write_fn, df_with_table, qdbd_connection, column_name):
+    (ctype, dtype, df1, table) = df_with_table
+    assert column_name in df1.columns
+    assert len(df1.columns) == 1
+
+    df1 = df1.astype('object')
+
+    df1[column_name][4] = pd.NA
+
+    qdbpd_write_fn(df1, qdbd_connection, table.get_name(), fast=True, infer_types=True)
+
+    df2 = qdbpd.read_dataframe(table, columns=[column_name])
+
+    _assert_df_equal(df1, df2)
