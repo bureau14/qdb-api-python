@@ -272,6 +272,42 @@ def _coerce_deduplicate(deduplicate, deduplication_mode, columns):
 
     return deduplicate
 
+def _clean_nulls(xs, dtype):
+    """
+    Numpy's masked arrays have a downside that in case they're not able to convert a (masked!) value to
+    the desired dtype, they raise an error. So, for example, if I have a masked array of objects that
+    look like this
+
+    xs: [1.234 <pd.NA> 5.678]
+    mask: [1 0 1]
+
+    even though pd.NA is not "visible", because it cannot be converted to a float(), the operation will
+    fail!
+
+    This function fixes this by replacing the null values with an acceptable value that can always be
+    converted to the desired dtype.
+    """
+
+    assert ma.isMA(xs)
+
+    if xs.dtype is not np.dtype('object'):
+        return xs
+
+    fill_value = None
+    if dtype == np.float64 or dtype == np.float32 or dtype == np.float16:
+        fill_value = float('nan')
+    elif dtype == np.int64 or dtype == np.int32 or dtype == np.int16:
+        fill_value = -1
+    elif dtype == np.dtype('datetime64[ns]'):
+        fill_value = np.datetime64('nat')
+
+    mask = xs.mask
+    xs_ = xs.filled(fill_value)
+
+    return ma.array(xs_, mask=mask)
+
+
+
 def _coerce_data(data, dtype):
     """
     Coerces each numpy array of `data` to the dtype present in `dtype`.
@@ -284,25 +320,34 @@ def _coerce_data(data, dtype):
         data_ = data[i]
 
         if dtype_ is not None and dtypes_equal(data_.dtype, dtype_) == False:
+            data_ = _clean_nulls(data_, dtype_)
+
+            assert ma.isMA(data_)
+
             logger.debug("data for column with offset %d was provided in dtype '%s', but need '%s': converting data...", i, data_.dtype, dtype_)
 
-            logger.debug("type of data[%d] after: %s", i, type(data[i]))
-            logger.debug("size of data[%d] after: %s", i, ma.size(data[i]))
-            logger.debug("data of data[%d] after: %s", i, data[i])
+            logger.debug("dtype of data[%d] before: %s", i, data_.dtype)
+            logger.debug("type of data[%d] after: %s", i, type(data_))
+            logger.debug("size of data[%d] after: %s", i, ma.size(data_))
+            logger.debug("data of data[%d] after: %s", i, data_)
 
             try:
                 data[i] = data_.astype(dtype_)
             except TypeError as err:
                 # One 'bug' is that, if everything is masked, the underlying data type can be
                 # pretty much anything.
-                if not _is_all_masked(data_):
+                if _is_all_masked(data_):
+                    logger.debug("array completely empty, re-initializing to empty array of '%s'", dtype_)
+                    data[i] = ma.masked_all(ma.size(data_),
+                                            dtype=dtype_)
+
+                # Another 'bug' is that when the input data is objects, we may have null-like values (like pd.NA)
+                # that cannot easily be converted to, say, float.
+                else:
                     logger.error("An error occured while coercing input data type from dtype '%s' to dtype '%s': ", data_.dtype, dtype_)
                     logger.exception(err)
                     raise err
 
-                logger.debug("array completely empty, re-initializing to empty array of '%s'", dtype_)
-                data[i] = ma.masked_all(ma.size(data_),
-                                        dtype=dtype_)
             assert data[i].dtype.kind == dtype_.kind
 
             logger.debug("type of data[%d] after: %s", i, type(data[i]))
