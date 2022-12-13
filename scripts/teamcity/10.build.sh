@@ -32,6 +32,7 @@ fi
 ${PYTHON} -m pip install --user -r dev-requirements.txt
 
 export DISTUTILS_DEBUG=1
+export QDB_TESTS_ENABLED=OFF
 
 ${PYTHON} setup.py sdist -v -d ${DIST_DIR}/
 ${PYTHON} setup.py bdist_egg -v -d ${DIST_DIR}/ ${PLATFORM}

@@ -42,18 +42,18 @@
 namespace qdb
 {
 
-bool ends_with(std::string const & value, std::string const & ending)
+inline bool ends_with(std::string const & value, std::string const & ending)
 {
     if (ending.size() > value.size()) return false;
     return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
 }
 
-bool is_delta_op(std::string const & op)
+inline bool is_delta_op(std::string const & op)
 {
     return ends_with(op, "_starts") || ends_with(op, "_ends");
 }
 
-bool is_start_op(std::string const & op)
+inline bool is_start_op(std::string const & op)
 {
     assert(is_delta_op(op) == true);
     if (ends_with(op, "_starts"))
@@ -69,7 +69,7 @@ bool is_start_op(std::string const & op)
     throw std::runtime_error{"Not a start/stop op"};
 }
 
-std::pair<bool, std::string> parse_op(std::string const & op)
+inline std::pair<bool, std::string> parse_op(std::string const & op)
 {
     assert(is_delta_op(op) == true);
     bool is_start = is_start_op(op);
@@ -84,7 +84,7 @@ std::pair<bool, std::string> parse_op(std::string const & op)
     return {is_start, op.substr(0, op.size() - 5)};
 }
 
-std::string perf_label_name(qdb_perf_label_t label)
+inline std::string perf_label_name(qdb_perf_label_t label)
 {
     switch (label)
     {

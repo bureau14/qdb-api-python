@@ -73,6 +73,9 @@ class CMakeBuild(build_ext):
         return out.decode().strip()
 
     def build_extension(self, ext):
+        self.do_build_extension(ext)
+
+    def do_build_extension(self, ext):
         extdir = os.path.join(
             os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name))), 'quasardb')
 
@@ -82,7 +85,7 @@ class CMakeBuild(build_ext):
         cmake_args = [
             '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
             '-DPYTHON_EXECUTABLE=' + sys.executable,
-            '-DQDB_PY_VERSION=' + qdb_version,
+            '-DQDB_PY_VERSION=' + qdb_version
         ]
 
         if platform.system() == "Darwin":
@@ -95,12 +98,14 @@ class CMakeBuild(build_ext):
                             'CMAKE_C_COMPILER': ['-D', 'CMAKE_C_COMPILER={}'],
                             'CMAKE_CXX_COMPILER': ['-D', 'CMAKE_CXX_COMPILER={}'],
                             'QDB_LINKER': ['-D', 'QDB_LINKER={}'],
+                            'QDB_TESTS_ENABLED': ['-D', 'QDB_TESTS_ENABLED={}'],
                             'CMAKE_BUILD_TYPE': ['-D', 'CMAKE_BUILD_TYPE={}'],
                             'CMAKE_OSX_DEPLOYMENT_TARGET': ['-D', 'CMAKE_OSX_DEPLOYMENT_TARGET={}'],
                             'CMAKE_OSX_SYSROOT': ['-D', 'CMAKE_OSX_SYSROOT={}'],
                             'CMAKE_VERBOSE_MAKEFILE': ['-D', 'CMAKE_VERBOSE_MAKEFILE={}'],
                             }
-        default_proxy_vals = {'CMAKE_BUILD_TYPE': 'Release'}
+        default_proxy_vals = {'CMAKE_BUILD_TYPE': 'Release',
+                              'QDB_TESTS_ENABLED': 'OFF'}
 
         for (env_var, cmake_args_) in proxied_env_vars.items():
             default_ = default_proxy_vals.get(env_var, 0)
