@@ -1,18 +1,20 @@
-import quasardb
-
 from quasardb import test_convert as m
 
-def test_unicode_u32_decode_traits_test():
-    m.unicode_u32_decode_traits_test()
+# Re-export all `test_convert` functions for pytest
 
-def test_unicode_u8_encode_traits_test():
-    m.unicode_u8_encode_traits_test()
+for x in dir(m):
+    if not x.endswith('_test'):
+        continue
 
-def test_unicode_u8_decode_traits_test():
-    m.unicode_u8_decode_traits_test()
+    # A bit of a hack, but qpparently Python doesn't recognize our function to be an actual
+    # function, because it is a class member function and/or a native function.
+    #
+    # pytest uses inspect.isfunction() to collect tests, so we'll just wrap it into a lambda
+    # function to satisfy that requirement
+    #
+    # see also: https://github.com/pybind/pybind11/issues/2262#issuecomment-655208202
 
-def test_unicode_u8_recode_test():
-    m.unicode_u8_recode_test()
+    fn = getattr(m, x)
+    fn_ = lambda: fn()
 
-def test_unicode_decode_algo_test():
-    m.unicode_decode_algo_test()
+    globals()['test_{}'.format(x)] = lambda: fn()
