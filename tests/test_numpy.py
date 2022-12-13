@@ -101,11 +101,7 @@ def test_array_read_write_native_dtypes(array_with_index_and_table):
 
     res = qdbnp.read_array(table, col)
 
-    if ctype == quasardb.ColumnType.String:
-        print("SKIP -- PROBLEM IN UNICODE STRING COMPARISONS")
-        print("See also: sc-11283/unicode-string-comparison-issue-with-masked-arrays-in-python-test-cases")
-    else:
-        _assert_arrays_equal((index, data), res)
+    _assert_arrays_equal((index, data), res)
 
 
 @conftest.override_cdtypes('inferrable')
@@ -138,11 +134,7 @@ def test_arrays_read_write_native_dtypes(array_with_index_and_table, qdbd_connec
 
     res = qdbnp.read_array(table, col)
 
-    if ctype == quasardb.ColumnType.String:
-        print("SKIP -- PROBLEM IN UNICODE STRING COMPARISONS")
-        print("See also: sc-11283/unicode-string-comparison-issue-with-masked-arrays-in-python-test-cases")
-    else:
-        _assert_arrays_equal((index, data), res)
+    _assert_arrays_equal((index, data), res)
 
 
 @conftest.override_cdtypes('inferrable')
@@ -175,11 +167,7 @@ def test_arrays_read_write_data_as_dict(array_with_index_and_table, qdbd_connect
 
     res = qdbnp.read_array(table, col)
 
-    if ctype == quasardb.ColumnType.String:
-        print("SKIP -- PROBLEM IN UNICODE STRING COMPARISONS")
-        print("See also: sc-11283/unicode-string-comparison-issue-with-masked-arrays-in-python-test-cases")
-    else:
-        _assert_arrays_equal((index, data), res)
+    _assert_arrays_equal((index, data), res)
 
 
 ######

@@ -40,6 +40,7 @@
 #include <date/date.h> // We cannot use <chrono> until we upgrade to at least GCC11 (ARM).
 #include <pybind11/pybind11.h>
 #include <range/v3/algorithm/copy.hpp>
+#include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/range/concepts.hpp>
 #include <range/v3/view/counted.hpp>
 #include <chrono>
@@ -66,8 +67,7 @@ template <typename From, typename To>
 struct value_converter;
 
 template <typename From, typename To>
-    requires(std::is_same_v<From, To>)
-struct value_converter<From, To>
+requires(std::is_same_v<From, To>) struct value_converter<From, To>
 {
     inline To operator()(From const & x) const
     {
@@ -366,8 +366,8 @@ struct value_converter<traits::bytestring_dtype, qdb_string_t>
     using char_t = std::string::value_type;
 
     template <concepts::input_range_t<char_t> R>
-        requires(ranges::sized_range<R> && ranges::contiguous_range<R>)
-    inline qdb_string_t operator()(R && x) const
+    requires(ranges::sized_range<R> && ranges::contiguous_range<R>) inline qdb_string_t operator()(
+        R && x) const
     {
         std::size_t n     = (ranges::size(x) + 1) * sizeof(char_t);
         char_t const * x_ = ranges::data(x);
@@ -385,9 +385,13 @@ struct value_converter<traits::unicode_dtype, qdb_string_t>
     typedef qdb_char_type out_char_type;
 
     template <concepts::input_range_t<in_char_type> R>
-        requires(ranges::sized_range<R> && ranges::contiguous_range<R>)
-    inline qdb_string_t operator()(R && x) const
+    requires(ranges::sized_range<R> && ranges::contiguous_range<R>) inline qdb_string_t operator()(
+        R && x) const
     {
+        // std::cout << "+  input" << std::endl;
+        // ranges::for_each(x, [](auto && x) { printf("%08X\n", x); });
+        // std::cout << "- /input" << std::endl;
+
         // Calculate total size of output buffer; we *could* do it more
         // accurately by first scanning everything and then filling it,
         // but trades memory efficiency for performance.
@@ -395,6 +399,9 @@ struct value_converter<traits::unicode_dtype, qdb_string_t>
         // As such, we just allocate the maximum amount of theoretical bytes.
         std::size_t n_codepoints  = ranges::size(x);
         std::size_t max_bytes_out = n_codepoints * sizeof(in_char_type);
+
+        // std::cout << "input size, n_codepoints  = " << n_codepoints << std::endl;
+        // std::cout << "input size, max_bytes_out = " << max_bytes_out << std::endl;
 
         // Note: we allocate the buffer on our object_tracker heap!
         out_char_type * out = qdb::object_tracker::alloc<out_char_type>(max_bytes_out);
@@ -404,7 +411,10 @@ struct value_converter<traits::unicode_dtype, qdb_string_t>
         auto out_begin = ranges::begin(out_);
 
         // Project our input data (in UTF32 / code points) to UTF8
-        auto encoded = unicode::encode::utf8_view(std::move(x));
+        auto codepoints = unicode::utf32::decode_view(std::move(x));
+        auto encoded    = unicode::utf8::encode_view(std::move(codepoints));
+
+        // std::cout << "encoded size = " << ranges::size(encoded) << std::endl;
 
         // Copy everything and keep track of the end
         auto [in_end, out_end] = ranges::copy(encoded, out_begin);
@@ -412,9 +422,18 @@ struct value_converter<traits::unicode_dtype, qdb_string_t>
         // We can use the position of the output iterator to calculate
         // the length of the generated string.
         qdb_size_t n = static_cast<qdb_size_t>(std::distance(out_begin, out_end));
+        // std::cout << "n = " << n << std::endl;
+        // std::cout << "ranges::size(encoded) = " << ranges::size(encoded) << std::endl;
+
+        // std::cout << "+  output: " << std::endl;
+        // ranges::for_each(encoded, [](auto && x) { printf("%02X\n", x); });
+        // std::cout << "- /output " << std::endl;
+
+        // Sanity check: we expect to have written exactly as many bytes as our range claims it is
+        assert(n == ranges::size(encoded));
 
         // UTF32->UTF8 we always expect at least as many items
-        assert(n >= ranges::size(x));
+        // assert(n >= n_codepoints);
 
         return qdb_string_t{out, n};
     }
@@ -527,7 +546,7 @@ struct value_converter<qdb_string_t, traits::unicode_dtype>
 
     inline auto operator()(qdb_string_t const & x) const
     {
-        return unicode::decode::utf8_view(delegate_(x));
+        return unicode::utf32::encode_view(unicode::utf8::decode_view(delegate_(x)));
     }
 };
 

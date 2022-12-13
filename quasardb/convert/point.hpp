@@ -58,12 +58,10 @@ namespace py = pybind11;
 ////////////////////////////////////////////////////////////////////////////////
 
 template <typename T>
-    requires(concepts::qdb_primitive<T>)
-using point_type = typename traits::qdb_value<T>::point_type;
+requires(concepts::qdb_primitive<T>) using point_type = typename traits::qdb_value<T>::point_type;
 
 template <typename T>
-    requires(concepts::qdb_point<T>)
-using primitive_type = typename traits::qdb_value<T>::primitive_type;
+requires(concepts::qdb_point<T>) using primitive_type = typename traits::qdb_value<T>::primitive_type;
 
 // Base declaration of pair-to-point function
 template <concepts::qdb_primitive T>
@@ -136,8 +134,7 @@ struct convert_point_array;
 //
 /////
 template <typename From, typename To>
-    requires(concepts::dtype<From> && concepts::qdb_primitive<To>)
-struct convert_point_array<From, To>
+requires(concepts::dtype<From> && concepts::qdb_primitive<To>) struct convert_point_array<From, To>
 {
     static constexpr convert_array<From, To> const value_delegate_{};
     static constexpr convert_array<traits::datetime64_ns_dtype, qdb_timespec_t> const ts_delegate_{};
@@ -176,8 +173,7 @@ struct convert_point_array<From, To>
 //
 /////
 template <typename From, typename To>
-    requires(concepts::qdb_primitive<From> && concepts::dtype<To>)
-struct convert_point_array<From, To>
+requires(concepts::qdb_primitive<From> && concepts::dtype<To>) struct convert_point_array<From, To>
 {
     static constexpr convert_array<From, To> const value_delegate_{};
     static constexpr convert_array<qdb_timespec_t, traits::datetime64_ns_dtype> const ts_delegate_{};
@@ -192,6 +188,7 @@ struct convert_point_array<From, To>
 
         auto timestamps_ = timestamps | ts_delegate_();
         auto values_     = values | value_delegate_();
+
         return std::make_pair(timestamps_, values_);
     }
 };
@@ -293,8 +290,8 @@ static inline std::vector<point_type<To>> point_array(
 // Takes a range of qdb point structs (eg qdb_ts_double_point) and returns a pair of two
 // numpy ndarrays, one for timestamps and another for the values.
 template <concepts::qdb_primitive From, concepts::dtype To, ranges::input_range R>
-    requires(concepts::input_range_t<R, point_type<From>>)
-static inline std::pair<py::array, qdb::masked_array> point_array(R && xs)
+requires(concepts::input_range_t<R, point_type<From>>) static inline std::pair<py::array,
+    qdb::masked_array> point_array(R && xs)
 {
     if (ranges::empty(xs)) [[unlikely]]
     {

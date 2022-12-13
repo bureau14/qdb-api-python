@@ -46,5 +46,7 @@ then
     TEST_OPTS+=" --junitxml=${JUNIT_XML_FILE}"
 fi
 
+export QDB_TESTS_ENABLED=ON
+
 echo "Invoking pytest with --addopts '${TEST_OPTS}'"
 ${PYTHON} setup.py test  --addopts "${TEST_OPTS}"

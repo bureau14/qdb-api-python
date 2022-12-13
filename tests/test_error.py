@@ -16,7 +16,10 @@ def test_base_is_runtime_error():
 
     # The dept should be 4; this test may fail if we increase the nesting
     # level, but I don't anticipate that happening any time soon.
-    assert len(exception_tree) == 4
+    #
+    # 2022-12-12 -- XXX(leon) -- increasing this to 6, because we added an additional
+    #            nesting level for assertion errors.
+    assert len(exception_tree) == 6
 
     # Define what we expect the hierarchy to look like
     hierarchy = [Exception, RuntimeError, quasardb.Error]
@@ -38,6 +41,11 @@ def test_base_is_runtime_error():
         elif isinstance(xs, list):
             if depth == len(hierarchy) - 1:
                 return [walk_and_check(x, depth + 1) for x in xs]
+
+            elif isinstance(xs[0], tuple) and isinstance(xs[0][0], type) and str(xs[0][0]) == "<class 'AssertionError'>":
+                ## HAXXX -- skip the tree of assertion exceptions, because we don't care about this
+                pass
+
             else:
                 walk_and_check(xs[0], depth + 1)
                 walk_and_check(xs[1], depth + 1)

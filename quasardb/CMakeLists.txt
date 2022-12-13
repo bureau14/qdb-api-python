@@ -3,11 +3,12 @@ project(quasardb)
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14")
-set(CMAKE_VERBOSE_MAKEFILE TRUE)
+set(CMAKE_VERBOSE_MAKEFILE FALSE)
 
 include(CheckIPOSupported)
 
 option(QDB_LINK_STATIC_LIB "Link qdb_api_static instead of dynamic qdb_api." OFF)
+option(QDB_TESTS_ENABLED "Build quasardb test suite?" OFF)
 
 set(PACKAGE_NAME quasardb)
 
@@ -33,11 +34,7 @@ endif()
 #
 ###
 
-
 set(QDB_API_NAME qdb_api)
-if (CMAKE_BUILD_TYPE STREQUAL Debug)
-  set(QDB_API_NAME qdb_apid)
-endif()
 
 message(STATUS "[qdb-api-python] Using qdb api name ${QDB_API_NAME}")
 
@@ -151,6 +148,7 @@ if(CLANG OR GNU)
     add_compile_options(
       -Wno-register
       -Wall
+      -fconcepts-diagnostics-depth=3
 
       $<$<CONFIG:Debug>:-Og>
       $<$<CONFIG:Release>:-O3>
@@ -265,13 +263,15 @@ endif()
 ###
 
 message(STATUS "[qdb-api-python] Including thirdparty libraries with binary directory ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-add_subdirectory(../thirdparty/ ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
-
 include_directories(SYSTEM ../thirdparty/date/include)
 include_directories(SYSTEM ../thirdparty/range-v3/include)
 
+add_subdirectory(../thirdparty/ ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+
 include_directories(SYSTEM qdb/include)
 include_directories(${CMAKE_SOURCE_DIR})
+include_directories(../quasardb/)
+
 
 #
 # step 2: copy the libraries
@@ -321,10 +321,7 @@ if(NOT QDB_LINK_STATIC_LIB)
   endif()
 endif()
 
-# step 3: build
-pybind11_add_module(
-  quasardb
-
+set(QDB_FILES
   cluster.hpp
   continuous.cpp
   continuous.hpp
@@ -333,13 +330,14 @@ pybind11_add_module(
   blob.hpp
   handle.hpp
   masked_array.hpp
+  module.hpp
+  module.cpp
   numpy.hpp
   numpy.cpp
   object_tracker.hpp
   options.hpp
   pinned_writer.cpp
   pinned_writer.hpp
-  qdb_client.cpp
   query.hpp
   query.cpp
   table.cpp
@@ -363,6 +361,27 @@ pybind11_add_module(
   utils/permutation.hpp
   utils/stable_sort.hpp
 )
+
+set(QDB_TEST_FILES "")
+
+if(QDB_TESTS_ENABLED)
+  message(WARNING "\
+------------------------------------------------------------------ \
+[qdb-api-python] Tests enabled -- do not enable for release builds \
+------------------------------------------------------------------ \ ")
+  set(QDB_TEST_FILES
+
+    ../tests/conftest.cpp
+    ../tests/conftest.hpp
+    ../tests/test_convert.cpp)
+endif()
+
+# step 3: build
+pybind11_add_module(
+  quasardb
+
+  ${QDB_FILES}
+  ${QDB_TEST_FILES})
 
 target_compile_definitions(quasardb PUBLIC QDB_PY_VERSION="${QDB_PY_VERSION}")
 if(QDB_LINK_STATIC_LIB)
