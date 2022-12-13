@@ -20,17 +20,15 @@ typedef qdb::convert::unicode::u32_type u32_type;
 typedef qdb::convert::unicode::u8_type u8_type;
 
 template <typename T>
-T gen_char();
-
-template <>
-u32_type gen_char<u32_type>()
+T gen_char()
 {
-    std::array<std::pair<u32_type, u32_type>, 13> valid_ranges = {std::make_pair(0x0021, 0x0021),
+    std::array<std::pair<T, T>, 13> valid_ranges = {std::make_pair(0x0021, 0x0021),
         std::make_pair(0x0023, 0x0026), std::make_pair(0x0028, 0x007E), std::make_pair(0x00A1, 0x00AC),
         std::make_pair(0x00AE, 0x00FF), std::make_pair(0x0100, 0x017F), std::make_pair(0x0180, 0x024F),
         std::make_pair(0x2C60, 0x2C7F), std::make_pair(0x16A0, 0x16F0), std::make_pair(0x0370, 0x0377),
         std::make_pair(0x037A, 0x037E), std::make_pair(0x0384, 0x038A), std::make_pair(0x038C, 0x038C)};
-    auto n                                                     = valid_ranges.size();
+
+    auto n = valid_ranges.size();
 
     std::random_device rd;
     std::mt19937 gen(rd());
