@@ -10,29 +10,9 @@ import conftest
 
 import quasardb
 import quasardb.numpy as qdbnp
+from utils import assert_arrays_equal, assert_ma_equal
 
 logger = logging.getLogger("test-numpy")
-
-def _assert_ma_equal(lhs, rhs):
-    """
-    A bit hacky way to compare two masked arrays for equality, as the default
-    numpy way of doing so is a bit meh (first converts to np.array, and *then*
-    compares, which defeats the point of using ma -> ergo meh est).
-    """
-    assert ma.isMA(lhs)
-    assert ma.isMA(rhs)
-
-    assert ma.count_masked(lhs) == ma.count_masked(rhs)
-
-    lhs_ = lhs.torecords()
-    rhs_ = rhs.torecords()
-
-    for ((lval, lmask), (rval, rmask)) in zip(lhs_, rhs_):
-        assert lmask == rmask
-
-        if not lmask:
-            assert lval == rval
-
 
 def _unicode_to_object_array(xs):
     assert ma.isMA(xs)
@@ -45,36 +25,6 @@ def _unicode_to_object_array(xs):
                     dtype=np.dtype('O'))
 
     return ma.masked_array(data=data, mask=mask)
-
-
-def _assert_arrays_equal(lhs, rhs):
-    """
-    Accepts two "array results", which is two tuples of a timestamp and a
-    data array.
-
-    lhs is typically the "generated" / "input" data, rhs is typically the data
-    returned by qdb.
-    """
-    (lhs_idx, lhs_data) = lhs
-    (rhs_idx, rhs_data) = rhs
-
-    # The index (timestamps) is not allowed to be null, so should never be
-    # a masked array anyway.
-    assert not ma.isMA(lhs_idx)
-    assert not ma.isMA(rhs_idx)
-    np.testing.assert_array_equal(lhs_idx, rhs_idx)
-
-    # If any of these is not a masked array, let's coerce it.
-    # We do an extra check of 'isMA' because that protects somewhat against
-    # silly bugs like ensure_ma always returning an empty list.
-    if not ma.isMA(lhs_data):
-        lhs_data = qdbnp.ensure_ma(lhs_data)
-
-    if not ma.isMA(rhs_data):
-        rhs_data = qdbnp.ensure_ma(rhs_data)
-
-    _assert_ma_equal(lhs_data, rhs_data)
-
 
 ######
 #
@@ -101,7 +51,7 @@ def test_array_read_write_native_dtypes(array_with_index_and_table):
 
     res = qdbnp.read_array(table, col)
 
-    _assert_arrays_equal((index, data), res)
+    assert_arrays_equal((index, data), res)
 
 
 @conftest.override_cdtypes('inferrable')
@@ -117,7 +67,7 @@ def test_array_read_write_inferrable_dtypes(array_with_index_and_table):
     qdbnp.write_array(data, index, table, column=col, infer_types=True)
 
     res = qdbnp.read_array(table, col)
-    _assert_arrays_equal((index, data), res)
+    assert_arrays_equal((index, data), res)
 
 
 @conftest.override_cdtypes('native')
@@ -134,7 +84,7 @@ def test_arrays_read_write_native_dtypes(array_with_index_and_table, qdbd_connec
 
     res = qdbnp.read_array(table, col)
 
-    _assert_arrays_equal((index, data), res)
+    assert_arrays_equal((index, data), res)
 
 
 @conftest.override_cdtypes('inferrable')
@@ -151,7 +101,7 @@ def test_arrays_read_write_inferrable_dtypes(array_with_index_and_table, qdbd_co
     qdbnp.write_arrays([data], qdbd_connection, table, index=index, infer_types=True)
 
     res = qdbnp.read_array(table, col)
-    _assert_arrays_equal((index, data), res)
+    assert_arrays_equal((index, data), res)
 
 @conftest.override_cdtypes('native')
 def test_arrays_read_write_data_as_dict(array_with_index_and_table, qdbd_connection):
@@ -167,7 +117,7 @@ def test_arrays_read_write_data_as_dict(array_with_index_and_table, qdbd_connect
 
     res = qdbnp.read_array(table, col)
 
-    _assert_arrays_equal((index, data), res)
+    assert_arrays_equal((index, data), res)
 
 
 ######
@@ -230,13 +180,13 @@ def test_arrays_deduplicate(arrays_with_index_and_table, deduplication_mode, qdb
         return qdbnp.read_array(table, col)
 
     res1 = _do_write_read(data1)
-    _assert_arrays_equal((index, data1), res1)
+    assert_arrays_equal((index, data1), res1)
 
     # Regardless of deduplication_mode, since we're reinserting the same data, we always expect the results to be
     # identical.
 
     res2 = _do_write_read(data1)
-    _assert_arrays_equal((index, data1), res2)
+    assert_arrays_equal((index, data1), res2)
 
 
     # Now, we're going to be inserting *different* data. Depending on the deduplication mode, the results will differ.
@@ -245,13 +195,13 @@ def test_arrays_deduplicate(arrays_with_index_and_table, deduplication_mode, qdb
     if deduplication_mode == 'drop':
         # If we drop when deduplicating, and only deduplicate on $timestamp, then we expect
         # all new data to be dropped, because the entire index (i.e. all $timestamp) conflicts.
-        _assert_arrays_equal((index, data1), res3)
+        assert_arrays_equal((index, data1), res3)
 
     else:
         assert deduplication_mode == 'upsert'
         # In this case, we expect all existing data to be replaced with the new data
-        # _assert_arrays_equal(res3, (index, data2))
-        _assert_arrays_equal((index, data2), res3)
+        # assert_arrays_equal(res3, (index, data2))
+        assert_arrays_equal((index, data2), res3)
 
 
 
@@ -308,7 +258,7 @@ def test_query_valid_results(array_with_index_and_table, qdbd_connection):
     (data, index, col, q) = _prepare_query_test(array_with_index_and_table, qdbd_connection)
 
     (idx, res) = qdbnp.query(qdbd_connection, q, index='$timestamp')
-    _assert_arrays_equal((index, data), (idx, res[0]))
+    assert_arrays_equal((index, data), (idx, res[0]))
 
 
 def test_query_unknown_index(array_with_index_and_table, qdbd_connection):
@@ -434,4 +384,4 @@ def test_regression_sc11333(qdbd_connection, table_name, start_date, row_count):
         col = cols[i]
 
         res = qdbnp.read_array(t, col)
-        _assert_arrays_equal((idx, data[i]), res)
+        assert_arrays_equal((idx, data[i]), res)
