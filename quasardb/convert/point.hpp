@@ -285,6 +285,14 @@ static inline std::vector<point_type<To>> point_array(
     return point_array<From, To>(timestamps, values.filled<From>());
 };
 
+// numpy -> qdb
+template <concepts::dtype From, concepts::qdb_primitive To>
+static inline std::vector<point_type<To>> point_array(
+    std::pair<py::array, qdb::masked_array> const & xs)
+{
+    return point_array<From, To>(std::get<0>(xs), std::get<1>(xs));
+};
+
 // qdb -> numpy
 //
 // Takes a range of qdb point structs (eg qdb_ts_double_point) and returns a pair of two

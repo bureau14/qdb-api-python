@@ -260,6 +260,8 @@ def sparsify(request):
 
 
 # Makes it easier to "select" a sparsification mode.
+#
+# TODO(leon): accept array of sparsify types we accept, so that you can select e.g. ['partial', 'none']
 def override_sparsify(x):
     m = {'none': partial(_sparsify, 100),
          'partial': partial(_sparsify, 50),
@@ -267,6 +269,7 @@ def override_sparsify(x):
 
     xs = m[x]
     return pytest.mark.parametrize('sparsify', [xs], ids=[x])
+
 
 
 def _gen_floating(n, low=-100.0, high=100.0):

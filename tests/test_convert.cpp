@@ -1,10 +1,12 @@
 
 #include "conftest.hpp"
+#include <convert/point.hpp>
 #include <convert/unicode.hpp>
 #include <range/v3/all.hpp>
 #include <range/v3/range/concepts.hpp>
 #include <range/v3/range/traits.hpp>
 #include <array>
+#include <dispatch.hpp>
 #include <iostream>
 #include <iterator>
 #include <module.hpp>
@@ -64,17 +66,64 @@ inline std::string u8_input()
     return {"Ᵽ΅ģeȵƿĕĮ@n!"};
 }
 
+// Actual recoding test
+template <qdb_ts_column_type_t Ctype, concepts::dtype Dtype>
+struct array_recode_cdtype_dispatch;
+
+#define ARRAY_RECODE_CDTYPE_DECL(CTYPE, DTYPE, VALUE_TYPE)                       \
+    template <>                                                                  \
+    struct array_recode_cdtype_dispatch<CTYPE, DTYPE>                            \
+    {                                                                            \
+        inline void operator()(std::pair<py::array, qdb::masked_array> && input, \
+            std::pair<py::array, qdb::masked_array> & output)                    \
+        {                                                                        \
+            auto tmp  = convert::point_array<DTYPE, VALUE_TYPE>(input);          \
+            auto tmp2 = convert::point_array<VALUE_TYPE, DTYPE>(tmp);            \
+            output    = input;                                                   \
+        }                                                                        \
+    };
+
+ARRAY_RECODE_CDTYPE_DECL(qdb_ts_column_int64, traits::int64_dtype, qdb_int_t);
+ARRAY_RECODE_CDTYPE_DECL(qdb_ts_column_int64, traits::int32_dtype, qdb_int_t);
+ARRAY_RECODE_CDTYPE_DECL(qdb_ts_column_int64, traits::int16_dtype, qdb_int_t);
+
+ARRAY_RECODE_CDTYPE_DECL(qdb_ts_column_double, traits::float64_dtype, double);
+ARRAY_RECODE_CDTYPE_DECL(qdb_ts_column_double, traits::float32_dtype, double);
+
+ARRAY_RECODE_CDTYPE_DECL(qdb_ts_column_timestamp, traits::datetime64_ns_dtype, qdb_timespec_t);
+
+ARRAY_RECODE_CDTYPE_DECL(qdb_ts_column_string, traits::unicode_dtype, qdb_string_t);
+ARRAY_RECODE_CDTYPE_DECL(qdb_ts_column_blob, traits::pyobject_dtype, qdb_blob_t);
+
+// We don't (yet?) support qdb->numpy bytestring_dtype encodings, we only emit pyobject, and as such
+// can't support this case. ARRAY_RECODE_CDTYPE_DECL(qdb_ts_column_blob, traits::bytestring_dtype,
+// qdb_blob_t);
+
+// Functor necessary to dispatch based on dtype
+
+template <qdb_ts_column_type_t ColumnType>
+struct array_recode_column_dispatch
+{
+    inline std::pair<py::array, qdb::masked_array> operator()(
+        py::dtype dtype, std::pair<py::array, qdb::masked_array> && input)
+    {
+        std::pair<py::array, qdb::masked_array> ret;
+        dispatch::by_dtype<array_recode_cdtype_dispatch, ColumnType>(dtype, std::move(input), ret);
+        return ret;
+    }
+};
+
 QDB_REGISTER_MODULE(test_convert, m)
 {
     auto m_ = m.def_submodule("test_convert");
 
-    m_.def("unicode_u32_decode_traits_test", []() -> void {
+    m_.def("test_unicode_u32_decode_traits", []() -> void {
         auto utf32 = u32_input();
         auto xs    = utf32 | qdb::convert::unicode::utf32::decode_view();
         static_assert(std::is_same_v<ranges::range_value_t<decltype(xs)>, cp_type>);
     });
 
-    m_.def("unicode_u8_encode_traits_test", []() -> void {
+    m_.def("test_unicode_u8_encode_traits", []() -> void {
         auto input = u32_input();
         auto xs    = input | qdb::convert::unicode::utf32::decode_view()
                   | qdb::convert::unicode::utf8::encode_view();
@@ -86,7 +135,7 @@ QDB_REGISTER_MODULE(test_convert, m)
         static_assert(ranges::sized_range<decltype(xs)>);
     });
 
-    m_.def("unicode_u8_decode_traits_test", []() -> void {
+    m_.def("test_unicode_u8_decode_traits", []() -> void {
         auto input = u32_input();
         auto xs    = input | qdb::convert::unicode::utf32::decode_view()
                   | qdb::convert::unicode::utf8::encode_view()
@@ -100,7 +149,7 @@ QDB_REGISTER_MODULE(test_convert, m)
         static_assert(ranges::sized_range<decltype(xs)>);
     });
 
-    m_.def("unicode_u8_recode_test", []() -> void {
+    m_.def("test_unicode_u8_recode", []() -> void {
         auto utf8        = u8_input();
         auto codepoints  = utf8 | qdb::convert::unicode::utf8::decode_view();
         auto utf32       = codepoints | qdb::convert::unicode::utf32::encode_view();
@@ -113,7 +162,7 @@ QDB_REGISTER_MODULE(test_convert, m)
         TEST_CHECK(ranges::equal(codepoints, codepoints_));
     });
 
-    m_.def("unicode_decode_algo_test", []() -> void {
+    m_.def("test_unicode_decode_algo", []() -> void {
         // Validates some common range algorithms work as expected with u8 decoded ranges.
         // This mostly validates edge cases and increases the surface area of how we use
         // the range.
@@ -139,6 +188,13 @@ QDB_REGISTER_MODULE(test_convert, m)
         TEST_CHECK_EQUAL(ranges::size(codepoints), ranges::size(codepoints_));
         TEST_CHECK(ranges::equal(codepoints, codepoints_));
     });
-}
 
+    m_.def("test_array_recode",
+        [](qdb_ts_column_type_t ctype, py::dtype dtype,
+            std::pair<py::array, qdb::masked_array> && input)
+            -> std::pair<py::array, qdb::masked_array> {
+            return dispatch::by_column_type<array_recode_column_dispatch>(
+                ctype, dtype, std::move(input));
+        });
+}
 }; // namespace qdb

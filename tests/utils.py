@@ -25,6 +25,20 @@ def assert_ma_equal(lhs, rhs):
 
 def assert_arrays_equal(lhs, rhs):
     """
+    Accepts two arrays, potentially masked or not, and compares them.
+    """
+    if not ma.isMA(lhs):
+        lhs = qdbnp.ensure_ma(lhs)
+
+    if not ma.isMA(rhs):
+        rhs = qdbnp.ensure_ma(rhs)
+
+    assert_ma_equal(lhs, rhs)
+
+
+
+def assert_indexed_arrays_equal(lhs, rhs):
+    """
     Accepts two "array results", which is two tuples of a timestamp and a
     data array.
 
@@ -40,13 +54,4 @@ def assert_arrays_equal(lhs, rhs):
     assert not ma.isMA(rhs_idx)
     np.testing.assert_array_equal(lhs_idx, rhs_idx)
 
-    # If any of these is not a masked array, let's coerce it.
-    # We do an extra check of 'isMA' because that protects somewhat against
-    # silly bugs like ensure_ma always returning an empty list.
-    if not ma.isMA(lhs_data):
-        lhs_data = qdbnp.ensure_ma(lhs_data)
-
-    if not ma.isMA(rhs_data):
-        rhs_data = qdbnp.ensure_ma(rhs_data)
-
-    assert_ma_equal(lhs_data, rhs_data)
+    assert_arrays_equal(lhs_data, rhs_data)
