@@ -10,7 +10,7 @@ import conftest
 
 import quasardb
 import quasardb.numpy as qdbnp
-from utils import assert_arrays_equal, assert_ma_equal
+from utils import assert_indexed_arrays_equal, assert_ma_equal
 
 logger = logging.getLogger("test-numpy")
 
@@ -51,7 +51,7 @@ def test_array_read_write_native_dtypes(array_with_index_and_table):
 
     res = qdbnp.read_array(table, col)
 
-    assert_arrays_equal((index, data), res)
+    assert_indexed_arrays_equal((index, data), res)
 
 
 @conftest.override_cdtypes('inferrable')
@@ -67,7 +67,7 @@ def test_array_read_write_inferrable_dtypes(array_with_index_and_table):
     qdbnp.write_array(data, index, table, column=col, infer_types=True)
 
     res = qdbnp.read_array(table, col)
-    assert_arrays_equal((index, data), res)
+    assert_indexed_arrays_equal((index, data), res)
 
 
 @conftest.override_cdtypes('native')
@@ -84,7 +84,7 @@ def test_arrays_read_write_native_dtypes(array_with_index_and_table, qdbd_connec
 
     res = qdbnp.read_array(table, col)
 
-    assert_arrays_equal((index, data), res)
+    assert_indexed_arrays_equal((index, data), res)
 
 
 @conftest.override_cdtypes('inferrable')
@@ -101,7 +101,7 @@ def test_arrays_read_write_inferrable_dtypes(array_with_index_and_table, qdbd_co
     qdbnp.write_arrays([data], qdbd_connection, table, index=index, infer_types=True)
 
     res = qdbnp.read_array(table, col)
-    assert_arrays_equal((index, data), res)
+    assert_indexed_arrays_equal((index, data), res)
 
 @conftest.override_cdtypes('native')
 def test_arrays_read_write_data_as_dict(array_with_index_and_table, qdbd_connection):
@@ -117,7 +117,7 @@ def test_arrays_read_write_data_as_dict(array_with_index_and_table, qdbd_connect
 
     res = qdbnp.read_array(table, col)
 
-    assert_arrays_equal((index, data), res)
+    assert_indexed_arrays_equal((index, data), res)
 
 
 ######
@@ -180,13 +180,13 @@ def test_arrays_deduplicate(arrays_with_index_and_table, deduplication_mode, qdb
         return qdbnp.read_array(table, col)
 
     res1 = _do_write_read(data1)
-    assert_arrays_equal((index, data1), res1)
+    assert_indexed_arrays_equal((index, data1), res1)
 
     # Regardless of deduplication_mode, since we're reinserting the same data, we always expect the results to be
     # identical.
 
     res2 = _do_write_read(data1)
-    assert_arrays_equal((index, data1), res2)
+    assert_indexed_arrays_equal((index, data1), res2)
 
 
     # Now, we're going to be inserting *different* data. Depending on the deduplication mode, the results will differ.
@@ -195,13 +195,13 @@ def test_arrays_deduplicate(arrays_with_index_and_table, deduplication_mode, qdb
     if deduplication_mode == 'drop':
         # If we drop when deduplicating, and only deduplicate on $timestamp, then we expect
         # all new data to be dropped, because the entire index (i.e. all $timestamp) conflicts.
-        assert_arrays_equal((index, data1), res3)
+        assert_indexed_arrays_equal((index, data1), res3)
 
     else:
         assert deduplication_mode == 'upsert'
         # In this case, we expect all existing data to be replaced with the new data
-        # assert_arrays_equal(res3, (index, data2))
-        assert_arrays_equal((index, data2), res3)
+        # assert_indexed_arrays_equal(res3, (index, data2))
+        assert_indexed_arrays_equal((index, data2), res3)
 
 
 
@@ -258,7 +258,7 @@ def test_query_valid_results(array_with_index_and_table, qdbd_connection):
     (data, index, col, q) = _prepare_query_test(array_with_index_and_table, qdbd_connection)
 
     (idx, res) = qdbnp.query(qdbd_connection, q, index='$timestamp')
-    assert_arrays_equal((index, data), (idx, res[0]))
+    assert_indexed_arrays_equal((index, data), (idx, res[0]))
 
 
 def test_query_unknown_index(array_with_index_and_table, qdbd_connection):
@@ -384,4 +384,4 @@ def test_regression_sc11333(qdbd_connection, table_name, start_date, row_count):
         col = cols[i]
 
         res = qdbnp.read_array(t, col)
-        assert_arrays_equal((idx, data[i]), res)
+        assert_indexed_arrays_equal((idx, data[i]), res)

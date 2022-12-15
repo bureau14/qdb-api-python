@@ -1,20 +1,39 @@
 from quasardb import test_convert as m
+from utils import assert_indexed_arrays_equal
+import conftest
 
-# Re-export all `test_convert` functions for pytest
+def test_unicode_u32_decode_traits():
+    m.test_unicode_u32_decode_traits()
 
-for x in dir(m):
-    if not x.endswith('_test'):
-        continue
+def test_unicode_u8_encode_traits():
+    m.test_unicode_u8_encode_traits()
 
-    # A bit of a hack, but qpparently Python doesn't recognize our function to be an actual
-    # function, because it is a class member function and/or a native function.
-    #
-    # pytest uses inspect.isfunction() to collect tests, so we'll just wrap it into a lambda
-    # function to satisfy that requirement
-    #
-    # see also: https://github.com/pybind/pybind11/issues/2262#issuecomment-655208202
+def test_unicode_u8_decode_traits():
+    m.test_unicode_u8_decode_traits()
 
-    fn = getattr(m, x)
-    fn_ = lambda: fn()
+def test_unicode_u8_recode():
+    m.test_unicode_u8_recode()
 
-    globals()['test_{}'.format(x)] = lambda: fn()
+def test_unicode_decode_algo():
+    m.test_unicode_decode_algo()
+
+def _test_array_recode(array_with_index_and_table):
+    (ctype, dtype, xs1, idx1, table) = array_with_index_and_table
+
+    if dtype.char == 'S':
+        # XXX(leon): we don't yet support native qdb -> np.ndarray with dtype `null-terminated binary` (S). I don't think we
+        #            should ever do this, but we do need it for input. That's why we can't test this right now, because we
+        #            can't do it full circle.
+        return True
+
+    (idx2, xs2) = m.test_array_recode(ctype, dtype, (idx1, xs1))
+    assert_indexed_arrays_equal((idx1, xs1), (idx2, xs2))
+
+
+@conftest.override_sparsify('partial')
+def test_array_recode_sparsify_partial(array_with_index_and_table):
+    return _test_array_recode(array_with_index_and_table)
+
+@conftest.override_sparsify('none')
+def test_array_recode_sparsify_none(array_with_index_and_table):
+    return _test_array_recode(array_with_index_and_table)

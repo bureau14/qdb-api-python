@@ -154,6 +154,49 @@ requires(concepts::qdb_primitive<From> && !concepts::delegate_dtype<To>) struct 
     };
 };
 
+/////
+//
+// qdb->numpy
+// "Delegate" transforms
+//
+// In some cases numpy's representations are more rich than what Quasardb's primitives
+// support, e.g. int32. In this case, we first transform this to the "delegate type",
+// int64, which can then figure out the rest.
+//
+// Input:  range of length N, type: qdb_primitive
+// Output: range of length N, dtype: To
+//
+/////
+template <typename From, typename To>
+requires(concepts::qdb_primitive<From> && concepts::delegate_dtype<To>) struct convert_array<From, To>
+{
+    // Destination value_type, e.g. std::int32_t
+    using value_type = typename To::value_type;
+
+    // Delegate dtype, e.g. traits::int64_dtype
+    using Delegate = typename To::delegate_type;
+
+    // Delegate value_type, e.g. std::int64_t
+    using delegate_value_type = typename Delegate::value_type;
+
+    static constexpr convert_array<From, Delegate> const delegate{};
+
+    [[nodiscard]] constexpr inline auto operator()() const noexcept
+    {
+        auto xform = [](value_type const & x) -> delegate_value_type {
+            if (To::is_null(x))
+            {
+                return Delegate::null_value();
+            }
+            else
+            {
+                return static_cast<delegate_value_type>(x);
+            }
+        };
+        return ranges::views::transform(xform) | delegate();
+    };
+};
+
 }; // namespace qdb::convert::detail
 
 namespace qdb::convert
@@ -221,6 +264,19 @@ template <concepts::dtype From, concepts::qdb_primitive To>
 static inline constexpr std::vector<To> masked_array(qdb::masked_array const & xs)
 {
     return array<From, To>(xs.filled<From>());
+}
+
+// qdb -> numpy
+template <concepts::qdb_primitive From, concepts::dtype To, ranges::input_range R>
+requires(concepts::input_range_t<R, From>) static inline qdb::masked_array masked_array(R && xs)
+{
+    if (ranges::empty(xs)) [[unlikely]]
+    {
+        return {};
+    };
+
+    py::array xs_ = detail::to_array<To>(xs | detail::convert_array<From, To>{}());
+    return qdb::masked_array(xs_, qdb::masked_array::masked_null<To>(xs_));
 }
 
 }; // namespace qdb::convert
