@@ -73,8 +73,9 @@ public:
     {
         if (do_version_check == true)
         {
-            _logger.warn("do_version_check parameter has been deprecated and will be removed from a "
-                         "future release");
+            _logger.warn(
+                "do_version_check parameter has been deprecated and a no-op. It will be removed from a "
+                "future release");
         }
 
         options().apply_credentials(user_name, user_private_key, cluster_public_key);
