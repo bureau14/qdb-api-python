@@ -45,8 +45,11 @@ PYBIND11_MODULE(quasardb, m)
     qdb::register_options(m);
     qdb::register_perf(m);
     qdb::register_entry(m);
-    qdb::register_blob(m);
+    qdb::register_double(m);
     qdb::register_integer(m);
+    qdb::register_blob(m);
+    qdb::register_string(m);
+    qdb::register_timestamp(m);
     qdb::register_direct_blob(m);
     qdb::register_direct_integer(m);
     qdb::register_tag(m);

@@ -67,7 +67,8 @@ template <typename From, typename To>
 struct value_converter;
 
 template <typename From, typename To>
-requires(std::is_same_v<From, To>) struct value_converter<From, To>
+    requires(std::is_same_v<From, To>)
+struct value_converter<From, To>
 {
     inline To operator()(From const & x) const
     {
@@ -206,6 +207,42 @@ struct value_converter<qdb::pydatetime, clock_t::time_point>
     }
 };
 
+template <>
+struct value_converter<std::int64_t, qdb_timespec_t>
+{
+    inline constexpr qdb_timespec_t operator()(std::int64_t const & x) const
+    {
+        if (x < 0) [[unlikely]]
+        {
+            return qdb_timespec_t{qdb_min_time, qdb_min_time};
+        }
+
+        constexpr std::int64_t ns = 1'000'000'000ull;
+        std::int64_t tv_nsec      = x % ns;
+        std::int64_t tv_sec       = (x - tv_nsec) / ns;
+
+        return qdb_timespec_t{tv_sec, tv_nsec};
+    }
+};
+
+/**
+ * chrono time_point -> qdb_timespec_t
+ *
+ * First converts timepoint to nanos since epoch, then delegates to another converter.
+ */
+template <>
+struct value_converter<clock_t::time_point, qdb_timespec_t>
+{
+    value_converter<std::int64_t, qdb_timespec_t> delegate_{};
+
+    inline constexpr qdb_timespec_t operator()(clock_t::time_point const & x) const
+    {
+        auto nanos = std::chrono::duration_cast<nanoseconds_t>(x.time_since_epoch());
+
+        return delegate_(nanos.count());
+    }
+};
+
 /**
  * clock_t::time_point -> qdb_time_t
  *
@@ -283,9 +320,22 @@ struct value_converter<clock_t::time_point, qdb::pydatetime>
         date::year_month_day ymd{dp};
         date::hh_mm_ss hms{date::floor<seconds_t>(tp - dp)};
 
+        // We get the 'microseconds' part by simply calculating the total amount of seconds since
+        // epoch, and then substracting that from the time point; whatever is left, is guaranteed
+        // to be the fraction after the second.
+        //
+        // Similar appproach as here: https://stackoverflow.com/a/27137475
+
+        auto since_epoch = tp.time_since_epoch();
+        auto seconds     = std::chrono::duration_cast<seconds_t>(since_epoch);
+        since_epoch -= seconds;
+
+        // Round it to microseconds, because that's what pydatetime uses as max precision
+        auto micros = std::chrono::duration_cast<microseconds_t>(since_epoch);
+
         return qdb::pydatetime::from_date_and_time(static_cast<int>(ymd.year()),
             static_cast<unsigned>(ymd.month()), static_cast<unsigned>(ymd.day()), hms.hours().count(),
-            hms.minutes().count(), hms.seconds().count(), 0);
+            hms.minutes().count(), hms.seconds().count(), micros.count());
     }
 };
 
@@ -310,21 +360,21 @@ struct value_converter<qdb_timespec_t, qdb::pydatetime>
     }
 };
 
+/**
+ * datetime.datetime -> qdb_timespec_t
+ *
+ * composes two converters to convert a datetime.datetime into a timespec in one
+ * swoop.
+ */
 template <>
-struct value_converter<std::int64_t, qdb_timespec_t>
+struct value_converter<qdb::pydatetime, qdb_timespec_t>
 {
-    inline constexpr qdb_timespec_t operator()(std::int64_t const & x) const
+    value_converter<qdb::pydatetime, clock_t::time_point> dt_to_tp_{};
+    value_converter<clock_t::time_point, qdb_timespec_t> tp_to_ts_{};
+
+    inline qdb_timespec_t operator()(qdb::pydatetime const & x) const
     {
-        if (x < 0) [[unlikely]]
-        {
-            return qdb_timespec_t{qdb_min_time, qdb_min_time};
-        }
-
-        constexpr std::int64_t ns = 1'000'000'000ull;
-        std::int64_t tv_nsec      = x % ns;
-        std::int64_t tv_sec       = (x - tv_nsec) / ns;
-
-        return qdb_timespec_t{tv_sec, tv_nsec};
+        return tp_to_ts_(dt_to_tp_(x));
     }
 };
 
@@ -366,8 +416,8 @@ struct value_converter<traits::bytestring_dtype, qdb_string_t>
     using char_t = std::string::value_type;
 
     template <concepts::input_range_t<char_t> R>
-    requires(ranges::sized_range<R> && ranges::contiguous_range<R>) inline qdb_string_t operator()(
-        R && x) const
+        requires(ranges::sized_range<R> && ranges::contiguous_range<R>)
+    inline qdb_string_t operator()(R && x) const
     {
         std::size_t n     = (ranges::size(x) + 1) * sizeof(char_t);
         char_t const * x_ = ranges::data(x);
@@ -385,8 +435,8 @@ struct value_converter<traits::unicode_dtype, qdb_string_t>
     typedef qdb_char_type out_char_type;
 
     template <concepts::input_range_t<in_char_type> R>
-    requires(ranges::sized_range<R> && ranges::contiguous_range<R>) inline qdb_string_t operator()(
-        R && x) const
+        requires(ranges::sized_range<R> && ranges::contiguous_range<R>)
+    inline qdb_string_t operator()(R && x) const
     {
         // std::cout << "+  input" << std::endl;
         // ranges::for_each(x, [](auto && x) { printf("%08X\n", x); });
