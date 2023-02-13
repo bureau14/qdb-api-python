@@ -322,13 +322,19 @@ if(NOT QDB_LINK_STATIC_LIB)
 endif()
 
 set(QDB_FILES
+  batch_inserter.hpp
+  blob.hpp
   cluster.hpp
+  concepts.hpp
   continuous.cpp
   continuous.hpp
+  convert.hpp
+  double.hpp
   error.hpp
   entry.hpp
-  blob.hpp
   handle.hpp
+  logger.hpp
+  logger.cpp
   masked_array.hpp
   module.hpp
   module.cpp
@@ -340,20 +346,17 @@ set(QDB_FILES
   pinned_writer.hpp
   query.hpp
   query.cpp
+  string.hpp
   table.cpp
   table.hpp
   table_reader.hpp
-  batch_inserter.hpp
-  convert.hpp
-  traits.hpp
-  concepts.hpp
   tag.hpp
+  timestamp.hpp
+  traits.hpp
   utils.cpp
   utils.hpp
-  logger.hpp
-  logger.cpp
-  detail/ts_column.hpp
   detail/qdb_resource.hpp
+  detail/ts_column.hpp
   reader/ts_row.hpp
   reader/ts_value.hpp
   utils/blob_deque.hpp

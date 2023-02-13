@@ -148,13 +148,49 @@ def random_integer():
 
 
 @pytest.fixture
+def random_double():
+    return random.uniform(-1.0, 1.0)
+
+
+def _random_timestamp(base):
+    # XXX(leon): Round base to seconds, because we truncate things to milliseconds at some
+    #            point, due to lacking Python support at various places.
+    start = base.replace(microsecond=0)
+
+    # 10 years in milliseconds
+    max_offset = 315360000000
+
+    return start + datetime.timedelta(milliseconds=random.randrange(max_offset))
+
+
+@pytest.fixture
+def random_timestamp(datetime_now_tz):
+    return _random_timestamp(datetime_now_tz)
+
+@pytest.fixture
 def blob_entry(qdbd_connection, entry_name):
     return qdbd_connection.blob(entry_name)
 
 
 @pytest.fixture
+def string_entry(qdbd_connection, entry_name):
+    return qdbd_connection.string(entry_name)
+
+
+@pytest.fixture
 def integer_entry(qdbd_connection, entry_name):
     return qdbd_connection.integer(entry_name)
+
+
+@pytest.fixture
+def double_entry(qdbd_connection, entry_name):
+    return qdbd_connection.double(entry_name)
+
+
+@pytest.fixture
+def timestamp_entry(qdbd_connection, entry_name):
+    return qdbd_connection.timestamp(entry_name)
+
 
 
 @pytest.fixture

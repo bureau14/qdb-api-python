@@ -33,6 +33,7 @@
 #include "batch_inserter.hpp"
 #include "blob.hpp"
 #include "continuous.hpp"
+#include "double.hpp"
 #include "error.hpp"
 #include "handle.hpp"
 #include "integer.hpp"
@@ -42,9 +43,11 @@
 #include "perf.hpp"
 #include "pinned_writer.hpp"
 #include "query.hpp"
+#include "string.hpp"
 #include "table.hpp"
 #include "table_reader.hpp"
 #include "tag.hpp"
+#include "timestamp.hpp"
 #include "utils.hpp"
 #include <qdb/node.h>
 #include <qdb/prefix.h>
@@ -174,9 +177,24 @@ public:
         return qdb::blob_entry{_handle, alias};
     }
 
+    qdb::string_entry string(const std::string & alias)
+    {
+        return qdb::string_entry{_handle, alias};
+    }
+
     qdb::integer_entry integer(const std::string & alias)
     {
         return qdb::integer_entry{_handle, alias};
+    }
+
+    qdb::double_entry double_(const std::string & alias)
+    {
+        return qdb::double_entry{_handle, alias};
+    }
+
+    qdb::timestamp_entry timestamp(const std::string & alias)
+    {
+        return qdb::timestamp_entry{_handle, alias};
     }
 
     qdb::table table(const std::string & alias)
@@ -366,7 +384,7 @@ static inline void register_cluster(Module & m)
             py::arg("user_private_key")   = std::string{},                //
             py::arg("cluster_public_key") = std::string{},                //
             py::arg("timeout")            = std::chrono::minutes{1},      //
-            py::arg("do_version_check")   = true)                           //
+            py::arg("do_version_check")   = false)                          //
         .def("__enter__", &qdb::cluster::enter)                           //
         .def("__exit__",
             &qdb::cluster::exit) //                                                                   //
@@ -380,7 +398,10 @@ static inline void register_cluster(Module & m)
         .def("node_topology", &qdb::cluster::node_topology)                             //
         .def("tag", &qdb::cluster::tag)                                                 //
         .def("blob", &qdb::cluster::blob)                                               //
+        .def("string", &qdb::cluster::string)                                           //
         .def("integer", &qdb::cluster::integer)                                         //
+        .def("double", &qdb::cluster::double_)                                          //
+        .def("timestamp", &qdb::cluster::timestamp)                                     //
         .def("ts", &qdb::cluster::table)                                                //
         .def("table", &qdb::cluster::table)                                             //
         .def("ts_batch", &qdb::cluster::inserter)                                       //

@@ -1,4 +1,18 @@
+###
+#
+# XXX: If this import fails, ensure that you built the quasardb python API with
+#      export QDB_TESTS_ENABLED=ON. E.g.
+#
+#      ```
+#      export QDB_TESTS_ENABLED=ON
+#      python3 setup.py test --addopts "-s tests/test_convert.py"
+#      ```
+
 from quasardb import test_convert as m
+
+#
+###
+
 from utils import assert_indexed_arrays_equal
 import conftest
 
