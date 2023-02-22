@@ -285,16 +285,12 @@ public:
 
     detail::deduplicate_options _deduplicate_from_args(py::kwargs args)
     {
-        py::print("coercing deduplicate option from args = ", args);
-
         if (!args.contains("deduplicate") || !args.contains("deduplication_mode"))
         {
             return {};
         }
 
         std::string deduplication_mode = args["deduplication_mode"].cast<std::string>();
-
-        py::print("deduplication mode = {}", deduplication_mode);
 
         enum detail::deduplication_mode_t deduplication_mode_;
         if (deduplication_mode == "drop")
