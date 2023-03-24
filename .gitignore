@@ -134,6 +134,9 @@ celerybeat-schedule
 !.vscode/extensions.json
 *.code-workspace
 
+# PyCharm
+.idea
+
 # Test specific
 cluster_private.key
 cluster_public.key

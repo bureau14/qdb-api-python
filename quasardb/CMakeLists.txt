@@ -338,6 +338,7 @@ set(QDB_FILES
   masked_array.hpp
   module.hpp
   module.cpp
+  node.hpp
   numpy.hpp
   numpy.cpp
   object_tracker.hpp

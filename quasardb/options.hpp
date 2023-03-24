@@ -50,20 +50,34 @@ public:
      */
     void apply_credentials(const std::string & user_name,
         const std::string & user_private_key,
-        const std::string & cluster_public_key)
+        const std::string & cluster_public_key,
+        const std::string & user_security_file,
+        const std::string & cluster_public_key_file)
     {
-        // must specify everything or nothing
-        if (user_name.empty() != user_private_key.empty())
-            throw qdb::exception{qdb_e_invalid_argument,
-                "Either all security settings must be provided, or none at all"};
-        if (user_name.empty() != cluster_public_key.empty())
-            throw qdb::exception{qdb_e_invalid_argument,
-                "Either all security settings must be provided, or none at all"};
+        // must specify keys or files or nothing
+        auto empty_keys = user_name.empty() && user_private_key.empty() && cluster_public_key.empty();
+        auto empty_files = user_security_file.empty() && cluster_public_key_file.empty();
 
-        if (!user_name.empty())
+        if(!empty_keys && !empty_files)
+            throw qdb::exception{qdb_e_invalid_argument,
+                "Either key or file security settings must be provided, or none at all"};
+
+        if (!empty_keys)
         {
+            if (user_name.empty() || user_private_key.empty() || cluster_public_key.empty())
+                throw qdb::exception{qdb_e_invalid_argument,
+                    "Either all keys security settings must be provided, or none at all"};
+
             set_user_credentials(user_name, user_private_key);
             set_cluster_public_key(cluster_public_key);
+        }
+        else if (!empty_files)
+        {
+            if (user_security_file.empty() || cluster_public_key_file.empty())
+                throw qdb::exception{qdb_e_invalid_argument,
+                    "Either all files security settings must be provided, or none at all"};
+
+            set_file_credential(user_security_file, cluster_public_key_file);
         }
     };
 
@@ -121,6 +135,14 @@ public:
     {
         qdb::qdb_throw_if_error(
             *_handle, qdb_option_set_user_credentials(*_handle, user.c_str(), private_key.c_str()));
+    }
+
+    void set_file_credential(
+        const std::string & user_security_file, const std::string & cluster_public_key_file)
+    {
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_option_load_security_files(
+                          *_handle, cluster_public_key_file.c_str(), user_security_file.c_str()));
     }
 
     void set_client_max_in_buf_size(size_t max_size)

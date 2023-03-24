@@ -54,7 +54,7 @@ public:
         , _handle{make_handle_ptr()}
         , _direct_handle{make_direct_handle_ptr()}
     {
-        qdb::options{_handle}.apply_credentials(user_name, user_private_key, cluster_public_key);
+        qdb::options{_handle}.apply_credentials(user_name, user_private_key, cluster_public_key, "", "");
         _direct_handle->connect(_handle, node_uri);
     }
 
