@@ -334,8 +334,8 @@ struct value_converter<clock_t::time_point, qdb::pydatetime>
         auto micros = std::chrono::duration_cast<microseconds_t>(since_epoch);
 
         return qdb::pydatetime::from_date_and_time(static_cast<int>(ymd.year()),
-            static_cast<unsigned>(ymd.month()), static_cast<unsigned>(ymd.day()), hms.hours().count(),
-            hms.minutes().count(), hms.seconds().count(), micros.count());
+            static_cast<unsigned>(ymd.month()), static_cast<unsigned>(ymd.day()), static_cast<int>(hms.hours().count()),
+            static_cast<int>(hms.minutes().count()), static_cast<int>(hms.seconds().count()), static_cast<int>(micros.count()));
     }
 };
 

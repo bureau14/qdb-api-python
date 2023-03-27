@@ -45,7 +45,7 @@ public:
 
     static pytimedelta from_dsu(py::ssize_t days, py::ssize_t seconds, py::ssize_t usec)
     {
-        return py::reinterpret_steal<pytimedelta>(PyDelta_FromDSU(days, seconds, usec));
+        return py::reinterpret_steal<pytimedelta>(PyDelta_FromDSU(static_cast<int>(days), static_cast<int>(seconds), static_cast<int>(usec)));
     }
 
     inline int days() const noexcept

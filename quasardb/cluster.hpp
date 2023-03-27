@@ -64,11 +64,13 @@ class cluster
 {
 public:
     cluster(const std::string & uri,
-        const std::string & user_name          = {},
-        const std::string & user_private_key   = {},
-        const std::string & cluster_public_key = {},
-        std::chrono::milliseconds timeout      = std::chrono::minutes{1},
-        bool do_version_check                  = false)
+        const std::string & user_name               = {},
+        const std::string & user_private_key        = {},
+        const std::string & cluster_public_key      = {},
+        const std::string & user_security_file      = {},
+        const std::string & cluster_public_key_file = {},
+        std::chrono::milliseconds timeout           = std::chrono::minutes{1},
+        bool do_version_check                       = false)
         : _uri{uri}
         , _handle{make_handle_ptr()}
         , _json_loads{pybind11::module::import("json").attr("loads")}
@@ -81,7 +83,8 @@ public:
                 "future release");
         }
 
-        options().apply_credentials(user_name, user_private_key, cluster_public_key);
+        options().apply_credentials(user_name, user_private_key, cluster_public_key, //
+            user_security_file, cluster_public_key_file);
 
         options().set_timeout(timeout);
 
@@ -377,17 +380,19 @@ static inline void register_cluster(Module & m)
 
     py::class_<qdb::cluster>(m, "Cluster",
         "Represents a connection to the QuasarDB cluster. ") //
-        .def(py::init<const std::string &, const std::string &, const std::string &,
-                 const std::string &, std::chrono::milliseconds, bool>(), //
+        .def(
+            py::init<const std::string &, const std::string &, const std::string &, const std::string &,
+                const std::string &, const std::string &, std::chrono::milliseconds, bool>(), //
             py::arg("uri"),                                               //
             py::arg("user_name")          = std::string{},                //
             py::arg("user_private_key")   = std::string{},                //
             py::arg("cluster_public_key") = std::string{},                //
+            py::arg("user_security_file") = std::string{},                //
+            py::arg("cluster_public_key_file") = std::string{},           //
             py::arg("timeout")            = std::chrono::minutes{1},      //
-            py::arg("do_version_check")   = false)                          //
+            py::arg("do_version_check")   = false)                        //
         .def("__enter__", &qdb::cluster::enter)                           //
-        .def("__exit__",
-            &qdb::cluster::exit) //                                                                   //
+        .def("__exit__", &qdb::cluster::exit)                                           //
         .def("is_open", &qdb::cluster::is_open)                                         //
         .def("uri", &qdb::cluster::uri)                                                 //
         .def("node", &qdb::cluster::node)                                               //
