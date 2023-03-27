@@ -28,8 +28,7 @@ def test_connect_throws_connection_error_when_no_user_name(qdbd_settings):
     with pytest.raises(quasardb.Error):
         quasardb.Cluster(
             uri=qdbd_settings.get("uri").get("secure"),
-            user_private_key=qdbd_settings.get(
-                "security").get("user_private_key"),
+            user_private_key=qdbd_settings.get("security").get("user_private_key"),
             cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"))
 
 
@@ -48,6 +47,63 @@ def test_connect_ok_to_secure_cluster(qdbd_settings):
         user_name=qdbd_settings.get("security").get("user_name"),
         user_private_key=qdbd_settings.get("security").get("user_private_key"),
         cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"))
+
+
+def test_connect_throws_connection_error_when_no_cluster_public_key_file(
+        qdbd_settings):
+    with pytest.raises(quasardb.Error):
+        quasardb.Cluster(
+            uri=qdbd_settings.get("uri").get("secure"),
+            user_security_file=qdbd_settings.get("security").get("user_private_key_file"))
+
+
+def test_connect_throws_connection_error_when_no_user_security_file(
+        qdbd_settings):
+    with pytest.raises(quasardb.Error):
+        quasardb.Cluster(
+            uri=qdbd_settings.get("uri").get("secure"),
+            cluster_public_key_file=qdbd_settings.get("security").get("cluster_public_key_file"))
+
+
+def test_connect_throws_connection_error_when_mix_security_1(
+        qdbd_settings):
+    with pytest.raises(quasardb.Error):
+        quasardb.Cluster(
+            uri=qdbd_settings.get("uri").get("secure"),
+            user_name=qdbd_settings.get("security").get("user_name"),
+            user_private_key=qdbd_settings.get("security").get("user_private_key"),
+            cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"),
+            cluster_public_key_file=qdbd_settings.get("security").get("cluster_public_key_file"))
+
+
+def test_connect_throws_connection_error_when_mix_security_2(
+        qdbd_settings):
+    with pytest.raises(quasardb.Error):
+        quasardb.Cluster(
+            uri=qdbd_settings.get("uri").get("secure"),
+            user_name=qdbd_settings.get("security").get("user_name"),
+            user_private_key=qdbd_settings.get("security").get("user_private_key"),
+            user_security_file=qdbd_settings.get("security").get("user_private_key_file"),
+            cluster_public_key_file=qdbd_settings.get("security").get("cluster_public_key_file"))
+
+
+def test_connect_throws_connection_error_when_mix_security_full(
+        qdbd_settings):
+    with pytest.raises(quasardb.Error):
+        quasardb.Cluster(
+            uri=qdbd_settings.get("uri").get("secure"),
+            user_name=qdbd_settings.get("security").get("user_name"),
+            user_private_key=qdbd_settings.get("security").get("user_private_key"),
+            cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"),
+            user_security_file=qdbd_settings.get("security").get("user_private_key_file"),
+            cluster_public_key_file=qdbd_settings.get("security").get("cluster_public_key_file"))
+
+
+def test_connect_ok_to_secure_cluster_with_file(qdbd_settings):
+    quasardb.Cluster(
+        uri=qdbd_settings.get("uri").get("secure"),
+        user_security_file=qdbd_settings.get("security").get("user_private_key_file"),
+        cluster_public_key_file=qdbd_settings.get("security").get("cluster_public_key_file"))
 
 
 def test_connect_with_open_to_secure_cluster(qdbd_settings):
