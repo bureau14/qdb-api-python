@@ -30,7 +30,7 @@
  */
 #pragma once
 
-#include "../handle.hpp"
+#include <qdb/client.h> // for qdb_handle_t
 
 namespace qdb
 {
@@ -49,14 +49,14 @@ public:
     /**
      * Default constructor, initializes nullpointer.
      */
-    qdb_resource(qdb::handle_ptr h)
+    qdb_resource(qdb_handle_t h)
         : qdb_resource(h, nullptr)
     {}
 
     /**
      * Constructor and immediately initialize with pointer.
      */
-    qdb_resource(qdb::handle_ptr h, ValueType * p)
+    qdb_resource(qdb_handle_t h, ValueType * p)
         : h_(h)
         , p_(p)
     {}
@@ -68,7 +68,7 @@ public:
     {
         if (p_ != nullptr)
         {
-            qdb_release(*h_, p_);
+            qdb_release(h_, p_);
         }
 
         p_ = nullptr;
@@ -110,7 +110,7 @@ public:
     }
 
 private:
-    qdb::handle_ptr h_;
+    qdb_handle_t h_;
     ValueType * p_;
 };
 
