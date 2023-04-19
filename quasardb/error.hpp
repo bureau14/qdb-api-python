@@ -35,6 +35,7 @@
 #include <qdb/client.h>
 #include <qdb/error.h>
 #include <qdb/query.h>
+#include "detail/qdb_resource.hpp"
 #include <pybind11/pybind11.h>
 #include <iostream>
 #include <utility>
@@ -209,7 +210,7 @@ inline void qdb_throw_if_error(
 
     if ((qdb_e_ok != err) && (qdb_e_ok_created != err)) [[unlikely]]
     {
-        qdb_string_t msg_;
+        detail::qdb_resource<qdb_string_t> msg_{h, nullptr};
         qdb_error_t err_;
         qdb_get_last_error(h, &err_, &msg_);
 
@@ -220,38 +221,41 @@ inline void qdb_throw_if_error(
             throw qdb::exception{err, qdb_error(err)};
         }
         assert(err_ == err);
+        assert(msg_ != nullptr);
 
         pre_throw();
+
+        std::string msg_data_{msg_.get()->data};
 
         switch (err)
         {
 
         case qdb_e_invalid_query:
-            throw qdb::invalid_query_exception{msg_.data};
+            throw qdb::invalid_query_exception{msg_data_};
 
         case qdb_e_alias_already_exists:
-            throw qdb::alias_already_exists_exception{msg_.data};
+            throw qdb::alias_already_exists_exception{msg_data_};
 
         case qdb_e_alias_not_found:
-            throw qdb::alias_not_found_exception{msg_.data};
+            throw qdb::alias_not_found_exception{msg_data_};
 
         case qdb_e_network_inbuf_too_small:
             throw qdb::input_buffer_too_small_exception{};
 
         case qdb_e_incompatible_type:
-            throw qdb::incompatible_type_exception{msg_.data};
+            throw qdb::incompatible_type_exception{msg_data_};
 
         case qdb_e_not_implemented:
-            throw qdb::not_implemented_exception{msg_.data};
+            throw qdb::not_implemented_exception{msg_data_};
 
         case qdb_e_internal_local:
-            throw qdb::internal_local_exception{msg_.data};
+            throw qdb::internal_local_exception{msg_data_};
 
         case qdb_e_invalid_argument:
-            throw qdb::invalid_argument_exception{msg_.data};
+            throw qdb::invalid_argument_exception{msg_data_};
 
         default:
-            throw qdb::exception{err_, msg_.data};
+            throw qdb::exception{err_, msg_data_};
         };
     }
 }
