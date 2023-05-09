@@ -95,4 +95,4 @@ This tells you the currently installed version of the Python module, and the Qua
 
 ## Getting started
 
-For instructions on how to use this Python module to interact with a QuasarDB cluster, please read our [tutorial](https://doc.quasardb.net/master/user-guide/api/tutorial.html), you can also find the [python reference](https://doc.quasardb.net/master/pydoc/quasardb.quasardb.html).
+For instructions on how to use this Python module to interact with a QuasarDB cluster, please read our [tutorial](https://doc.quasardb.net/master/user-guide/api/python.html), you can also find the [python reference](https://doc.quasardb.net/master/pydoc/quasardb.quasardb.html).
