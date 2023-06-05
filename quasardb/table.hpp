@@ -56,7 +56,7 @@ public:
     {
         const auto c_columns = detail::convert_columns_ex(columns);
         qdb::qdb_throw_if_error(*_handle, qdb_ts_create_ex(*_handle, _alias.c_str(), shard_size.count(),
-                                              c_columns.data(), c_columns.size()));
+                                              c_columns.data(), c_columns.size(), qdb_never_expires));
     }
 
     void insert_columns(const std::vector<detail::column_info> & columns)
