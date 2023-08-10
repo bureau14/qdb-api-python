@@ -339,9 +339,10 @@ public:
             *_handle, qdb_wait_for_stabilization(*_handle, static_cast<int>(timeout_ms.count())));
     }
 
-    void trim_all(std::chrono::milliseconds timeout_ms)
+    void trim_all(std::chrono::milliseconds pause_ms, std::chrono::milliseconds timeout_ms)
     {
-        qdb::qdb_throw_if_error(*_handle, qdb_trim_all(*_handle, static_cast<int>(timeout_ms.count())));
+        qdb::qdb_throw_if_error(*_handle, qdb_trim_all(*_handle, static_cast<int>(pause_ms.count()),
+                                              static_cast<int>(timeout_ms.count())));
     }
 
 public:
