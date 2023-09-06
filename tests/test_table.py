@@ -39,7 +39,7 @@ def _generate_blob_ts(start_time, count):
 def _generate_string_ts(start_time, count):
     dates = _generate_dates(start_time, count)
     values = np.array([("content_" + str(item)) for item in range(count)],
-                      dtype=np.unicode)
+                      dtype=np.dtype('U'))
 
     return (dates, values)
 

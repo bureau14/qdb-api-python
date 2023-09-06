@@ -397,7 +397,7 @@ def _gen_unicode(n):
 
     wordslengths = np.random.randint(8, 100, n)
     xs = list(_gen_unicode_word(random.randint(min_word_length, max_word_length)) for i in range(n))
-    return np.array(xs, dtype=np.unicode_)
+    return np.array(xs, dtype='U')
 
 
 def _gen_blob(n):
