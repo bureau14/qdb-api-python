@@ -415,6 +415,24 @@ def write_pinned_dataframe(*args, **kwargs):
     return write_dataframe(*args, **kwargs)
 
 
+def write_dataframes(
+        dfs,
+        cluster,
+        **kwargs):
+    """
+    Store multiple dataframes into multiple tables.
+    """
+
+    # If dfs is a dict, we convert it to a list of tuples.
+    if isinstance(dfs, dict):
+        dfs = dfs.items()
+
+    for table, df in dfs:
+        logger.info("table: %s", table)
+        logger.info("df: %s", df)
+        write_dataframe(df, cluster, table, **kwargs)
+
+
 def _create_table_from_df(df, table, shard_size=None):
     cols = list()
 

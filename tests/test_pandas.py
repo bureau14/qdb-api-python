@@ -121,7 +121,6 @@ def test_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
 
     _assert_df_equal(df1, df2)
 
-
 @pytest.mark.parametrize('sparsify', conftest.no_sparsify)
 def test_dataframe_can_read_columns(qdbpd_write_fn, df_with_table, qdbd_connection, column_name, table_name):
     (ctype, dtype, df1, table) = df_with_table
@@ -165,6 +164,22 @@ def test_write_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
 
     _assert_df_equal(df, res)
 
+
+def test_multiple_dataframe(qdbpd_writes_fn, dfs_with_tables, qdbd_connection):
+    [(ctype1, dtype1, df1, table1),
+     (ctype2, dtype2, df2, table2)] = dfs_with_tables
+
+    # We always need to infer
+    dfs = [(table1.get_name(), df1),
+           (table2.get_name(), df2)]
+
+    qdbpd_writes_fn(dfs, qdbd_connection, infer_types=True)
+
+    res1 = qdbpd.read_dataframe(table1)
+    res2 = qdbpd.read_dataframe(table2)
+
+    _assert_df_equal(df1, res1)
+    _assert_df_equal(df2, res2)
 
 # Pandas is a retard when it comes to null values, so make sure to just only
 # generate "full" arrays when we don't infer / convert array types.
