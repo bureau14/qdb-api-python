@@ -260,7 +260,7 @@ public:
         return tr;
     }
 
-    constexpr inline bool empty() const
+    inline bool empty() const
     {
         return _index.empty();
     }
