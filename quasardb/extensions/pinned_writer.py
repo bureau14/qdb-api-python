@@ -6,7 +6,8 @@ import numpy.ma as ma
 __all__ = []
 
 def _ensure_ctype(self, idx, ctype):
-    infos = self.column_infos()
+    assert 'table' in self._legacy_state
+    infos = self._legacy_state['table'].list_columns()
     cinfo = infos[idx]
 
     ctype_data = copy.copy(ctype)
@@ -22,9 +23,12 @@ def _ensure_ctype(self, idx, ctype):
         raise quasardb.IncompatibleTypeError()
 
 
-def _legacy_next_row(self):
+def _legacy_next_row(self, table):
     if 'pending' not in self._legacy_state:
         self._legacy_state['pending'] = []
+
+    if 'table' not in self._legacy_state:
+        self._legacy_state['table'] = table
 
     self._legacy_state['pending'].append({'by_index': {}})
 
@@ -36,8 +40,8 @@ def _legacy_current_row(self):
     return self._legacy_state['pending'][-1]
 
 
-def _legacy_start_row(self, x):
-    row = _legacy_next_row(self)
+def _legacy_start_row(self, table, x):
+    row = _legacy_next_row(self, table)
     assert '$timestamp' not in row
     row['$timestamp'] = x
 
@@ -83,7 +87,8 @@ def _legacy_push(self):
         # Extremely likely default case, no "old" rows
         return
 
-
+    assert 'table' in self._legacy_state
+    table = self._legacy_state['table']
 
     # Some useful constants
     dtype_by_ctype = {quasardb.ColumnType.Double: np.dtype('float64'),
@@ -102,7 +107,7 @@ def _legacy_push(self):
                    }
 
     ctype_by_idx = {}
-    cinfos = self.column_infos()
+    cinfos = table.list_columns()
     for i in range(len(cinfos)):
         ctype_by_idx[i] = cinfos[i].type
 
@@ -131,7 +136,7 @@ def _legacy_push(self):
     for xs in pivoted['by_index'].values():
         assert len(xs) == len(pivoted['$timestamp'])
 
-    self.set_index(np.array(pivoted['$timestamp'], np.dtype('datetime64[ns]')))
+    self.set_index(table, np.array(pivoted['$timestamp'], np.dtype('datetime64[ns]')))
     for idx,xs in pivoted['by_index'].items():
         ctype = ctype_by_idx[idx]
         dtype = dtype_by_ctype[ctype]
@@ -149,7 +154,7 @@ def _legacy_push(self):
             xs_ = ma.masked_array(data=np.array(xs, dtype), mask=mask)
 
         assert len(xs_) == len(pivoted['$timestamp'])
-        fn(idx, xs_)
+        fn(table, idx, xs_)
 
     self._legacy_state = {}
 
