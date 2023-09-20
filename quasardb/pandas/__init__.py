@@ -376,10 +376,6 @@ def write_dataframe(
     if create:
         _create_table_from_df(df, table, shard_size)
 
-    # Create batch column info from dataframe
-    if writer is None:
-        writer = cluster.pinned_writer()
-
     cinfos = [(x.name, x.type) for x in table.list_columns()]
 
     if not df.index.is_monotonic_increasing:
