@@ -559,7 +559,7 @@ def write_array(
 def write_arrays(
         data,
         cluster,
-        table,
+        table = None,
         dtype = None,
         index = None,
         _async = False,
@@ -659,60 +659,83 @@ def write_arrays(
 
     """
 
-    # Acquire reference to table if string is provided
-    if isinstance(table, str):
-        table = cluster.table(table)
+    if table:
+        logger.debug("table explicitly provided, assuming single-table write")
+        return write_arrays([(table, data)],
+                            cluster,
+                            table=None,
+                            dtype=dtype,
+                            index=index,
+                            _async=_async,
+                            fast=fast,
+                            truncate=truncate,
+                            deduplicate=deduplicate,
+                            deduplication_mode=deduplication_mode,
+                            infer_types=infer_types,
+                            writer=writer)
+
+
+    ret = []
 
     # Create batch column info from dataframe
     if writer is None:
         writer = cluster.pinned_writer()
 
-    cinfos = [(x.name, x.type) for x in table.list_columns()]
-    dtype = _coerce_dtype(dtype, cinfos)
+    n_rows = 0
 
-    assert type(dtype) is list
-    assert len(dtype) is len(cinfos)
+    for (table, data_) in data:
+        # Acquire reference to table if string is provided
+        if isinstance(table, str):
+            table = cluster.table(table)
 
-    if infer_types is True:
-        dtype = _add_desired_dtypes(dtype, cinfos)
+        cinfos = [(x.name, x.type) for x in table.list_columns()]
+        dtype = _coerce_dtype(dtype, cinfos)
 
-    data = _ensure_list(data, cinfos)
+        assert type(dtype) is list
+        assert len(dtype) is len(cinfos)
 
-    if len(data) != len(cinfos):
-        raise InvalidDataCardinalityError(data, cinfos)
+        if infer_types is True:
+            dtype = _add_desired_dtypes(dtype, cinfos)
 
-    data = ensure_ma(data, dtype=dtype)
-    data = _coerce_data(data, dtype)
+        data_ = _ensure_list(data_, cinfos)
 
+        if len(data_) != len(cinfos):
+            raise InvalidDataCardinalityError(data_, cinfos)
 
-    # Just some additional friendly information about incorrect dtypes, we'd
-    # prefer to have this information thrown from Python instead of native
-    # code as it generally makes for somewhat better error context.
-    _validate_dtypes(data, cinfos)
-
-    deduplicate = _coerce_deduplicate(deduplicate, deduplication_mode, cinfos)
-
-    write_with = {
-        quasardb.ColumnType.Double: writer.set_double_column,
-        quasardb.ColumnType.Blob: writer.set_blob_column,
-        quasardb.ColumnType.String: writer.set_string_column,
-        quasardb.ColumnType.Symbol: writer.set_string_column,
-        quasardb.ColumnType.Int64: writer.set_int64_column,
-        quasardb.ColumnType.Timestamp: writer.set_timestamp_column
-    }
-
-    assert len(data) == len(cinfos)
-
-    writer.set_index(table, index)
-
-    for i in range(len(data)):
-        (cname, ctype) = cinfos[i]
-
-        if data[i] is not None:
-            write_with[ctype](table, i, data[i])
+        data_ = ensure_ma(data_, dtype=dtype)
+        data_ = _coerce_data(data_, dtype)
 
 
-    logger.debug("pushing %d rows", len(index))
+        # Just some additional friendly information about incorrect dtypes, we'd
+        # prefer to have this information thrown from Python instead of native
+        # code as it generally makes for somewhat better error context.
+        _validate_dtypes(data_, cinfos)
+
+        deduplicate = _coerce_deduplicate(deduplicate, deduplication_mode, cinfos)
+
+        write_with = {
+            quasardb.ColumnType.Double: writer.set_double_column,
+            quasardb.ColumnType.Blob: writer.set_blob_column,
+            quasardb.ColumnType.String: writer.set_string_column,
+            quasardb.ColumnType.Symbol: writer.set_string_column,
+            quasardb.ColumnType.Int64: writer.set_int64_column,
+            quasardb.ColumnType.Timestamp: writer.set_timestamp_column
+        }
+
+        assert len(data_) == len(cinfos)
+
+        writer.set_index(table, index)
+
+        for i in range(len(data_)):
+            (cname, ctype) = cinfos[i]
+
+            if data_[i] is not None:
+                write_with[ctype](table, i, data_[i])
+
+        n_rows += len(index)
+        ret.append(table)
+
+    logger.debug("pushing %d rows", n_rows)
     start = time.time()
 
     if fast is True:
@@ -726,10 +749,10 @@ def write_arrays(
     else:
         writer.push(deduplicate=deduplicate, deduplication_mode=deduplication_mode)
 
-    logger.debug("pushed %d rows in %s seconds",
-                 len(index), (time.time() - start))
+    logger.info("pushed %d rows in %s seconds",
+                n_rows, (time.time() - start))
 
-    return table
+    return ret
 
 
 def _xform_query_results(xs, index, dict):
