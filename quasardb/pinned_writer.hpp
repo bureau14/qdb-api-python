@@ -154,23 +154,12 @@ struct clear_column
     }
 };
 
-} // namespace detail
-
-class pinned_writer
+class staged_table
 {
-
-    using int64_column     = detail::int64_column;
-    using double_column    = detail::double_column;
-    using timestamp_column = detail::timestamp_column;
-    using blob_column      = detail::blob_column;
-    using string_column    = detail::string_column;
-    using any_column       = detail::any_column;
-
 public:
-    pinned_writer(qdb::handle_ptr h, const table & table)
+    staged_table(qdb::table const & table)
         : _logger("quasardb.pinned_writer")
-        , _handle{h}
-        , _table_name{table.get_name()}
+        , _table_name(table.get_name())
     {
         _column_infos = table.list_columns();
 
@@ -178,18 +167,6 @@ public:
             std::back_inserter(_columns),
 
             [](auto const & col) { return dispatch::by_column_type<detail::make_column>(col.type); });
-    }
-
-    // prevent copy because of the table object, use a unique_ptr of the batch in cluster
-    // to return the object
-    pinned_writer(const pinned_writer &) = delete;
-
-    ~pinned_writer()
-    {
-        if (_handle)
-        {
-            qdb_release(*_handle, _table_schemas);
-        }
     }
 
     void set_index(py::handle const & timestamps);
@@ -200,18 +177,16 @@ public:
     void set_timestamp_column(
         std::size_t index, masked_array_t<traits::datetime64_ns_dtype> const & xs);
 
-    const std::vector<qdb_exp_batch_push_column_t> & prepare_columns();
+    std::vector<qdb_exp_batch_push_column_t> const & prepare_columns();
 
-    qdb_exp_batch_push_table_data_t prepare_table_data()
+    void prepare_table_data(qdb_exp_batch_push_table_data_t & table_data)
     {
-        qdb_exp_batch_push_table_data_t table_data;
-        table_data.row_count = _index.size(), table_data.timestamps = _index.data();
+        table_data.row_count  = _index.size();
+        table_data.timestamps = _index.data();
 
         const auto & columns    = prepare_columns();
         table_data.columns      = columns.data();
         table_data.column_count = columns.size();
-
-        return table_data;
     }
 
     static inline void _set_push_options(
@@ -239,13 +214,14 @@ public:
         out.where_duplicate_count = columns.size();
     }
 
-    qdb_exp_batch_push_table_t prepare_batch(qdb_exp_batch_push_mode_t mode,
+    void prepare_batch(qdb_exp_batch_push_mode_t mode,
         detail::deduplicate_options const & deduplicate_options,
-        qdb_ts_range_t * ranges)
+        qdb_ts_range_t * ranges,
+        qdb_exp_batch_push_table_t & batch)
     {
-        qdb_exp_batch_push_table_t batch;
         batch.name = qdb_string_t{_table_name.data(), _table_name.size()};
-        batch.data = prepare_table_data();
+
+        prepare_table_data(batch.data);
         if (mode == qdb_exp_batch_push_truncate)
         {
             batch.truncate_ranges      = ranges;
@@ -261,91 +237,9 @@ public:
 
         std::visit([&mode_, &batch](auto const & columns) { _set_push_options(mode_, columns, batch); },
             deduplicate_options.columns_);
-
-        return batch;
     }
 
-    void _push_impl(qdb_exp_batch_push_mode_t mode,
-        detail::deduplicate_options deduplicate_options,
-        qdb_ts_range_t * ranges = nullptr)
-    {
-        auto batch = prepare_batch(mode, deduplicate_options, ranges);
-
-        if (batch.data.column_count == 0)
-        {
-            throw qdb::invalid_argument_exception{
-                "Pinned writer is empty: you did not provide any columns to push."};
-        }
-        _logger.debug("Pushing %d rows with %d columns in %s", batch.data.row_count,
-            batch.data.column_count, _table_name);
-        qdb::qdb_throw_if_error(
-            *_handle, qdb_exp_batch_push(*_handle, mode, &batch, &_table_schemas, 1u));
-        _clear_columns();
-    }
-
-    detail::deduplicate_options _deduplicate_from_args(py::kwargs args)
-    {
-        if (!args.contains("deduplicate") || !args.contains("deduplication_mode"))
-        {
-            return {};
-        }
-
-        std::string deduplication_mode = args["deduplication_mode"].cast<std::string>();
-
-        enum detail::deduplication_mode_t deduplication_mode_;
-        if (deduplication_mode == "drop")
-        {
-            deduplication_mode_ = detail::deduplication_mode_drop;
-        }
-        else if (deduplication_mode == "upsert")
-        {
-            deduplication_mode_ = detail::deduplication_mode_upsert;
-        }
-        else
-        {
-            std::string error_msg = "Invalid argument provided for `deduplication_mode`: expected "
-                                    "'drop' or 'upsert', got: ";
-            error_msg += deduplication_mode;
-
-            throw qdb::invalid_argument_exception{error_msg};
-        }
-
-        auto deduplicate = args["deduplicate"];
-
-        if (py::isinstance<py::list>(deduplicate))
-        {
-            return detail::deduplicate_options{
-                deduplication_mode_, py::cast<std::vector<std::string>>(deduplicate)};
-        }
-        else if (py::isinstance<py::bool_>(deduplicate))
-        {
-            return detail::deduplicate_options{deduplication_mode_, py::cast<bool>(deduplicate)};
-        }
-
-        std::string error_msg = "Invalid argument provided for `deduplicate`: expected bool, list or "
-                                "str('$timestamp'), got: ";
-        error_msg += deduplicate.cast<py::str>();
-
-        throw qdb::invalid_argument_exception{error_msg};
-    };
-
-    void push(py::kwargs args);
-    void push_async(py::kwargs args);
-    void push_fast(py::kwargs args);
-    void push_truncate(py::kwargs args);
-
-    std::vector<detail::column_info> column_infos() const
-    {
-        return _column_infos;
-    }
-
-    inline bool empty() const
-    {
-        return _index.empty();
-    }
-
-private:
-    void _clear_columns()
+    inline void clear_columns()
     {
         _index.clear();
         for (size_t index = 0; index < _columns.size(); ++index)
@@ -354,17 +248,166 @@ private:
         }
     }
 
+    inline qdb_ts_range_t time_range() const
+    {
+        qdb_ts_range_t tr{_index.front(), _index.back()};
+        // our range is end-exclusive, so let's move the pointer one nanosecond
+        // *after* the last element in this batch.
+        //
+        // XXX(leon): this overflows if we're at exactly the last nanosecond of a second
+        tr.end.tv_nsec++;
+
+        return tr;
+    }
+
+    inline bool empty() const
+    {
+        return _index.empty();
+    }
+
+private:
 private:
     qdb::logger _logger;
-    qdb::handle_ptr _handle;
-    std::string _table_name;
 
+    std::string _table_name;
     std::vector<detail::column_info> _column_infos;
     std::vector<qdb_timespec_t> _index;
     std::vector<any_column> _columns;
     qdb::object_tracker::scoped_repository _object_tracker;
 
     std::vector<qdb_exp_batch_push_column_t> _columns_data;
+};
+
+} // namespace detail
+
+class pinned_writer
+{
+
+    using int64_column     = detail::int64_column;
+    using double_column    = detail::double_column;
+    using timestamp_column = detail::timestamp_column;
+    using blob_column      = detail::blob_column;
+    using string_column    = detail::string_column;
+    using any_column       = detail::any_column;
+    using staged_tables_t  = std::map<std::string, detail::staged_table>;
+
+public:
+    pinned_writer(qdb::handle_ptr h)
+        : _logger("quasardb.pinned_writer")
+        , _handle{h}
+    {}
+
+    // prevent copy because of the table object, use a unique_ptr of the batch in cluster
+    // to return the object
+    pinned_writer(const pinned_writer &) = delete;
+
+    ~pinned_writer()
+    {
+        if (_handle)
+        {
+            qdb_release(*_handle, _table_schemas);
+        }
+    }
+
+    detail::staged_table & _get_staged_table(qdb::table const & table)
+    {
+        std::string table_name = table.get_name();
+
+        auto pos = _staged_tables.lower_bound(table_name);
+
+        // XXX(leon): can be optimized by using lower_bound and reusing the `pos` for insertion into
+        //            the correct place.
+        if (pos == _staged_tables.end() || pos->first != table_name) [[unlikely]]
+        {
+            // The table was not yet found
+            pos = _staged_tables.emplace_hint(pos, table_name, table);
+            assert(pos->second.empty());
+        }
+
+        assert(pos != _staged_tables.end());
+        assert(pos->first == table_name);
+
+        return pos->second;
+    }
+
+    void set_index(qdb::table const & table, py::handle const & timestamps)
+    {
+        qdb::object_tracker::scoped_capture capture{_object_tracker};
+        _get_staged_table(table).set_index(timestamps);
+    }
+
+    void set_blob_column(qdb::table const & table, std::size_t index, const masked_array & xs)
+    {
+        qdb::object_tracker::scoped_capture capture{_object_tracker};
+        _get_staged_table(table).set_blob_column(index, xs);
+    }
+
+    void set_string_column(qdb::table const & table, std::size_t index, const masked_array & xs)
+    {
+        qdb::object_tracker::scoped_capture capture{_object_tracker};
+        _get_staged_table(table).set_string_column(index, xs);
+    }
+
+    void set_double_column(
+        qdb::table const & table, std::size_t index, masked_array_t<traits::float64_dtype> const & xs)
+    {
+        qdb::object_tracker::scoped_capture capture{_object_tracker};
+        _get_staged_table(table).set_double_column(index, xs);
+    }
+
+    void set_int64_column(
+        qdb::table const & table, std::size_t index, masked_array_t<traits::int64_dtype> const & xs)
+    {
+        qdb::object_tracker::scoped_capture capture{_object_tracker};
+        _get_staged_table(table).set_int64_column(index, xs);
+    }
+
+    void set_timestamp_column(qdb::table const & table,
+        std::size_t index,
+        masked_array_t<traits::datetime64_ns_dtype> const & xs)
+    {
+        qdb::object_tracker::scoped_capture capture{_object_tracker};
+        _get_staged_table(table).set_timestamp_column(index, xs);
+    }
+
+    const std::vector<qdb_exp_batch_push_column_t> & prepare_columns();
+
+    void push(py::kwargs args);
+    void push_async(py::kwargs args);
+    void push_fast(py::kwargs args);
+    void push_truncate(py::kwargs args);
+
+    inline bool empty() const
+    {
+        return _staged_tables.empty();
+    }
+
+    inline std::size_t size() const
+    {
+        return _staged_tables.size();
+    }
+
+private:
+    void _push_impl(qdb_exp_batch_push_mode_t mode,
+        detail::deduplicate_options deduplicate_options,
+        qdb_ts_range_t * ranges = nullptr);
+
+    detail::deduplicate_options _deduplicate_from_args(py::kwargs args);
+
+    void _clear()
+    {
+        _staged_tables.clear();
+        _table_schemas = nullptr;
+    }
+
+private:
+    qdb::logger _logger;
+    qdb::handle_ptr _handle;
+
+    staged_tables_t _staged_tables;
+
+    qdb::object_tracker::scoped_repository _object_tracker;
+
     const qdb_exp_batch_push_table_schema_t * _table_schemas{nullptr};
 
 public:
