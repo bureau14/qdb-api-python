@@ -321,11 +321,11 @@ public:
         {
             // The table was not yet found
             pos = _staged_tables.emplace_hint(pos, table_name, table);
+            assert(pos->second.empty());
         }
 
         assert(pos != _staged_tables.end());
         assert(pos->first == table_name);
-        assert(pos->second.empty());
 
         return pos->second;
     }
