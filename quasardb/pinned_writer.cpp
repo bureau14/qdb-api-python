@@ -179,6 +179,7 @@ std::vector<qdb_exp_batch_push_column_t> const & staged_table::prepare_columns()
 {
     _columns_data.clear();
     _columns_data.reserve(_columns.size());
+
     for (size_t index = 0; index < _columns.size(); ++index)
     {
         qdb_exp_batch_push_column_t column = dispatch::by_column_type<detail::fill_column_dispatch>(
@@ -321,9 +322,10 @@ void pinned_writer::_push_impl(qdb_exp_batch_push_mode_t mode,
 {
 
     std::vector<qdb_exp_batch_push_table_t> batch;
-    batch.reserve(_staged_tables.size());
+    batch.assign(_staged_tables.size(), qdb_exp_batch_push_table_t());
 
     int cur = 0;
+    _logger.debug("pinned_writer::_push_impl");
 
     for (auto pos = _staged_tables.begin(); pos != _staged_tables.end(); ++pos)
     {
@@ -355,9 +357,9 @@ void register_pinned_writer(py::module_ & m)
     auto c = py::class_<qdb::pinned_writer>{m, "PinnedWriter"};
 
     // basic interface
-    c.def(py::init<qdb::handle_ptr>())            //
-        .def("empty", &qdb::pinned_writer::empty, //
-            "Returns true when the writer has no data");
+    c.def(py::init<qdb::handle_ptr>())                   //
+        .def("empty", &qdb::pinned_writer::empty,        //
+            "Returns true when the writer has no data"); //
 
     c.def_readwrite("_legacy_state", &qdb::pinned_writer::legacy_state_);
 

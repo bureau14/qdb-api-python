@@ -378,9 +378,9 @@ def write_dataframe(
 
     # Create batch column info from dataframe
     if writer is None:
-        writer = cluster.pinned_writer(table)
+        writer = cluster.pinned_writer()
 
-    cinfos = [(x.name, x.type) for x in writer.column_infos()]
+    cinfos = [(x.name, x.type) for x in table.list_columns()]
 
     if not df.index.is_monotonic_increasing:
         logger.warn("dataframe index is unsorted, resorting dataframe based on index")

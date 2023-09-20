@@ -665,9 +665,9 @@ def write_arrays(
 
     # Create batch column info from dataframe
     if writer is None:
-        writer = cluster.pinned_writer(table)
+        writer = cluster.pinned_writer()
 
-    cinfos = [(x.name, x.type) for x in writer.column_infos()]
+    cinfos = [(x.name, x.type) for x in table.list_columns()]
     dtype = _coerce_dtype(dtype, cinfos)
 
     assert type(dtype) is list
@@ -703,13 +703,13 @@ def write_arrays(
 
     assert len(data) == len(cinfos)
 
-    writer.set_index(index)
+    writer.set_index(table, index)
 
     for i in range(len(data)):
         (cname, ctype) = cinfos[i]
 
         if data[i] is not None:
-            write_with[ctype](i, data[i])
+            write_with[ctype](table, i, data[i])
 
 
     logger.debug("pushing %d rows", len(index))

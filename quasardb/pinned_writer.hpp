@@ -239,7 +239,7 @@ public:
             deduplicate_options.columns_);
     }
 
-    void clear_columns()
+    inline void clear_columns()
     {
         _index.clear();
         for (size_t index = 0; index < _columns.size(); ++index)
@@ -248,7 +248,7 @@ public:
         }
     }
 
-    qdb_ts_range_t time_range() const
+    inline qdb_ts_range_t time_range() const
     {
         qdb_ts_range_t tr{_index.front(), _index.back()};
         // our range is end-exclusive, so let's move the pointer one nanosecond
@@ -258,6 +258,11 @@ public:
         tr.end.tv_nsec++;
 
         return tr;
+    }
+
+    constexpr inline bool empty() const
+    {
+        return _index.empty();
     }
 
 private:
@@ -310,11 +315,12 @@ public:
 
         auto pos = _staged_tables.lower_bound(table_name);
 
+        // XXX(leon): can be optimized by using lower_bound and reusing the `pos` for insertion into
+        //            the correct place.
         if (pos == _staged_tables.end() || pos->first != table_name) [[unlikely]]
         {
             // The table was not yet found
-            // pos = _staged_tables.insert(
-            // pos, std::make_pair(table_name, detail::staged_table::staged_table(table)));
+            pos = _staged_tables.emplace_hint(pos, table_name, table);
         }
 
         assert(pos != _staged_tables.end());
