@@ -283,10 +283,9 @@ def _extract_columns(df, cinfos):
 
     return ret
 
-def write_dataframe(
-        df,
+def write_dataframes(
+        dfs,
         cluster,
-        table,
         dtype=None,
         create=False,
         shard_size=None,
@@ -365,36 +364,47 @@ def write_dataframe(
 
     """
 
-    logger.info("quasardb.pandas.write_dataframe, create = %s, dtype = %s", create, dtype)
-    assert isinstance(df, pd.DataFrame)
+    # If dfs is a dict, we convert it to a list of tuples.
+    if isinstance(dfs, dict):
+        dfs = dfs.items()
 
-    # Acquire reference to table if string is provided
-    if isinstance(table, str):
-        table = cluster.table(table)
+    # If the tables are provided as strings, we look them up.
+    dfs_ = []
+    for (table, df) in dfs:
+        if isinstance(table, str):
+            table = cluster.table(table)
 
-    # Create table if requested
-    if create:
-        _create_table_from_df(df, table, shard_size)
+        dfs_.append((table, df))
 
-    # Create batch column info from dataframe
-    if writer is None:
-        writer = cluster.pinned_writer(table)
 
-    cinfos = [(x.name, x.type) for x in writer.column_infos()]
+    data_by_table = []
 
-    if not df.index.is_monotonic_increasing:
-        logger.warn("dataframe index is unsorted, resorting dataframe based on index")
-        df = df.sort_index().reindex()
+    for table, df in dfs_:
+        logger.info("quasardb.pandas.write_dataframe, create = %s, dtype = %s", create, dtype)
+        assert isinstance(df, pd.DataFrame)
 
-    # We pass everything else to our qdbnp.write_arrays function, as generally speaking
-    # it is (much) more sensible to deal with numpy arrays than Pandas dataframes:
-    # pandas has the bad habit of wanting to cast data to different types if your data
-    # is sparse, most notably forcing sparse integer arrays to floating points.
-    timestamps = df.index.to_numpy(copy=False,
+        # Create table if requested
+        if create:
+            _create_table_from_df(df, table, shard_size)
+
+        cinfos = [(x.name, x.type) for x in table.list_columns()]
+
+        if not df.index.is_monotonic_increasing:
+            logger.warn("dataframe index is unsorted, resorting dataframe based on index")
+            df = df.sort_index().reindex()
+
+        # We pass everything else to our qdbnp.write_arrays function, as generally speaking
+        # it is (much) more sensible to deal with numpy arrays than Pandas dataframes:
+        # pandas has the bad habit of wanting to cast data to different types if your data
+        # is sparse, most notably forcing sparse integer arrays to floating points.
+        timestamps = df.index.to_numpy(copy=False,
                                        dtype='datetime64[ns]')
-    data = _extract_columns(df, cinfos)
+        data = _extract_columns(df, cinfos)
 
-    return qdbnp.write_arrays(data, cluster, table,
+        data_by_table.append((table, data))
+
+    return qdbnp.write_arrays(data_by_table, cluster,
+                              table=None,
                               index=timestamps,
                               dtype=dtype,
                               _async=_async,
@@ -404,6 +414,17 @@ def write_dataframe(
                               deduplication_mode=deduplication_mode,
                               infer_types=infer_types,
                               writer=writer)
+
+def write_dataframe(
+        df,
+        cluster,
+        table,
+        **kwargs):
+    """
+    Store a single dataframe into a table. Takes the same arguments as `write_dataframes`, except only
+    a single df/table combination.
+    """
+    write_dataframes([(table, df)], cluster, **kwargs)
 
 
 def write_pinned_dataframe(*args, **kwargs):

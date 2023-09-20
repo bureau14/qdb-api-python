@@ -351,12 +351,23 @@ def _gen_string(n):
 
 def _gen_unicode_word(n):
 
+    ###
+    # XXX(leon): i have no time to fully investigate right now, but under certain environments,
+    #            for some reason, this causes problems. it *may* be related to reusing memory
+    #            of underlying numpy arrays or something like that, i do not know exactly, but
+    #            it complains about unicode conversion errors if you generate multiple dataframes.
+    #
+    #            need to dig deeper, but don't have time right now. i think maybe we're reusing
+    #            the same numpy array memory arenas in multiple dataframes or something like that.
+    #            but as of now, 2023-09-14, i am too busy. if this ever causes problems down the
+    #            road, Mea Culpa, it is my fault.
+
+
     try:
         get_char = unichr
     except NameError:
         get_char = chr
 
-    # Update this to include code point ranges to be sampled
     include_ranges = [
         (0x0021, 0x0021),
         (0x0023, 0x0026),
@@ -397,7 +408,8 @@ def _gen_unicode(n):
 
     wordslengths = np.random.randint(8, 100, n)
     xs = list(_gen_unicode_word(random.randint(min_word_length, max_word_length)) for i in range(n))
-    return np.array(xs, dtype=np.unicode_)
+
+    return np.array(xs, dtype='U')
 
 
 def _gen_blob(n):
@@ -718,8 +730,8 @@ def _do_gen_df(gen_array, gen_index, column_name):
     (ctype, dtype, xs) = gen_array
     idx = gen_index
 
-    return (ctype, dtype, pd.DataFrame(data={column_name: xs},
-                                       index=idx))
+    return (ctype, dtype, pd.DataFrame(data={column_name: np.copy(xs)},
+                                       index=np.copy(idx)))
 
 
 @pytest.fixture
@@ -741,6 +753,29 @@ def df_with_table(qdbd_connection, table_name, column_name, gen_df):
     columns = [quasardb.ColumnInfo(ctype, column_name)]
     table.create(columns)
     return (ctype, dtype, df, table)
+
+@pytest.fixture
+def dfs_with_tables(qdbd_connection, table_name, column_name, gen_df):
+    table_name1 = '{}1'.format(table_name)
+    table_name2 = '{}2'.format(table_name)
+    column_name1 = column_name
+    column_name2 = column_name
+
+    (ctype1, dtype1, df1) = gen_df
+    (ctype2, dtype2, df2) = gen_df
+
+    table1 = qdbd_connection.table(table_name1)
+    columns1 = [quasardb.ColumnInfo(ctype1, column_name1)]
+    table1.create(columns1)
+
+    table2 = qdbd_connection.table(table_name2)
+    columns2 = [quasardb.ColumnInfo(ctype2, column_name2)]
+    table2.create(columns2)
+
+
+    return [(ctype1, dtype1, df1, table1),
+            (ctype2, dtype2, df2, table2)]
+
 
 
 @pytest.fixture(params=[quasardb.ColumnType.Int64,
@@ -827,6 +862,10 @@ def datetime_(request):
 
 @pytest.fixture(params=[qdbpd.write_dataframe])
 def qdbpd_write_fn(request):
+    yield request.param
+
+@pytest.fixture(params=[qdbpd.write_dataframes])
+def qdbpd_writes_fn(request):
     yield request.param
 
 
