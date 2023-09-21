@@ -27,10 +27,11 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-
-import quasardb
 import logging
 import time
+
+import quasardb
+import quasardb.table_cache as table_cache
 
 logger = logging.getLogger('quasardb.numpy')
 
@@ -686,7 +687,7 @@ def write_arrays(
     for (table, data_) in data:
         # Acquire reference to table if string is provided
         if isinstance(table, str):
-            table = cluster.table(table)
+            table = table_cache.lookup(table, cluster)
 
         cinfos = [(x.name, x.type) for x in table.list_columns()]
         dtype = _coerce_dtype(dtype, cinfos)
