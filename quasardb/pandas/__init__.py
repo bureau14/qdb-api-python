@@ -27,12 +27,14 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-import quasardb
 import logging
-import quasardb.numpy as qdbnp
-
 from datetime import datetime
 from functools import partial
+
+import quasardb
+import quasardb.table_cache as table_cache
+import quasardb.numpy as qdbnp
+
 
 logger = logging.getLogger('quasardb.pandas')
 
@@ -372,7 +374,7 @@ def write_dataframes(
     dfs_ = []
     for (table, df) in dfs:
         if isinstance(table, str):
-            table = cluster.table(table)
+            table = table_cache.lookup(table, cluster)
 
         dfs_.append((table, df))
 

@@ -51,6 +51,14 @@ public:
         return "<quasardb.Table name='" + get_name() + "'>";
     }
 
+    /**
+     * Retrieves (and caches) table metadata. This mainly involves column information.
+     */
+    void retrieve_metadata()
+    {
+        _cache_columns();
+    }
+
     void create(const std::vector<detail::column_info> & columns,
         std::chrono::milliseconds shard_size = std::chrono::hours{24})
     {
@@ -68,17 +76,9 @@ public:
 
     std::vector<detail::column_info> list_columns() const
     {
-        qdb_ts_column_info_ex_t * columns = nullptr;
-        qdb_size_t count                  = 0;
+        _maybe_cache_columns();
 
-        qdb::qdb_throw_if_error(
-            *_handle, qdb_ts_list_columns_ex(*_handle, _alias.c_str(), &columns, &count));
-
-        auto c_columns = detail::convert_columns(columns, count);
-
-        qdb_release(*_handle, columns);
-
-        return c_columns;
+        return _columns.value();
     }
 
     detail::indexed_column_info column_info_by_id(const std::string & alias) const
@@ -136,6 +136,39 @@ public:
     py::object reader(
         const std::vector<std::string> & columns, py::object obj_ranges, bool dict_mode) const;
 
+private:
+    /**
+     * Loads column info / metadata from server and caches it locally.
+     */
+    void _cache_columns() const
+    {
+        detail::qdb_resource<qdb_ts_column_info_ex_t> columns{*_handle};
+        qdb_size_t count = 0;
+
+        auto err = qdb_ts_list_columns_ex(*_handle, _alias.c_str(), &columns, &count);
+
+        if (err == qdb_e_alias_not_found) [[unlikely]]
+        {
+            // Can happen if table does not yet exist, do nothing.
+            return;
+        }
+
+        qdb::qdb_throw_if_error(*_handle, err);
+
+        _columns = detail::convert_columns(columns.get(), count);
+    }
+
+    /**
+     * Loads column info / metadata from server if not yet cached locally.
+     */
+    void _maybe_cache_columns() const
+    {
+        if (_columns.has_value() == false) [[unlikely]]
+        {
+            _cache_columns();
+        }
+    }
+
 public:
     qdb_uint_t erase_ranges(const std::string & column, py::object ranges);
 
@@ -182,6 +215,8 @@ public:
 private:
     mutable bool _has_indexed_columns;
     mutable detail::indexed_columns_t _indexed_columns;
+
+    mutable std::optional<std::vector<detail::column_info>> _columns;
 };
 
 template <typename Module>
@@ -204,6 +239,7 @@ static inline void register_table(Module & m)
         .def("create", &qdb::table::create, py::arg("columns"),
             py::arg("shard_size") = std::chrono::hours{24})             //
         .def("get_name", &qdb::table::get_name)                         //
+        .def("retrieve_metadata", &qdb::table::retrieve_metadata)       //
         .def("column_index_by_id", &qdb::table::column_index_by_id)     //
         .def("column_type_by_id", &qdb::table::column_type_by_id)       //
         .def("column_info_by_index", &qdb::table::column_info_by_index) //
