@@ -399,15 +399,16 @@ def write_dataframes(
         # it is (much) more sensible to deal with numpy arrays than Pandas dataframes:
         # pandas has the bad habit of wanting to cast data to different types if your data
         # is sparse, most notably forcing sparse integer arrays to floating points.
-        timestamps = df.index.to_numpy(copy=False,
-                                       dtype='datetime64[ns]')
+
         data = _extract_columns(df, cinfos)
+        data['$timestamp'] = df.index.to_numpy(copy=False,
+                                               dtype='datetime64[ns]')
 
         data_by_table.append((table, data))
 
     return qdbnp.write_arrays(data_by_table, cluster,
                               table=None,
-                              index=timestamps,
+                              index=None,
                               dtype=dtype,
                               _async=_async,
                               fast=fast,
