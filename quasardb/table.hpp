@@ -78,7 +78,12 @@ public:
 
     std::vector<detail::column_info> list_columns() const
     {
-        _maybe_cache_columns();
+        if (_columns.has_value()) [[likely]]
+        {
+            return _columns.value();
+        }
+
+        _cache_columns();
 
         if (_columns.has_value()) [[likely]]
         {
