@@ -78,7 +78,12 @@ public:
     {
         _maybe_cache_columns();
 
-        return _columns.value();
+        if (_columns.has_value()) [[likely]]
+        {
+            return _columns.value();
+        }
+
+        throw qdb::alias_not_found_exception{};
     }
 
     detail::indexed_column_info column_info_by_id(const std::string & alias) const
