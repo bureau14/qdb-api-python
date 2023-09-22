@@ -43,7 +43,9 @@ public:
     table(handle_ptr h, std::string a) noexcept
         : entry{h, a}
         , _has_indexed_columns(false)
-    {}
+    {
+        _cache_columns();
+    }
 
 public:
     std::string repr() const
