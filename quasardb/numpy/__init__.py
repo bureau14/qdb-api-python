@@ -695,6 +695,12 @@ def write_arrays(
         assert type(dtype) is list
         assert len(dtype) is len(cinfos)
 
+        if index is None and isinstance(data_, dict) and '$timestamp' in data_:
+            logger.debug("using $timestamp index")
+            index = data_.pop('$timestamp')
+            assert '$timestamp' not in data_
+
+
         if infer_types is True:
             dtype = _add_desired_dtypes(dtype, cinfos)
 
