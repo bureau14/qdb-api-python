@@ -4,6 +4,9 @@ logger = logging.getLogger('quasardb.table_cache')
 
 _cache = {}
 
+def clear():
+    logger.info("Clearing table cache")
+    _cache = {}
 
 def exists(table_name: str) -> bool:
     """
@@ -25,6 +28,7 @@ def store(table, table_name=None, force_retrieve_metadata=True):
     if exists(table_name):
         logger.warn("Table already in cache, overwriting: %s", table_name)
 
+    logger.debug("Caching table %s", table_name)
     _cache[table_name] = table
 
     table.retrieve_metadata()
