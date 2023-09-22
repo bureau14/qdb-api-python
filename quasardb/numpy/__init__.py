@@ -27,10 +27,11 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-
-import quasardb
 import logging
 import time
+
+import quasardb
+import quasardb.table_cache as table_cache
 
 logger = logging.getLogger('quasardb.numpy')
 
@@ -686,13 +687,19 @@ def write_arrays(
     for (table, data_) in data:
         # Acquire reference to table if string is provided
         if isinstance(table, str):
-            table = cluster.table(table)
+            table = table_cache.lookup(table, cluster)
 
         cinfos = [(x.name, x.type) for x in table.list_columns()]
         dtype = _coerce_dtype(dtype, cinfos)
 
         assert type(dtype) is list
         assert len(dtype) is len(cinfos)
+
+        if index is None and isinstance(data_, dict) and '$timestamp' in data_:
+            logger.debug("using $timestamp index")
+            index = data_.pop('$timestamp')
+            assert '$timestamp' not in data_
+
 
         if infer_types is True:
             dtype = _add_desired_dtypes(dtype, cinfos)

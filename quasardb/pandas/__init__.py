@@ -27,12 +27,14 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-import quasardb
 import logging
-import quasardb.numpy as qdbnp
-
 from datetime import datetime
 from functools import partial
+
+import quasardb
+import quasardb.table_cache as table_cache
+import quasardb.numpy as qdbnp
+
 
 logger = logging.getLogger('quasardb.pandas')
 
@@ -372,7 +374,7 @@ def write_dataframes(
     dfs_ = []
     for (table, df) in dfs:
         if isinstance(table, str):
-            table = cluster.table(table)
+            table = table_cache.lookup(table, cluster)
 
         dfs_.append((table, df))
 
@@ -397,15 +399,16 @@ def write_dataframes(
         # it is (much) more sensible to deal with numpy arrays than Pandas dataframes:
         # pandas has the bad habit of wanting to cast data to different types if your data
         # is sparse, most notably forcing sparse integer arrays to floating points.
-        timestamps = df.index.to_numpy(copy=False,
-                                       dtype='datetime64[ns]')
+
         data = _extract_columns(df, cinfos)
+        data['$timestamp'] = df.index.to_numpy(copy=False,
+                                               dtype='datetime64[ns]')
 
         data_by_table.append((table, data))
 
     return qdbnp.write_arrays(data_by_table, cluster,
                               table=None,
-                              index=timestamps,
+                              index=None,
                               dtype=dtype,
                               _async=_async,
                               fast=fast,
