@@ -755,27 +755,22 @@ def df_with_table(qdbd_connection, table_name, column_name, gen_df):
     return (ctype, dtype, df, table)
 
 @pytest.fixture
-def dfs_with_tables(qdbd_connection, table_name, column_name, gen_df):
-    table_name1 = '{}1'.format(table_name)
-    table_name2 = '{}2'.format(table_name)
-    column_name1 = column_name
-    column_name2 = column_name
+def dfs_with_tables(qdbd_connection, table_name, column_name, df_count, gen_df_fn):
 
-    (ctype1, dtype1, df1) = gen_df
-    (ctype2, dtype2, df2) = gen_df
+    ret = []
 
-    table1 = qdbd_connection.table(table_name1)
-    columns1 = [quasardb.ColumnInfo(ctype1, column_name1)]
-    table1.create(columns1)
+    for i in range(0, df_count):
+        table_name_ = '{}{}'.format(table_name, i)
 
-    table2 = qdbd_connection.table(table_name2)
-    columns2 = [quasardb.ColumnInfo(ctype2, column_name2)]
-    table2.create(columns2)
+        (ctype, dtype, df) = gen_df_fn()
 
+        table = qdbd_connection.table(table_name_)
+        columns = [quasardb.ColumnInfo(ctype, column_name)]
+        table.create(columns)
 
-    return [(ctype1, dtype1, df1, table1),
-            (ctype2, dtype2, df2, table2)]
+        ret.append((ctype, dtype, df, table))
 
+    return ret
 
 
 @pytest.fixture(params=[quasardb.ColumnType.Int64,

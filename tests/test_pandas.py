@@ -166,20 +166,17 @@ def test_write_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
 
 
 def test_multiple_dataframe(qdbpd_writes_fn, dfs_with_tables, qdbd_connection):
-    [(ctype1, dtype1, df1, table1),
-     (ctype2, dtype2, df2, table2)] = dfs_with_tables
 
-    # We always need to infer
-    dfs = [(table1.get_name(), df1),
-           (table2.get_name(), df2)]
+    dfs = []
 
-    qdbpd_writes_fn(dfs, qdbd_connection, infer_types=True)
+    for (_, _, df, table) in dfs_with_tables:
+        dfs.append((table.get_name(), df))
 
-    res1 = qdbpd.read_dataframe(table1)
-    res2 = qdbpd.read_dataframe(table2)
+    qdbpd_writes_fn(dfs, qdbd_connection, infer_types=True, fast=True)
 
-    _assert_df_equal(df1, res1)
-    _assert_df_equal(df2, res2)
+    for (_, _, df, table) in dfs_with_tables:
+        res = qdbpd.read_dataframe(table)
+        _assert_df_equal(df, res)
 
 # Pandas is a retard when it comes to null values, so make sure to just only
 # generate "full" arrays when we don't infer / convert array types.
