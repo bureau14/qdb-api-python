@@ -169,6 +169,11 @@ public:
             [](auto const & col) { return dispatch::by_column_type<detail::make_column>(col.type); });
     }
 
+    ~staged_table()
+    {
+        clear();
+    }
+
     void set_index(py::handle const & timestamps);
     void set_blob_column(std::size_t index, const masked_array & xs);
     void set_string_column(std::size_t index, const masked_array & xs);
@@ -179,15 +184,12 @@ public:
 
     std::vector<qdb_exp_batch_push_column_t> const & prepare_columns();
 
-    void prepare_table_data(qdb_exp_batch_push_table_data_t & table_data)
-    {
-        table_data.row_count  = _index.size();
-        table_data.timestamps = _index.data();
+    void prepare_table_data(qdb_exp_batch_push_table_data_t & table_data);
 
-        const auto & columns    = prepare_columns();
-        table_data.columns      = columns.data();
-        table_data.column_count = columns.size();
-    }
+    void prepare_batch(qdb_exp_batch_push_mode_t mode,
+        detail::deduplicate_options const & deduplicate_options,
+        qdb_ts_range_t * ranges,
+        qdb_exp_batch_push_table_t & batch);
 
     static inline void _set_push_options(
         enum detail::deduplication_mode_t mode, bool columns, qdb_exp_batch_push_table_t & out)
@@ -214,38 +216,17 @@ public:
         out.where_duplicate_count = columns.size();
     }
 
-    void prepare_batch(qdb_exp_batch_push_mode_t mode,
-        detail::deduplicate_options const & deduplicate_options,
-        qdb_ts_range_t * ranges,
-        qdb_exp_batch_push_table_t & batch)
-    {
-        batch.name = qdb_string_t{_table_name.data(), _table_name.size()};
-
-        prepare_table_data(batch.data);
-        if (mode == qdb_exp_batch_push_truncate)
-        {
-            batch.truncate_ranges      = ranges;
-            batch.truncate_range_count = ranges == nullptr ? 0u : 1u;
-        }
-
-        // Zero-initialize these
-        batch.where_duplicate       = nullptr;
-        batch.where_duplicate_count = 0;
-        batch.options               = qdb_exp_batch_option_standard;
-
-        enum detail::deduplication_mode_t mode_ = deduplicate_options.mode_;
-
-        std::visit([&mode_, &batch](auto const & columns) { _set_push_options(mode_, columns, batch); },
-            deduplicate_options.columns_);
-    }
-
-    inline void clear_columns()
+    inline void clear()
     {
         _index.clear();
         for (size_t index = 0; index < _columns.size(); ++index)
         {
             dispatch::by_column_type<detail::clear_column>(_column_infos[index].type, _columns[index]);
         }
+
+        _table_name.clear();
+        _column_infos.clear();
+        _columns_data.clear();
     }
 
     inline qdb_ts_range_t time_range() const
@@ -273,7 +254,6 @@ private:
     std::vector<detail::column_info> _column_infos;
     std::vector<qdb_timespec_t> _index;
     std::vector<any_column> _columns;
-    qdb::object_tracker::scoped_repository _object_tracker;
 
     std::vector<qdb_exp_batch_push_column_t> _columns_data;
 };
@@ -292,6 +272,7 @@ class pinned_writer
     using staged_tables_t  = std::map<std::string, detail::staged_table>;
 
 public:
+public:
     pinned_writer(qdb::handle_ptr h)
         : _logger("quasardb.pinned_writer")
         , _handle{h}
@@ -303,6 +284,9 @@ public:
 
     ~pinned_writer()
     {
+
+        _clear();
+
         if (_handle)
         {
             qdb_release(*_handle, _table_schemas);
@@ -330,52 +314,12 @@ public:
         return pos->second;
     }
 
-    void set_index(qdb::table const & table, py::handle const & timestamps)
-    {
-        qdb::object_tracker::scoped_capture capture{_object_tracker};
-        _get_staged_table(table).set_index(timestamps);
-    }
-
-    void set_blob_column(qdb::table const & table, std::size_t index, const masked_array & xs)
-    {
-        qdb::object_tracker::scoped_capture capture{_object_tracker};
-        _get_staged_table(table).set_blob_column(index, xs);
-    }
-
-    void set_string_column(qdb::table const & table, std::size_t index, const masked_array & xs)
-    {
-        qdb::object_tracker::scoped_capture capture{_object_tracker};
-        _get_staged_table(table).set_string_column(index, xs);
-    }
-
-    void set_double_column(
-        qdb::table const & table, std::size_t index, masked_array_t<traits::float64_dtype> const & xs)
-    {
-        qdb::object_tracker::scoped_capture capture{_object_tracker};
-        _get_staged_table(table).set_double_column(index, xs);
-    }
-
-    void set_int64_column(
-        qdb::table const & table, std::size_t index, masked_array_t<traits::int64_dtype> const & xs)
-    {
-        qdb::object_tracker::scoped_capture capture{_object_tracker};
-        _get_staged_table(table).set_int64_column(index, xs);
-    }
-
-    void set_timestamp_column(qdb::table const & table,
-        std::size_t index,
-        masked_array_t<traits::datetime64_ns_dtype> const & xs)
-    {
-        qdb::object_tracker::scoped_capture capture{_object_tracker};
-        _get_staged_table(table).set_timestamp_column(index, xs);
-    }
-
     const std::vector<qdb_exp_batch_push_column_t> & prepare_columns();
 
-    void push(py::kwargs args);
-    void push_async(py::kwargs args);
-    void push_fast(py::kwargs args);
-    void push_truncate(py::kwargs args);
+    void push(py::list data, py::kwargs args);
+    void push_async(py::list data, py::kwargs args);
+    void push_fast(py::list data, py::kwargs args);
+    void push_truncate(py::list data, py::kwargs args);
 
     inline bool empty() const
     {
@@ -388,7 +332,10 @@ public:
     }
 
 private:
-    void _push_impl(qdb_exp_batch_push_mode_t mode,
+    void _set_columns(py::list data);
+
+    void _push_impl(py::list data,
+        qdb_exp_batch_push_mode_t mode,
         detail::deduplicate_options deduplicate_options,
         qdb_ts_range_t * ranges = nullptr);
 

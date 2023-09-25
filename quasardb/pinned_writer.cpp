@@ -206,27 +206,62 @@ std::vector<qdb_exp_batch_push_column_t> const & staged_table::prepare_columns()
     return _columns_data;
 }
 
+void staged_table::prepare_table_data(qdb_exp_batch_push_table_data_t & table_data)
+{
+    table_data.row_count  = _index.size();
+    table_data.timestamps = _index.data();
+
+    const auto & columns    = prepare_columns();
+    table_data.columns      = columns.data();
+    table_data.column_count = columns.size();
+}
+
+void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
+    detail::deduplicate_options const & deduplicate_options,
+    qdb_ts_range_t * ranges,
+    qdb_exp_batch_push_table_t & batch)
+{
+    batch.name = qdb_string_t{_table_name.data(), _table_name.size()};
+
+    prepare_table_data(batch.data);
+    if (mode == qdb_exp_batch_push_truncate)
+    {
+        batch.truncate_ranges      = ranges;
+        batch.truncate_range_count = ranges == nullptr ? 0u : 1u;
+    }
+
+    // Zero-initialize these
+    batch.where_duplicate       = nullptr;
+    batch.where_duplicate_count = 0;
+    batch.options               = qdb_exp_batch_option_standard;
+
+    enum detail::deduplication_mode_t mode_ = deduplicate_options.mode_;
+
+    std::visit([&mode_, &batch](auto const & columns) { _set_push_options(mode_, columns, batch); },
+        deduplicate_options.columns_);
+}
+
 }; // namespace qdb::detail
 
 namespace qdb
 {
 
-void pinned_writer::push(py::kwargs args)
+void pinned_writer::push(py::list data, py::kwargs args)
 {
-    _push_impl(qdb_exp_batch_push_transactional, _deduplicate_from_args(args));
+    _push_impl(data, qdb_exp_batch_push_transactional, _deduplicate_from_args(args));
 }
 
-void pinned_writer::push_async(py::kwargs args)
+void pinned_writer::push_async(py::list data, py::kwargs args)
 {
-    _push_impl(qdb_exp_batch_push_async, _deduplicate_from_args(args));
+    _push_impl(data, qdb_exp_batch_push_async, _deduplicate_from_args(args));
 }
 
-void pinned_writer::push_fast(py::kwargs args)
+void pinned_writer::push_fast(py::list data, py::kwargs args)
 {
-    _push_impl(qdb_exp_batch_push_fast, _deduplicate_from_args(args));
+    _push_impl(data, qdb_exp_batch_push_fast, _deduplicate_from_args(args));
 }
 
-void pinned_writer::push_truncate(py::kwargs args)
+void pinned_writer::push_truncate(py::list data, py::kwargs args)
 {
     auto deduplicate = _deduplicate_from_args(args);
 
@@ -267,7 +302,7 @@ void pinned_writer::push_truncate(py::kwargs args)
         tr                                        = staged_table.time_range();
     }
 
-    _push_impl(qdb_exp_batch_push_truncate, deduplicate, &tr);
+    _push_impl(data, qdb_exp_batch_push_truncate, deduplicate, &tr);
 }
 
 detail::deduplicate_options pinned_writer::_deduplicate_from_args(py::kwargs args)
@@ -316,10 +351,79 @@ detail::deduplicate_options pinned_writer::_deduplicate_from_args(py::kwargs arg
     throw qdb::invalid_argument_exception{error_msg};
 };
 
-void pinned_writer::_push_impl(qdb_exp_batch_push_mode_t mode,
+void pinned_writer::_set_columns(py::list data)
+{
+    qdb::object_tracker::scoped_capture capture{_object_tracker};
+
+    for (auto table_data : data)
+    {
+        py::dict table_data_ = py::cast<py::dict>(table_data);
+
+        qdb::table table     = table_data_["table"].cast<qdb::table>();
+        py::handle index     = table_data_["index"].cast<py::handle>();
+        py::list column_data = table_data_["columns"].cast<py::list>();
+
+        auto column_infos = table.list_columns();
+
+        if (column_infos.size() != column_data.size()) [[unlikely]]
+        {
+            throw qdb::invalid_argument_exception{
+                "data must be provided for every column of the table."};
+        }
+
+        detail::staged_table & staged_table = _get_staged_table(table);
+
+        staged_table.set_index(index);
+
+        for (std::size_t i = 0; i < column_data.size(); ++i)
+        {
+            py::object x = column_data[i];
+
+            if (!x.is_none()) [[likely]]
+            {
+                switch (column_infos.at(i).type)
+                {
+                case qdb_ts_column_double:
+                    staged_table.set_double_column(
+                        i, x.cast<qdb::masked_array_t<traits::float64_dtype>>());
+                    break;
+                case qdb_ts_column_blob:
+                    staged_table.set_blob_column(i, x.cast<qdb::masked_array>());
+                    break;
+                case qdb_ts_column_int64:
+                    staged_table.set_int64_column(
+                        i, x.cast<qdb::masked_array_t<traits::int64_dtype>>());
+                    break;
+                case qdb_ts_column_timestamp:
+                    staged_table.set_timestamp_column(
+                        i, x.cast<qdb::masked_array_t<traits::datetime64_ns_dtype>>());
+                    break;
+                case qdb_ts_column_string:
+                    /* FALLTHROUGH */
+                case qdb_ts_column_symbol:
+                    staged_table.set_string_column(i, x.cast<qdb::masked_array>());
+                    break;
+                case qdb_ts_column_uninitialized:
+                    // Likely a corruption
+                    throw qdb::invalid_argument_exception{"Uninitialized column."};
+
+                    break;
+                    // Likely a corruption
+                default:
+                    throw qdb::invalid_argument_exception{"Unrecognized column type."};
+                }
+            }
+        }
+    }
+}
+
+void pinned_writer::_push_impl(py::list data,
+    qdb_exp_batch_push_mode_t mode,
     detail::deduplicate_options deduplicate_options,
     qdb_ts_range_t * ranges)
 {
+
+    _set_columns(data);
 
     std::vector<qdb_exp_batch_push_table_t> batch;
     batch.assign(_staged_tables.size(), qdb_exp_batch_push_table_t());
@@ -346,7 +450,8 @@ void pinned_writer::_push_impl(qdb_exp_batch_push_mode_t mode,
     }
 
     qdb::qdb_throw_if_error(
-        *_handle, qdb_exp_batch_push(*_handle, mode, batch.data(), &_table_schemas, batch.size()));
+        *_handle, qdb_exp_batch_push(*_handle, mode, batch.data(), nullptr, batch.size()));
+
     _clear();
 }
 
@@ -362,14 +467,6 @@ void register_pinned_writer(py::module_ & m)
             "Returns true when the writer has no data"); //
 
     c.def_readwrite("_legacy_state", &qdb::pinned_writer::legacy_state_);
-
-    // numpy-based / "pinned" api
-    c.def("set_index", &qdb::pinned_writer::set_index)                    //
-        .def("set_blob_column", &qdb::pinned_writer::set_blob_column)     //
-        .def("set_string_column", &qdb::pinned_writer::set_string_column) //
-        .def("set_double_column", &qdb::pinned_writer::set_double_column) //
-        .def("set_int64_column", &qdb::pinned_writer::set_int64_column)   //
-        .def("set_timestamp_column", &qdb::pinned_writer::set_timestamp_column);
 
     // push functions
     c.def("push", &qdb::pinned_writer::push, "Regular batch push") //
