@@ -32,6 +32,7 @@
 
 #include "batch_column.hpp"
 #include "dispatch.hpp"
+#include "error.hpp"
 #include "logger.hpp"
 #include "object_tracker.hpp"
 #include "table.hpp"
@@ -169,7 +170,12 @@ public:
             [](auto const & col) { return dispatch::by_column_type<detail::make_column>(col.type); });
     }
 
-    void set_index(py::handle const & timestamps);
+    ~staged_table()
+    {
+        clear();
+    }
+
+    void set_index(py::array const & timestamps);
     void set_blob_column(std::size_t index, const masked_array & xs);
     void set_string_column(std::size_t index, const masked_array & xs);
     void set_double_column(std::size_t index, masked_array_t<traits::float64_dtype> const & xs);
@@ -179,15 +185,12 @@ public:
 
     std::vector<qdb_exp_batch_push_column_t> const & prepare_columns();
 
-    void prepare_table_data(qdb_exp_batch_push_table_data_t & table_data)
-    {
-        table_data.row_count  = _index.size();
-        table_data.timestamps = _index.data();
+    void prepare_table_data(qdb_exp_batch_push_table_data_t & table_data);
 
-        const auto & columns    = prepare_columns();
-        table_data.columns      = columns.data();
-        table_data.column_count = columns.size();
-    }
+    void prepare_batch(qdb_exp_batch_push_mode_t mode,
+        detail::deduplicate_options const & deduplicate_options,
+        qdb_ts_range_t * ranges,
+        qdb_exp_batch_push_table_t & batch);
 
     static inline void _set_push_options(
         enum detail::deduplication_mode_t mode, bool columns, qdb_exp_batch_push_table_t & out)
@@ -214,38 +217,17 @@ public:
         out.where_duplicate_count = columns.size();
     }
 
-    void prepare_batch(qdb_exp_batch_push_mode_t mode,
-        detail::deduplicate_options const & deduplicate_options,
-        qdb_ts_range_t * ranges,
-        qdb_exp_batch_push_table_t & batch)
-    {
-        batch.name = qdb_string_t{_table_name.data(), _table_name.size()};
-
-        prepare_table_data(batch.data);
-        if (mode == qdb_exp_batch_push_truncate)
-        {
-            batch.truncate_ranges      = ranges;
-            batch.truncate_range_count = ranges == nullptr ? 0u : 1u;
-        }
-
-        // Zero-initialize these
-        batch.where_duplicate       = nullptr;
-        batch.where_duplicate_count = 0;
-        batch.options               = qdb_exp_batch_option_standard;
-
-        enum detail::deduplication_mode_t mode_ = deduplicate_options.mode_;
-
-        std::visit([&mode_, &batch](auto const & columns) { _set_push_options(mode_, columns, batch); },
-            deduplicate_options.columns_);
-    }
-
-    inline void clear_columns()
+    inline void clear()
     {
         _index.clear();
         for (size_t index = 0; index < _columns.size(); ++index)
         {
             dispatch::by_column_type<detail::clear_column>(_column_infos[index].type, _columns[index]);
         }
+
+        _table_name.clear();
+        _column_infos.clear();
+        _columns_data.clear();
     }
 
     inline qdb_ts_range_t time_range() const
@@ -273,7 +255,6 @@ private:
     std::vector<detail::column_info> _column_infos;
     std::vector<qdb_timespec_t> _index;
     std::vector<any_column> _columns;
-    qdb::object_tracker::scoped_repository _object_tracker;
 
     std::vector<qdb_exp_batch_push_column_t> _columns_data;
 };
@@ -292,6 +273,55 @@ class pinned_writer
     using staged_tables_t  = std::map<std::string, detail::staged_table>;
 
 public:
+    /**
+     * Convenience class that holds data that can be pushed to the pinned writer. Makes
+     * it easier for the end-user to provide the data in the correct format, in a single
+     * function call, if they decide to use the low-level pinned writer API themselves.
+     */
+    class data
+    {
+        friend class pinned_writer;
+
+    protected:
+        struct value_type
+        {
+            qdb::table table;
+            py::array index;
+            py::list column_data;
+        };
+
+    public:
+        void append(qdb::table const & table, py::handle const & index, py::list const & column_data);
+
+        inline bool empty() const noexcept
+        {
+            return xs_.empty();
+        }
+
+        inline value_type const & front() const noexcept
+        {
+            assert(empty() == false);
+
+            return xs_.front();
+        }
+
+        inline value_type const & back() const noexcept
+        {
+            assert(empty() == false);
+
+            return xs_.back();
+        }
+
+        std::vector<value_type> xs() const
+        {
+            return xs_;
+        }
+
+    private:
+        std::vector<value_type> xs_;
+    };
+
+public:
     pinned_writer(qdb::handle_ptr h)
         : _logger("quasardb.pinned_writer")
         , _handle{h}
@@ -302,113 +332,52 @@ public:
     pinned_writer(const pinned_writer &) = delete;
 
     ~pinned_writer()
-    {
-        if (_handle)
-        {
-            qdb_release(*_handle, _table_schemas);
-        }
-    }
+    {}
 
-    detail::staged_table & _get_staged_table(qdb::table const & table)
+    const std::vector<qdb_exp_batch_push_column_t> & prepare_columns();
+
+    void push(pinned_writer::data const & data, py::kwargs args);
+    void push_async(pinned_writer::data const & data, py::kwargs args);
+    void push_fast(pinned_writer::data const & data, py::kwargs args);
+    void push_truncate(pinned_writer::data const & data, py::kwargs args);
+
+private:
+    static inline detail::staged_table & _get_staged_table(
+        qdb::table const & table, staged_tables_t & staged_tables)
     {
         std::string table_name = table.get_name();
 
-        auto pos = _staged_tables.lower_bound(table_name);
+        auto pos = staged_tables.lower_bound(table_name);
 
         // XXX(leon): can be optimized by using lower_bound and reusing the `pos` for insertion into
         //            the correct place.
-        if (pos == _staged_tables.end() || pos->first != table_name) [[unlikely]]
+        if (pos == staged_tables.end() || pos->first != table_name) [[unlikely]]
         {
             // The table was not yet found
-            pos = _staged_tables.emplace_hint(pos, table_name, table);
+            pos = staged_tables.emplace_hint(pos, table_name, table);
             assert(pos->second.empty());
         }
 
-        assert(pos != _staged_tables.end());
+        assert(pos != staged_tables.end());
         assert(pos->first == table_name);
 
         return pos->second;
     }
 
-    void set_index(qdb::table const & table, py::handle const & timestamps)
-    {
-        qdb::object_tracker::scoped_capture capture{_object_tracker};
-        _get_staged_table(table).set_index(timestamps);
-    }
+    static staged_tables_t _stage_tables(pinned_writer::data const & data);
 
-    void set_blob_column(qdb::table const & table, std::size_t index, const masked_array & xs)
-    {
-        qdb::object_tracker::scoped_capture capture{_object_tracker};
-        _get_staged_table(table).set_blob_column(index, xs);
-    }
-
-    void set_string_column(qdb::table const & table, std::size_t index, const masked_array & xs)
-    {
-        qdb::object_tracker::scoped_capture capture{_object_tracker};
-        _get_staged_table(table).set_string_column(index, xs);
-    }
-
-    void set_double_column(
-        qdb::table const & table, std::size_t index, masked_array_t<traits::float64_dtype> const & xs)
-    {
-        qdb::object_tracker::scoped_capture capture{_object_tracker};
-        _get_staged_table(table).set_double_column(index, xs);
-    }
-
-    void set_int64_column(
-        qdb::table const & table, std::size_t index, masked_array_t<traits::int64_dtype> const & xs)
-    {
-        qdb::object_tracker::scoped_capture capture{_object_tracker};
-        _get_staged_table(table).set_int64_column(index, xs);
-    }
-
-    void set_timestamp_column(qdb::table const & table,
-        std::size_t index,
-        masked_array_t<traits::datetime64_ns_dtype> const & xs)
-    {
-        qdb::object_tracker::scoped_capture capture{_object_tracker};
-        _get_staged_table(table).set_timestamp_column(index, xs);
-    }
-
-    const std::vector<qdb_exp_batch_push_column_t> & prepare_columns();
-
-    void push(py::kwargs args);
-    void push_async(py::kwargs args);
-    void push_fast(py::kwargs args);
-    void push_truncate(py::kwargs args);
-
-    inline bool empty() const
-    {
-        return _staged_tables.empty();
-    }
-
-    inline std::size_t size() const
-    {
-        return _staged_tables.size();
-    }
-
-private:
-    void _push_impl(qdb_exp_batch_push_mode_t mode,
+    void _push_impl(staged_tables_t & staged_tables,
+        qdb_exp_batch_push_mode_t mode,
         detail::deduplicate_options deduplicate_options,
         qdb_ts_range_t * ranges = nullptr);
 
     detail::deduplicate_options _deduplicate_from_args(py::kwargs args);
 
-    void _clear()
-    {
-        _staged_tables.clear();
-        _table_schemas = nullptr;
-    }
-
 private:
     qdb::logger _logger;
     qdb::handle_ptr _handle;
 
-    staged_tables_t _staged_tables;
-
     qdb::object_tracker::scoped_repository _object_tracker;
-
-    const qdb_exp_batch_push_table_schema_t * _table_schemas{nullptr};
 
 public:
     // the 'legacy' API needs some state attached to the pinned writer; monkey patching
