@@ -165,7 +165,10 @@ def _wrap_fn(old_fn, replace_fn):
 
     def wrapped(self, *args, **kwargs):
         data = replace_fn(self)
-        return old_fn(self, data, *args, **kwargs)
+        if data:
+            return old_fn(self, data, *args, **kwargs)
+        else:
+            return old_fn(self, *args, **kwargs)
 
     return wrapped
 
