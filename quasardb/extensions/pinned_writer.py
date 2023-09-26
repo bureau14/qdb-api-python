@@ -98,13 +98,6 @@ def _legacy_push(self):
                       quasardb.ColumnType.Symbol: np.dtype('unicode'),
                       quasardb.ColumnType.Blob: np.dtype('bytes')
                     }
-    fn_by_ctype = {quasardb.ColumnType.Double: self.set_double_column,
-                   quasardb.ColumnType.Int64: self.set_int64_column,
-                   quasardb.ColumnType.Timestamp: self.set_timestamp_column,
-                   quasardb.ColumnType.String: self.set_string_column,
-                   quasardb.ColumnType.Symbol: self.set_string_column,
-                   quasardb.ColumnType.Blob: self.set_blob_column,
-                   }
 
     ctype_by_idx = {}
     cinfos = table.list_columns()
@@ -136,11 +129,11 @@ def _legacy_push(self):
     for xs in pivoted['by_index'].values():
         assert len(xs) == len(pivoted['$timestamp'])
 
-    self.set_index(table, np.array(pivoted['$timestamp'], np.dtype('datetime64[ns]')))
+    column_data = []
+
     for idx,xs in pivoted['by_index'].items():
         ctype = ctype_by_idx[idx]
         dtype = dtype_by_ctype[ctype]
-        fn = fn_by_ctype[ctype]
 
         # None-mask works, because everything inside the list are just regular ojbects
 
@@ -154,16 +147,25 @@ def _legacy_push(self):
             xs_ = ma.masked_array(data=np.array(xs, dtype), mask=mask)
 
         assert len(xs_) == len(pivoted['$timestamp'])
-        fn(table, idx, xs_)
+
+        column_data.append(xs_)
+
+
+    push_data = quasardb.PinnedWriterData()
+    index = np.array(pivoted['$timestamp'], np.dtype('datetime64[ns]'))
+
+    push_data.append(table, index, column_data)
+
 
     self._legacy_state = {}
+    return push_data
 
 
 def _wrap_fn(old_fn, replace_fn):
 
     def wrapped(self, *args, **kwargs):
-        replace_fn(self)
-        return old_fn(self, *args, **kwargs)
+        data = replace_fn(self)
+        return old_fn(self, data, *args, **kwargs)
 
     return wrapped
 

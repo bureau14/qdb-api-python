@@ -684,7 +684,7 @@ def write_arrays(
 
     n_rows = 0
 
-    push_data = []
+    push_data = quasardb.PinnedWriterData()
 
     for (table, data_) in data:
         # Acquire reference to table if string is provided
@@ -733,15 +733,7 @@ def write_arrays(
         for i in range(len(data_)):
             assert len(data_[i]) == len(index_)
 
-        # Set properties
-        table_name = table.get_name()
-        assert table_name not in push_data
-
-
-        push_data.append({'table': table,
-                          'index': index_,
-                          'columns': data_})
-
+        push_data.append(table, index_, data_)
 
         n_rows += len(index_)
         ret.append(table)

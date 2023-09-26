@@ -32,6 +32,7 @@
 
 #include "batch_column.hpp"
 #include "dispatch.hpp"
+#include "error.hpp"
 #include "logger.hpp"
 #include "object_tracker.hpp"
 #include "table.hpp"
@@ -174,7 +175,7 @@ public:
         clear();
     }
 
-    void set_index(py::handle const & timestamps);
+    void set_index(py::array const & timestamps);
     void set_blob_column(std::size_t index, const masked_array & xs);
     void set_string_column(std::size_t index, const masked_array & xs);
     void set_double_column(std::size_t index, masked_array_t<traits::float64_dtype> const & xs);
@@ -272,6 +273,54 @@ class pinned_writer
     using staged_tables_t  = std::map<std::string, detail::staged_table>;
 
 public:
+    /**
+     * Convenience class that holds data that can be pushed to the pinned writer. Makes
+     * it easier for the end-user to provide the data in the correct format, in a single
+     * function call, if they decide to use the low-level pinned writer API themselves.
+     */
+    class data
+    {
+        friend class pinned_writer;
+
+    protected:
+        struct value_type
+        {
+            qdb::table table;
+            py::array index;
+            py::list column_data;
+        };
+
+    public:
+        void append(qdb::table const & table, py::handle const & index, py::list const & column_data);
+
+        inline bool empty() const noexcept
+        {
+            return xs_.empty();
+        }
+
+        inline value_type const & front() const noexcept
+        {
+            assert(empty() == false);
+
+            return xs_.front();
+        }
+
+        inline value_type const & back() const noexcept
+        {
+            assert(empty() == false);
+
+            return xs_.back();
+        }
+
+        std::vector<value_type> xs() const
+        {
+            return xs_;
+        }
+
+    private:
+        std::vector<value_type> xs_;
+    };
+
 public:
     pinned_writer(qdb::handle_ptr h)
         : _logger("quasardb.pinned_writer")
@@ -283,79 +332,52 @@ public:
     pinned_writer(const pinned_writer &) = delete;
 
     ~pinned_writer()
-    {
+    {}
 
-        _clear();
+    const std::vector<qdb_exp_batch_push_column_t> & prepare_columns();
 
-        if (_handle)
-        {
-            qdb_release(*_handle, _table_schemas);
-        }
-    }
+    void push(pinned_writer::data const & data, py::kwargs args);
+    void push_async(pinned_writer::data const & data, py::kwargs args);
+    void push_fast(pinned_writer::data const & data, py::kwargs args);
+    void push_truncate(pinned_writer::data const & data, py::kwargs args);
 
-    detail::staged_table & _get_staged_table(qdb::table const & table)
+private:
+    static inline detail::staged_table & _get_staged_table(
+        qdb::table const & table, staged_tables_t & staged_tables)
     {
         std::string table_name = table.get_name();
 
-        auto pos = _staged_tables.lower_bound(table_name);
+        auto pos = staged_tables.lower_bound(table_name);
 
         // XXX(leon): can be optimized by using lower_bound and reusing the `pos` for insertion into
         //            the correct place.
-        if (pos == _staged_tables.end() || pos->first != table_name) [[unlikely]]
+        if (pos == staged_tables.end() || pos->first != table_name) [[unlikely]]
         {
             // The table was not yet found
-            pos = _staged_tables.emplace_hint(pos, table_name, table);
+            pos = staged_tables.emplace_hint(pos, table_name, table);
             assert(pos->second.empty());
         }
 
-        assert(pos != _staged_tables.end());
+        assert(pos != staged_tables.end());
         assert(pos->first == table_name);
 
         return pos->second;
     }
 
-    const std::vector<qdb_exp_batch_push_column_t> & prepare_columns();
+    static staged_tables_t _stage_tables(pinned_writer::data const & data);
 
-    void push(py::list data, py::kwargs args);
-    void push_async(py::list data, py::kwargs args);
-    void push_fast(py::list data, py::kwargs args);
-    void push_truncate(py::list data, py::kwargs args);
-
-    inline bool empty() const
-    {
-        return _staged_tables.empty();
-    }
-
-    inline std::size_t size() const
-    {
-        return _staged_tables.size();
-    }
-
-private:
-    void _set_columns(py::list data);
-
-    void _push_impl(py::list data,
+    void _push_impl(staged_tables_t & staged_tables,
         qdb_exp_batch_push_mode_t mode,
         detail::deduplicate_options deduplicate_options,
         qdb_ts_range_t * ranges = nullptr);
 
     detail::deduplicate_options _deduplicate_from_args(py::kwargs args);
 
-    void _clear()
-    {
-        _staged_tables.clear();
-        _table_schemas = nullptr;
-    }
-
 private:
     qdb::logger _logger;
     qdb::handle_ptr _handle;
 
-    staged_tables_t _staged_tables;
-
     qdb::object_tracker::scoped_repository _object_tracker;
-
-    const qdb_exp_batch_push_table_schema_t * _table_schemas{nullptr};
 
 public:
     // the 'legacy' API needs some state attached to the pinned writer; monkey patching
