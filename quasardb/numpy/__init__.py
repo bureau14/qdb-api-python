@@ -684,6 +684,8 @@ def write_arrays(
 
     n_rows = 0
 
+    push_data = quasardb.PinnedWriterData()
+
     for (table, data_) in data:
         # Acquire reference to table if string is provided
         if isinstance(table, str):
@@ -695,11 +697,16 @@ def write_arrays(
         assert type(dtype) is list
         assert len(dtype) is len(cinfos)
 
-        if index is None and isinstance(data_, dict) and '$timestamp' in data_:
-            logger.debug("using $timestamp index")
-            index = data_.pop('$timestamp')
-            assert '$timestamp' not in data_
 
+        if index is None and isinstance(data_, dict) and '$timestamp' in data_:
+            index_ = data_.pop('$timestamp')
+            assert '$timestamp' not in data_
+        elif index is not None:
+            index_ = index
+        else:
+            raise RuntimeError("Invalid index: no index provided.")
+
+        assert index_ is not None
 
         if infer_types is True:
             dtype = _add_desired_dtypes(dtype, cinfos)
@@ -720,43 +727,32 @@ def write_arrays(
 
         deduplicate = _coerce_deduplicate(deduplicate, deduplication_mode, cinfos)
 
-        write_with = {
-            quasardb.ColumnType.Double: writer.set_double_column,
-            quasardb.ColumnType.Blob: writer.set_blob_column,
-            quasardb.ColumnType.String: writer.set_string_column,
-            quasardb.ColumnType.Symbol: writer.set_string_column,
-            quasardb.ColumnType.Int64: writer.set_int64_column,
-            quasardb.ColumnType.Timestamp: writer.set_timestamp_column
-        }
-
+        # Sanity check
         assert len(data_) == len(cinfos)
 
-        writer.set_index(table, index)
-
         for i in range(len(data_)):
-            (cname, ctype) = cinfos[i]
+            assert len(data_[i]) == len(index_)
 
-            if data_[i] is not None:
-                write_with[ctype](table, i, data_[i])
+        push_data.append(table, index_, data_)
 
-        n_rows += len(index)
+        n_rows += len(index_)
         ret.append(table)
 
     logger.debug("pushing %d rows", n_rows)
     start = time.time()
 
     if fast is True:
-        writer.push_fast(deduplicate=deduplicate, deduplication_mode=deduplication_mode)
+        writer.push_fast(push_data, deduplicate=deduplicate, deduplication_mode=deduplication_mode)
     elif truncate is True:
-        writer.push_truncate(deduplicate=deduplicate, deduplication_mode=deduplication_mode)
+        writer.push_truncate(push_data, deduplicate=deduplicate, deduplication_mode=deduplication_mode)
     elif isinstance(truncate, tuple):
-        writer.push_truncate(range=truncate, deduplicate=deduplicate, deduplication_mode=deduplication_mode)
+        writer.push_truncate(push_data, range=truncate, deduplicate=deduplicate, deduplication_mode=deduplication_mode)
     elif _async is True:
-        writer.push_async(deduplicate=deduplicate, deduplication_mode=deduplication_mode)
+        writer.push_async(push_data, deduplicate=deduplicate, deduplication_mode=deduplication_mode)
     else:
-        writer.push(deduplicate=deduplicate, deduplication_mode=deduplication_mode)
+        writer.push(push_data, deduplicate=deduplicate, deduplication_mode=deduplication_mode)
 
-    logger.info("pushed %d rows in %s seconds",
+    logger.debug("pushed %d rows in %s seconds",
                 n_rows, (time.time() - start))
 
     return ret
