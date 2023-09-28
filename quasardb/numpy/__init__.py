@@ -652,11 +652,11 @@ def write_arrays(
 
       Defaults to False.
 
-    writer: optional quasardb.PinnedWriter
-      Allows you to explicitly provide a PinnedWriter to use, which is expected to be
+    writer: optional quasardb.Writer
+      Allows you to explicitly provide a Writer to use, which is expected to be
       initialized with the `table`.
 
-      Reuse of the PinnedWriter allows for some performance improvements.
+      Reuse of the Writer allows for some performance improvements.
 
     """
 
@@ -680,11 +680,11 @@ def write_arrays(
 
     # Create batch column info from dataframe
     if writer is None:
-        writer = cluster.pinned_writer()
+        writer = cluster.writer()
 
     n_rows = 0
 
-    push_data = quasardb.PinnedWriterData()
+    push_data = quasardb.WriterData()
 
     for (table, data_) in data:
         # Acquire reference to table if string is provided

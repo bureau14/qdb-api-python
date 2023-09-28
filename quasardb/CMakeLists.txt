@@ -343,8 +343,6 @@ set(QDB_FILES
   numpy.cpp
   object_tracker.hpp
   options.hpp
-  pinned_writer.cpp
-  pinned_writer.hpp
   query.hpp
   query.cpp
   string.hpp
@@ -356,6 +354,8 @@ set(QDB_FILES
   traits.hpp
   utils.cpp
   utils.hpp
+  writer.cpp
+  writer.hpp
   detail/qdb_resource.hpp
   detail/ts_column.hpp
   reader/ts_row.hpp
