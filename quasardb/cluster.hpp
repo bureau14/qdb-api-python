@@ -41,7 +41,6 @@
 #include "node.hpp"
 #include "options.hpp"
 #include "perf.hpp"
-#include "pinned_writer.hpp"
 #include "query.hpp"
 #include "string.hpp"
 #include "table.hpp"
@@ -49,6 +48,7 @@
 #include "tag.hpp"
 #include "timestamp.hpp"
 #include "utils.hpp"
+#include "writer.hpp"
 #include <qdb/node.h>
 #include <qdb/prefix.h>
 #include <qdb/suffix.h>
@@ -212,15 +212,15 @@ public:
     }
 
     // the batch_inserter_ptr is non-copyable
-    qdb::pinned_writer_ptr pinned_writer()
+    qdb::writer_ptr writer()
     {
-        return std::make_unique<qdb::pinned_writer>(_handle);
+        return std::make_unique<qdb::writer>(_handle);
     }
 
     // the batch_inserter_ptr is non-copyable
-    qdb::pinned_writer_ptr writer()
+    qdb::writer_ptr pinned_writer()
     {
-        return pinned_writer();
+        return writer();
     }
 
     qdb::options options()

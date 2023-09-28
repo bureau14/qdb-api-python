@@ -1,4 +1,4 @@
-#include "pinned_writer.hpp"
+#include "writer.hpp"
 #include "concepts.hpp"
 #include "dispatch.hpp"
 #include "numpy.hpp"
@@ -129,7 +129,7 @@ struct fill_column_dispatch
         // to the data as it is inside the `any_column`.
         //
         // This works, because all these `any_column`'s lifecycle is scoped to the
-        // pinned_writer class, and as such will survive for a long time.
+        // writer class, and as such will survive for a long time.
         prepare_column_of_type<ctype>(std::get<column_type>(input), ret);
 
         return ret;
@@ -246,7 +246,7 @@ void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
 namespace qdb
 {
 
-void pinned_writer::data::append(
+void writer::data::append(
     qdb::table const & table, py::handle const & index, py::list const & column_data)
 {
     py::array index_ = numpy::array::ensure<traits::datetime64_ns_dtype>(index);
@@ -273,7 +273,7 @@ void pinned_writer::data::append(
     xs_.push_back(value_type{table, index_, column_data});
 }
 
-void pinned_writer::push(pinned_writer::data const & data, py::kwargs args)
+void writer::push(writer::data const & data, py::kwargs args)
 {
     qdb::object_tracker::scoped_capture capture{_object_tracker};
     staged_tables_t staged_tables = _stage_tables(data);
@@ -281,7 +281,7 @@ void pinned_writer::push(pinned_writer::data const & data, py::kwargs args)
     _push_impl(staged_tables, qdb_exp_batch_push_transactional, _deduplicate_from_args(args));
 }
 
-void pinned_writer::push_async(pinned_writer::data const & data, py::kwargs args)
+void writer::push_async(writer::data const & data, py::kwargs args)
 {
     qdb::object_tracker::scoped_capture capture{_object_tracker};
     staged_tables_t staged_tables = _stage_tables(data);
@@ -289,7 +289,7 @@ void pinned_writer::push_async(pinned_writer::data const & data, py::kwargs args
     _push_impl(staged_tables, qdb_exp_batch_push_async, _deduplicate_from_args(args));
 }
 
-void pinned_writer::push_fast(pinned_writer::data const & data, py::kwargs args)
+void writer::push_fast(writer::data const & data, py::kwargs args)
 {
     qdb::object_tracker::scoped_capture capture{_object_tracker};
     staged_tables_t staged_tables = _stage_tables(data);
@@ -297,7 +297,7 @@ void pinned_writer::push_fast(pinned_writer::data const & data, py::kwargs args)
     _push_impl(staged_tables, qdb_exp_batch_push_fast, _deduplicate_from_args(args));
 }
 
-void pinned_writer::push_truncate(pinned_writer::data const & data, py::kwargs args)
+void writer::push_truncate(writer::data const & data, py::kwargs args)
 {
     qdb::object_tracker::scoped_capture capture{_object_tracker};
     staged_tables_t staged_tables = _stage_tables(data);
@@ -316,8 +316,7 @@ void pinned_writer::push_truncate(pinned_writer::data const & data, py::kwargs a
     // doesn't accidentally truncate his whole database without inserting anything.
     if (data.empty()) [[unlikely]]
     {
-        throw qdb::invalid_argument_exception{
-            "Pinned writer is empty: you did not provide any rows to push."};
+        throw qdb::invalid_argument_exception{"Writer is empty: you did not provide any rows to push."};
     }
 
     qdb_ts_range_t tr;
@@ -332,7 +331,7 @@ void pinned_writer::push_truncate(pinned_writer::data const & data, py::kwargs a
         if (staged_tables.size() != 1) [[unlikely]]
         {
             throw qdb::invalid_argument_exception{
-                "Pinned writer push truncate only supports a single "
+                "Writer push truncate only supports a single "
                 "table unless an explicit range is provided: you provided more than one table without"
                 " an explicit range."};
         }
@@ -344,7 +343,7 @@ void pinned_writer::push_truncate(pinned_writer::data const & data, py::kwargs a
     _push_impl(staged_tables, qdb_exp_batch_push_truncate, deduplicate, &tr);
 }
 
-detail::deduplicate_options pinned_writer::_deduplicate_from_args(py::kwargs args)
+detail::deduplicate_options writer::_deduplicate_from_args(py::kwargs args)
 {
     if (!args.contains("deduplicate") || !args.contains("deduplication_mode"))
     {
@@ -390,12 +389,11 @@ detail::deduplicate_options pinned_writer::_deduplicate_from_args(py::kwargs arg
     throw qdb::invalid_argument_exception{error_msg};
 };
 
-/* static */ pinned_writer::staged_tables_t pinned_writer::_stage_tables(
-    pinned_writer::data const & data)
+/* static */ writer::staged_tables_t writer::_stage_tables(writer::data const & data)
 {
     staged_tables_t staged_tables;
 
-    for (pinned_writer::data::value_type const & table_data : data.xs())
+    for (writer::data::value_type const & table_data : data.xs())
     {
         qdb::table table     = table_data.table;
         py::array index      = table_data.index;
@@ -409,7 +407,7 @@ detail::deduplicate_options pinned_writer::_deduplicate_from_args(py::kwargs arg
                 "data must be provided for every column of the table."};
         }
 
-        detail::staged_table & staged_table = pinned_writer::_get_staged_table(table, staged_tables);
+        detail::staged_table & staged_table = writer::_get_staged_table(table, staged_tables);
 
         staged_table.set_index(index);
 
@@ -457,7 +455,7 @@ detail::deduplicate_options pinned_writer::_deduplicate_from_args(py::kwargs arg
     return staged_tables;
 }
 
-void pinned_writer::_push_impl(pinned_writer::staged_tables_t & staged_tables,
+void writer::_push_impl(writer::staged_tables_t & staged_tables,
     qdb_exp_batch_push_mode_t mode,
     detail::deduplicate_options deduplicate_options,
     qdb_ts_range_t * ranges)
@@ -471,7 +469,7 @@ void pinned_writer::_push_impl(pinned_writer::staged_tables_t & staged_tables,
     batch.assign(staged_tables.size(), qdb_exp_batch_push_table_t());
 
     int cur = 0;
-    _logger.debug("pinned_writer::_push_impl");
+    _logger.debug("writer::_push_impl");
 
     for (auto pos = staged_tables.begin(); pos != staged_tables.end(); ++pos)
     {
@@ -484,7 +482,7 @@ void pinned_writer::_push_impl(pinned_writer::staged_tables_t & staged_tables,
         if (batch_table.data.column_count == 0)
         {
             throw qdb::invalid_argument_exception{
-                "Pinned writer is empty: you did not provide any columns to push."};
+                "Writer is empty: you did not provide any columns to push."};
         }
 
         _logger.debug("Pushing %d rows with %d columns in %s", batch_table.data.row_count,
@@ -495,34 +493,34 @@ void pinned_writer::_push_impl(pinned_writer::staged_tables_t & staged_tables,
         *_handle, qdb_exp_batch_push(*_handle, mode, batch.data(), nullptr, batch.size()));
 }
 
-void register_pinned_writer(py::module_ & m)
+void register_writer(py::module_ & m)
 {
     namespace py = pybind11;
 
-    // Pinned writer data
-    auto pinned_writer_data_c = py::class_<qdb::pinned_writer::data>{m, "PinnedWriterData"};
-    pinned_writer_data_c.def(py::init())
-        .def("append", &qdb::pinned_writer::data::append, py::arg("table"), py::arg("index"),
+    // Writer data
+    auto writer_data_c = py::class_<qdb::writer::data>{m, "WriterData"};
+    writer_data_c.def(py::init())
+        .def("append", &qdb::writer::data::append, py::arg("table"), py::arg("index"),
             py::arg("column_data"), "Append new data")
-        .def("empty", &qdb::pinned_writer::data::empty, "Returns true if underlying data is empty");
+        .def("empty", &qdb::writer::data::empty, "Returns true if underlying data is empty");
 
     // And the actual pinned writer
-    auto pinned_writer_c = py::class_<qdb::pinned_writer>{m, "PinnedWriter"};
+    auto writer_c = py::class_<qdb::writer>{m, "Writer"};
 
     // basic interface
-    pinned_writer_c.def(py::init<qdb::handle_ptr>()); //
+    writer_c.def(py::init<qdb::handle_ptr>()); //
 
-    pinned_writer_c.def_readwrite("_legacy_state", &qdb::pinned_writer::legacy_state_);
+    writer_c.def_readwrite("_legacy_state", &qdb::writer::legacy_state_);
 
     // push functions
-    pinned_writer_c
-        .def("push", &qdb::pinned_writer::push, "Regular batch push") //
-        .def("push_async", &qdb::pinned_writer::push_async,
+    writer_c
+        .def("push", &qdb::writer::push, "Regular batch push") //
+        .def("push_async", &qdb::writer::push_async,
             "Asynchronous batch push that buffers data inside the QuasarDB daemon") //
-        .def("push_fast", &qdb::pinned_writer::push_fast,
+        .def("push_fast", &qdb::writer::push_fast,
             "Fast, in-place batch push that is efficient when doing lots of small, incremental "
             "pushes.") //
-        .def("push_truncate", &qdb::pinned_writer::push_truncate,
+        .def("push_truncate", &qdb::writer::push_truncate,
             "Before inserting data, truncates any existing data. This is useful when you want your "
             "insertions to be idempotent, e.g. in "
             "case of a retry.");

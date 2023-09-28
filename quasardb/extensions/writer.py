@@ -151,7 +151,7 @@ def _legacy_push(self):
         column_data.append(xs_)
 
 
-    push_data = quasardb.PinnedWriterData()
+    push_data = quasardb.WriterData()
     index = np.array(pivoted['$timestamp'], np.dtype('datetime64[ns]'))
 
     push_data.append(table, index, column_data)
@@ -173,21 +173,21 @@ def _wrap_fn(old_fn, replace_fn):
     return wrapped
 
 
-def extend_pinned_writer(x):
+def extend_writer(x):
     """
-    Extends the pinned writer with the "old", batch inserter API. This is purely
+    Extends the writer with the "old", batch inserter API. This is purely
     a backwards compatibility layer, and we want to avoid having to maintain that
     in C++ with few benefits.
     """
 
-    x.start_row  = _legacy_start_row
-    x.set_double = _legacy_set_double
-    x.set_int64  = _legacy_set_int64
-    x.set_string  = _legacy_set_string
-    x.set_blob  = _legacy_set_blob
+    x.start_row      = _legacy_start_row
+    x.set_double     = _legacy_set_double
+    x.set_int64      = _legacy_set_int64
+    x.set_string     = _legacy_set_string
+    x.set_blob       = _legacy_set_blob
     x.set_timestamp  = _legacy_set_timestamp
 
-    x.push = _wrap_fn(x.push, _legacy_push)
-    x.push_fast = _wrap_fn(x.push_fast, _legacy_push)
-    x.push_async = _wrap_fn(x.push_async, _legacy_push)
-    x.push_truncate = _wrap_fn(x.push_truncate, _legacy_push)
+    x.push           = _wrap_fn(x.push, _legacy_push)
+    x.push_fast      = _wrap_fn(x.push_fast, _legacy_push)
+    x.push_async     = _wrap_fn(x.push_async, _legacy_push)
+    x.push_truncate  = _wrap_fn(x.push_truncate, _legacy_push)
