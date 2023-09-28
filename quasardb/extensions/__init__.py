@@ -1,8 +1,8 @@
-from .pinned_writer import extend_pinned_writer
+from .writer import extend_writer
 
 
 __all__ = []
 
 
 def extend_module(m):
-    m.PinnedWriter = extend_pinned_writer(m.PinnedWriter)
+    m.Writer = extend_writer(m.Writer)

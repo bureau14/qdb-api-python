@@ -18,23 +18,23 @@ def _generate_data(count, start=np.datetime64('2017-01-01', 'ns')):
     return (integers, timestamps)
 
 def test_incorrect_type_double(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer()
-    pinned_writer.start_row(table, np.datetime64('2020-01-01T00:00:00', 'ns'))
+    writer = qdbd_connection.writer()
+    writer.start_row(table, np.datetime64('2020-01-01T00:00:00', 'ns'))
     for idx in range(6):
         if idx == 0:
             continue
         with pytest.raises(quasardb.IncompatibleTypeError):
-            pinned_writer.set_double(idx, 1.1)
+            writer.set_double(idx, 1.1)
 
 
 def test_successful_type_double(qdbd_connection, table):
     timestamp = np.datetime64('2020-01-01T00:00:00', 'ns')
     value = 1.1
 
-    pinned_writer = qdbd_connection.pinned_writer()
-    pinned_writer.start_row(table, timestamp)
-    pinned_writer.set_double(0, value)
-    pinned_writer.push()
+    writer = qdbd_connection.writer()
+    writer.start_row(table, timestamp)
+    writer.set_double(0, value)
+    writer.push()
 
     res = qdbd_connection.query(
         'SELECT "$timestamp","the_double" FROM "{}"'.format(
@@ -45,19 +45,19 @@ def test_successful_type_double(qdbd_connection, table):
 
 
 def test_incorrect_type_blob(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer()
-    pinned_writer.start_row(table, np.datetime64('2020-01-01T00:00:00', 'ns'))
+    writer = qdbd_connection.writer()
+    writer.start_row(table, np.datetime64('2020-01-01T00:00:00', 'ns'))
     with pytest.raises(quasardb.IncompatibleTypeError):
-        pinned_writer.set_int64(1, 1234)
+        writer.set_int64(1, 1234)
 
 def test_successful_type_blob(qdbd_connection, table):
     timestamp = np.datetime64('2020-01-01T00:00:00', 'ns')
     value = b'aaa'
 
-    pinned_writer = qdbd_connection.pinned_writer()
-    pinned_writer.start_row(table, timestamp)
-    pinned_writer.set_blob(1, value)
-    pinned_writer.push()
+    writer = qdbd_connection.writer()
+    writer.start_row(table, timestamp)
+    writer.set_blob(1, value)
+    writer.push()
 
     res = qdbd_connection.query(
         'SELECT "$timestamp","the_blob" FROM "{}"'.format(
@@ -68,19 +68,19 @@ def test_successful_type_blob(qdbd_connection, table):
 
 
 def test_incorrect_type_string(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer()
-    pinned_writer.start_row(table, np.datetime64('2020-01-01T00:00:00', 'ns'))
+    writer = qdbd_connection.writer()
+    writer.start_row(table, np.datetime64('2020-01-01T00:00:00', 'ns'))
     with pytest.raises(quasardb.IncompatibleTypeError):
-        pinned_writer.set_int64(2, 1234)
+        writer.set_int64(2, 1234)
 
 def test_successful_type_string(qdbd_connection, table):
     timestamp = np.datetime64('2020-01-01T00:00:00', 'ns')
     value = 'aaa'
 
-    pinned_writer = qdbd_connection.pinned_writer()
-    pinned_writer.start_row(table, timestamp)
-    pinned_writer.set_string(2, value)
-    pinned_writer.push()
+    writer = qdbd_connection.writer()
+    writer.start_row(table, timestamp)
+    writer.set_string(2, value)
+    writer.push()
 
     res = qdbd_connection.query(
         'SELECT "$timestamp","the_string" FROM "{}"'.format(
@@ -91,23 +91,23 @@ def test_successful_type_string(qdbd_connection, table):
 
 
 def test_incorrect_type_int64(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer()
-    pinned_writer.start_row(table, np.datetime64('2020-01-01T00:00:00', 'ns'))
+    writer = qdbd_connection.writer()
+    writer.start_row(table, np.datetime64('2020-01-01T00:00:00', 'ns'))
     for idx in range(6):
         if idx == 3:
             continue
         with pytest.raises(quasardb.IncompatibleTypeError):
-            pinned_writer.set_int64(idx, 1)
+            writer.set_int64(idx, 1)
 
 
 def test_successful_type_int64(qdbd_connection, table):
     timestamp = np.datetime64('2020-01-01T00:00:00', 'ns')
     value = 1
 
-    pinned_writer = qdbd_connection.pinned_writer()
-    pinned_writer.start_row(table, timestamp)
-    pinned_writer.set_int64(3, value)
-    pinned_writer.push()
+    writer = qdbd_connection.writer()
+    writer.start_row(table, timestamp)
+    writer.set_int64(3, value)
+    writer.push()
 
     res = qdbd_connection.query(
         'SELECT "$timestamp","the_int64" FROM "{}"'.format(
@@ -118,13 +118,13 @@ def test_successful_type_int64(qdbd_connection, table):
 
 
 def test_incorrect_type_timestamp(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer()
-    pinned_writer.start_row(table, np.datetime64('2020-01-01T00:00:00', 'ns'))
+    writer = qdbd_connection.writer()
+    writer.start_row(table, np.datetime64('2020-01-01T00:00:00', 'ns'))
     for idx in range(6):
         if idx == 4:
             continue
         with pytest.raises(quasardb.IncompatibleTypeError):
-            pinned_writer.set_timestamp(
+            writer.set_timestamp(
                 idx, np.datetime64(
                     '2020-01-01T00:00:00', 'ns'))
 
@@ -133,10 +133,10 @@ def test_successful_type_timestamp(qdbd_connection, table):
     timestamp = np.datetime64('2020-01-01T00:00:00', 'ns')
     value = np.datetime64('2020-01-01T00:00:00', 'ns')
 
-    pinned_writer = qdbd_connection.pinned_writer()
-    pinned_writer.start_row(table, timestamp)
-    pinned_writer.set_timestamp(4, value)
-    pinned_writer.push()
+    writer = qdbd_connection.writer()
+    writer.start_row(table, timestamp)
+    writer.set_timestamp(4, value)
+    writer.push()
 
     res = qdbd_connection.query(
         'SELECT "$timestamp","the_ts" FROM "{}"'.format(
@@ -147,20 +147,20 @@ def test_successful_type_timestamp(qdbd_connection, table):
 
 
 def test_incorrect_type_symbol(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer()
-    pinned_writer.start_row(table, np.datetime64('2020-01-01T00:00:00', 'ns'))
+    writer = qdbd_connection.writer()
+    writer.start_row(table, np.datetime64('2020-01-01T00:00:00', 'ns'))
     with pytest.raises(quasardb.IncompatibleTypeError):
-        pinned_writer.set_int64(5, 1234)
+        writer.set_int64(5, 1234)
 
 
 def test_successful_type_symbol(qdbd_connection, table):
     timestamp = np.datetime64('2020-01-01T00:00:00', 'ns')
     value = 'aaa'
 
-    pinned_writer = qdbd_connection.pinned_writer()
-    pinned_writer.start_row(table, timestamp)
-    pinned_writer.set_string(5, value)
-    pinned_writer.push()
+    writer = qdbd_connection.writer()
+    writer.start_row(table, timestamp)
+    writer.set_string(5, value)
+    writer.push()
 
     res = qdbd_connection.query(
         'SELECT "$timestamp","the_symbol" FROM "{}"'.format(
@@ -171,7 +171,7 @@ def test_successful_type_symbol(qdbd_connection, table):
 
 
 def test_insert_data_ordered_single_shard(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer()
+    writer = qdbd_connection.writer()
 
     timestamps = [
         np.datetime64(
@@ -182,12 +182,12 @@ def test_insert_data_ordered_single_shard(qdbd_connection, table):
             'ns')]
     values = [0, 1]
 
-    pinned_writer.start_row(table, timestamps[0])
-    pinned_writer.set_int64(3, values[0])
-    pinned_writer.start_row(table, timestamps[1])
-    pinned_writer.set_int64(3, values[1])
+    writer.start_row(table, timestamps[0])
+    writer.set_int64(3, values[0])
+    writer.start_row(table, timestamps[1])
+    writer.set_int64(3, values[1])
 
-    pinned_writer.push()
+    writer.push()
 
     res = qdbd_connection.query(
         'SELECT "$timestamp","the_int64" FROM "{}"'.format(
@@ -199,7 +199,7 @@ def test_insert_data_ordered_single_shard(qdbd_connection, table):
 
 
 def test_insert_data_ordered_multiple_shards(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer()
+    writer = qdbd_connection.writer()
 
     timestamps = [
         np.datetime64(
@@ -210,12 +210,12 @@ def test_insert_data_ordered_multiple_shards(qdbd_connection, table):
             'ns')]
     values = [1, 2]
 
-    pinned_writer.start_row(table, timestamps[0])
-    pinned_writer.set_int64(3, values[0])
-    pinned_writer.start_row(table, timestamps[1])
-    pinned_writer.set_int64(3, values[1])
+    writer.start_row(table, timestamps[0])
+    writer.set_int64(3, values[0])
+    writer.start_row(table, timestamps[1])
+    writer.set_int64(3, values[1])
 
-    pinned_writer.push()
+    writer.push()
 
     res = qdbd_connection.query(
         'SELECT "$timestamp","the_int64" FROM "{}"'.format(
@@ -227,7 +227,7 @@ def test_insert_data_ordered_multiple_shards(qdbd_connection, table):
 
 
 def test_insert_data_unordered_single_shard(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer()
+    writer = qdbd_connection.writer()
 
     timestamps = [
         np.datetime64(
@@ -238,12 +238,12 @@ def test_insert_data_unordered_single_shard(qdbd_connection, table):
             'ns')]
     values = [1, 0]
 
-    pinned_writer.start_row(table, timestamps[0])
-    pinned_writer.set_int64(3, values[0])
-    pinned_writer.start_row(table, timestamps[1])
-    pinned_writer.set_int64(3, values[1])
+    writer.start_row(table, timestamps[0])
+    writer.set_int64(3, values[0])
+    writer.start_row(table, timestamps[1])
+    writer.set_int64(3, values[1])
 
-    pinned_writer.push()
+    writer.push()
 
     res = qdbd_connection.query(
         'SELECT "$timestamp","the_int64" FROM "{}"'.format(
@@ -256,7 +256,7 @@ def test_insert_data_unordered_single_shard(qdbd_connection, table):
 
 
 def test_insert_data_unordered_multiple_shards(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer()
+    writer = qdbd_connection.writer()
 
     timestamps = [
         np.datetime64(
@@ -267,12 +267,12 @@ def test_insert_data_unordered_multiple_shards(qdbd_connection, table):
             'ns')]
     values = [2, 1]
 
-    pinned_writer.start_row(table, timestamps[0])
-    pinned_writer.set_int64(3, values[0])
-    pinned_writer.start_row(table, timestamps[1])
-    pinned_writer.set_int64(3, values[1])
+    writer.start_row(table, timestamps[0])
+    writer.set_int64(3, values[0])
+    writer.start_row(table, timestamps[1])
+    writer.set_int64(3, values[1])
 
-    pinned_writer.push()
+    writer.push()
 
     res = qdbd_connection.query(
         'SELECT "$timestamp","the_int64" FROM "{}"'.format(
@@ -285,7 +285,7 @@ def test_insert_data_unordered_multiple_shards(qdbd_connection, table):
 
 
 def test_insert_data_ordered_single_shard_two_push(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer()
+    writer = qdbd_connection.writer()
 
     timestamps = [
         np.datetime64(
@@ -296,13 +296,13 @@ def test_insert_data_ordered_single_shard_two_push(qdbd_connection, table):
             'ns')]
     values = [0, 1]
 
-    pinned_writer.start_row(table, timestamps[0])
-    pinned_writer.set_int64(3, values[0])
-    pinned_writer.push()
+    writer.start_row(table, timestamps[0])
+    writer.set_int64(3, values[0])
+    writer.push()
 
-    pinned_writer.start_row(table, timestamps[1])
-    pinned_writer.set_int64(3, values[1])
-    pinned_writer.push()
+    writer.start_row(table, timestamps[1])
+    writer.set_int64(3, values[1])
+    writer.push()
 
     res = qdbd_connection.query(
         'SELECT "$timestamp","the_int64" FROM "{}"'.format(
@@ -313,7 +313,7 @@ def test_insert_data_ordered_single_shard_two_push(qdbd_connection, table):
         assert row['the_int64'] == values[idx]
 
 def test_insert_data_ordered_multiple_shards_two_push(qdbd_connection, table):
-    pinned_writer = qdbd_connection.pinned_writer()
+    writer = qdbd_connection.writer()
 
     timestamps = [
         np.datetime64(
@@ -324,13 +324,13 @@ def test_insert_data_ordered_multiple_shards_two_push(qdbd_connection, table):
             'ns')]
     values = [1, 2]
 
-    pinned_writer.start_row(table, timestamps[0])
-    pinned_writer.set_int64(3, values[0])
-    pinned_writer.push()
+    writer.start_row(table, timestamps[0])
+    writer.set_int64(3, values[0])
+    writer.push()
 
-    pinned_writer.start_row(table, timestamps[1])
-    pinned_writer.set_int64(3, values[1])
-    pinned_writer.push()
+    writer.start_row(table, timestamps[1])
+    writer.set_int64(3, values[1])
+    writer.push()
 
     res = qdbd_connection.query(
         'SELECT "$timestamp","the_int64" FROM "{}"'.format(

@@ -159,7 +159,7 @@ class staged_table
 {
 public:
     staged_table(qdb::table const & table)
-        : _logger("quasardb.pinned_writer")
+        : _logger("quasardb.writer")
         , _table_name(table.get_name())
     {
         _column_infos = table.list_columns();
@@ -261,7 +261,7 @@ private:
 
 } // namespace detail
 
-class pinned_writer
+class writer
 {
 
     using int64_column     = detail::int64_column;
@@ -274,13 +274,13 @@ class pinned_writer
 
 public:
     /**
-     * Convenience class that holds data that can be pushed to the pinned writer. Makes
-     * it easier for the end-user to provide the data in the correct format, in a single
-     * function call, if they decide to use the low-level pinned writer API themselves.
+     * Convenience class that holds data that can be pushed to the writer. Makes it
+     * easier for the end-user to provide the data in the correct format, in a single
+     * function call, if they decide to use the low-level writer API themselves.
      */
     class data
     {
-        friend class pinned_writer;
+        friend class writer;
 
     protected:
         struct value_type
@@ -322,24 +322,24 @@ public:
     };
 
 public:
-    pinned_writer(qdb::handle_ptr h)
-        : _logger("quasardb.pinned_writer")
+    writer(qdb::handle_ptr h)
+        : _logger("quasardb.writer")
         , _handle{h}
     {}
 
     // prevent copy because of the table object, use a unique_ptr of the batch in cluster
     // to return the object
-    pinned_writer(const pinned_writer &) = delete;
+    writer(const writer &) = delete;
 
-    ~pinned_writer()
+    ~writer()
     {}
 
     const std::vector<qdb_exp_batch_push_column_t> & prepare_columns();
 
-    void push(pinned_writer::data const & data, py::kwargs args);
-    void push_async(pinned_writer::data const & data, py::kwargs args);
-    void push_fast(pinned_writer::data const & data, py::kwargs args);
-    void push_truncate(pinned_writer::data const & data, py::kwargs args);
+    void push(writer::data const & data, py::kwargs args);
+    void push_async(writer::data const & data, py::kwargs args);
+    void push_fast(writer::data const & data, py::kwargs args);
+    void push_truncate(writer::data const & data, py::kwargs args);
 
 private:
     static inline detail::staged_table & _get_staged_table(
@@ -364,7 +364,7 @@ private:
         return pos->second;
     }
 
-    static staged_tables_t _stage_tables(pinned_writer::data const & data);
+    static staged_tables_t _stage_tables(writer::data const & data);
 
     void _push_impl(staged_tables_t & staged_tables,
         qdb_exp_batch_push_mode_t mode,
@@ -389,8 +389,8 @@ public:
 
 // don't use shared_ptr, let Python do the reference counting, otherwise you will have an undefined
 // behavior
-using pinned_writer_ptr = std::unique_ptr<pinned_writer>;
+using writer_ptr = std::unique_ptr<writer>;
 
-void register_pinned_writer(py::module_ & m);
+void register_writer(py::module_ & m);
 
 } // namespace qdb
