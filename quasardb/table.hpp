@@ -44,7 +44,7 @@ public:
         : entry{h, a}
         , _has_indexed_columns(false)
     {
-        _cache_columns();
+        retrieve_metadata();
     }
 
 public:
@@ -59,6 +59,8 @@ public:
     void retrieve_metadata()
     {
         _cache_columns();
+        _cache_ttl();
+        _cache_shard_size();
     }
 
     void create(const std::vector<detail::column_info> & columns,
@@ -88,6 +90,40 @@ public:
         if (_columns.has_value()) [[likely]]
         {
             return _columns.value();
+        }
+
+        throw qdb::alias_not_found_exception{};
+    }
+
+    std::chrono::milliseconds get_shard_size() const
+    {
+        if (_shard_size.has_value()) [[likely]]
+        {
+            return _shard_size.value();
+        }
+
+        _cache_shard_size();
+
+        if (_shard_size.has_value()) [[likely]]
+        {
+            return _shard_size.value();
+        }
+
+        throw qdb::alias_not_found_exception{};
+    }
+
+    std::chrono::milliseconds get_ttl() const
+    {
+        if (_ttl.has_value()) [[likely]]
+        {
+            return _ttl.value();
+        }
+
+        _cache_ttl();
+
+        if (_ttl.has_value()) [[likely]]
+        {
+            return _ttl.value();
         }
 
         throw qdb::alias_not_found_exception{};
@@ -170,15 +206,38 @@ private:
         _columns = detail::convert_columns(columns.get(), count);
     }
 
-    /**
-     * Loads column info / metadata from server if not yet cached locally.
-     */
-    void _maybe_cache_columns() const
+    void _cache_ttl() const
     {
-        if (_columns.has_value() == false) [[unlikely]]
+        qdb_uint_t ttl{0};
+
+        auto err = qdb_ts_get_ttl(*_handle, _alias.c_str(), &ttl);
+
+        if (err == qdb_e_alias_not_found) [[unlikely]]
         {
-            _cache_columns();
+            // Can happen if table does not yet exist, do nothing.
+            return;
         }
+
+        qdb::qdb_throw_if_error(*_handle, err);
+
+        _ttl = std::chrono::milliseconds{ttl};
+    }
+
+    void _cache_shard_size() const
+    {
+        qdb_uint_t shard_size{0};
+
+        auto err = qdb_ts_shard_size(*_handle, _alias.c_str(), &shard_size);
+
+        if (err == qdb_e_alias_not_found) [[unlikely]]
+        {
+            // Can happen if table does not yet exist, do nothing.
+            return;
+        }
+
+        qdb::qdb_throw_if_error(*_handle, err);
+
+        _shard_size = std::chrono::milliseconds{shard_size};
     }
 
 public:
@@ -229,6 +288,8 @@ private:
     mutable detail::indexed_columns_t _indexed_columns;
 
     mutable std::optional<std::vector<detail::column_info>> _columns;
+    mutable std::optional<std::chrono::milliseconds> _ttl;
+    mutable std::optional<std::chrono::milliseconds> _shard_size;
 };
 
 template <typename Module>
@@ -259,6 +320,8 @@ static inline void register_table(Module & m)
         .def("column_id_by_index", &qdb::table::column_id_by_index)     //
         .def("insert_columns", &qdb::table::insert_columns)             //
         .def("list_columns", &qdb::table::list_columns)                 //
+        .def("get_shard_size", &qdb::table::get_shard_size)             //
+        .def("get_ttl", &qdb::table::get_ttl)                           //
 
         // We cannot initialize columns with all columns by default, because i don't
         // see a way to figure out the `this` address for qdb_ts_reader for the default
