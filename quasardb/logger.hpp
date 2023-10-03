@@ -151,7 +151,9 @@ private:
         assert(buf != NULL);
         assert(errors == NULL);
 
-        logfn(py::str(buf), std::forward<Args>(args)...);
+        py::str buf_ = py::reinterpret_steal<py::str>(buf);
+
+        logfn(buf_, std::forward<Args>(args)...);
     }
 
 private:
