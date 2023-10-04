@@ -234,7 +234,8 @@ requires(concepts::variable_width_dtype<Dtype>) inline py::array to_array(R && x
     //  4. allocate a single, contiguous array of [1] * [2] * [3] bytes;
     //
     py::array arr{Dtype::dtype(stride_size), shape, strides};
-    assert(Dtype::stride_size(arr.itemsize()) == stride_size);
+    assert(arr.itemsize() >= 0);
+    assert(static_cast<std::size_t>(Dtype::stride_size(arr.itemsize())) == stride_size);
 
     ////
     //  5. expose this contiguous array as chunks of `stride_size`
