@@ -135,16 +135,19 @@ public:
     };
 
     template <typename T>
-        requires(!std::is_pointer_v<T>)
-    [[nodiscard]] inline T * track(T * x) noexcept
+    requires(!std::is_pointer_v<T>) [[nodiscard]] inline T * track(T * x) noexcept
     {
         return static_cast<T *>(track(make_trackable_object(std::unique_ptr<T>{x})));
     };
 
+    /**
+     * Allocates `n` bytes and immediately tracks it. n is the amount of bytes to allocate, *not* the
+     * amount of objects of sizeof(T) to allocate.
+     */
     template <typename T>
     [[nodiscard]] inline T * alloc(std::size_t n) noexcept
     {
-        return track<T>(static_cast<T *>(std::malloc(n)));
+        return track<T>((T *)::operator new(n));
     };
 
 public:
@@ -192,7 +195,7 @@ class scoped_repository
 public:
     scoped_repository() = default;
 
-    ~scoped_repository() = default;
+    ~scoped_repository(){};
 
     [[nodiscard]] inline std::size_t size() const noexcept
     {
