@@ -2,7 +2,7 @@
  *
  * Official Python API
  *
- * Copyright (c) 2009-2022, quasardb SAS. All rights reserved.
+ * Copyright (c) 2009-2023, quasardb SAS. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -315,6 +315,9 @@ public:
         , mask_{ma.mask_}
     {}
 
+    ~masked_array()
+    {}
+
     py::handle cast(py::return_value_policy /* policy */) const
     {
         py::module numpy_ma = py::module::import("numpy.ma");
@@ -333,8 +336,9 @@ public:
         return mask_;
     }
 
-    inline bool load(py::handle src)
+    inline bool load(py::object src)
     {
+
         if (masked_array::check(src)) [[likely]]
         {
             // This is an actual numpy.ma.array
@@ -528,7 +532,7 @@ template <concepts::dtype T>
 class masked_array_t : public masked_array
 {
 public:
-    bool load(py::handle src)
+    bool load(py::object src)
     {
         if (masked_array::load(src) == true) [[likely]]
         {
@@ -579,7 +583,9 @@ static inline void register_masked_array(Module & m)
 
 } // namespace qdb
 
-namespace pybind11::detail
+namespace PYBIND11_NAMESPACE
+{
+namespace detail
 {
 
 /**
@@ -593,14 +599,16 @@ public:
     /**
      * Note that this macro magically sets a member variable called 'value'.
      */
-    PYBIND11_TYPE_CASTER(qdb::masked_array, _("numpy.ma.MaskedArray"));
+    PYBIND11_TYPE_CASTER(qdb::masked_array, const_name("numpy.ma.MaskedArray"));
 
     /**
-     * We do not support Python->C++ (yet).
+     * Python->C++.
      */
     bool load(py::handle src, bool)
     {
-        return value.load(src);
+        py::object obj = reinterpret_borrow<py::object>(src);
+        bool result    = value.load(obj);
+        return result;
     }
 
     /**
@@ -617,17 +625,27 @@ struct type_caster<qdb::masked_array_t<T>>
 {
 public:
     using type = qdb::masked_array_t<T>;
-    PYBIND11_TYPE_CASTER(type, _("numpy.ma.MaskedArray<T>"));
+    PYBIND11_TYPE_CASTER(type, const_name("numpy.ma.MaskedArray<T>"));
 
+    /**
+     * Python->C++.
+     */
     bool load(py::handle src, bool)
     {
-        return value.load(src);
+        py::object obj = reinterpret_borrow<py::object>(src);
+        bool result    = value.load(obj);
+        return result;
     };
 
+    /**
+     * C++->Python
+     */
     static py::handle cast(type && src, return_value_policy policy, handle /* parent */)
     {
         return src.cast(policy);
     }
 };
 
-} // namespace pybind11::detail
+}; // namespace detail
+
+}; // namespace PYBIND11_NAMESPACE
