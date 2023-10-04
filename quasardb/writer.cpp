@@ -479,7 +479,7 @@ void writer::_push_impl(writer::staged_tables_t & staged_tables,
 
         staged_table.prepare_batch(mode, deduplicate_options, ranges, batch_table);
 
-        if (batch_table.data.column_count == 0)
+        if (batch_table.data.column_count == 0) [[unlikely]]
         {
             throw qdb::invalid_argument_exception{
                 "Writer is empty: you did not provide any columns to push."};
