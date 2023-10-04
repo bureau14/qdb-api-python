@@ -52,6 +52,7 @@
 #include <qdb/node.h>
 #include <qdb/prefix.h>
 #include <qdb/suffix.h>
+#include "detail/qdb_resource.hpp"
 #include <pybind11/chrono.h>
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
@@ -103,6 +104,32 @@ public:
     {
         _logger.info("Closing connection to cluster");
         _handle.reset();
+    }
+
+    void tidy_memory()
+    {
+        if (_handle)
+        {
+            _logger.info("Tidying memory");
+            qdb_option_client_tidy_memory(*_handle);
+        }
+    }
+
+    std::string get_memory_info()
+    {
+        std::string result;
+        if (_handle)
+        {
+            char const * buf;
+            qdb_size_t n;
+            qdb_option_client_get_memory_info(*_handle, &buf, &n);
+
+            result = std::string{buf, n};
+
+            qdb_release(*_handle, buf);
+        }
+
+        return result;
     }
 
 public:
@@ -394,6 +421,8 @@ static inline void register_cluster(Module & m)
             py::arg("do_version_check")        = false)                                              //
         .def("__enter__", &qdb::cluster::enter)                                               //
         .def("__exit__", &qdb::cluster::exit)                                                 //
+        .def("tidy_memory", &qdb::cluster::tidy_memory)                                       //
+        .def("get_memory_info", &qdb::cluster::get_memory_info)                               //
         .def("is_open", &qdb::cluster::is_open)                                               //
         .def("uri", &qdb::cluster::uri)                                                       //
         .def("node", &qdb::cluster::node)                                                     //
