@@ -6,7 +6,10 @@ PYTHON_VERSION=${1}
 function parse_version {
     local version=${1}
 
-    if [[ ${version}  == 3.11* ]]
+    if [[ ${version}  == 3.12* ]]
+    then
+        echo "cp312-cp312"
+    elif [[ ${version}  == 3.11* ]]
     then
         echo "cp311-cp311"
     elif [[ ${version}  == 3.10* ]]
