@@ -112,3 +112,9 @@ def test_connect_with_open_to_secure_cluster(qdbd_settings):
             qdbd_settings.get('uri').get('insecure'))
 
         assert len(topology) > 0
+        
+def test_connect_throws_exception_when_accessing_outside_with_open(qdbd_settings):
+    with pytest.raises(Exception):
+        with quasardb.Cluster('qdb://127.0.0.1:2836') as conn:
+            pass
+        conn.node_topology(qdbd_settings.get('uri').get('insecure'))
