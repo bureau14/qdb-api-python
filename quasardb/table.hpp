@@ -64,6 +64,8 @@ public:
     void create(const std::vector<detail::column_info> & columns,
         std::chrono::milliseconds shard_size = std::chrono::hours{24})
     {
+        _handle->check_open();
+
         const auto c_columns = detail::convert_columns_ex(columns);
         qdb::qdb_throw_if_error(*_handle, qdb_ts_create_ex(*_handle, _alias.c_str(), shard_size.count(),
                                               c_columns.data(), c_columns.size(), qdb_never_expires));
@@ -71,6 +73,8 @@ public:
 
     void insert_columns(const std::vector<detail::column_info> & columns)
     {
+        _handle->check_open();
+
         const auto c_columns = detail::convert_columns_ex(columns);
         qdb::qdb_throw_if_error(*_handle,
             qdb_ts_insert_columns_ex(*_handle, _alias.c_str(), c_columns.data(), c_columns.size()));
@@ -154,6 +158,8 @@ private:
      */
     void _cache_columns() const
     {
+        _handle->check_open();
+
         detail::qdb_resource<qdb_ts_column_info_ex_t> columns{*_handle};
         qdb_size_t count = 0;
 

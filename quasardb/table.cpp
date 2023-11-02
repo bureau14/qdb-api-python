@@ -29,6 +29,8 @@ struct column_inserter;
             pybind11::array const & timestamps,                                             \
             qdb::masked_array const & values)                                               \
         {                                                                                   \
+            handle->check_open();                                                           \
+                                                                                            \
             qdb::object_tracker::scoped_repository ctx{};                                   \
             qdb::object_tracker::scoped_capture capture{ctx};                               \
             numpy::array::ensure<traits::datetime64_ns_dtype>(timestamps);                  \
@@ -69,6 +71,8 @@ inline void insert_column_dispatch(handle_ptr handle,
 py::object table::reader(
     const std::vector<std::string> & columns, py::object ranges, bool dict_mode) const
 {
+    _handle->check_open();
+
     auto ranges_ = qdb::convert_ranges(ranges);
 
     std::vector<detail::column_info> c_columns;
@@ -102,6 +106,8 @@ py::object table::reader(
 
 qdb_uint_t table::erase_ranges(const std::string & column, py::object ranges)
 {
+    _handle->check_open();
+
     auto ranges_ = qdb::convert_ranges(ranges);
 
     qdb_uint_t erased_count = 0;
@@ -149,6 +155,8 @@ void table::timestamp_insert(
 std::pair<pybind11::array, masked_array> table::blob_get_ranges(
     const std::string & column, py::object ranges)
 {
+    _handle->check_open();
+
     qdb_ts_blob_point * points = nullptr;
     qdb_size_t count           = 0;
 
@@ -167,6 +175,8 @@ std::pair<pybind11::array, masked_array> table::blob_get_ranges(
 std::pair<pybind11::array, masked_array> table::string_get_ranges(
     const std::string & column, py::object ranges)
 {
+    _handle->check_open();
+
     qdb_ts_string_point * points = nullptr;
     qdb_size_t count             = 0;
 
@@ -185,6 +195,8 @@ std::pair<pybind11::array, masked_array> table::string_get_ranges(
 std::pair<pybind11::array, masked_array> table::double_get_ranges(
     const std::string & column, py::object ranges)
 {
+    _handle->check_open();
+
     qdb_ts_double_point * points = nullptr;
     qdb_size_t count             = 0;
 
@@ -203,6 +215,8 @@ std::pair<pybind11::array, masked_array> table::double_get_ranges(
 std::pair<pybind11::array, masked_array> table::int64_get_ranges(
     const std::string & column, py::object ranges)
 {
+    _handle->check_open();
+
     qdb_ts_int64_point * points = nullptr;
     qdb_size_t count            = 0;
 
@@ -221,6 +235,8 @@ std::pair<pybind11::array, masked_array> table::int64_get_ranges(
 std::pair<pybind11::array, masked_array> table::timestamp_get_ranges(
     const std::string & column, py::object ranges)
 {
+    _handle->check_open();
+
     qdb_ts_timestamp_point * points = nullptr;
     qdb_size_t count                = 0;
 

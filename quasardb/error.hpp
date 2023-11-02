@@ -78,6 +78,17 @@ public:
     {}
 };
 
+class invalid_handle_exception : public exception
+{
+public:
+    invalid_handle_exception() noexcept
+        : exception(qdb_e_invalid_handle,
+            std::string("Invalid handle: the connection to the cluster has been closed. Please "
+                        "re-establish a new connection"
+                        "with the QuasarDB cluster."))
+    {}
+};
+
 class incompatible_type_exception : public exception
 {
 public:
@@ -218,7 +229,15 @@ inline void qdb_throw_if_error(
         {
             // Error context returned is not the same, which means this thread already made
             // another call to the QDB API, or the QDB API itself
-            throw qdb::exception{err, qdb_error(err)};
+
+            switch (err)
+            {
+            case qdb_e_not_connected:
+            case qdb_e_invalid_handle:
+                throw qdb::invalid_handle_exception{};
+            default:
+                throw qdb::exception{err, qdb_error(err)};
+            }
         }
         assert(err_ == err);
         assert(msg_ != nullptr);
@@ -232,6 +251,10 @@ inline void qdb_throw_if_error(
 
         case qdb_e_invalid_query:
             throw qdb::invalid_query_exception{msg_data_};
+
+        case qdb_e_not_connected:
+        case qdb_e_invalid_handle:
+            throw qdb::invalid_handle_exception{};
 
         case qdb_e_alias_already_exists:
             throw qdb::alias_already_exists_exception{msg_data_};
@@ -289,6 +312,7 @@ static inline void register_errors(Module & m)
     py::register_exception<qdb::internal_local_exception>(m, "InternalLocalError", base_class);
     py::register_exception<qdb::invalid_argument_exception>(m, "InvalidArgumentError", base_class);
     py::register_exception<qdb::invalid_query_exception>(m, "InvalidQueryError", base_class);
+    py::register_exception<qdb::invalid_handle_exception>(m, "InvalidHandleError", base_class);
 }
 
 } // namespace qdb

@@ -90,6 +90,8 @@ public:
 
     table_reader_iterator & operator++() noexcept
     {
+        _handle->check_open();
+
         qdb_error_t err = qdb_ts_table_next_row(_local_table, &_the_row.mutable_timestamp());
 
         if (err == qdb_e_iterator_end)
@@ -144,6 +146,8 @@ public:
         , _columns{c}
         , _local_table{nullptr}
     {
+        _handle->check_open();
+
         auto c_columns = convert_columns(c);
 
         qdb::qdb_throw_if_error(*_handle, qdb_ts_local_table_init(*_handle, t.c_str(), c_columns.data(),
