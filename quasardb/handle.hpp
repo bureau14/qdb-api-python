@@ -42,33 +42,46 @@ class handle
 {
 public:
     handle() noexcept
+        : handle_{nullptr}
     {}
 
     explicit handle(qdb_handle_t h) noexcept
-        : _handle{h}
+        : handle_{h}
     {}
 
     ~handle()
     {
-        if (_handle)
-        {
-            qdb_close(_handle);
-            _handle = nullptr;
-        }
+        close();
     }
 
     void connect(const std::string & uri)
     {
-        qdb::qdb_throw_if_error(_handle, qdb_connect(_handle, uri.c_str()));
+        qdb::qdb_throw_if_error(handle_, qdb_connect(handle_, uri.c_str()));
     }
 
     operator qdb_handle_t() const noexcept
     {
-        return _handle;
+        return handle_;
+    }
+
+    void close()
+    {
+        if (handle_ != nullptr)
+        {
+            qdb_close(handle_);
+            handle_ = nullptr;
+        }
+
+        assert(handle_ == nullptr);
+    }
+
+    constexpr inline bool is_open() const
+    {
+        return handle_ != nullptr;
     }
 
 private:
-    qdb_handle_t _handle{nullptr};
+    qdb_handle_t handle_{nullptr};
 };
 
 using handle_ptr = std::shared_ptr<handle>;

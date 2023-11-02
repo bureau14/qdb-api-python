@@ -57,6 +57,7 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 #include <chrono>
+#include <iostream>
 
 namespace qdb
 {
@@ -103,6 +104,7 @@ public:
     void close()
     {
         _logger.info("Closing connection to cluster");
+        _handle->close();
         _handle.reset();
     }
 
@@ -153,14 +155,28 @@ public:
         return *this;
     }
 
-    bool is_open() const
-    {
-        return _handle.get() != nullptr;
-    }
-
     void exit(pybind11::object type, pybind11::object value, pybind11::object traceback)
     {
         return close();
+    }
+
+    bool is_open() const
+    {
+        return _handle.get() != nullptr && _handle->is_open();
+    }
+
+    /**
+     * Throws exception if the connection is not open. Should be invoked before any operation
+     * is done on the handle, as the QuasarDB C API only checks for a canary presence in the
+     * handle's memory arena. If a compiler is optimizing enough, the handle can be closed but
+     * the canary still present in memory, so it's UB.
+     *
+     * As such, we should check on a higher level.
+     */
+    void check_open() const
+    {
+        if (is_open() == false) [[unlikely]]
+        {}
     }
 
     pybind11::object node_config(const std::string & uri)
