@@ -184,6 +184,18 @@ public:
         return max_parallelism;
     }
 
+    void set_query_max_length(size_t query_max_length)
+    {
+        qdb::throw_if_error(*_handle, qdb_option_set_query_max_length(*_handle, query_max_length));
+    }
+
+    size_t get_query_max_length()
+    {
+        size_t query_max_length = 0;
+        qdb::throw_if_error(*_handle, qdb_option_get_query_max_length(*_handle, &query_max_length));
+        return query_max_length;
+    }
+
 private:
     qdb::handle_ptr _handle;
 };
@@ -221,6 +233,9 @@ static inline void register_options(Module & m)
         .def("set_client_max_parallelism", &qdb::options::set_client_max_parallelism,     //
             py::arg("parallelism"))                                                       //
         .def("get_client_max_parallelism", &qdb::options::get_client_max_parallelism)     //
+        .def("set_query_max_length", &qdb::options::set_query_max_length,                 //
+            py::arg("query_max_length"))                                                  //
+        .def("get_query_max_length", &qdb::options::get_query_max_length)                 //
         .def("set_client_soft_memory_limit", &qdb::options::set_client_soft_memory_limit, //
             py::arg("limit"))                                                             //
         ;
