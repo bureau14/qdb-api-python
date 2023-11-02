@@ -42,33 +42,68 @@ class handle
 {
 public:
     handle() noexcept
+        : handle_{nullptr}
     {}
 
     explicit handle(qdb_handle_t h) noexcept
-        : _handle{h}
+        : handle_{h}
     {}
 
     ~handle()
     {
-        if (_handle)
-        {
-            qdb_close(_handle);
-            _handle = nullptr;
-        }
+        close();
     }
 
     void connect(const std::string & uri)
     {
-        qdb::qdb_throw_if_error(_handle, qdb_connect(_handle, uri.c_str()));
+        qdb::qdb_throw_if_error(handle_, qdb_connect(handle_, uri.c_str()));
     }
 
     operator qdb_handle_t() const noexcept
     {
-        return _handle;
+        // Whenever we have to reinterpret this class as a low-level qdb_handle_t, we're going to assume
+        // it's always a good time to check whether we're actually open.
+        //
+        // This may be overkill, but it's very cheap to do and it increases safety a lot.
+        check_open();
+
+        return handle_;
+    }
+
+    void close()
+    {
+        if (handle_ != nullptr)
+        {
+            qdb_close(handle_);
+            handle_ = nullptr;
+        }
+
+        assert(handle_ == nullptr);
+    }
+
+    constexpr inline bool is_open() const
+    {
+        return handle_ != nullptr;
+    }
+
+    /**
+     * Throws exception if the connection is not open. Should be invoked before any operation
+     * is done on the handle, as the QuasarDB C API only checks for a canary presence in the
+     * handle's memory arena. If a compiler is optimizing enough, the handle can be closed but
+     * the canary still present in memory, so it's UB.
+     *
+     * As such, we should check on a higher level.
+     */
+    inline void check_open() const
+    {
+        if (is_open() == false) [[unlikely]]
+        {
+            throw qdb::invalid_handle_exception{};
+        }
     }
 
 private:
-    qdb_handle_t _handle{nullptr};
+    qdb_handle_t handle_{nullptr};
 };
 
 using handle_ptr = std::shared_ptr<handle>;
