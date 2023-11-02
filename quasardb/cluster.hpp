@@ -176,11 +176,15 @@ public:
     void check_open() const
     {
         if (is_open() == false) [[unlikely]]
-        {}
+        {
+            throw qdb::invalid_handle_exception{};
+        }
     }
 
     pybind11::object node_config(const std::string & uri)
     {
+        check_open();
+
         const char * content      = nullptr;
         qdb_size_t content_length = 0;
 
@@ -192,6 +196,8 @@ public:
 
     pybind11::object node_status(const std::string & uri)
     {
+        check_open();
+
         const char * content      = nullptr;
         qdb_size_t content_length = 0;
 
@@ -203,6 +209,8 @@ public:
 
     pybind11::object node_topology(const std::string & uri)
     {
+        check_open();
+
         const char * content      = nullptr;
         qdb_size_t content_length = 0;
 
@@ -215,64 +223,88 @@ public:
 public:
     qdb::tag tag(const std::string & alias)
     {
+        check_open();
+
         return qdb::tag{_handle, alias};
     }
 
     qdb::blob_entry blob(const std::string & alias)
     {
+        check_open();
+
         return qdb::blob_entry{_handle, alias};
     }
 
     qdb::string_entry string(const std::string & alias)
     {
+        check_open();
+
         return qdb::string_entry{_handle, alias};
     }
 
     qdb::integer_entry integer(const std::string & alias)
     {
+        check_open();
+
         return qdb::integer_entry{_handle, alias};
     }
 
     qdb::double_entry double_(const std::string & alias)
     {
+        check_open();
+
         return qdb::double_entry{_handle, alias};
     }
 
     qdb::timestamp_entry timestamp(const std::string & alias)
     {
+        check_open();
+
         return qdb::timestamp_entry{_handle, alias};
     }
 
     qdb::table table(const std::string & alias)
     {
+        check_open();
+
         return qdb::table{_handle, alias};
     }
 
     // the batch_inserter_ptr is non-copyable
     qdb::batch_inserter_ptr inserter(const std::vector<batch_column_info> & ci)
     {
+        check_open();
+
         return std::make_unique<qdb::batch_inserter>(_handle, ci);
     }
 
     // the batch_inserter_ptr is non-copyable
     qdb::writer_ptr writer()
     {
+        check_open();
+
         return std::make_unique<qdb::writer>(_handle);
     }
 
     // the batch_inserter_ptr is non-copyable
     qdb::writer_ptr pinned_writer()
     {
+        check_open();
+
         return writer();
     }
 
     qdb::options options()
     {
+        check_open();
+
         return qdb::options{_handle};
     }
 
     qdb::perf perf()
     {
+        check_open();
+
         return qdb::perf{_handle};
     }
 
@@ -284,6 +316,8 @@ public:
 public:
     std::vector<std::string> prefix_get(const std::string & prefix, qdb_int_t max_count)
     {
+        check_open();
+
         const char ** result = nullptr;
         size_t count         = 0;
 
@@ -299,6 +333,8 @@ public:
 
     qdb_uint_t prefix_count(const std::string & prefix)
     {
+        check_open();
+
         qdb_uint_t count = 0;
 
         const qdb_error_t err = qdb_prefix_count(*_handle, prefix.c_str(), &count);
@@ -310,22 +346,30 @@ public:
 public:
     qdb::find_query find(const std::string & query_string)
     {
+        check_open();
+
         return qdb::find_query{_handle, query_string};
     }
 
     py::object query(const std::string & query_string, const py::object & blobs)
     {
+        check_open();
+
         return py::cast(qdb::dict_query(_handle, query_string, blobs));
     }
 
     py::object query_numpy(const std::string & query_string)
     {
+        check_open();
+
         return py::cast(qdb::numpy_query(_handle, query_string));
     }
 
     std::shared_ptr<qdb::query_continuous> query_continuous_full(
         const std::string & query_string, std::chrono::milliseconds pace, const py::object & blobs)
     {
+        check_open();
+
         return std::make_shared<qdb::query_continuous>(
             _handle, qdb_query_continuous_full, pace, query_string, blobs);
     }
@@ -333,6 +377,8 @@ public:
     std::shared_ptr<qdb::query_continuous> query_continuous_new_values(
         const std::string & query_string, std::chrono::milliseconds pace, const py::object & blobs)
     {
+        check_open();
+
         return std::make_shared<qdb::query_continuous>(
             _handle, qdb_query_continuous_new_values_only, pace, query_string, blobs);
     }
@@ -340,6 +386,8 @@ public:
 public:
     std::vector<std::string> suffix_get(const std::string & suffix, qdb_int_t max_count)
     {
+        check_open();
+
         const char ** result = nullptr;
         size_t count         = 0;
 
@@ -355,6 +403,8 @@ public:
 
     qdb_uint_t suffix_count(const std::string & suffix)
     {
+        check_open();
+
         qdb_uint_t count = 0;
 
         const qdb_error_t err = qdb_suffix_count(*_handle, suffix.c_str(), &count);
@@ -366,24 +416,32 @@ public:
 public:
     void purge_all(std::chrono::milliseconds timeout_ms)
     {
+        check_open();
+
         qdb::qdb_throw_if_error(
             *_handle, qdb_purge_all(*_handle, static_cast<int>(timeout_ms.count())));
     }
 
     void purge_cache(std::chrono::milliseconds timeout_ms)
     {
+        check_open();
+
         qdb::qdb_throw_if_error(
             *_handle, qdb_purge_cache(*_handle, static_cast<int>(timeout_ms.count())));
     }
 
     void wait_for_stabilization(std::chrono::milliseconds timeout_ms)
     {
+        check_open();
+
         qdb::qdb_throw_if_error(
             *_handle, qdb_wait_for_stabilization(*_handle, static_cast<int>(timeout_ms.count())));
     }
 
     void trim_all(std::chrono::milliseconds pause_ms, std::chrono::milliseconds timeout_ms)
     {
+        check_open();
+
         qdb::qdb_throw_if_error(*_handle, qdb_trim_all(*_handle, static_cast<int>(pause_ms.count()),
                                               static_cast<int>(timeout_ms.count())));
     }
@@ -391,6 +449,8 @@ public:
 public:
     std::vector<std::string> endpoints()
     {
+        check_open();
+
         qdb_remote_node_t * endpoints = nullptr;
         qdb_size_t count              = 0;
 

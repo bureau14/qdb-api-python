@@ -61,6 +61,12 @@ public:
 
     operator qdb_handle_t() const noexcept
     {
+        // Whenever we have to reinterpret this class as a low-level qdb_handle_t, we're going to assume
+        // it's always a good time to check whether we're actually open.
+        //
+        // This may be overkill, but it's very cheap to do and it increases safety a lot.
+        check_open();
+
         return handle_;
     }
 
@@ -78,6 +84,22 @@ public:
     constexpr inline bool is_open() const
     {
         return handle_ != nullptr;
+    }
+
+    /**
+     * Throws exception if the connection is not open. Should be invoked before any operation
+     * is done on the handle, as the QuasarDB C API only checks for a canary presence in the
+     * handle's memory arena. If a compiler is optimizing enough, the handle can be closed but
+     * the canary still present in memory, so it's UB.
+     *
+     * As such, we should check on a higher level.
+     */
+    inline void check_open() const
+    {
+        if (is_open() == false) [[unlikely]]
+        {
+            throw qdb::invalid_handle_exception{};
+        }
     }
 
 private:

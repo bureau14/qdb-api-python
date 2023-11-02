@@ -460,6 +460,8 @@ void writer::_push_impl(writer::staged_tables_t & staged_tables,
     detail::deduplicate_options deduplicate_options,
     qdb_ts_range_t * ranges)
 {
+    _handle->check_open();
+
     if (staged_tables.empty())
     {
         throw qdb::invalid_argument_exception{"No data written to batch writer."};
