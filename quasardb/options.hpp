@@ -186,13 +186,13 @@ public:
 
     void set_query_max_length(size_t query_max_length)
     {
-        qdb::throw_if_error(*_handle, qdb_option_set_query_max_length(*_handle, query_max_length));
+        qdb::qdb_throw_if_error(*_handle, qdb_option_set_query_max_length(*_handle, query_max_length));
     }
 
     size_t get_query_max_length()
     {
         size_t query_max_length = 0;
-        qdb::throw_if_error(*_handle, qdb_option_get_query_max_length(*_handle, &query_max_length));
+        qdb::qdb_throw_if_error(*_handle, qdb_option_get_query_max_length(*_handle, &query_max_length));
         return query_max_length;
     }
 
