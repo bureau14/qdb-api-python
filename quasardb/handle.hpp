@@ -61,12 +61,6 @@ public:
 
     operator qdb_handle_t() const noexcept
     {
-        // Whenever we have to reinterpret this class as a low-level qdb_handle_t, we're going to assume
-        // it's always a good time to check whether we're actually open.
-        //
-        // This may be overkill, but it's very cheap to do and it increases safety a lot.
-        check_open();
-
         return handle_;
     }
 
