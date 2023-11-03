@@ -88,7 +88,7 @@ public:
         return _the_row;
     }
 
-    table_reader_iterator & operator++() noexcept
+    table_reader_iterator & operator++()
     {
         _handle->check_open();
 

@@ -40,7 +40,7 @@ namespace qdb
 class table : public entry
 {
 public:
-    table(handle_ptr h, std::string a) noexcept
+    table(handle_ptr h, std::string a)
         : entry{h, a}
         , _has_indexed_columns(false)
     {
