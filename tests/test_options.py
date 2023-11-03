@@ -25,3 +25,10 @@ def test_set_client_max_parallelism_1(qdbd_connection):
 
 def test_get_client_max_parallelism_8(qdbd_connection):
     assert qdbd_connection.options().get_client_max_parallelism() == 1
+
+def test_get_query_max_length(qdbd_connection):
+    assert qdbd_connection.options().get_query_max_length() >= 0
+
+def test_set_query_max_length(qdbd_connection):
+    qdbd_connection.options().set_query_max_length(1234)
+    assert qdbd_connection.options().get_query_max_length() == 1234
