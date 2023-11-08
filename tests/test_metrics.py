@@ -76,6 +76,8 @@ def test_qdb_connect_close_metrics(qdbd_settings):
         conn = quasardb.Cluster(qdbd_settings.get("uri").get("insecure"))
 
         m = measure.get()
+        print(m)
+
         assert len(m) == 1
         assert "qdb_connect" in m
         assert m["qdb_connect"] > 0
@@ -83,6 +85,7 @@ def test_qdb_connect_close_metrics(qdbd_settings):
         conn.close()
 
         m = measure.get()
+        print(m)
 
         assert len(m) == 2
         assert "qdb_close" in m
@@ -99,6 +102,8 @@ def test_qdb_connect_close_metrics(qdbd_settings):
                                 cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"))
 
         m = measure.get()
+        print(m)
+
         assert len(m) == 1
         assert "qdb_connect" in m
         assert m["qdb_connect"] > 0
@@ -106,6 +111,7 @@ def test_qdb_connect_close_metrics(qdbd_settings):
         conn.close()
 
         m = measure.get()
+        print(m)
 
         assert len(m) == 2
         assert "qdb_close" in m
@@ -120,6 +126,8 @@ def test_qdb_ts_list_columns_metrics(qdbd_connection, table):
         table2 = qdbd_connection.table(table.get_name())
 
         m = measure.get()
+        print(m)
+
         assert len(m) == 1
 
         assert "qdb_ts_list_columns" in m
