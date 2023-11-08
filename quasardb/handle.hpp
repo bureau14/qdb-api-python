@@ -54,26 +54,14 @@ public:
         close();
     }
 
-    void connect(const std::string & uri)
-    {
-        qdb::qdb_throw_if_error(handle_, qdb_connect(handle_, uri.c_str()));
-    }
+    void connect(const std::string & uri);
 
     operator qdb_handle_t() const noexcept
     {
         return handle_;
     }
 
-    void close()
-    {
-        if (handle_ != nullptr)
-        {
-            qdb_close(handle_);
-            handle_ = nullptr;
-        }
-
-        assert(handle_ == nullptr);
-    }
+    void close();
 
     constexpr inline bool is_open() const
     {

@@ -325,6 +325,7 @@ set(QDB_FILES
   batch_inserter.hpp
   blob.hpp
   cluster.hpp
+  cluster.cpp
   concepts.hpp
   continuous.cpp
   continuous.hpp
@@ -333,9 +334,12 @@ set(QDB_FILES
   error.hpp
   entry.hpp
   handle.hpp
+  handle.cpp
   logger.hpp
   logger.cpp
   masked_array.hpp
+  metrics.hpp
+  metrics.cpp
   module.hpp
   module.cpp
   node.hpp

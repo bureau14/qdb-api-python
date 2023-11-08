@@ -1,6 +1,7 @@
 #include "writer.hpp"
 #include "concepts.hpp"
 #include "dispatch.hpp"
+#include "metrics.hpp"
 #include "numpy.hpp"
 #include "traits.hpp"
 #include "convert/array.hpp"
@@ -490,6 +491,9 @@ void writer::_push_impl(writer::staged_tables_t & staged_tables,
         _logger.debug("Pushing %d rows with %d columns in %s", batch_table.data.row_count,
             batch_table.data.column_count, table_name);
     }
+
+    // Make sure to measure the time it takes to do the actual push
+    qdb::metrics::scoped_capture capture{"qdb_batch_push"};
 
     qdb::qdb_throw_if_error(
         *_handle, qdb_exp_batch_push(*_handle, mode, batch.data(), nullptr, batch.size()));

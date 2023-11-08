@@ -156,25 +156,7 @@ private:
     /**
      * Loads column info / metadata from server and caches it locally.
      */
-    void _cache_columns() const
-    {
-        _handle->check_open();
-
-        detail::qdb_resource<qdb_ts_column_info_ex_t> columns{*_handle};
-        qdb_size_t count = 0;
-
-        auto err = qdb_ts_list_columns_ex(*_handle, _alias.c_str(), &columns, &count);
-
-        if (err == qdb_e_alias_not_found) [[unlikely]]
-        {
-            // Can happen if table does not yet exist, do nothing.
-            return;
-        }
-
-        qdb::qdb_throw_if_error(*_handle, err);
-
-        _columns = detail::convert_columns(columns.get(), count);
-    }
+    void _cache_columns() const;
 
     /**
      * Loads column info / metadata from server if not yet cached locally.
