@@ -336,6 +336,8 @@ set(QDB_FILES
   logger.hpp
   logger.cpp
   masked_array.hpp
+  metrics.hpp
+  metrics.cpp
   module.hpp
   module.cpp
   node.hpp
