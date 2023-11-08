@@ -39,13 +39,33 @@ def test_query_metrics(qdbpd_write_fn, df_with_table, qdbd_connection):
     with metrics.Measure() as measure:
         assert len(measure.get()) == 0
 
-        df = qdbpd.query(qdbd_connection, "select * from \"{}\"".format(table.get_name()))
+        qdbpd.query(qdbd_connection, "select * from \"{}\"".format(table.get_name()))
 
         m = measure.get()
         assert len(m) > 0
 
         assert "qdb_query" in m
         assert m['qdb_query'] > 0
+
+def test_accumulating_metrics_within_scope(qdbpd_write_fn, df_with_table, qdbd_connection):
+    (_, _, df, table) = df_with_table
+    qdbpd_write_fn(df, qdbd_connection, table)
+
+    with metrics.Measure() as measure:
+        assert len(measure.get()) == 0
+
+        # First query
+        qdbpd.query(qdbd_connection, "select * from \"{}\"".format(table.get_name()))
+
+        m1 = measure.get()
+        assert m1['qdb_query'] > 0
+
+        # Second query
+        qdbpd.query(qdbd_connection, "select * from \"{}\"".format(table.get_name()))
+        m2 = measure.get()
+
+        # The crux of the test, we expect this metric to accumulate
+        assert m2['qdb_query'] > m1['qdb_query']
 
 def test_qdb_connect_close_metrics(qdbd_settings):
 
