@@ -31,6 +31,7 @@
 #pragma once
 
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 #include <cassert>
 #include <chrono>
 #include <map>
@@ -38,7 +39,8 @@
 
 namespace qdb
 {
-namespace py = pybind11;
+namespace py              = pybind11;
+using metrics_container_t = std::map<std::string, std::uint64_t>;
 
 class metrics
 {
@@ -46,21 +48,49 @@ private:
 public:
     /**
      * Utility fixture that automatically records timings for a certain block of code.
+     * This is intended to be used from native C++ code only.
      */
-    class fixture
+    class scoped_capture
     {
         using clock_t      = std::chrono::high_resolution_clock;
         using time_point_t = std::chrono::time_point<clock_t>;
 
     public:
-        fixture(std::string const & test_id) noexcept
+        scoped_capture(std::string const & test_id) noexcept
             : test_id_{test_id}
             , start_{clock_t::now()} {};
-        ~fixture();
+        ~scoped_capture();
 
     private:
         std::string test_id_;
         time_point_t start_;
+    };
+
+    /**
+     * Utility class that's exposed to Python which can be used to record metrics in
+     * a scope. It makes it easy to track the difference between the beginning and end
+     * of execution.
+     */
+    class measure
+    {
+    public:
+        measure();
+        ~measure(){};
+
+    public:
+        measure enter()
+        {
+            // No-op, all initialization is done in the constructor.
+            return *this;
+        }
+
+        void exit(py::object /* type */, py::object /* value */, py::object /* traceback */)
+        {}
+
+        metrics_container_t get() const;
+
+    private:
+        metrics_container_t start_;
     };
 
 public:
@@ -70,6 +100,9 @@ public:
 
 public:
     static void record(std::string const & test_id, std::uint64_t nsec);
+
+    static metrics_container_t totals();
+    static void clear();
 
 private:
 };
