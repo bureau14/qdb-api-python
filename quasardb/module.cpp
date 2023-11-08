@@ -1,5 +1,6 @@
 #include "module.hpp"
 #include "cluster.hpp"
+#include "metrics.hpp"
 #include "node.hpp"
 #include "writer.hpp"
 #include <functional>
@@ -62,6 +63,7 @@ PYBIND11_MODULE(quasardb, m)
     qdb::register_table_reader(m);
     qdb::register_masked_array(m);
     qdb::register_writer(m);
+    qdb::register_metrics(m);
 
     qdb::detail::register_ts_column(m);
     qdb::reader::register_ts_value(m);

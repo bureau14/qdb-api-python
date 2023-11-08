@@ -30,69 +30,83 @@
  */
 #pragma once
 
-#include "error.hpp"
-#include <qdb/client.h>
-#include <memory>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+#include <cassert>
+#include <chrono>
+#include <map>
 #include <string>
 
 namespace qdb
 {
+namespace py              = pybind11;
+using metrics_container_t = std::map<std::string, std::uint64_t>;
 
-class handle
+class metrics
 {
+private:
 public:
-    handle() noexcept
-        : handle_{nullptr}
-    {}
-
-    explicit handle(qdb_handle_t h) noexcept
-        : handle_{h}
-    {}
-
-    ~handle()
+    /**
+     * Utility fixture that automatically records timings for a certain block of code.
+     * This is intended to be used from native C++ code only.
+     */
+    class scoped_capture
     {
-        close();
-    }
+        using clock_t      = std::chrono::high_resolution_clock;
+        using time_point_t = std::chrono::time_point<clock_t>;
 
-    void connect(const std::string & uri);
+    public:
+        scoped_capture(std::string const & test_id) noexcept
+            : test_id_{test_id}
+            , start_{clock_t::now()} {};
+        ~scoped_capture();
 
-    operator qdb_handle_t() const noexcept
-    {
-        return handle_;
-    }
-
-    void close();
-
-    constexpr inline bool is_open() const
-    {
-        return handle_ != nullptr;
-    }
+    private:
+        std::string test_id_;
+        time_point_t start_;
+    };
 
     /**
-     * Throws exception if the connection is not open. Should be invoked before any operation
-     * is done on the handle, as the QuasarDB C API only checks for a canary presence in the
-     * handle's memory arena. If a compiler is optimizing enough, the handle can be closed but
-     * the canary still present in memory, so it's UB.
-     *
-     * As such, we should check on a higher level.
+     * Utility class that's exposed to Python which can be used to record metrics in
+     * a scope. It makes it easy to track the difference between the beginning and end
+     * of execution.
      */
-    inline void check_open() const
+    class measure
     {
-        if (is_open() == false) [[unlikely]]
+    public:
+        measure();
+        ~measure(){};
+
+    public:
+        measure enter()
         {
-            throw qdb::invalid_handle_exception{};
+            // No-op, all initialization is done in the constructor.
+            return *this;
         }
-    }
+
+        void exit(py::object /* type */, py::object /* value */, py::object /* traceback */)
+        {}
+
+        metrics_container_t get() const;
+
+    private:
+        metrics_container_t start_;
+    };
+
+public:
+    metrics() noexcept {};
+
+    ~metrics() noexcept {};
+
+public:
+    static void record(std::string const & test_id, std::uint64_t nsec);
+
+    static metrics_container_t totals();
+    static void clear();
 
 private:
-    qdb_handle_t handle_{nullptr};
 };
 
-using handle_ptr = std::shared_ptr<handle>;
-
-static inline handle_ptr make_handle_ptr()
-{
-    return std::make_shared<qdb::handle>(qdb_open_tcp());
-}
+void register_metrics(py::module_ & m);
 
 } // namespace qdb

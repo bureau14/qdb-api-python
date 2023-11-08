@@ -1,5 +1,6 @@
 #include "table.hpp"
 #include "dispatch.hpp"
+#include "metrics.hpp"
 #include "object_tracker.hpp"
 #include "table_reader.hpp"
 #include "traits.hpp"
@@ -67,6 +68,31 @@ inline void insert_column_dispatch(handle_ptr handle,
 };
 
 }; // namespace detail
+
+void table::_cache_columns() const
+{
+    _handle->check_open();
+
+    detail::qdb_resource<qdb_ts_column_info_ex_t> columns{*_handle};
+    qdb_size_t count = 0;
+
+    qdb_error_t err;
+
+    {
+        metrics::scoped_capture("qdb_ts_list_columns");
+        err = qdb_ts_list_columns_ex(*_handle, _alias.c_str(), &columns, &count);
+    }
+
+    if (err == qdb_e_alias_not_found) [[unlikely]]
+    {
+        // Can happen if table does not yet exist, do nothing.
+        return;
+    }
+
+    qdb::qdb_throw_if_error(*_handle, err);
+
+    _columns = detail::convert_columns(columns.get(), count);
+}
 
 py::object table::reader(
     const std::vector<std::string> & columns, py::object ranges, bool dict_mode) const

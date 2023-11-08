@@ -31,6 +31,7 @@
 
 #include "query.hpp"
 #include "masked_array.hpp"
+#include "metrics.hpp"
 #include "numpy.hpp"
 #include "traits.hpp"
 #include "utils.hpp"
@@ -390,7 +391,12 @@ numpy_query_result_t numpy_query_results(const qdb_query_result_t * r)
 dict_query_result_t dict_query(qdb::handle_ptr h, const std::string & q, const py::object & blobs)
 {
     detail::qdb_resource<qdb_query_result_t> r{*h};
-    qdb_error_t err = qdb_query(*h, q.c_str(), &r);
+
+    qdb_error_t err;
+    {
+        metrics::scoped_capture capture{"qdb_query"};
+        err = qdb_query(*h, q.c_str(), &r);
+    }
 
     qdb::qdb_throw_if_query_error(*h, err, r.get());
 
@@ -400,7 +406,12 @@ dict_query_result_t dict_query(qdb::handle_ptr h, const std::string & q, const p
 numpy_query_result_t numpy_query(qdb::handle_ptr h, const std::string & q)
 {
     detail::qdb_resource<qdb_query_result_t> r{*h};
-    qdb_error_t err = qdb_query(*h, q.c_str(), &r);
+
+    qdb_error_t err;
+    {
+        metrics::scoped_capture capture{"qdb_query"};
+        err = qdb_query(*h, q.c_str(), &r);
+    }
     qdb::qdb_throw_if_query_error(*h, err, r.get());
 
     return numpy_query_results(r);
