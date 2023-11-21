@@ -78,6 +78,11 @@ public:
     {
         _maybe_cache_columns();
 
+        if (_columns.has_value() == false) [[unlikely]]
+        {
+            throw qdb::alias_not_found_exception{get_name()};
+        }
+
         return _columns.value();
     }
 
