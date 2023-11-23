@@ -13,12 +13,10 @@ ADD set-python-version.sh /set-python-version.sh
 RUN bash /set-python-version.sh ${PYTHON_VERSION} \
     && rm /set-python-version.sh
 
-RUN yum upgrade -y \
-    && yum install -y gcc-toolset-$GCC_TOOLSET_VERSION \
-                      gcc-toolset-$GCC_TOOLSET_VERSION-runtime \
-                      gcc-toolset-$GCC_TOOLSET_VERSION-binutils \
-                      gcc-toolset-$GCC_TOOLSET_VERSION-gcc \
-                      gcc-toolset-$GCC_TOOLSET_VERSION-gcc-c++ \
-                      gcc-toolset-$GCC_TOOLSET_VERSION-gdb \
-                      gcc-toolset-$GCC_TOOLSET_VERSION-libstdc++-devel \
+RUN yum install -y gcc-toolset-$GCC_TOOLSET_VERSION \
+                   gcc-toolset-$GCC_TOOLSET_VERSION-runtime \
+                   gcc-toolset-$GCC_TOOLSET_VERSION-binutils \
+                   gcc-toolset-$GCC_TOOLSET_VERSION-gcc \
+                   gcc-toolset-$GCC_TOOLSET_VERSION-gcc-c++ \
+                   gcc-toolset-$GCC_TOOLSET_VERSION-libstdc++-devel \
     && g++ --version
