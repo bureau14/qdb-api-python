@@ -36,8 +36,8 @@ PARSED=$(parse_version ${PYTHON_VERSION})
 
 PYTHON_BINDIR="/opt/python/${PARSED}/bin/"
 
-PATH=$PATH:$PYTHON_BINDIR
-echo 'export PATH=$PATH:'$PYTHON_BINDIR | tee -a ~/.bashrc
+echo 'export PATH='$PYTHON_BINDIR':$PATH' | tee -a ~/.bashrc
+PATH=$PYTHON_BINDIR:$PATH
 
 # Install dependencies
 python3 --version && pip3 install --upgrade pip setuptools wheel
