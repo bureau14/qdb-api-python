@@ -1,5 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
+if [ -f $HOME/.bashrc ]
+then
+    source $HOME/.bashrc
+fi
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 FILE=${1}
