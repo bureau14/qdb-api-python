@@ -22,7 +22,3 @@ RUN yum upgrade -y \
                       gcc-toolset-$GCC_TOOLSET_VERSION-gdb \
                       gcc-toolset-$GCC_TOOLSET_VERSION-libstdc++-devel \
     && g++ --version
-
-RUN python3 --version && \
-    python3 -m pip install --upgrade pip && \
-    python3 -m pip install --upgrade setuptools wheel
