@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<template xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="b7f5dd64-5d84-4e7f-9305-0df9aad77588" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2021.1/project-config.xsd">
+  <name>Build</name>
+  <settings>
+    <options>
+      <option name="artifactRules" value="dist/quasardb*.egg&#xA;dist/quasardb*.whl" />
+      <option name="cleanBuild" value="true" />
+      <option name="executionTimeoutMin" value="60" />
+      <option name="showDependenciesChanges" value="true" />
+    </options>
+    <parameters>
+      <param name="JUNIT_XML_FILE" value="build/test/pytest.xml" />
+      <param name="dependencies.artifact.rules"><![CDATA[*-c-api.zip!**/*.*=>qdb
+*-server.zip!**/*=>qdb]]></param>
+      <param name="env.JUNIT_XML_FILE" value="build/test/pytest.xml" />
+      <param name="env.PYTHON_CMD" value="" spec="text label='Python executable' description='Absolutely location to Python executable to use for the build, e.g. c:\Python3.6\python.exe' validationMode='not_empty'" />
+      <param name="env.PYTHON_EXECUTABLE" value="" />
+    </parameters>
+    <build-runners>
+      <runner id="RUNNER_320" name="" type="_placeholder_">
+        <parameters>
+          <param name="teamcity.step.mode" value="default" />
+        </parameters>
+      </runner>
+      <runner id="RUNNER_102" name="Start services" type="simpleRunner">
+        <parameters>
+          <param name="command.executable" value="bash" />
+          <param name="command.parameters" value="scripts/tests/setup/start-services.sh" />
+          <param name="teamcity.step.mode" value="default" />
+          <param name="use.custom.script" value="" />
+        </parameters>
+      </runner>
+      <runner id="RUNNER_48" name="Test" type="simpleRunner">
+        <parameters>
+          <param name="command.executable" value="bash" />
+          <param name="command.parameters" value="scripts/teamcity/20.test.sh" />
+          <param name="script.content"><![CDATA[%PYTHON_CMD% -m venv .env/
+source .env/bin/activate
+%PYTHON_CMD% -m pip install --user -r dev-requirements.txt
+%PYTHON_CMD% setup.py test  --addopts "--junitxml=%JUNIT_XML_FILE%"]]></param>
+          <param name="teamcity.step.mode" value="default" />
+          <param name="use.custom.script" value="" />
+        </parameters>
+      </runner>
+      <runner id="RUNNER_143" name="Stop services" type="simpleRunner">
+        <parameters>
+          <param name="command.executable" value="bash" />
+          <param name="command.parameters" value="scripts/tests/setup/stop-services.sh" />
+          <param name="teamcity.step.mode" value="execute_always" />
+          <param name="use.custom.script" value="" />
+        </parameters>
+      </runner>
+      <runner id="RUNNER_112" name="Build" type="simpleRunner">
+        <parameters>
+          <param name="command.executable" value="bash" />
+          <param name="command.parameters" value="scripts/teamcity/10.build.sh" />
+          <param name="script.content"><![CDATA[rm -r -fo dist/
+%PYTHON_CMD% setup.py bdist_egg -d dist/
+%PYTHON_CMD% setup.py bdist_wheel -d dist/]]></param>
+          <param name="teamcity.step.mode" value="default" />
+          <param name="use.custom.script" value="" />
+        </parameters>
+      </runner>
+    </build-runners>
+    <vcs-settings>
+      <vcs-entry-ref root-id="QdbApiPython" />
+    </vcs-settings>
+    <requirements>
+      <ver-no-less-than id="RQ_137" name="system.cl.version" value="18" />
+      <ver-no-less-than id="RQ_26" name="system.cmake.version" value="2.8" />
+    </requirements>
+    <build-triggers />
+    <build-extensions>
+      <extension id="perfmon" type="perfmon">
+        <parameters>
+          <param name="teamcity.perfmon.feature.enabled" value="true" />
+        </parameters>
+      </extension>
+    </build-extensions>
+    <artifact-dependencies>
+      <dependency id="ARTIFACT_DEPENDENCY_109" sourceBuildTypeId="Quasardb_Artifacts_Release_Windows_X8664Core2" cleanDestination="true">
+        <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
+        <artifact sourcePath="*-windows-64bit-core2-c-api.zip!**/*.*=&gt;qdb&#xA;*-windows-64bit-core2-server.zip!**/*=&gt;qdb&#xA;*-windows-64bit-core2-utils.zip!**/*=&gt;qdb" />
+      </dependency>
+    </artifact-dependencies>
+    <dependencies>
+      <depend-on sourceBuildTypeId="Quasardb_Artifacts_Release_Windows_X8664Core2">
+        <options>
+          <option name="take-started-build-with-same-revisions" value="true" />
+          <option name="take-successful-builds-only" value="true" />
+        </options>
+      </depend-on>
+    </dependencies>
+    <cleanup />
+  </settings>
+</template>
+

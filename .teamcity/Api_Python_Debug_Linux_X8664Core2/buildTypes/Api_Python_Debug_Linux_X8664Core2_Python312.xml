@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<build-type xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="6199cf5e-0561-408d-904f-53afa23dc137" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2021.1/project-config.xsd">
+  <name>Python 3.12</name>
+  <description />
+  <settings ref="Api_Python_Debug_Linux_X8664Core2_Build">
+    <parameters>
+      <param name="python_version" value="3.12.0" />
+    </parameters>
+    <build-runners />
+    <vcs-settings />
+    <requirements />
+    <build-triggers />
+    <cleanup />
+  </settings>
+</build-type>
+

@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<template xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="0f912757-0df8-47e3-b88c-aa95efca35a9" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2021.1/project-config.xsd">
+  <name>Build</name>
+  <settings>
+    <options>
+      <option name="artifactRules" value="dist/quasardb-*.manylinux*.whl&#xA;dist/quasardb*.egg&#xA;dist/quasardb*.tar.gz&#xA;dist/doc.tar.gz" />
+      <option name="cleanBuild" value="true" />
+      <option name="executionTimeoutMin" value="120" />
+      <option name="showDependenciesChanges" value="true" />
+    </options>
+    <parameters>
+      <param name="env.JUNIT_XML_FILE" value="build/test/pytest.xml" spec="text display='normal' readOnly='true' validationMode='not_empty'" />
+      <param name="env.PYTHON_CMD" value="python3" />
+      <param name="env.PYTHON_EXECUTABLE" value="/usr/bin/python3" spec="text label='Python executable' description='Points to the Python executable this should be used. This is important for Linux as well, because by default the Python docker images install multiple python versions concurrently.' validationMode='not_empty'" />
+      <param name="target_arch" value="aarch64" />
+    </parameters>
+    <build-runners>
+      <runner id="RUNNER_53" name="Build container" type="DockerCommand">
+        <parameters>
+          <param name="command.args" value="--build-arg PYTHON_VERSION=%python_version% --build-arg ARCH=%target_arch%" />
+          <param name="docker.command.type" value="build" />
+          <param name="docker.image.namesAndTags" value="build:%build.vcs.number%-%python_version%" />
+          <param name="docker.push.remove.image" value="true" />
+          <param name="dockerImage.platform" value="linux" />
+          <param name="dockerfile.contextDir" value="docker/" />
+          <param name="dockerfile.path" value="docker/Dockerfile" />
+          <param name="dockerfile.source" value="PATH" />
+          <param name="teamcity.step.mode" value="default" />
+        </parameters>
+      </runner>
+      <runner id="RUNNER_280" name="Check static link" type="simpleRunner">
+        <parameters>
+          <param name="plugin.docker.imageId" value="build:%build.vcs.number%-%python_version%" />
+          <param name="plugin.docker.imagePlatform" value="linux" />
+          <param name="script.content"><![CDATA[[[ "$(ldd build/lib.linux-x86_64-*/quasardb/quasardb.cpython-*-x86_64-linux-gnu.so | grep libstdc++ | wc -l)" == "0" ]]
+[[ "$(ldd build/lib.linux-x86_64-*/quasardb/quasardb.cpython-*-x86_64-linux-gnu.so | grep libgcc | wc -l)" == "0" ]]]]></param>
+          <param name="teamcity.step.mode" value="default" />
+          <param name="use.custom.script" value="true" />
+        </parameters>
+      </runner>
+      <runner id="RUNNER_93" name="Start services" type="simpleRunner">
+        <parameters>
+          <param name="command.executable" value="bash" />
+          <param name="command.parameters" value="scripts/tests/setup/start-services.sh" />
+          <param name="teamcity.step.mode" value="default" />
+          <param name="use.custom.script" value="" />
+        </parameters>
+      </runner>
+      <runner id="RUNNER_101" name="Test" type="simpleRunner">
+        <parameters>
+          <param name="command.executable" value="bash" />
+          <param name="command.parameters" value="scripts/teamcity/20.test.sh" />
+          <param name="plugin.docker.imageId" value="build:%build.vcs.number%-%python_version%" />
+          <param name="plugin.docker.imagePlatform" value="linux" />
+          <param name="plugin.docker.run.parameters" value="--network=host" />
+          <param name="teamcity.step.mode" value="default" />
+        </parameters>
+      </runner>
+      <runner id="RUNNER_62" name="Build module" type="simpleRunner">
+        <parameters>
+          <param name="command.executable" value="bash" />
+          <param name="command.parameters" value="scripts/teamcity/10.build.sh" />
+          <param name="plugin.docker.imageId" value="build:%build.vcs.number%-%python_version%" />
+          <param name="plugin.docker.imagePlatform" value="linux" />
+          <param name="script.content"><![CDATA[rm -rf dist/
+mkdir dist
+python setup.py sdist -d dist/
+python setup.py bdist_wheel -d dist/
+python setup.py bdist_egg -d dist/
+find dist/]]></param>
+          <param name="teamcity.step.mode" value="default" />
+        </parameters>
+      </runner>
+      <runner id="RUNNER_56" name="Generate documentation" type="simpleRunner">
+        <parameters>
+          <param name="command.executable" value="bash" />
+          <param name="command.parameters" value="scripts/teamcity/30.doc.sh" />
+          <param name="plugin.docker.imageId" value="build:%build.vcs.number%-%python_version%" />
+          <param name="plugin.docker.imagePlatform" value="linux" />
+          <param name="script.content"><![CDATA[python3 -m pip install dist/quasardb*.whl
+python3 -m pip install -r dev-requirements.txt
+mkdir doc || true
+python3 docgen.py
+tar -czvf dist/doc.tar.gz doc/*]]></param>
+          <param name="teamcity.step.mode" value="default" />
+        </parameters>
+      </runner>
+      <runner id="RUNNER_57" name="Smoke test" type="simpleRunner">
+        <parameters>
+          <param name="plugin.docker.imageId" value="build:%build.vcs.number%-%python_version%" />
+          <param name="plugin.docker.imagePlatform" value="linux" />
+          <param name="script.content" value="scripts/test/smoke-test.sh dist/quasardb*.whl" />
+          <param name="teamcity.step.mode" value="default" />
+          <param name="use.custom.script" value="true" />
+        </parameters>
+      </runner>
+      <runner id="RUNNER_144" name="Stop services" type="simpleRunner">
+        <parameters>
+          <param name="command.executable" value="bash" />
+          <param name="command.parameters" value="scripts/tests/setup/stop-services.sh" />
+          <param name="teamcity.step.mode" value="execute_always" />
+          <param name="use.custom.script" value="" />
+        </parameters>
+      </runner>
+    </build-runners>
+    <vcs-settings>
+      <vcs-entry-ref root-id="QdbApiPython" />
+    </vcs-settings>
+    <requirements>
+      <equals id="RQ_333" name="teamcity.agent.jvm.os.name" value="Linux" />
+      <equals id="RQ_334" name="teamcity.agent.jvm.os.arch" value="aarch64" />
+    </requirements>
+    <build-triggers />
+    <build-extensions>
+      <extension id="perfmon" type="perfmon">
+        <parameters>
+          <param name="teamcity.perfmon.feature.enabled" value="true" />
+        </parameters>
+      </extension>
+      <extension id="DockerSupport" type="DockerSupport">
+        <parameters>
+          <param name="login2registry" value="PROJECT_EXT_11" />
+          <param name="loginCheckbox" value="on" />
+        </parameters>
+      </extension>
+    </build-extensions>
+    <artifact-dependencies>
+      <dependency id="ARTIFACT_DEPENDENCY_65" sourceBuildTypeId="Quasardb_Artifacts_Release_Linux_AArch64_Default" cleanDestination="false">
+        <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
+        <artifact sourcePath="*-linux-64bit-aarch64-c-api.tar.gz!**/*=&gt;qdb&#xD;&#xA;*-linux-64bit-aarch64-utils.tar.gz!**/*=&gt;qdb&#xD;&#xA;*-linux-64bit-aarch64-server.tar.gz!**/*=&gt;qdb" />
+      </dependency>
+    </artifact-dependencies>
+    <dependencies>
+      <depend-on sourceBuildTypeId="Quasardb_Artifacts_Release_Linux_AArch64_Default">
+        <options>
+          <option name="sync-revisions" value="false" />
+          <option name="take-started-build-with-same-revisions" value="true" />
+          <option name="take-successful-builds-only" value="true" />
+        </options>
+      </depend-on>
+    </dependencies>
+    <cleanup />
+  </settings>
+</template>
+

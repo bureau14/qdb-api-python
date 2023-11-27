@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<build-type xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="6ad8545e-20be-4248-9e7c-382c90582dc7" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2021.1/project-config.xsd">
+  <name>Python 3.8</name>
+  <description>End of life: 2024-10</description>
+  <settings ref="Api_Python_Debug_Osx_X8664Core2_Build">
+    <disabled-settings>
+      <setting-ref ref="RQ_164" />
+    </disabled-settings>
+    <parameters>
+      <param name="cmake.generator" value="Ninja" />
+      <param name="env.PYTHON_CMD" value="python3.8" />
+      <param name="env.PYTHON_EXECUTABLE" value="/opt/local/Library/Frameworks/Python.framework/Versions/3.8/bin/python3" />
+    </parameters>
+    <build-runners />
+    <vcs-settings />
+    <requirements>
+      <equals id="RQ_39" name="teamcity.agent.jvm.os.name" value="Mac OS X" />
+      <ver-no-less-than id="RQ_164" name="system.python.numpy.version" value="1.0" />
+      <ver-no-less-than id="RQ_38" name="system.ninja.version" value="1.0" />
+      <exists id="RQ_148" name="system.python38.version" />
+      <ver-no-less-than id="RQ_298" name="system.appleclang.version" value="13.0.0" />
+    </requirements>
+    <build-triggers />
+    <cleanup />
+  </settings>
+</build-type>
+

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" parent-id="Api_Python" uuid="f31d696a-e844-4935-9eb3-97a369a19be7" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2021.1/project-config.xsd">
+  <name>Debug</name>
+  <parameters>
+    <param name="env.CMAKE_BUILD_TYPE" value="Debug" />
+  </parameters>
+  <cleanup />
+</project>
+
