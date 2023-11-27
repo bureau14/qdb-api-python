@@ -107,6 +107,16 @@ public:
         }
     }
 
+    void compact_full()
+    {
+      check_open();
+
+      qdb_compact_params_t params{};
+      params.options = qdb_compact_full;
+
+      qdb::qdb_throw_if_error(*_handle, qdb_cluster_compact(*_handle, &params));
+    }
+
     std::string get_memory_info()
     {
         std::string result;
@@ -463,11 +473,12 @@ static inline void register_cluster(Module & m)
             py::arg("user_security_file")      = std::string{},                               //
             py::arg("cluster_public_key_file") = std::string{},                               //
             py::arg("timeout")                 = std::chrono::minutes{1},                     //
-            py::arg("do_version_check")        = false)                                              //
+            py::arg("do_version_check")        = false)                                       //
         .def("__enter__", &qdb::cluster::enter)                                               //
         .def("__exit__", &qdb::cluster::exit)                                                 //
         .def("tidy_memory", &qdb::cluster::tidy_memory)                                       //
         .def("get_memory_info", &qdb::cluster::get_memory_info)                               //
+        .def("compact_full", &qdb::cluster::compact_full)                                     //
         .def("is_open", &qdb::cluster::is_open)                                               //
         .def("uri", &qdb::cluster::uri)                                                       //
         .def("node", &qdb::cluster::node)                                                     //

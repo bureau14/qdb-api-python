@@ -17,3 +17,6 @@ def test_version():
 
 def test_can_purge_all(qdbd_secure_connection):
     qdbd_secure_connection.purge_all(datetime.timedelta(minutes=1))
+
+def test_can_compact_full(qdbd_connection):
+    qdbd_connection.compact_full()
