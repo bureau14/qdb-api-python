@@ -107,16 +107,6 @@ public:
         }
     }
 
-    void compact_full()
-    {
-      check_open();
-
-      qdb_compact_params_t params{};
-      params.options = qdb_compact_full;
-
-      qdb::qdb_throw_if_error(*_handle, qdb_cluster_compact(*_handle, &params));
-    }
-
     std::string get_memory_info()
     {
         std::string result;
@@ -425,6 +415,16 @@ public:
                                               static_cast<int>(timeout_ms.count())));
     }
 
+    void compact_full()
+    {
+      check_open();
+
+      qdb_compact_params_t params{};
+      params.options = qdb_compact_full;
+
+      qdb::qdb_throw_if_error(*_handle, qdb_cluster_compact(*_handle, &params));
+    }
+  
 public:
     std::vector<std::string> endpoints()
     {
