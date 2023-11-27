@@ -98,13 +98,13 @@ mkdir dist
       </extension>
     </build-extensions>
     <artifact-dependencies>
-      <dependency id="ARTIFACT_DEPENDENCY_423" sourceBuildTypeId="Quasardb_Artifacts_Release_MacOS_X8664Core2_Default" cleanDestination="true">
+      <dependency id="ARTIFACT_DEPENDENCY_423" sourceBuildTypeId="Quasardb_Artifacts_Release_MacOS_X8664Core2_Composite" cleanDestination="true">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="*-darwin-64bit-core2-c-api.tar.gz!**/*=&gt;qdb&#xD;&#xA;*-darwin-64bit-core2-utils.tar.gz!**/*=&gt;qdb&#xD;&#xA;*-darwin-64bit-core2-server.tar.gz!**/*=&gt;qdb" />
       </dependency>
     </artifact-dependencies>
     <dependencies>
-      <depend-on sourceBuildTypeId="Quasardb_Artifacts_Release_MacOS_X8664Core2_Default">
+      <depend-on sourceBuildTypeId="Quasardb_Artifacts_Release_MacOS_X8664Core2_Composite">
         <options>
           <option name="take-started-build-with-same-revisions" value="true" />
           <option name="take-successful-builds-only" value="true" />
