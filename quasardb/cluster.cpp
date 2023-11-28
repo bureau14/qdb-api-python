@@ -1,5 +1,7 @@
 #include "cluster.hpp"
 #include "metrics.hpp"
+#include <chrono>
+#include <thread>
 
 namespace qdb
 {
@@ -61,6 +63,27 @@ void cluster::close()
     _handle.reset();
 
     assert(is_open() == false);
+}
+
+void cluster::wait_for_compaction()
+{
+
+    // We define this function in the .cpp file so we can avoid including chrono and thread
+    // in the header file.
+
+    using namespace std::chrono_literals;
+
+    for (;;)
+    {
+        std::uint64_t progress = compact_progress();
+
+        if (progress == 0) [[unlikely]]
+        {
+            break;
+        }
+
+        std::this_thread::sleep_for(100ms);
+    }
 }
 
 }; // namespace qdb

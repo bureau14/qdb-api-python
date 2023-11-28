@@ -417,14 +417,35 @@ public:
 
     void compact_full()
     {
-      check_open();
+        check_open();
 
-      qdb_compact_params_t params{};
-      params.options = qdb_compact_full;
+        qdb_compact_params_t params{};
+        params.options = qdb_compact_full;
 
-      qdb::qdb_throw_if_error(*_handle, qdb_cluster_compact(*_handle, &params));
+        qdb::qdb_throw_if_error(*_handle, qdb_cluster_compact(*_handle, &params));
     }
-  
+
+    // Returns 0 when finished / no compaction running
+    std::uint64_t compact_progress()
+    {
+        check_open();
+
+        std::uint64_t progress;
+
+        qdb::qdb_throw_if_error(*_handle, qdb_cluster_get_compact_progress(*_handle, &progress));
+
+        return progress;
+    }
+
+    void compact_abort()
+    {
+        check_open();
+
+        qdb::qdb_throw_if_error(*_handle, qdb_cluster_abort_compact(*_handle));
+    }
+
+    void wait_for_compaction();
+
 public:
     std::vector<std::string> endpoints()
     {
@@ -473,12 +494,11 @@ static inline void register_cluster(Module & m)
             py::arg("user_security_file")      = std::string{},                               //
             py::arg("cluster_public_key_file") = std::string{},                               //
             py::arg("timeout")                 = std::chrono::minutes{1},                     //
-            py::arg("do_version_check")        = false)                                       //
+            py::arg("do_version_check")        = false)                                              //
         .def("__enter__", &qdb::cluster::enter)                                               //
         .def("__exit__", &qdb::cluster::exit)                                                 //
         .def("tidy_memory", &qdb::cluster::tidy_memory)                                       //
         .def("get_memory_info", &qdb::cluster::get_memory_info)                               //
-        .def("compact_full", &qdb::cluster::compact_full)                                     //
         .def("is_open", &qdb::cluster::is_open)                                               //
         .def("uri", &qdb::cluster::uri)                                                       //
         .def("node", &qdb::cluster::node)                                                     //
@@ -521,6 +541,10 @@ static inline void register_cluster(Module & m)
         .def("purge_all", &qdb::cluster::purge_all)                                           //
         .def("trim_all", &qdb::cluster::trim_all)                                             //
         .def("purge_cache", &qdb::cluster::purge_cache)                                       //
+        .def("compact_full", &qdb::cluster::compact_full)                                     //
+        .def("compact_progress", &qdb::cluster::compact_progress)                             //
+        .def("compact_abort", &qdb::cluster::compact_abort)                                   //
+        .def("wait_for_compaction", &qdb::cluster::wait_for_compaction)                       //
         .def("endpoints", &qdb::cluster::endpoints);                                          //
 }
 
