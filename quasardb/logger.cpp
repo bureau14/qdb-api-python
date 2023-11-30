@@ -11,6 +11,8 @@ void qdb::native::swap_callback()
 {
     // Potential race condition avoidance!
     std::lock_guard<std::mutex> guard(_buffer_lock);
+
+#ifndef NDEBUG
     qdb_error_t error;
 
     error = qdb_log_remove_callback(local_callback_id);
@@ -26,6 +28,7 @@ void qdb::native::swap_callback()
         // fprintf(stderr, "unable to add new callback: %s (%#x)\n", qdb_error(error), error);
         // fflush(stderr);
     }
+#endif
 
     _logger = qdb::logger("quasardb.native");
 }
