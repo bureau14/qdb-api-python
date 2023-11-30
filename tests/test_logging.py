@@ -31,7 +31,7 @@ def test_native_logging_output(blob_entry, random_blob, caplog):
 
     assert found(caplog.records)
 
-
+@pytest.mark.skip(reason="TODO: Should only be enabled for CMAKE_BUILD_TYPE=Debug")
 def test_invalid_utf8_logs_qdb3361(qdbd_connection, caplog):
     caplog.set_level(logging.DEBUG)
 
