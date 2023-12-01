@@ -15,7 +15,3 @@ RUN bash /set-python-version.sh ${PYTHON_VERSION} \
 
 RUN yum install -y devtoolset-$DEVTOOLSET_VERSION-toolchain \
     && g++ --version
-
-RUN python3 --version && \
-    python3 -m pip install --upgrade pip && \
-    python3 -m pip install --upgrade setuptools wheel
