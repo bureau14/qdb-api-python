@@ -35,8 +35,8 @@
       <runner id="RUNNER_48" name="Test" type="simpleRunner">
         <parameters>
           <param name="script.content"><![CDATA[export QDB_TESTS_ENABLED=ON
-%env.PYTHON_EXECUTABLE% -m pip install --user -r dev-requirements.txt
-%env.PYTHON_EXECUTABLE% setup.py test --addopts "--junitxml=%JUNIT_XML_FILE%"
+%python_executable% -m pip install --user -r dev-requirements.txt
+%python_executable% setup.py test --addopts "--junitxml=%JUNIT_XML_FILE%"
 export QDB_TESTS_ENABLED=OFF]]></param>
           <param name="teamcity.step.mode" value="default" />
           <param name="use.custom.script" value="true" />
@@ -54,12 +54,6 @@ export QDB_TESTS_ENABLED=OFF]]></param>
         <parameters>
           <param name="command.executable" value="bash" />
           <param name="command.parameters" value="scripts/teamcity/10.build.sh" />
-          <param name="script.content"><![CDATA[rm -rf build/ dist/
-mkdir dist
-%env.PYTHON_EXECUTABLE% -m pip install --user --upgrade setuptools wheel
-%env.PYTHON_EXECUTABLE% -m pip install --user -r dev-requirements.txt
-%env.PYTHON_EXECUTABLE% setup.py bdist_egg -d dist/
-%env.PYTHON_EXECUTABLE% setup.py bdist_wheel -d dist/]]></param>
           <param name="teamcity.step.mode" value="default" />
           <param name="use.custom.script" value="" />
         </parameters>
