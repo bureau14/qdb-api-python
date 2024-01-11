@@ -160,10 +160,7 @@ class WheelRetagger(old_bdist_wheel):
         py, abi, plat = old_bdist_wheel.get_tag(self)
 
         if platform.system() == "Darwin" and platform.machine() == "arm64":
-            # We don't do universal builds, which arm64 insists on, and even though we may be building against
-            # older standard libraries, macos 11.0 is the first platform to actually support arm64.
-            #
-            # So let's retag it.
+            # We don't do universal builds, which arm64 insists on.
             plat = "macosx_{}_{}".format("11_0", platform.machine())
 
         return (py, abi, plat)
