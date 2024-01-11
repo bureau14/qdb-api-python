@@ -13,23 +13,19 @@
     <requirements />
     <build-triggers />
     <artifact-dependencies>
-      <dependency id="ARTIFACT_DEPENDENCY_1" sourceBuildTypeId="Api_Python_Release_Osx_X8664Core2_Python310" cleanDestination="false">
+      <dependency id="python310" sourceBuildTypeId="Api_Python_Release_Osx_X8664Core2_Python310" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="**" />
       </dependency>
-      <dependency id="ARTIFACT_DEPENDENCY_2" sourceBuildTypeId="Api_Python_Release_Osx_X8664Core2_Python311" cleanDestination="false">
+      <dependency id="python311" sourceBuildTypeId="Api_Python_Release_Osx_X8664Core2_Python311" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="**" />
       </dependency>
-      <dependency id="ARTIFACT_DEPENDENCY_3" sourceBuildTypeId="Api_Python_Release_Osx_X8664Core2_Python37" cleanDestination="false">
+      <dependency id="python38_4" sourceBuildTypeId="Api_Python_Release_Osx_X8664Core2_Python38" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="**" />
       </dependency>
-      <dependency id="ARTIFACT_DEPENDENCY_4" sourceBuildTypeId="Api_Python_Release_Osx_X8664Core2_Python38" cleanDestination="false">
-        <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
-        <artifact sourcePath="**" />
-      </dependency>
-      <dependency id="ARTIFACT_DEPENDENCY_5" sourceBuildTypeId="Api_Python_Release_Osx_X8664Core2_Python39" cleanDestination="false">
+      <dependency id="python39" sourceBuildTypeId="Api_Python_Release_Osx_X8664Core2_Python39" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="**" />
       </dependency>
@@ -42,12 +38,6 @@
         </options>
       </depend-on>
       <depend-on sourceBuildTypeId="Api_Python_Release_Osx_X8664Core2_Python311">
-        <options>
-          <option name="take-started-build-with-same-revisions" value="true" />
-          <option name="take-successful-builds-only" value="true" />
-        </options>
-      </depend-on>
-      <depend-on sourceBuildTypeId="Api_Python_Release_Osx_X8664Core2_Python37">
         <options>
           <option name="take-started-build-with-same-revisions" value="true" />
           <option name="take-successful-builds-only" value="true" />
@@ -69,4 +59,3 @@
     <cleanup />
   </settings>
 </build-type>
-
