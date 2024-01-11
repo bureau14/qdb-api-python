@@ -17,7 +17,8 @@
       <param name="dependencies.artifact.rules"><![CDATA[*-c-api.%archive.ext%!**/*=>qdb
 *-utils.%archive.ext%!**/*=>qdb
 *-server.%archive.ext%!**/*=>qdb]]></param>
-      <param name="env.PYTHON_EXECUTABLE" value="python3" />
+      <param name="cmake.generator" value="Ninja" />
+      <param name="env.PYTHON_CMD" value="%python_executable%" />
     </parameters>
     <build-runners>
       <runner id="RUNNER_321" name="" type="_placeholder_">
@@ -121,4 +122,3 @@ mkdir dist
     <cleanup />
   </settings>
 </template>
-

@@ -7,9 +7,7 @@
       <setting-ref ref="RQ_164" />
     </disabled-settings>
     <parameters>
-      <param name="cmake.generator" value="Ninja" />
-      <param name="env.PYTHON_CMD" value="python3.11" />
-      <param name="env.PYTHON_EXECUTABLE" value="/opt/local/Library/Frameworks/Python.framework/Versions/3.11/bin/python3" />
+      <param name="python_executable" value="%system.python311.path%" />
     </parameters>
     <build-runners />
     <vcs-settings />
@@ -24,4 +22,3 @@
     <cleanup />
   </settings>
 </build-type>
-
