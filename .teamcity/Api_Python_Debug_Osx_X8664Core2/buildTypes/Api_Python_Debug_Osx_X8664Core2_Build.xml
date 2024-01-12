@@ -82,7 +82,8 @@ export QDB_TESTS_ENABLED=OFF]]></param>
     </vcs-settings>
     <requirements>
       <ver-no-less-than id="RQ_26" name="system.cmake.version" value="2.8" />
-      <equals id="RQ_27" name="teamcity.agent.jvm.os.arch" value="x86_64" />
+      <equals name="teamcity.agent.jvm.os.name" value="Mac OS X" />
+      <equals name="teamcity.agent.jvm.os.arch" value="x86_64" />
     </requirements>
     <build-triggers />
     <build-extensions>

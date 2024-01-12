@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <build-type xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2021.1/project-config.xsd">
   <name>Python 3.11</name>
-  <description>End of life: 2026-10</description>
+  <description>End of life: 2028-10</description>
   <settings ref="Api_Python_Debug_Osx_X8664Core2_Build">
     <disabled-settings>
       <setting-ref ref="RQ_164" />
@@ -11,13 +11,6 @@
     </parameters>
     <build-runners />
     <vcs-settings />
-    <requirements>
-      <equals id="RQ_39" name="teamcity.agent.jvm.os.name" value="Mac OS X" />
-      <ver-no-less-than id="RQ_164" name="system.python.numpy.version" value="1.0" />
-      <ver-no-less-than id="RQ_38" name="system.ninja.version" value="1.0" />
-      <ver-no-less-than id="RQ_299" name="system.appleclang.version" value="13" />
-      <exists id="RQ_148" name="system.python311.version" />
-    </requirements>
     <build-triggers />
     <cleanup />
   </settings>

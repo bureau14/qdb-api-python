@@ -11,13 +11,6 @@
     </parameters>
     <build-runners />
     <vcs-settings />
-    <requirements>
-      <equals id="RQ_39" name="teamcity.agent.jvm.os.name" value="Mac OS X" />
-      <ver-no-less-than id="RQ_164" name="system.python.numpy.version" value="1.0" />
-      <ver-no-less-than id="RQ_38" name="system.ninja.version" value="1.0" />
-      <exists id="RQ_148" name="system.python310.version" />
-      <ver-no-less-than id="RQ_299" name="system.appleclang.version" value="13" />
-    </requirements>
     <build-triggers />
     <cleanup />
   </settings>
