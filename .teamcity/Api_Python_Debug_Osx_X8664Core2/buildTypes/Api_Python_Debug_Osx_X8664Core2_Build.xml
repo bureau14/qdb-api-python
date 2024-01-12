@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<template xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2021.1/project-config.xsd">
+<template xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2021.1/project-config.xsd">
   <name>Build</name>
   <settings>
     <options>
@@ -14,10 +14,10 @@
     <parameters>
       <param name="JUNIT_XML_FILE" value="build/test/pytest.xml" />
       <param name="archive.ext" value="tar.gz" />
+      <param name="cmake.generator" value="Ninja" />
       <param name="dependencies.artifact.rules"><![CDATA[*-c-api.%archive.ext%!**/*=>qdb
 *-utils.%archive.ext%!**/*=>qdb
 *-server.%archive.ext%!**/*=>qdb]]></param>
-      <param name="cmake.generator" value="Ninja" />
       <param name="env.PYTHON_CMD" value="%python_executable%" />
     </parameters>
     <build-runners>
@@ -82,8 +82,8 @@ export QDB_TESTS_ENABLED=OFF]]></param>
     </vcs-settings>
     <requirements>
       <ver-no-less-than id="RQ_26" name="system.cmake.version" value="2.8" />
-      <equals name="teamcity.agent.jvm.os.name" value="Mac OS X" />
-      <equals name="teamcity.agent.jvm.os.arch" value="x86_64" />
+      <equals id="RQ_46" name="teamcity.agent.jvm.os.name" value="Mac OS X" />
+      <equals id="RQ_47" name="teamcity.agent.jvm.os.arch" value="x86_64" />
     </requirements>
     <build-triggers />
     <build-extensions>
@@ -117,3 +117,4 @@ export QDB_TESTS_ENABLED=OFF]]></param>
     <cleanup />
   </settings>
 </template>
+
