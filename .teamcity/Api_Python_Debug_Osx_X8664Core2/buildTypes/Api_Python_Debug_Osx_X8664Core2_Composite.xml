@@ -21,7 +21,7 @@
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="**" />
       </dependency>
-      <dependency id="ARTIFACT_DEPENDENCY_3" sourceBuildTypeId="Api_Python_Debug_Osx_X8664Core2_Python37" cleanDestination="false">
+      <dependency id="ARTIFACT_DEPENDENCY_3" sourceBuildTypeId="Api_Python_Debug_Osx_X8664Core2_Python312" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="**" />
       </dependency>
