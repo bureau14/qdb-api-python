@@ -12,7 +12,6 @@ import platform
 import subprocess
 import glob
 
-from distutils.version import LooseVersion
 from setuptools.command.build_ext import build_ext
 from setuptools import setup, Extension
 from setuptools.command.bdist_egg import bdist_egg as old_bdist_egg  # pylint: disable=C0412
@@ -49,12 +48,6 @@ class CMakeBuild(build_ext):
         except OSError as ex:
             raise RuntimeError("CMake must be installed to build the following extensions: " +
                                ", ".join(e.name for e in self.extensions)) from ex
-
-        if platform.system() == "Windows":
-            cmake_version = LooseVersion(
-                re.search(r'version\s*([\d.]+)', out.decode()).group(1))
-            if cmake_version < '3.1.0':
-                raise RuntimeError("CMake >= 3.1.0 is required on Windows")
 
         for ext in self.extensions:
             self.build_extension(ext)
