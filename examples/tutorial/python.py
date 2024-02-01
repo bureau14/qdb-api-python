@@ -180,7 +180,7 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
 
 
     # Since we only expect one row, we also access it like this:
-    aggregate_result = result[0]['sum(volume)']
+    aggregate_result = result[0]['SUM(volume)']
     print("sum(volume): ", aggregate_result)
 
     # query-end
