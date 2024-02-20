@@ -104,6 +104,16 @@ public:
         return *p_;
     }
 
+    ValueType * operator->()
+    {
+        return p_;
+    }
+
+    constexpr ValueType const * operator->() const
+    {
+        return p_;
+    }
+
     constexpr ValueType const & operator*() const
     {
         return *p_;

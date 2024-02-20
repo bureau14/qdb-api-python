@@ -256,6 +256,30 @@ def df_count(request):
     yield request.param
 
 
+@pytest.fixture(params=[1, 60, 3600, 86400],
+                ids=['shard_size=1s',
+                     'shard_size=1min',
+                     'shard_size=1h',
+                     'shard_size=1d'])
+def shard_size(request):
+    import datetime
+
+    yield datetime.timedelta(seconds=request.param)
+
+
+@pytest.fixture(params=[1, 60, 3600, 86400, 604800, 7776000],
+                ids=['ttl=1s',
+                     'ttl=1min',
+                     'ttl=1h',
+                     'ttl=1day',
+                     'ttl=1week',
+                     'ttl=90days'])
+def ttl(request):
+    import datetime
+
+    yield datetime.timedelta(seconds=request.param)
+
+
 def _sparsify(perc, xs):
     # Randomly make a bunch of elements null, we make use of Numpy's masked
     # arrays for this: keep track of a separate boolean 'mask' array, which
