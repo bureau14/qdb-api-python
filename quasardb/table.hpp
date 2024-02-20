@@ -44,7 +44,7 @@ public:
         : entry{h, a}
         , _has_indexed_columns(false)
     {
-        _cache_columns();
+        _cache_metadata();
     }
 
 public:
@@ -58,17 +58,24 @@ public:
      */
     void retrieve_metadata()
     {
-        _cache_columns();
+        _cache_metadata();
     }
 
     void create(const std::vector<detail::column_info> & columns,
-        std::chrono::milliseconds shard_size = std::chrono::hours{24})
+        std::chrono::milliseconds shard_size = std::chrono::hours{24},
+        std::chrono::milliseconds ttl        = std::chrono::milliseconds::zero())
     {
         _handle->check_open();
 
+        qdb_duration_t ttl_ = qdb_ttl_disabled;
+        if (ttl != std::chrono::milliseconds::zero())
+        {
+            ttl_ = ttl.count();
+        }
+
         const auto c_columns = detail::convert_columns_ex(columns);
         qdb::qdb_throw_if_error(*_handle, qdb_ts_create_ex(*_handle, _alias.c_str(), shard_size.count(),
-                                              c_columns.data(), c_columns.size(), qdb_ttl_disabled));
+                                              c_columns.data(), c_columns.size(), ttl_));
     }
 
     void insert_columns(const std::vector<detail::column_info> & columns)
@@ -87,7 +94,7 @@ public:
             return _columns.value();
         }
 
-        _cache_columns();
+        _cache_metadata();
 
         if (_columns.has_value()) [[likely]]
         {
@@ -152,20 +159,59 @@ public:
     py::object reader(
         const std::vector<std::string> & columns, py::object obj_ranges, bool dict_mode) const;
 
+    /**
+     * Returns true if this table has a TTL assigned.
+     */
+    inline bool has_ttl() const
+    {
+        if (_ttl.has_value()) [[likely]]
+        {
+            return _ttl.value() != std::chrono::milliseconds::zero();
+        }
+
+        _cache_metadata();
+
+        if (_ttl.has_value()) [[likely]]
+        {
+            return _ttl.value() != std::chrono::milliseconds::zero();
+        }
+
+        throw qdb::alias_not_found_exception{};
+    }
+
+    inline std::chrono::milliseconds get_ttl() const
+    {
+        if (_ttl.has_value()) [[likely]]
+        {
+            return _ttl.value();
+        }
+
+        _cache_metadata();
+
+        if (_ttl.has_value()) [[likely]]
+        {
+            return _ttl.value();
+        }
+
+        throw qdb::alias_not_found_exception{};
+    }
+
 private:
     /**
      * Loads column info / metadata from server and caches it locally.
      */
-    void _cache_columns() const;
+    void _cache_metadata() const;
 
     /**
      * Loads column info / metadata from server if not yet cached locally.
      */
-    void _maybe_cache_columns() const
+    void _maybe_cache_metadata() const
     {
         if (_columns.has_value() == false) [[unlikely]]
         {
-            _cache_columns();
+            // We expect _ttl and _columns to have the same state
+            assert(_ttl.has_value() == false);
+            _cache_metadata();
         }
     }
 
@@ -217,6 +263,7 @@ private:
     mutable detail::indexed_columns_t _indexed_columns;
 
     mutable std::optional<std::vector<detail::column_info>> _columns;
+    mutable std::optional<std::chrono::milliseconds> _ttl;
 };
 
 template <typename Module>
@@ -235,18 +282,21 @@ static inline void register_table(Module & m)
 
     py::class_<qdb::table, qdb::entry>{m, "Table", "Table representation"} //
         .def(py::init<qdb::handle_ptr, std::string>())                     //
-        .def("__repr__", &qdb::table::repr)
-        .def("create", &qdb::table::create, py::arg("columns"),
-            py::arg("shard_size") = std::chrono::hours{24})             //
-        .def("get_name", &qdb::table::get_name)                         //
-        .def("retrieve_metadata", &qdb::table::retrieve_metadata)       //
-        .def("column_index_by_id", &qdb::table::column_index_by_id)     //
-        .def("column_type_by_id", &qdb::table::column_type_by_id)       //
-        .def("column_info_by_index", &qdb::table::column_info_by_index) //
-        .def("column_type_by_index", &qdb::table::column_type_by_index) //
-        .def("column_id_by_index", &qdb::table::column_id_by_index)     //
-        .def("insert_columns", &qdb::table::insert_columns)             //
-        .def("list_columns", &qdb::table::list_columns)                 //
+        .def("__repr__", &qdb::table::repr)                                //
+        .def("create", &qdb::table::create, py::arg("columns"),            //
+            py::arg("shard_size") = std::chrono::hours{24},                //
+            py::arg("ttl")        = std::chrono::milliseconds::zero())            //
+        .def("get_name", &qdb::table::get_name)                            //
+        .def("retrieve_metadata", &qdb::table::retrieve_metadata)          //
+        .def("column_index_by_id", &qdb::table::column_index_by_id)        //
+        .def("column_type_by_id", &qdb::table::column_type_by_id)          //
+        .def("column_info_by_index", &qdb::table::column_info_by_index)    //
+        .def("column_type_by_index", &qdb::table::column_type_by_index)    //
+        .def("column_id_by_index", &qdb::table::column_id_by_index)        //
+        .def("insert_columns", &qdb::table::insert_columns)                //
+        .def("list_columns", &qdb::table::list_columns)                    //
+        .def("has_ttl", &qdb::table::has_ttl)                              //
+        .def("get_ttl", &qdb::table::get_ttl)                              //
 
         // We cannot initialize columns with all columns by default, because i don't
         // see a way to figure out the `this` address for qdb_ts_reader for the default

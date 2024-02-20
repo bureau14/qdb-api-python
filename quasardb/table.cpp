@@ -69,18 +69,17 @@ inline void insert_column_dispatch(handle_ptr handle,
 
 }; // namespace detail
 
-void table::_cache_columns() const
+void table::_cache_metadata() const
 {
     _handle->check_open();
 
-    detail::qdb_resource<qdb_ts_column_info_ex_t> columns{*_handle};
-    qdb_size_t count = 0;
+    detail::qdb_resource<qdb_ts_metadata_t> metadata{*_handle};
 
     qdb_error_t err;
 
     {
-        metrics::scoped_capture("qdb_ts_list_columns");
-        err = qdb_ts_list_columns_ex(*_handle, _alias.c_str(), &columns, &count);
+        metrics::scoped_capture("qdb_ts_get_metadata");
+        err = qdb_ts_get_metadata(*_handle, _alias.c_str(), &metadata);
     }
 
     if (err == qdb_e_alias_not_found) [[unlikely]]
@@ -91,7 +90,16 @@ void table::_cache_columns() const
 
     qdb::qdb_throw_if_error(*_handle, err);
 
-    _columns = detail::convert_columns(columns.get(), count);
+    _columns = detail::convert_columns(metadata->columns, metadata->column_count);
+
+    if (metadata->ttl == qdb_ttl_disabled)
+    {
+        _ttl = std::chrono::milliseconds{0};
+    }
+    else
+    {
+        _ttl = std::chrono::milliseconds{metadata->ttl};
+    }
 }
 
 py::object table::reader(

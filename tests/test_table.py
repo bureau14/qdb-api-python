@@ -72,11 +72,25 @@ def test_column_info_repr(column_name):
     assert 'symbol'    in str(symbol)
 
 
-def test_list_columns_throws_when_timeseries_does_not_exist(
+def test_list_columns_throws_when_table_does_not_exist(
         qdbd_connection, entry_name):
     table = qdbd_connection.table(entry_name)
     with pytest.raises(quasardb.AliasNotFoundError):
         table.list_columns()
+
+def test_has_ttl_throws_when_table_does_not_exist(
+        qdbd_connection, entry_name):
+    table = qdbd_connection.table(entry_name)
+    with pytest.raises(quasardb.AliasNotFoundError):
+        table.has_ttl()
+
+def test_get_ttl_throws_when_table_does_not_exist(
+        qdbd_connection, entry_name):
+    table = qdbd_connection.table(entry_name)
+    with pytest.raises(quasardb.AliasNotFoundError):
+        table.get_ttl()
+
+
 
 
 def test_insert_throws_when_timeseries_does_not_exist(
@@ -140,6 +154,38 @@ def test_create_with_shard_size_of_more_than_1_year(
     table = qdbd_connection.table(entry_name)
     table.create([], datetime.timedelta(weeks=52))
     assert len(table.list_columns()) == 0
+
+
+
+def test_has_ttl_returns_false_when_no_ttl_set(
+        qdbd_connection, entry_name):
+    table = qdbd_connection.table(entry_name)
+    table.create([])
+
+    assert table.has_ttl() == False
+
+
+def test_get_ttl_returns_zero_when_no_ttl_set(
+        qdbd_connection, entry_name):
+    table = qdbd_connection.table(entry_name)
+    table.create([])
+
+    assert table.has_ttl() == False
+    assert table.get_ttl() == datetime.timedelta(0)
+
+
+def test_get_ttl_returns_ttl_when_ttl_set(
+        qdbd_connection, entry_name, shard_size, ttl):
+    table = qdbd_connection.table(entry_name)
+    table.create([],
+                 shard_size=shard_size,
+                 ttl=ttl)
+
+    assert table.has_ttl() == True
+    assert table.get_ttl() == ttl
+
+
+
 
 
 def test_table_layout(table):
