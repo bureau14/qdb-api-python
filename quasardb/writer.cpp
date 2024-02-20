@@ -235,6 +235,7 @@ void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
     batch.where_duplicate       = nullptr;
     batch.where_duplicate_count = 0;
     batch.options               = qdb_exp_batch_option_standard;
+    batch.creation              = qdb_exp_batch_dont_create;
 
     enum detail::deduplication_mode_t mode_ = deduplicate_options.mode_;
 
