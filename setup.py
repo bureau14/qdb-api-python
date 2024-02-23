@@ -162,7 +162,7 @@ class WheelRetagger(old_bdist_wheel):
 class InstallCommand(install):
     def run(self):
         if platform.system() == "Darwin":
-            os.environ.setdefault("MACOSX_DEPLOYMENT_TARGET", "10.14")
+            os.environ.setdefault("MACOSX_DEPLOYMENT_TARGET", "10.15")
 
         # run this after trying to build with cargo (as otherwise this leaves
         # venv in a bad state: https://github.com/benfred/py-spy/issues/69)
