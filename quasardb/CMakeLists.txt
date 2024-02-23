@@ -2,8 +2,18 @@ cmake_minimum_required(VERSION 3.9.4)
 project(quasardb)
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
-set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0")
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15")
 set(CMAKE_VERBOSE_MAKEFILE FALSE)
+
+if(APPLE)
+    # Robustly get the SDK path using xcrun.
+    execute_process(
+        COMMAND xcrun --sdk macosx --show-sdk-path
+        OUTPUT_VARIABLE SDK_PATH
+        COMMAND_ERROR_IS_FATAL ANY
+    )
+    string(STRIP "${SDK_PATH}" CMAKE_OSX_SYSROOT)
+endif()
 
 include(CheckIPOSupported)
 
