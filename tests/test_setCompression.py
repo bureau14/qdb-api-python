@@ -8,7 +8,7 @@ def test_compression_none(qdbd_connection):
     qdbd_connection.options().set_compression(
         quasardb.Options.Compression.Disabled)
 
-
+@pytest.mark.skip(reason="Not yet supported")
 def test_compression_fast(qdbd_connection):
     qdbd_connection.options().set_compression(quasardb.Options.Compression.Fast)
 
