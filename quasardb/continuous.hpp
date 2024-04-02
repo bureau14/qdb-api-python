@@ -30,6 +30,7 @@
  */
 #pragma once
 
+#include "logger.hpp"
 #include "query.hpp"
 #include <atomic>
 #include <condition_variable>
@@ -70,6 +71,8 @@ public:
     void stop();
 
 private:
+    qdb::logger _logger;
+
     qdb::handle_ptr _handle;
     qdb_query_cont_callback_t _callback;
     qdb_query_cont_handle_t _cont_handle;
