@@ -1,4 +1,5 @@
 #include "continuous.hpp"
+#include <iostream>
 
 namespace qdb
 {
@@ -19,14 +20,17 @@ query_continuous::query_continuous(qdb::handle_ptr h,
 {
     try
     {
+        std::cerr << "before qdb_query_continuous" << std::endl;
         qdb::qdb_throw_if_error(
             *_handle, qdb_query_continuous(*_handle, query_string.c_str(), mode,
                           static_cast<unsigned>(pace.count()), _callback, this, &_cont_handle));
     }
     catch (std::system_error const & e)
     {
-        _logger.warn("continuous query constructor caught system error, e.what(): %s", e.what());
-        _logger.warn("continuous query constructor caught system error, e.code(): %d", e.code());
+        std::cerr << "continuous query constructor caught system error, e.what(): '" << e.what() << "'"
+                  << std::endl;
+        std::cerr << "continuous query constructor caught system error, e.code(): '" << e.code() << "'"
+                  << std::endl;
         throw e;
     }
 }
@@ -113,6 +117,7 @@ dict_query_result_t query_continuous::results()
 {
     try
     {
+        std::cerr << "before results()" << std::endl;
         std::unique_lock<std::mutex> lock{_results_mutex};
 
         // you need an additional mechanism to check if you need to do something with the results
@@ -134,8 +139,10 @@ dict_query_result_t query_continuous::results()
     }
     catch (std::system_error const & e)
     {
-        _logger.warn("continuous query caught system error, e.what(): %s", e.what());
-        _logger.warn("continuous query caught system error, e.code(): %d", e.code());
+        std::cerr << "continuous query constructor caught system error, e.what(): '" << e.what() << "'"
+                  << std::endl;
+        std::cerr << "continuous query constructor caught system error, e.code(): '" << e.code() << "'"
+                  << std::endl;
         throw e;
     }
 }
