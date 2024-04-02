@@ -8,7 +8,8 @@ query_continuous::query_continuous(qdb::handle_ptr h,
     std::chrono::milliseconds pace,
     const std::string & query_string,
     const py::object & bools)
-    : _handle{h}
+    : _logger("quasardb.query_continuous")
+    , _handle{h}
     , _callback{&query_continuous::continuous_callback}
     , _cont_handle{nullptr}
     , _parse_bools{bools}
@@ -16,9 +17,18 @@ query_continuous::query_continuous(qdb::handle_ptr h,
     , _watermark{0}
     , _last_error{qdb_e_uninitialized}
 {
-    qdb::qdb_throw_if_error(
-        *_handle, qdb_query_continuous(*_handle, query_string.c_str(), mode,
-                      static_cast<unsigned>(pace.count()), _callback, this, &_cont_handle));
+    try
+    {
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_query_continuous(*_handle, query_string.c_str(), mode,
+                          static_cast<unsigned>(pace.count()), _callback, this, &_cont_handle));
+    }
+    catch (std::system_error const & e)
+    {
+        _logger.warn("continuous query constructor caught system error, e.what(): %s", e.what());
+        _logger.warn("continuous query constructor caught system error, e.code(): %d", e.code());
+        throw e;
+    }
 }
 
 query_continuous::~query_continuous()
@@ -56,8 +66,8 @@ int query_continuous::continuous_callback(void * p, qdb_error_t err, const qdb_q
         pthis->_last_error = err;
         if (QDB_FAILURE(pthis->_last_error))
         {
-            // signal the error, if processing end, we will get a qdb_e_interrupted which is handled in
-            // the results function
+            // signal the error, if processing end, we will get a qdb_e_interrupted which is handled
+            // in the results function
             lock.unlock();
             pthis->_results_cond.notify_all();
             return 0;
@@ -101,24 +111,33 @@ dict_query_result_t query_continuous::unsafe_results()
 
 dict_query_result_t query_continuous::results()
 {
-    std::unique_lock<std::mutex> lock{_results_mutex};
-
-    // you need an additional mechanism to check if you need to do something with the results
-    // because condition variables can have spurious calls
-    while (_watermark == _previous_watermark)
+    try
     {
-        // entering the condition variables releases the mutex
-        // the callback can update the values when needed
-        // every second we are going to check if the user didn't do CTRL-C
-        if (_results_cond.wait_for(lock, std::chrono::seconds{1}) == std::cv_status::timeout)
-        {
-            // if we don't do this, it will be impossible to interrupt the Python program while we wait
-            // for results
-            if (PyErr_CheckSignals() != 0) throw py::error_already_set();
-        }
-    }
+        std::unique_lock<std::mutex> lock{_results_mutex};
 
-    return unsafe_results();
+        // you need an additional mechanism to check if you need to do something with the results
+        // because condition variables can have spurious calls
+        while (_watermark == _previous_watermark)
+        {
+            // entering the condition variables releases the mutex
+            // the callback can update the values when needed
+            // every second we are going to check if the user didn't do CTRL-C
+            if (_results_cond.wait_for(lock, std::chrono::seconds{1}) == std::cv_status::timeout)
+            {
+                // if we don't do this, it will be impossible to interrupt the Python program while
+                // we wait for results
+                if (PyErr_CheckSignals() != 0) throw py::error_already_set();
+            }
+        }
+
+        return unsafe_results();
+    }
+    catch (std::system_error const & e)
+    {
+        _logger.warn("continuous query caught system error, e.what(): %s", e.what());
+        _logger.warn("continuous query caught system error, e.code(): %d", e.code());
+        throw e;
+    }
 }
 
 // the difference with the call above is that we're returning immediately if there's no change
