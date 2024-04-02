@@ -124,11 +124,13 @@ dict_query_result_t query_continuous::results()
         // because condition variables can have spurious calls
         while (_watermark == _previous_watermark)
         {
+            std::cerr << "_watermark == _previous_watermark" << std::endl;
             // entering the condition variables releases the mutex
             // the callback can update the values when needed
             // every second we are going to check if the user didn't do CTRL-C
             if (_results_cond.wait_for(lock, std::chrono::seconds{1}) == std::cv_status::timeout)
             {
+                std::cerr << "_results_cond.wait_for() timeout" << std::endl;
                 // if we don't do this, it will be impossible to interrupt the Python program while
                 // we wait for results
                 if (PyErr_CheckSignals() != 0) throw py::error_already_set();
