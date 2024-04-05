@@ -41,6 +41,7 @@
 #include "node.hpp"
 #include "options.hpp"
 #include "perf.hpp"
+#include "properties.hpp"
 #include "query.hpp"
 #include "string.hpp"
 #include "table.hpp"
@@ -268,6 +269,13 @@ public:
         check_open();
 
         return qdb::options{_handle};
+    }
+
+    qdb::properties properties()
+    {
+        check_open();
+
+        return qdb::properties{_handle};
     }
 
     qdb::perf perf()
@@ -503,6 +511,7 @@ static inline void register_cluster(Module & m)
         .def("uri", &qdb::cluster::uri)                                                       //
         .def("node", &qdb::cluster::node)                                                     //
         .def("options", &qdb::cluster::options)                                               //
+        .def("properties", &qdb::cluster::properties)                                         //
         .def("perf", &qdb::cluster::perf)                                                     //
         .def("node_status", &qdb::cluster::node_status)                                       //
         .def("node_config", &qdb::cluster::node_config)                                       //

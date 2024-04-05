@@ -45,6 +45,7 @@ PYBIND11_MODULE(quasardb, m)
     qdb::register_cluster(m);
     qdb::register_node(m);
     qdb::register_options(m);
+    qdb::register_properties(m);
     qdb::register_perf(m);
     qdb::register_entry(m);
     qdb::register_double(m);

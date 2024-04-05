@@ -96,6 +96,16 @@ public:
         return std::chrono::milliseconds{ms};
     }
 
+    void enable_user_properties()
+    {
+        qdb::qdb_throw_if_error(*_handle, qdb_option_enable_user_properties(*_handle));
+    }
+
+    void disable_user_properties()
+    {
+        qdb::qdb_throw_if_error(*_handle, qdb_option_disable_user_properties(*_handle));
+    }
+
     void set_client_soft_memory_limit(std::size_t limit)
     {
         qdb::qdb_throw_if_error(*_handle,
@@ -220,6 +230,8 @@ static inline void register_options(Module & m)
     o.def(py::init<qdb::handle_ptr>())                                                    //
         .def("set_timeout", &qdb::options::set_timeout)                                   //
         .def("get_timeout", &qdb::options::get_timeout)                                   //
+        .def("enable_user_properties", &qdb::options::enable_user_properties)             //
+        .def("disable_user_properties", &qdb::options::disable_user_properties)           //
         .def("set_stabilization_max_wait", &qdb::options::set_stabilization_max_wait)     //
         .def("get_stabilization_max_wait", &qdb::options::get_stabilization_max_wait)     //
         .def("set_max_cardinality", &qdb::options::set_max_cardinality)                   //
