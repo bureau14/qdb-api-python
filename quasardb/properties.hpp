@@ -57,6 +57,16 @@ public:
      */
     void put(std::string const & key, std::string const & value);
 
+    /**
+     * Removes a single property.
+     */
+    void remove(std::string const & key);
+
+    /**
+     * Clears all previously set properties.
+     */
+    void clear();
+
 private:
     qdb::handle_ptr handle_;
 };
@@ -67,7 +77,9 @@ static inline void register_properties(py::module_ & m)
 
     p.def(py::init<qdb::handle_ptr>()) //
         .def("get", &qdb::properties::get)
-        .def("put", &qdb::properties::put);
+        .def("put", &qdb::properties::put)
+        .def("remove", &qdb::properties::remove)
+        .def("clear", &qdb::properties::clear);
 }
 
 } // namespace qdb

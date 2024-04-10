@@ -28,4 +28,14 @@ void properties::put(std::string const & key, std::string const & value)
     qdb::qdb_throw_if_error(*handle_, qdb_user_properties_put(*handle_, key.c_str(), value.c_str()));
 }
 
+void properties::remove(std::string const & key)
+{
+    qdb::qdb_throw_if_error(*handle_, qdb_user_properties_remove(*handle_, key.c_str()));
+}
+
+void properties::clear()
+{
+    qdb::qdb_throw_if_error(*handle_, qdb_user_properties_remove_all(*handle_));
+}
+
 }; // namespace qdb
