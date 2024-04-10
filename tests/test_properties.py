@@ -3,6 +3,10 @@
 import pytest
 import quasardb
 
+import logging
+
+logger = logging.getLogger("test-user-properties")
+
 def test_properties_disabled_by_default(qdbd_connection, random_identifier):
     """
     Validates that properties are disabled by defalt by getting a non-existing key and
@@ -51,3 +55,94 @@ def test_properties_clear(qdbd_connection, random_identifier, random_string):
 
     qdbd_connection.properties().clear()
     assert qdbd_connection.properties().get(random_identifier) == None
+
+
+def _find_log_file():
+    print
+    import pathlib
+
+    current_path = pathlib.Path(__file__).parent
+    project_root = current_path.parent
+
+    log_path = project_root.joinpath("insecure/log/0-0-0-1/qdbd.json")
+
+    assert log_path.is_file() == True
+
+    return log_path.resolve()
+
+
+def _has_user_property_in_log_file(log_path, key, value):
+    """
+    Returns `True` if the user property is found in the logs
+    """
+
+    import json
+
+    key = "client_{}".format(key)
+
+    with open(log_path) as f:
+
+        # Return true if there is at least one row with the correct key/value
+        for line in f:
+            try:
+                d = json.loads(line)
+
+                logger.info("key: %s")
+                logger.info("value: %s")
+                logger.info("dict: %s")
+
+
+                if key in d and d[key] == value:
+                    logger.info("found key %s matching value %s", key, value)
+                    return True
+
+            except json.JSONDecodeError as e:
+                logger.exception("Invalid JSON, skipping line")
+                logger.warning("row: '%s'", line)
+                pass
+
+    return False
+
+
+
+def test_properties_in_log(qdbpd_write_fn, qdbpd_query_fn, qdbd_connection, df_with_table, table_name, column_name, random_identifier, random_string):
+    """
+    This test is a bit more involved, it will try to ensure that the user properties metadata is actually
+    logged in the qdbd logs.
+
+    To do this, it triggers a query with metadata attached, and polls the logs until it finds the metadata.
+    This assumes the logs are written in JSON and the services are started using the start/stop services script,
+    which is always the case in Teamcity. If this test fails, it may be because of this reason.
+    """
+
+    qdbd_connection.options().enable_user_properties()
+
+    (_, _, df, table) = df_with_table
+    qdbpd_write_fn(df, qdbd_connection, table, fast=True)
+
+    qdbd_connection.properties().clear()
+    qdbd_connection.properties().put(random_identifier, random_string)
+
+    qdbpd_query_fn(qdbd_connection,
+                   "SELECT $timestamp, COUNT({}) FROM \"{}\" GROUP BY 1s".format(column_name, table_name))
+
+    log_file = _find_log_file()
+
+    # Now wait until we find the custom property somewhere in the log file
+
+    import time
+
+    start = time.time()
+    found_properties = False
+
+    # 1 minute timeout
+    while time.time() - start < 60:
+        if _has_user_property_in_log_file(log_file, random_identifier, random_string):
+            logger.info("found user properties!")
+            found_properties = True
+            break
+
+        logger.info("User properties not found, waiting 1 second..")
+        time.sleep(1)
+
+    assert found_properties == True
