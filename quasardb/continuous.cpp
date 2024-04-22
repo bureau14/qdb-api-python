@@ -17,18 +17,9 @@ query_continuous::query_continuous(qdb::handle_ptr h,
     , _watermark{0}
     , _last_error{qdb_e_uninitialized}
 {
-    try
-    {
-        qdb::qdb_throw_if_error(
-            *_handle, qdb_query_continuous(*_handle, query_string.c_str(), mode,
-                          static_cast<unsigned>(pace.count()), _callback, this, &_cont_handle));
-    }
-    catch (std::system_error const & e)
-    {
-        _logger.warn("continuous query constructor caught system error, e.what(): %s", e.what());
-        _logger.warn("continuous query constructor caught system error, e.code(): %d", e.code());
-        throw e;
-    }
+    qdb::qdb_throw_if_error(
+        *_handle, qdb_query_continuous(*_handle, query_string.c_str(), mode,
+                      static_cast<unsigned>(pace.count()), _callback, this, &_cont_handle));
 }
 
 query_continuous::~query_continuous()
@@ -58,6 +49,7 @@ int query_continuous::continuous_callback(void * p, qdb_error_t err, const qdb_q
 {
     auto pthis = static_cast<query_continuous *>(p);
 
+    try
     {
         std::unique_lock<std::mutex> lock{pthis->_results_mutex};
 
@@ -84,6 +76,10 @@ int query_continuous::continuous_callback(void * p, qdb_error_t err, const qdb_q
         {
             pthis->release_results();
         }
+    }
+    catch (std::system_error const & e)
+    {
+        // Ignore for now
     }
 
     pthis->_results_cond.notify_all();
