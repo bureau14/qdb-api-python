@@ -1,4 +1,5 @@
 #include "continuous.hpp"
+#include <iostream>
 
 namespace qdb
 {
@@ -78,9 +79,11 @@ int query_continuous::continuous_callback(void * p, qdb_error_t err, const qdb_q
             pthis->release_results();
         }
     }
-    catch (std::system_error const & e)
+    catch (std::exception const & e)
     {
         // Nothing we can do really, this is most likely a "deadlock avoided" issue.
+        std::cerr << "Internal error: unexpected exception caught in continuous query callback: "
+                  << e.what() << std::endl;
     }
 
     pthis->_results_cond.notify_all();
