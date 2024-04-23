@@ -3,11 +3,7 @@
 namespace qdb
 {
 
-query_continuous::query_continuous(qdb::handle_ptr h,
-    qdb_query_continuous_mode_type_t mode,
-    std::chrono::milliseconds pace,
-    const std::string & query_string,
-    const py::object & bools)
+query_continuous::query_continuous(qdb::handle_ptr h, const py::object & bools)
     : _logger("quasardb.query_continuous")
     , _handle{h}
     , _callback{&query_continuous::continuous_callback}
@@ -16,16 +12,21 @@ query_continuous::query_continuous(qdb::handle_ptr h,
     , _previous_watermark{0}
     , _watermark{0}
     , _last_error{qdb_e_uninitialized}
-{
-    qdb::qdb_throw_if_error(
-        *_handle, qdb_query_continuous(*_handle, query_string.c_str(), mode,
-                      static_cast<unsigned>(pace.count()), _callback, this, &_cont_handle));
-}
+{}
 
 query_continuous::~query_continuous()
 {
     stop();
     release_results();
+}
+
+void query_continuous::run(qdb_query_continuous_mode_type_t mode,
+    std::chrono::milliseconds pace,
+    const std::string & query_string)
+{
+    qdb::qdb_throw_if_error(
+        *_handle, qdb_query_continuous(*_handle, query_string.c_str(), mode,
+                      static_cast<unsigned>(pace.count()), _callback, this, &_cont_handle));
 }
 
 void query_continuous::release_results()
@@ -79,7 +80,7 @@ int query_continuous::continuous_callback(void * p, qdb_error_t err, const qdb_q
     }
     catch (std::system_error const & e)
     {
-        // Ignore for now
+        // Nothing we can do really, this is most likely a "deadlock avoided" issue.
     }
 
     pthis->_results_cond.notify_all();
