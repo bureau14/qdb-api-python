@@ -138,6 +138,12 @@ dict_query_result_t query_continuous::results()
         _logger.warn("continuous query caught system error, e.code(): %d", e.code());
         throw e;
     }
+    catch (std::exception const & e)
+    {
+        _logger.warn(
+            "Internal error: unexpected exception caught while gathering results: %s", e.what());
+        throw e;
+    }
 }
 
 // the difference with the call above is that we're returning immediately if there's no change
