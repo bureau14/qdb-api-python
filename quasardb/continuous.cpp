@@ -1,13 +1,10 @@
 #include "continuous.hpp"
+#include <iostream>
 
 namespace qdb
 {
 
-query_continuous::query_continuous(qdb::handle_ptr h,
-    qdb_query_continuous_mode_type_t mode,
-    std::chrono::milliseconds pace,
-    const std::string & query_string,
-    const py::object & bools)
+query_continuous::query_continuous(qdb::handle_ptr h, const py::object & bools)
     : _logger("quasardb.query_continuous")
     , _handle{h}
     , _callback{&query_continuous::continuous_callback}
@@ -16,16 +13,21 @@ query_continuous::query_continuous(qdb::handle_ptr h,
     , _previous_watermark{0}
     , _watermark{0}
     , _last_error{qdb_e_uninitialized}
-{
-    qdb::qdb_throw_if_error(
-        *_handle, qdb_query_continuous(*_handle, query_string.c_str(), mode,
-                      static_cast<unsigned>(pace.count()), _callback, this, &_cont_handle));
-}
+{}
 
 query_continuous::~query_continuous()
 {
     stop();
     release_results();
+}
+
+void query_continuous::run(qdb_query_continuous_mode_type_t mode,
+    std::chrono::milliseconds pace,
+    const std::string & query_string)
+{
+    qdb::qdb_throw_if_error(
+        *_handle, qdb_query_continuous(*_handle, query_string.c_str(), mode,
+                      static_cast<unsigned>(pace.count()), _callback, this, &_cont_handle));
 }
 
 void query_continuous::release_results()
@@ -79,7 +81,16 @@ int query_continuous::continuous_callback(void * p, qdb_error_t err, const qdb_q
     }
     catch (std::system_error const & e)
     {
-        // Ignore for now
+        // Nothing we can do really, this is most likely a "deadlock avoided" issue.
+        std::cerr << "Internal error: unexpected exception caught in continuous query callback: "
+                     "system_error: "
+                  << e.what() << std::endl;
+    }
+    catch (std::exception const & e)
+    {
+        // Nothing we can do really, this is most likely a "deadlock avoided" issue.
+        std::cerr << "Internal error: unexpected exception caught in continuous query callback: "
+                  << e.what() << std::endl;
     }
 
     pthis->_results_cond.notify_all();
@@ -122,7 +133,10 @@ dict_query_result_t query_continuous::results()
             {
                 // if we don't do this, it will be impossible to interrupt the Python program while
                 // we wait for results
-                if (PyErr_CheckSignals() != 0) throw py::error_already_set();
+                if (PyErr_CheckSignals() != 0)
+                {
+                    throw py::error_already_set();
+                }
             }
         }
 
@@ -132,24 +146,45 @@ dict_query_result_t query_continuous::results()
     {
         _logger.warn("continuous query caught system error, e.what(): %s", e.what());
         _logger.warn("continuous query caught system error, e.code(): %d", e.code());
-        throw e;
+        return dict_query_results_t{};
+    }
+    catch (std::exception const & e)
+    {
+        _logger.warn(
+            "Internal error: unexpected exception caught while gathering results: %s", e.what());
+        return dict_query_results_t{};
     }
 }
 
 // the difference with the call above is that we're returning immediately if there's no change
 dict_query_result_t query_continuous::probe_results()
 {
-    std::unique_lock<std::mutex> lock{_results_mutex};
-
-    // check if there's a new value
-    if (_watermark == _previous_watermark)
+    try
     {
-        // nope return empty, don't wait, don't acquire the condition variable
-        return dict_query_result_t{};
-    }
+        std::unique_lock<std::mutex> lock{_results_mutex};
 
-    // yes, return the value
-    return unsafe_results();
+        // check if there's a new value
+        if (_watermark == _previous_watermark)
+        {
+            // nope return empty, don't wait, don't acquire the condition variable
+            return dict_query_result_t{};
+        }
+
+        // yes, return the value
+        return unsafe_results();
+    }
+    catch (std::system_error const & e)
+    {
+        _logger.warn("continuous query caught system error, e.what(): %s", e.what());
+        _logger.warn("continuous query caught system error, e.code(): %d", e.code());
+        return dict_query_results_t{};
+    }
+    catch (std::exception const & e)
+    {
+        _logger.warn(
+            "Internal error: unexpected exception caught while gathering results: %s", e.what());
+        return dict_query_results_t{};
+    }
 }
 
 void query_continuous::stop()
