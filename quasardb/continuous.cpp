@@ -146,13 +146,13 @@ dict_query_result_t query_continuous::results()
     {
         _logger.warn("continuous query caught system error, e.what(): %s", e.what());
         _logger.warn("continuous query caught system error, e.code(): %d", e.code());
-        return dict_query_results_t{};
+        return dict_query_result_t{};
     }
     catch (std::exception const & e)
     {
         _logger.warn(
             "Internal error: unexpected exception caught while gathering results: %s", e.what());
-        return dict_query_results_t{};
+        return dict_query_result_t{};
     }
 }
 
@@ -177,13 +177,13 @@ dict_query_result_t query_continuous::probe_results()
     {
         _logger.warn("continuous query caught system error, e.what(): %s", e.what());
         _logger.warn("continuous query caught system error, e.code(): %d", e.code());
-        return dict_query_results_t{};
+        return dict_query_result_t{};
     }
     catch (std::exception const & e)
     {
         _logger.warn(
             "Internal error: unexpected exception caught while gathering results: %s", e.what());
-        return dict_query_results_t{};
+        return dict_query_result_t{};
     }
 }
 
