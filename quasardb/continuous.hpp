@@ -44,13 +44,13 @@ namespace qdb
 class query_continuous : public std::enable_shared_from_this<query_continuous>
 {
 public:
-    query_continuous(qdb::handle_ptr h,
-        qdb_query_continuous_mode_type_t mode,
-        std::chrono::milliseconds pace,
-        const std::string & query_string,
-        const py::object & bools);
+    query_continuous(qdb::handle_ptr h, const py::object & bools);
     query_continuous(const qdb::query_continuous & /*other*/) = delete;
     ~query_continuous();
+
+    void run(qdb_query_continuous_mode_type_t mode,
+        std::chrono::milliseconds pace,
+        const std::string & query_string);
 
 private:
     void release_results();
@@ -94,9 +94,9 @@ static inline void register_continuous(Module & m)
     namespace py = pybind11;
 
     py::class_<qdb::query_continuous, std::shared_ptr<qdb::query_continuous>>{m, "QueryContinuous"} //
-        .def(py::init<qdb::handle_ptr, qdb_query_continuous_mode_type_t, std::chrono::milliseconds,
-            const std::string &,
+        .def(py::init<qdb::handle_ptr,
             const py::object &>())                                   //
+        .def("run", &qdb::query_continuous::run)                     //
         .def("results", &qdb::query_continuous::results)             //
         .def("probe_results", &qdb::query_continuous::probe_results) //
         .def("stop", &qdb::query_continuous::stop)                   //
