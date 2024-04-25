@@ -79,6 +79,13 @@ int query_continuous::continuous_callback(void * p, qdb_error_t err, const qdb_q
             pthis->release_results();
         }
     }
+    catch (std::system_error const & e)
+    {
+        // Nothing we can do really, this is most likely a "deadlock avoided" issue.
+        std::cerr << "Internal error: unexpected exception caught in continuous query callback: "
+                     "system_error: "
+                  << e.what() << std::endl;
+    }
     catch (std::exception const & e)
     {
         // Nothing we can do really, this is most likely a "deadlock avoided" issue.
@@ -126,7 +133,10 @@ dict_query_result_t query_continuous::results()
             {
                 // if we don't do this, it will be impossible to interrupt the Python program while
                 // we wait for results
-                if (PyErr_CheckSignals() != 0) throw py::error_already_set();
+                if (PyErr_CheckSignals() != 0)
+                {
+                    throw py::error_already_set();
+                }
             }
         }
 
@@ -136,30 +146,45 @@ dict_query_result_t query_continuous::results()
     {
         _logger.warn("continuous query caught system error, e.what(): %s", e.what());
         _logger.warn("continuous query caught system error, e.code(): %d", e.code());
-        throw e;
+        return dict_query_results_t{};
     }
     catch (std::exception const & e)
     {
         _logger.warn(
             "Internal error: unexpected exception caught while gathering results: %s", e.what());
-        throw e;
+        return dict_query_results_t{};
     }
 }
 
 // the difference with the call above is that we're returning immediately if there's no change
 dict_query_result_t query_continuous::probe_results()
 {
-    std::unique_lock<std::mutex> lock{_results_mutex};
-
-    // check if there's a new value
-    if (_watermark == _previous_watermark)
+    try
     {
-        // nope return empty, don't wait, don't acquire the condition variable
-        return dict_query_result_t{};
-    }
+        std::unique_lock<std::mutex> lock{_results_mutex};
 
-    // yes, return the value
-    return unsafe_results();
+        // check if there's a new value
+        if (_watermark == _previous_watermark)
+        {
+            // nope return empty, don't wait, don't acquire the condition variable
+            return dict_query_result_t{};
+        }
+
+        // yes, return the value
+        return unsafe_results();
+    }
+    catch (std::system_error const & e)
+    {
+        _logger.warn("continuous query caught system error, e.what(): %s", e.what());
+        _logger.warn("continuous query caught system error, e.code(): %d", e.code());
+        return dict_query_results_t{};
+    }
+    catch (std::exception const & e)
+    {
+        _logger.warn(
+            "Internal error: unexpected exception caught while gathering results: %s", e.what());
+        return dict_query_results_t{};
+    }
 }
 
 void query_continuous::stop()
