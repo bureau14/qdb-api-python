@@ -234,11 +234,13 @@ void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
     // Zero-initialize these
     batch.where_duplicate       = nullptr;
     batch.where_duplicate_count = 0;
-    batch.options               = qdb_exp_batch_option_standard;
+    batch.deduplication_mode    = qdb_exp_batch_deduplication_mode_disabled;
+    batch.creation              = qdb_exp_batch_dont_create;
 
     enum detail::deduplication_mode_t mode_ = deduplicate_options.mode_;
 
-    std::visit([&mode_, &batch](auto const & columns) { _set_push_options(mode_, columns, batch); },
+    std::visit(
+        [&mode_, &batch](auto const & columns) { _set_deduplication_mode(mode_, columns, batch); },
         deduplicate_options.columns_);
 }
 
