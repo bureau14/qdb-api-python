@@ -15,31 +15,27 @@
     <requirements />
     <build-triggers />
     <artifact-dependencies>
-      <dependency id="ARTIFACT_DEPENDENCY_1" sourceBuildTypeId="Api_Python_Release_Linux_AArch64_Python310" cleanDestination="false">
+      <dependency id="python310" sourceBuildTypeId="Api_Python_Release_Linux_AArch64_Python310" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="*" />
       </dependency>
-      <dependency id="ARTIFACT_DEPENDENCY_2" sourceBuildTypeId="Api_Python_Release_Linux_AArch64_Python311" cleanDestination="false">
+      <dependency id="python311" sourceBuildTypeId="Api_Python_Release_Linux_AArch64_Python311" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="*" />
       </dependency>
-      <dependency id="ARTIFACT_DEPENDENCY_17" sourceBuildTypeId="Api_Python_Release_Linux_AArch64_Python312" cleanDestination="false">
+      <dependency id="python312" sourceBuildTypeId="Api_Python_Release_Linux_AArch64_Python312" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="*" />
       </dependency>
-      <dependency id="ARTIFACT_DEPENDENCY_3" sourceBuildTypeId="Api_Python_Release_Linux_AArch64_Python36" cleanDestination="false">
+      <dependency id="python37" sourceBuildTypeId="Api_Python_Release_Linux_AArch64_Python37" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="*" />
       </dependency>
-      <dependency id="ARTIFACT_DEPENDENCY_4" sourceBuildTypeId="Api_Python_Release_Linux_AArch64_Python37" cleanDestination="false">
+      <dependency id="python38" sourceBuildTypeId="Api_Python_Release_Linux_AArch64_Python38" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="*" />
       </dependency>
-      <dependency id="ARTIFACT_DEPENDENCY_5" sourceBuildTypeId="Api_Python_Release_Linux_AArch64_Python38" cleanDestination="false">
-        <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
-        <artifact sourcePath="*" />
-      </dependency>
-      <dependency id="ARTIFACT_DEPENDENCY_6" sourceBuildTypeId="Api_Python_Release_Linux_AArch64_Python39" cleanDestination="false">
+      <dependency id="python39" sourceBuildTypeId="Api_Python_Release_Linux_AArch64_Python39" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="*" />
       </dependency>
@@ -52,12 +48,6 @@
         </options>
       </depend-on>
       <depend-on sourceBuildTypeId="Api_Python_Release_Linux_AArch64_Python311">
-        <options>
-          <option name="take-started-build-with-same-revisions" value="true" />
-          <option name="take-successful-builds-only" value="true" />
-        </options>
-      </depend-on>
-      <depend-on sourceBuildTypeId="Api_Python_Release_Linux_AArch64_Python36">
         <options>
           <option name="take-started-build-with-same-revisions" value="true" />
           <option name="take-successful-builds-only" value="true" />
@@ -91,4 +81,3 @@
     <cleanup />
   </settings>
 </build-type>
-
