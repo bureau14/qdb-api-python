@@ -5,12 +5,17 @@ import quasardb.pandas as qdbpd
 import pytest
 
 def test_set_timezone(qdbd_connection):
-    qdbd_connection.options().set_timezone("Europe/Amsterdam")
+    qdbd_connection.options().set_timezone("Europe/Brussels")
 
 def test_get_timezone(qdbd_connection):
-    qdbd_connection.options().set_timezone("Europe/Amsterdam")
+    # We use Brussels, because on Windows the behavior is that timezones get "normalized" to
+    # a single city if there are multiple cities that share the same properties.
+    #
+    # For example, in this case, Amsterdam and Brussels are 100% identical, and as such on
+    # Windows it would just be stored as Brussels.
+    qdbd_connection.options().set_timezone("Europe/Brussels")
 
-    assert qdbd_connection.options().get_timezone() == "Europe/Amsterdam"
+    assert qdbd_connection.options().get_timezone() == "Europe/Brussels"
 
 def test_query_timezone(qdbpd_write_fn, df_with_table, qdbd_connection):
     """
