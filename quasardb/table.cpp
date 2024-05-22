@@ -100,6 +100,8 @@ void table::_cache_metadata() const
     {
         _ttl = std::chrono::milliseconds{metadata->ttl};
     }
+
+    _shard_size = std::chrono::milliseconds{metadata->shard_size};
 }
 
 py::object table::reader(

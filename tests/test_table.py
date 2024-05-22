@@ -141,19 +141,21 @@ def test_create_with_shard_size_of_1_day(qdbd_connection, entry_name):
     table = qdbd_connection.table(entry_name)
     table.create([], datetime.timedelta(hours=24))
     assert len(table.list_columns()) == 0
+    assert table.get_shard_size() == datetime.timedelta(hours=24)
+
 
 
 def test_create_with_shard_size_of_4_weeks(qdbd_connection, entry_name):
     table = qdbd_connection.table(entry_name)
     table.create([], datetime.timedelta(weeks=4))
     assert len(table.list_columns()) == 0
+    assert table.get_shard_size() == datetime.timedelta(weeks=4)
 
-
-def test_create_with_shard_size_of_more_than_1_year(
-        qdbd_connection, entry_name):
+def test_create_with_shard_size_of_more_than_1_year(qdbd_connection, entry_name):
     table = qdbd_connection.table(entry_name)
     table.create([], datetime.timedelta(weeks=52))
     assert len(table.list_columns()) == 0
+    assert table.get_shard_size() == datetime.timedelta(weeks=52)
 
 
 
