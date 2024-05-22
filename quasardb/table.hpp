@@ -196,6 +196,23 @@ public:
         throw qdb::alias_not_found_exception{};
     }
 
+    inline std::chrono::milliseconds get_shard_size() const
+    {
+        if (_shard_size.has_value()) [[likely]]
+        {
+            return _shard_size.value();
+        }
+
+        _cache_metadata();
+
+        if (_shard_size.has_value()) [[likely]]
+        {
+            return _shard_size.value();
+        }
+
+        throw qdb::alias_not_found_exception{};
+    }
+
 private:
     /**
      * Loads column info / metadata from server and caches it locally.
@@ -209,8 +226,9 @@ private:
     {
         if (_columns.has_value() == false) [[unlikely]]
         {
-            // We expect _ttl and _columns to have the same state
+            // We expect _ttl and _columns and _shard_size (i.e. all metadata) to have the same state
             assert(_ttl.has_value() == false);
+            assert(_shard_size.has_value() == false);
             _cache_metadata();
         }
     }
@@ -264,6 +282,7 @@ private:
 
     mutable std::optional<std::vector<detail::column_info>> _columns;
     mutable std::optional<std::chrono::milliseconds> _ttl;
+    mutable std::optional<std::chrono::milliseconds> _shard_size;
 };
 
 template <typename Module>
@@ -297,6 +316,7 @@ static inline void register_table(Module & m)
         .def("list_columns", &qdb::table::list_columns)                    //
         .def("has_ttl", &qdb::table::has_ttl)                              //
         .def("get_ttl", &qdb::table::get_ttl)                              //
+        .def("get_shard_size", &qdb::table::get_shard_size)                //
 
         // We cannot initialize columns with all columns by default, because i don't
         // see a way to figure out the `this` address for qdb_ts_reader for the default
