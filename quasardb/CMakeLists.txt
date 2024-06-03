@@ -223,12 +223,6 @@ elseif (MSVC)
 
 
   )
-  if(QDB_CPU_IS_X86)
-    add_compile_options(
-      # Enable AVX as we target Core2 and later
-      /arch:AVX
-    )
-  endif()
 endif()
 
 ###
