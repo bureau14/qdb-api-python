@@ -87,7 +87,7 @@ public:
             qdb_ts_insert_columns_ex(*_handle, _alias.c_str(), c_columns.data(), c_columns.size()));
     }
 
-    std::vector<detail::column_info> list_columns() const
+    std::vector<detail::column_info> const & list_columns() const
     {
         if (_columns.has_value()) [[likely]]
         {
@@ -155,9 +155,6 @@ public:
     {
         return column_info_by_id(alias).type;
     }
-
-    py::object reader(
-        const std::vector<std::string> & columns, py::object obj_ranges, bool dict_mode) const;
 
     /**
      * Returns true if this table has a TTL assigned.
@@ -321,8 +318,6 @@ static inline void register_table(Module & m)
         // We cannot initialize columns with all columns by default, because i don't
         // see a way to figure out the `this` address for qdb_ts_reader for the default
         // arguments, and we need it to call qdb::table::list_columns().
-        .def("reader", &qdb::table::reader, py::arg("columns") = std::vector<std::string>(),
-            py::arg("ranges") = py::none{}, py::arg("dict") = false)
         .def("subscribe", &qdb::table::subscribe)               //
         .def("erase_ranges", &qdb::table::erase_ranges)         //
         .def("blob_insert", &qdb::table::blob_insert)           //

@@ -6,10 +6,20 @@ import test_batch_inserter as batchlib
 import numpy as np
 
 
+def test_can_open_reader(qdbd_connection, table, many_intervals):
+    tables = [table]
+
+    with qdbd_connection.reader(tables) as reader:
+        print("has reader!")
+        pass
+
+
+@pytest.mark.skip(reason="deprecated")
 def test_reader_can_return_no_rows(qdbd_connection, table, many_intervals):
     assert 0 == reduce(lambda x, y: x + 1, table.reader(), 0)
 
 
+@pytest.mark.skip(reason="deprecated")
 def test_reader_returns_correct_results(
         qdbd_connection, table, many_intervals):
     inserter = qdbd_connection.inserter(
@@ -30,6 +40,7 @@ def test_reader_returns_correct_results(
         offset = offset + 1
 
 
+@pytest.mark.skip(reason="deprecated")
 def test_reader_iterator_returns_reference(
         qdbd_connection, table, many_intervals, capsys):
     # For performance reasons, our iterators are merely references to the
@@ -60,6 +71,7 @@ def test_reader_iterator_returns_reference(
         assert row[6] is None
 
 
+@pytest.mark.skip(reason="deprecated")
 def test_reader_can_copy_rows(qdbd_connection, table, many_intervals):
     # As a mitigation to the local table reference issue tested above,
     # we provide the ability to copy rows.
@@ -87,6 +99,7 @@ def test_reader_can_copy_rows(qdbd_connection, table, many_intervals):
         offset = offset + 1
 
 
+@pytest.mark.skip(reason="deprecated")
 def test_reader_can_select_columns(qdbd_connection, table, many_intervals):
     # Verifies that we can select a subset of the total available columns.
     inserter = qdbd_connection.inserter(
@@ -106,6 +119,7 @@ def test_reader_can_select_columns(qdbd_connection, table, many_intervals):
         offset = offset + 1
 
 
+@pytest.mark.skip(reason="deprecated")
 def test_reader_can_request_ranges(qdbd_connection, table, many_intervals):
     # Verifies that we can select ranges
     inserter = qdbd_connection.inserter(
@@ -132,6 +146,7 @@ def test_reader_can_request_ranges(qdbd_connection, table, many_intervals):
         0)
 
 
+@pytest.mark.skip(reason="deprecated")
 def test_reader_raises_error_on_invalid_datetime_ranges(
         qdbd_connection, table, many_intervals):
     # Verifies that we can select ranges
@@ -160,6 +175,7 @@ def test_reader_raises_error_on_invalid_datetime_ranges(
         r = table.reader(ranges=[(s1, s2)])
 
 
+@pytest.mark.skip(reason="deprecated")
 def test_reader_can_read_dicts(qdbd_connection, table, many_intervals):
     # Verifies that we can select a subset of the total available columns.
     inserter = qdbd_connection.inserter(
@@ -184,6 +200,7 @@ def test_reader_can_read_dicts(qdbd_connection, table, many_intervals):
         offset = offset + 1
 
 
+@pytest.mark.skip(reason="deprecated")
 def test_reader_can_copy_dict_rows(qdbd_connection, table, many_intervals):
     # Just like our regular row reader, our dict-based ready also needs to
     # copy the rows.

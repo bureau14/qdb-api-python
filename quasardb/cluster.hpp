@@ -42,9 +42,9 @@
 #include "options.hpp"
 #include "perf.hpp"
 #include "query.hpp"
+#include "reader.hpp"
 #include "string.hpp"
 #include "table.hpp"
-#include "table_reader.hpp"
 #include "tag.hpp"
 #include "timestamp.hpp"
 #include "utils.hpp"
@@ -237,6 +237,14 @@ public:
         check_open();
 
         return qdb::table{_handle, alias};
+    }
+
+    // the reader_ptr is non-copyable
+    qdb::reader_ptr reader(std::vector<qdb::table> const & tables)
+    {
+        check_open();
+
+        return std::make_unique<qdb::reader>(_handle, tables);
     }
 
     // the batch_inserter_ptr is non-copyable
@@ -525,6 +533,7 @@ static inline void register_cluster(Module & m)
         .def("table", &qdb::cluster::table)                                                   //
         .def("ts_batch", &qdb::cluster::inserter)                                             //
         .def("inserter", &qdb::cluster::inserter)                                             //
+        .def("reader", &qdb::cluster::reader)                                                 //
         .def("pinned_writer", &qdb::cluster::pinned_writer)                                   //
         .def("writer", &qdb::cluster::writer)                                                 //
         .def("find", &qdb::cluster::find)                                                     //
