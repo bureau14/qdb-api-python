@@ -35,6 +35,7 @@
 #include "object_tracker.hpp"
 #include "table.hpp"
 #include <qdb/ts.h>
+#include <unordered_map>
 #include <vector>
 
 namespace py = pybind11;
@@ -51,15 +52,155 @@ using timestamp_column = std::vector<qdb_timespec_t>;
 using blob_column      = std::vector<qdb_blob_t>;
 using string_column    = std::vector<qdb_string_t>;
 
-} // namespace detail
+/**
+ * One "chunk" of data fetched from one table, represented as a py dict.
+ */
+class reader_data
+{
+public:
+    reader_data() = delete;
+
+    reader_data(reader_data const & rhs) = delete;
+
+    reader_data(reader_data && rhs)
+        : data_{std::move(rhs.data_)}
+    {}
+
+    reader_data(qdb_bulk_reader_table_data_t const & data)
+    {
+        _assign_data(data);
+    };
+
+    ~reader_data(){};
+
+    py::str repr();
+
+    /**
+     * Provide access to __getitem__ as if we are a dict
+     */
+    py::object get(std::string const & column_name) const;
+
+    /**
+     * Returns total number of data points. I.e. if there are 8 columns with 100 rows each, plus a
+     * timestamp index, it will report 900.
+     */
+    inline py::ssize_t size() const noexcept
+    {
+        py::ssize_t ret = {0};
+
+        for (auto const & tuple : data_)
+        {
+            ret += tuple.second.size();
+        }
+
+        return ret;
+    }
+
+    /**
+     * Returns true if no data is visible at all for this table.
+     */
+    inline bool empty() const noexcept
+    {
+        return size() == 0;
+    }
+
+private:
+    /**
+     * This function does the heavy lifting of parsing all data and converting it to numpy arrays.
+     */
+    void _assign_data(qdb_bulk_reader_table_data_t const & data);
+
+private:
+    /**
+     * All data, indexed by column name. This also contains special columns such as $timestamp and
+     * $table, that do not necessarily *have* to be masked arrays, but we just store them as such.
+     */
+    std::unordered_map<std::string, qdb::masked_array> data_;
+};
+
+class reader_iterator
+{
+public:
+    // Default constructor, which represents the "end" of the range
+    reader_iterator() noexcept
+        : handle_{nullptr}
+        , reader_{nullptr}
+        , table_count_{0}
+        , ptr_{nullptr}
+        , n_{0}
+    {}
+
+    // Actual initialization
+    reader_iterator(handle_ptr handle, qdb_reader_handle_t reader, std::size_t table_count) noexcept
+        : handle_{handle}
+        , reader_{reader}
+        , table_count_{table_count}
+
+        , ptr_{nullptr}
+        , n_{0}
+    {
+        // Always immediately try to fetch the first batch.
+        this->operator++();
+    }
+
+    bool operator!=(reader_iterator const & rhs) const noexcept
+    {
+        return !(*this == rhs);
+    }
+
+    bool operator==(reader_iterator const & rhs) const noexcept
+    {
+        // This is just a sanity check: if our handle_ is null, it means basically
+        // the entire object has to be null, and this will basically represent the
+        // ".end()" iterator.
+
+        if (handle_ == nullptr)
+        {
+            assert(reader_ == nullptr);
+            assert(ptr_ == nullptr);
+        }
+        else
+        {
+            assert(reader_ != nullptr);
+            assert(ptr_ != nullptr);
+        }
+
+        // Optimization: we *only* compare the pointers, we don't actually compare
+        // the data itself. This saves a bazillion comparisons, and for the purpose
+        // of iterators, we really only care whether the current iterator is at the
+        // end.
+        return (handle_ == rhs.handle_ && reader_ == rhs.reader_ && table_count_ == rhs.table_count_
+                && ptr_ == rhs.ptr_ && n_ == rhs.n_);
+    }
+
+    reader_iterator & operator++();
+
+    reader_data operator*()
+    {
+        assert(ptr_ != nullptr);
+        assert(n_ < table_count_);
+
+        return reader_data{ptr_[n_]};
+    }
+
+private:
+    qdb::handle_ptr handle_;
+    qdb_reader_handle_t reader_;
+
+    /**
+     * `table_count_` enables us to manage how much far we can iterate `ptr_`.
+     */
+    std::size_t table_count_;
+    qdb_bulk_reader_table_data_t * ptr_;
+    std::size_t n_;
+};
+
+}; // namespace detail
 
 class reader
 {
-    using int64_column     = detail::int64_column;
-    using double_column    = detail::double_column;
-    using timestamp_column = detail::timestamp_column;
-    using blob_column      = detail::blob_column;
-    using string_column    = detail::string_column;
+public:
+    using iterator = detail::reader_iterator;
 
 public:
     /**
@@ -109,6 +250,16 @@ public:
      */
     void close();
 
+    iterator begin() const noexcept
+    {
+        return iterator{handle_, reader_, tables_.size()};
+    }
+
+    iterator end() const noexcept
+    {
+        return iterator{};
+    }
+
 private:
     qdb::logger logger_;
     qdb::handle_ptr handle_;
@@ -116,7 +267,7 @@ private:
 
     std::vector<qdb::table> tables_;
 
-    qdb::object_tracker::scoped_repository _object_tracker;
+    qdb::object_tracker::scoped_repository object_tracker_;
 };
 
 using reader_ptr = std::unique_ptr<reader>;

@@ -17,13 +17,21 @@ def test_can_open_reader(qdbd_connection, table):
 def test_reader_can_iterate_rows(qdbpd_write_fn, df_with_table, qdbd_connection, many_intervals):
     (ctype, dtype, df, table) = df_with_table
 
+    columns = table.list_columns()
+
     qdbpd_write_fn(df, qdbd_connection, table, infer_types=False, dtype=dtype)
 
     tables = [table]
 
     with qdbd_connection.reader(tables) as reader:
         for row in reader:
-            print("has row: {}".format(row))
+            assert len(row['$timestamp']) == len(df.index)
+
+            for column in columns:
+                assert len(row[column.name]) == len(df.index)
+
+
+
 
 
 @pytest.mark.skip(reason="deprecated")
