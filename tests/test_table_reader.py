@@ -6,12 +6,24 @@ import test_batch_inserter as batchlib
 import numpy as np
 
 
-def test_can_open_reader(qdbd_connection, table, many_intervals):
+def test_can_open_reader(qdbd_connection, table):
     tables = [table]
 
     with qdbd_connection.reader(tables) as reader:
-        print("has reader!")
-        pass
+        rows = list(reader)
+        assert len(rows) == 0
+
+
+def test_reader_can_iterate_rows(qdbpd_write_fn, df_with_table, qdbd_connection, many_intervals):
+    (ctype, dtype, df, table) = df_with_table
+
+    qdbpd_write_fn(df, qdbd_connection, table, infer_types=False, dtype=dtype)
+
+    tables = [table]
+
+    with qdbd_connection.reader(tables) as reader:
+        for row in reader:
+            print("has row: {}".format(row))
 
 
 @pytest.mark.skip(reason="deprecated")

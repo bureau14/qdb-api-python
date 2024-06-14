@@ -323,7 +323,7 @@ public:
         py::module numpy_ma = py::module::import("numpy.ma");
         py::object init     = numpy_ma.attr("masked_array");
 
-        return init(arr_, mask_.array()).inc_ref();
+        return init(arr_, mask_.array());
     }
 
     py::array data() const
@@ -410,6 +410,9 @@ public:
         return arr_.dtype();
     }
 
+    /**
+     * Returns size of array. Includes "masked" items, i.e. those that are not visible.
+     */
     inline std::size_t size() const noexcept
     {
         assert(arr_.size() == mask_.size());
