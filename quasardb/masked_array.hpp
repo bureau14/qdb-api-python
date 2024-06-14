@@ -318,7 +318,7 @@ public:
     ~masked_array()
     {}
 
-    py::handle cast(py::return_value_policy /* policy */) const
+    py::object cast(py::return_value_policy /* policy */) const
     {
         py::module numpy_ma = py::module::import("numpy.ma");
         py::object init     = numpy_ma.attr("masked_array");
@@ -643,7 +643,7 @@ public:
     /**
      * C++->Python
      */
-    static py::handle cast(type && src, return_value_policy policy, handle /* parent */)
+    static py::object cast(type && src, return_value_policy policy, handle /* parent */)
     {
         return src.cast(policy);
     }
