@@ -420,12 +420,18 @@ struct value_converter<traits::bytestring_dtype, qdb_string_t>
         requires(ranges::sized_range<R> && ranges::contiguous_range<R>)
     inline qdb_string_t operator()(R && x) const
     {
-        std::size_t n     = (ranges::size(x)) * sizeof(char_t);
-        char_t const * x_ = ranges::data(x);
-        char_t * tmp      = qdb::object_tracker::alloc<char_t>(n);
+        std::size_t n_chars = ranges::size(x);
+        std::size_t n_bytes = (n_chars + 1) * sizeof(char_t);
+        char_t const * x_   = ranges::data(x);
+        char_t * tmp        = qdb::object_tracker::alloc<char_t>(n_bytes);
 
-        std::memcpy((void *)(tmp), x_, ranges::size(x));
-        return qdb_string_t{tmp, ranges::size(x)};
+        std::memcpy((void *)(tmp), x_, n_bytes);
+
+        // For safety purposes, always null-terminate the output string.
+        tmp[n_chars] = '\0';
+        assert(tmp[n_chars] == '\0');
+
+        return qdb_string_t{tmp, n_chars};
     }
 };
 
@@ -437,6 +443,15 @@ struct value_converter<std::string, qdb_string_t>
     inline qdb_string_t operator()(std::string const & x) const
     {
         return delegate_(x);
+    }
+};
+
+template <>
+struct value_converter<qdb_string_t, std::string>
+{
+    inline std::string operator()(qdb_string_t const & x) const
+    {
+        return {x.data, x.length};
     }
 };
 
