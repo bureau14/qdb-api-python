@@ -13,40 +13,10 @@ namespace qdb
 namespace detail
 {
 
-py::str reader_data::repr()
+/* static */ py::dict reader_data::convert(qdb_bulk_reader_table_data_t const & data)
 {
-    // Inefficient but easy, and it lets the user "see" that this object is usable as
-    // a regular dict (because we're pretending to be that anyway);
-    py::dict tmp;
+    py::dict ret{};
 
-    for (auto const & tuple : data_)
-    {
-        tmp[py::str(tuple.first)] = tuple.second.cast(py::return_value_policy::automatic);
-    }
-
-    return py::repr(tmp);
-};
-
-py::object reader_data::get(std::string const & column_name) const
-{
-
-    py::object ret;
-    auto iter = data_.find(column_name);
-    if (iter != data_.end()) [[likely]]
-    {
-        ret = iter->second.cast(py::return_value_policy::reference);
-    }
-    else
-    {
-        // Not found
-        throw new py::key_error("column not found: " + column_name);
-    }
-
-    return ret;
-}
-
-void reader_data::_assign_data(qdb_bulk_reader_table_data_t const & data)
-{
     // typedef struct
     // {
     //     qdb_size_t row_count;
@@ -60,13 +30,10 @@ void reader_data::_assign_data(qdb_bulk_reader_table_data_t const & data)
     auto timestamps = ranges::views::counted(data.timestamps, data.row_count);
     auto columns    = ranges::views::counted(data.columns, data.column_count);
 
-    // Reserve two additional, one for timestamp, and one for table
-    data_.reserve(ranges::size(columns) + 2);
-
     py::array idx          = convert::array<qdb_timespec_t, traits::datetime64_ns_dtype>(timestamps);
     qdb::masked_array idx_ = qdb::masked_array::masked_none(idx);
 
-    auto ret = data_.insert(std::make_tuple(py::str("$timestamp"), std::move(idx_)));
+    ret[py::str("$timestamp")] = idx;
 
     for (qdb_exp_batch_push_column_t const & column : columns)
     {
@@ -84,7 +51,7 @@ void reader_data::_assign_data(qdb_bulk_reader_table_data_t const & data)
         //     } data;
         // } qdb_exp_batch_push_column_t;
 
-        std::string column_name = convert::value<qdb_string_t, std::string>(column.name);
+        py::str column_name = convert::value<qdb_string_t, py::str>(column.name);
 
         qdb::masked_array xs;
         switch (column.data_type)
@@ -123,13 +90,10 @@ void reader_data::_assign_data(qdb_bulk_reader_table_data_t const & data)
                 "type returned from bulk reader");
         };
 
-        auto ret = data_.insert(std::make_tuple(std::move(column_name), std::move(xs)));
-
-        // Extra validation that we didn't overwrite data -- if this fails, it means that either
-        // we're not cleaning ourselves up properly, or the bulk reader is returning data for the
-        // same column and table twice.
-        assert(ret.second == true);
+        ret[std::move(column_name)] = std::move(xs.cast(py::return_value_policy::move));
     }
+
+    return ret;
 }
 
 reader_iterator & reader_iterator::operator++()
@@ -254,8 +218,7 @@ void register_reader(py::module_ & m)
 {
     namespace py = pybind11;
 
-    auto reader_c      = py::class_<qdb::reader>{m, "Reader"};
-    auto reader_data_c = py::class_<qdb::detail::reader_data>{m, "ReaderData"};
+    auto reader_c = py::class_<qdb::reader>{m, "Reader"};
 
     // basic interface
     reader_c
@@ -270,13 +233,6 @@ void register_reader(py::module_ & m)
         .def(                                                                                  //
             "__iter__", [](qdb::reader & r) { return py::make_iterator(r.begin(), r.end()); }, //
             py::keep_alive<0, 1>());
-
-    reader_data_c
-        .def("__repr__", &detail::reader_data::repr)                                       //
-        .def("__getitem__", &detail::reader_data::get, py::return_value_policy::reference) //
-        .def("get", &detail::reader_data::get, py::return_value_policy::reference)         //
-
-        ;
 
     //
 }

@@ -53,69 +53,12 @@ using blob_column      = std::vector<qdb_blob_t>;
 using string_column    = std::vector<qdb_string_t>;
 
 /**
- * One "chunk" of data fetched from one table, represented as a py dict.
+ * Utility function to convert one "chunk" of data
  */
 class reader_data
 {
 public:
-    reader_data() = delete;
-
-    reader_data(reader_data const & rhs) = delete;
-
-    reader_data(reader_data && rhs)
-        : data_{std::move(rhs.data_)}
-    {}
-
-    reader_data(qdb_bulk_reader_table_data_t const & data)
-    {
-        _assign_data(data);
-    };
-
-    ~reader_data(){};
-
-    py::str repr();
-
-    /**
-     * Provide access to __getitem__ as if we are a dict
-     */
-    py::object get(std::string const & column_name) const;
-
-    /**
-     * Returns total number of data points. I.e. if there are 8 columns with 100 rows each, plus a
-     * timestamp index, it will report 900.
-     */
-    inline py::ssize_t size() const noexcept
-    {
-        py::ssize_t ret = {0};
-
-        for (auto const & tuple : data_)
-        {
-            ret += tuple.second.size();
-        }
-
-        return ret;
-    }
-
-    /**
-     * Returns true if no data is visible at all for this table.
-     */
-    inline bool empty() const noexcept
-    {
-        return size() == 0;
-    }
-
-private:
-    /**
-     * This function does the heavy lifting of parsing all data and converting it to numpy arrays.
-     */
-    void _assign_data(qdb_bulk_reader_table_data_t const & data);
-
-private:
-    /**
-     * All data, indexed by column name. This also contains special columns such as $timestamp and
-     * $table, that do not necessarily *have* to be masked arrays, but we just store them as such.
-     */
-    std::unordered_map<std::string, qdb::masked_array> data_;
+    static py::dict convert(qdb_bulk_reader_table_data_t const & data);
 };
 
 class reader_iterator
@@ -183,12 +126,12 @@ public:
 
     reader_iterator & operator++();
 
-    reader_data operator*()
+    py::dict operator*()
     {
         assert(ptr_ != nullptr);
         assert(n_ < table_count_);
 
-        return reader_data{ptr_[n_]};
+        return reader_data::convert({ptr_[n_]});
     }
 
 private:
