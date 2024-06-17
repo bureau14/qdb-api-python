@@ -36,7 +36,31 @@ def test_can_set_batch_size_as_kwarg(qdbd_connection, table):
         assert reader.get_batch_size() == 128
 
 
-def test_reader_can_iterate_rows(qdbpd_write_fn, df_with_table, qdbd_connection, many_intervals, row_count):
+def test_reader_returns_dicts(qdbpd_write_fn, df_with_table, qdbd_connection):
+    (ctype, dtype, df, table) = df_with_table
+
+    column_names = list(column.name for column in table.list_columns())
+    qdbpd_write_fn(df, qdbd_connection, table, infer_types=False, dtype=dtype)
+
+    tables = [table]
+
+    with qdbd_connection.reader(tables) as reader:
+        for row in reader:
+            # These should be pure dicts
+            assert isinstance(row, dict)
+
+            # Ensure each key is a numpy array-like
+            for k,v in row.items():
+
+                if k == '$timestamp':
+                    # this is the timestamp index, should always be a regular numpy array
+                    assert isinstance(v, np.ndarray)
+                else:
+                    assert isinstance(v, np.ma.core.MaskedArray)
+
+
+
+def test_reader_can_iterate_rows(qdbpd_write_fn, df_with_table, qdbd_connection, row_count):
     (ctype, dtype, df, table) = df_with_table
 
     assert len(df.index) == row_count
@@ -62,7 +86,7 @@ def test_reader_can_iterate_rows(qdbpd_write_fn, df_with_table, qdbd_connection,
                 assert len(row[column_name]) == row_count
 
 
-def test_reader_can_iterate_batches(qdbpd_write_fn, df_with_table, qdbd_connection, many_intervals, row_count):
+def test_reader_can_iterate_batches(qdbpd_write_fn, df_with_table, qdbd_connection, row_count):
     (ctype, dtype, df, table) = df_with_table
 
     assert len(df.index) == row_count
