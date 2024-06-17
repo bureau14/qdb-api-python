@@ -136,21 +136,18 @@ reader_iterator & reader_iterator::operator++()
 {
     if (ptr_ == nullptr)
     {
-        assert(n_ == 0);
-
         // This means this is either the first invocation, or we have
         // previously exhausted all tables in the current "fetch" and
         // should fetch next.
-        qdb_error_t err = qdb_bulk_reader_get_data(reader_, &ptr_, 0);
+        qdb_error_t err = qdb_bulk_reader_get_data(reader_, &ptr_, batch_size_);
 
         if (err == qdb_e_iterator_end) [[unlikely]]
         {
-            assert(ptr_ == nullptr);
-
             // We have reached the end -- reset all our internal state, and make us look
             // like the "end" iterator.
             handle_      = nullptr;
             reader_      = nullptr;
+            batch_size_  = 0;
             table_count_ = 0;
             ptr_         = nullptr;
             n_           = 0;
@@ -245,10 +242,12 @@ void reader::close()
 
     if (reader_ != nullptr)
     {
-        logger_.warn("closing reader");
+        logger_.debug("closing reader");
         qdb_release(*handle_, reader_);
         reader_ = nullptr;
     }
+
+    assert(reader_ == nullptr);
 }
 
 void register_reader(py::module_ & m)
@@ -260,14 +259,16 @@ void register_reader(py::module_ & m)
 
     // basic interface
     reader_c
-        .def(py::init<qdb::handle_ptr, std::vector<qdb::table> const &>(),
-
-            py::arg("conn"),
-            py::arg("tables"))                 //
-        .def("__enter__", &qdb::reader::enter) //
-        .def("__exit__", &qdb::reader::exit)   //
-        .def(
-            "__iter__", [](qdb::reader & r) { return py::make_iterator(r.begin(), r.end()); },
+        .def(py::init<qdb::handle_ptr, std::vector<qdb::table> const &, std::size_t>(),        //
+            py::arg("conn"), py::arg("tables"), py::kw_only(),                                 //
+            py::arg("batch_size") = std::size_t{0})                                            //
+                                                                                               //
+        .def("get_batch_size", &qdb::reader::get_batch_size)                                   //
+                                                                                               //
+        .def("__enter__", &qdb::reader::enter)                                                 //
+        .def("__exit__", &qdb::reader::exit)                                                   //
+        .def(                                                                                  //
+            "__iter__", [](qdb::reader & r) { return py::make_iterator(r.begin(), r.end()); }, //
             py::keep_alive<0, 1>());
 
     reader_data_c

@@ -125,15 +125,20 @@ public:
     reader_iterator() noexcept
         : handle_{nullptr}
         , reader_{nullptr}
+        , batch_size_{0}
         , table_count_{0}
         , ptr_{nullptr}
         , n_{0}
     {}
 
     // Actual initialization
-    reader_iterator(handle_ptr handle, qdb_reader_handle_t reader, std::size_t table_count) noexcept
+    reader_iterator(handle_ptr handle,
+        qdb_reader_handle_t reader,
+        std::size_t batch_size,
+        std::size_t table_count) noexcept
         : handle_{handle}
         , reader_{reader}
+        , batch_size_{batch_size}
         , table_count_{table_count}
 
         , ptr_{nullptr}
@@ -169,7 +174,10 @@ public:
         // the data itself. This saves a bazillion comparisons, and for the purpose
         // of iterators, we really only care whether the current iterator is at the
         // end.
-        return (handle_ == rhs.handle_ && reader_ == rhs.reader_ && table_count_ == rhs.table_count_
+        return (handle_ == rhs.handle_              //
+                && reader_ == rhs.reader_           //
+                && batch_size_ == rhs.batch_size_   //
+                && table_count_ == rhs.table_count_ //
                 && ptr_ == rhs.ptr_ && n_ == rhs.n_);
     }
 
@@ -186,6 +194,11 @@ public:
 private:
     qdb::handle_ptr handle_;
     qdb_reader_handle_t reader_;
+
+    /**
+     * The amount of rows to fetch in one operation. This can span multiple tables.
+     */
+    std::size_t batch_size_;
 
     /**
      * `table_count_` enables us to manage how much far we can iterate `ptr_`.
@@ -208,11 +221,12 @@ public:
      * of any metadata inside the tables (such as its name) will always exceed that
      * of the reader, which simplifies things a lot.
      */
-    reader(qdb::handle_ptr handle, std::vector<qdb::table> const & tables)
+    reader(qdb::handle_ptr handle, std::vector<qdb::table> const & tables, std::size_t batch_size)
         : logger_("quasardb.reader")
         , handle_{handle}
         , reader_{}
         , tables_{tables}
+        , batch_size_{batch_size}
     {}
 
     // prevent copy because of the table object, use a unique_ptr of the batch in cluster
@@ -221,10 +235,20 @@ public:
     // we prevent these copies because that is almost never what you want, and it gives us
     // more freedom in storing a lot of data inside this object.
     reader(const reader &) = delete;
+    reader(reader &&)      = delete;
 
     ~reader()
     {
         close();
+    }
+
+    /**
+     * Convenience function for accessing the configured batch size. Returns 0 when everything should
+     * be read in a single batch.
+     */
+    constexpr inline std::size_t get_batch_size() const noexcept
+    {
+        return batch_size_;
     }
 
     /**
@@ -252,7 +276,7 @@ public:
 
     iterator begin() const noexcept
     {
-        return iterator{handle_, reader_, tables_.size()};
+        return iterator{handle_, reader_, batch_size_, tables_.size()};
     }
 
     iterator end() const noexcept
@@ -266,6 +290,7 @@ private:
     qdb_reader_handle_t reader_;
 
     std::vector<qdb::table> tables_;
+    std::size_t batch_size_;
 
     qdb::object_tracker::scoped_repository object_tracker_;
 };

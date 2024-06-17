@@ -14,238 +14,79 @@ def test_can_open_reader(qdbd_connection, table):
         assert len(rows) == 0
 
 
-def test_reader_can_iterate_rows(qdbpd_write_fn, df_with_table, qdbd_connection, many_intervals):
+def test_reader_has_infinite_batch_size_by_default(qdbd_connection, table):
+    tables = [table]
+
+    with qdbd_connection.reader(tables) as reader:
+        assert reader.get_batch_size() == 0
+
+
+def test_cannot_provide_batch_size_as_regular_arg(qdbd_connection, table):
+    tables = [table]
+
+    with pytest.raises(TypeError):
+        with qdbd_connection.reader(tables, 128) as reader:
+            assert reader.get_batch_size() == 128
+
+
+def test_can_set_batch_size_as_kwarg(qdbd_connection, table):
+    tables = [table]
+
+    with qdbd_connection.reader(tables, batch_size=128) as reader:
+        assert reader.get_batch_size() == 128
+
+
+def test_reader_can_iterate_rows(qdbpd_write_fn, df_with_table, qdbd_connection, many_intervals, row_count):
     (ctype, dtype, df, table) = df_with_table
 
-    columns = table.list_columns()
+    assert len(df.index) == row_count
+
+    column_names = list(column.name for column in table.list_columns())
 
     qdbpd_write_fn(df, qdbd_connection, table, infer_types=False, dtype=dtype)
 
     tables = [table]
 
     with qdbd_connection.reader(tables) as reader:
+        seen = False
+
         for row in reader:
-            assert len(row['$timestamp']) == len(df.index)
+            # When we're not providing a "batch size", we expect everything in 1 large batch, and since
+            # we only have 1 table, we should really just have only a single iteration.
+            assert seen == False
+            seen = True
 
-            for column in columns:
-                assert len(row[column.name]) == len(df.index)
+            assert len(row['$timestamp']) == row_count
 
-
-
-
-
-@pytest.mark.skip(reason="deprecated")
-def test_reader_can_return_no_rows(qdbd_connection, table, many_intervals):
-    assert 0 == reduce(lambda x, y: x + 1, table.reader(), 0)
+            for column_name in column_names:
+                assert len(row[column_name]) == row_count
 
 
-@pytest.mark.skip(reason="deprecated")
-def test_reader_returns_correct_results(
-        qdbd_connection, table, many_intervals):
-    inserter = qdbd_connection.inserter(
-        batchlib._make_inserter_info(table))
+def test_reader_can_iterate_batches(qdbpd_write_fn, df_with_table, qdbd_connection, many_intervals, row_count):
+    (ctype, dtype, df, table) = df_with_table
 
-    doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
-        inserter, table, many_intervals, batchlib._regular_push)
+    assert len(df.index) == row_count
 
-    offset = 0
-    for row in table.reader():
-        assert row[1] == doubles[offset]
-        assert row[2] == blobs[offset]
-        assert row[3] == strings[offset]
-        assert row[4] == integers[offset]
-        assert row[5] == timestamps[offset]
-        assert row[6] == symbols[offset]
-
-        offset = offset + 1
+    # We expect the row_count to be divisble by 2, otherwise the test below doesn't work anymore
+    assert row_count % 2 == 0
+    batch_size = int(row_count / 2)
 
 
-@pytest.mark.skip(reason="deprecated")
-def test_reader_iterator_returns_reference(
-        qdbd_connection, table, many_intervals, capsys):
-    # For performance reasons, our iterators are merely references to the
-    # underlying local_table position. A side effect is that if the iterator moves
-    # forward, all references will move forward as well.
-    #
-    # This is actually undesired, and this test is here to detect regressions in
-    # behavior.
-    inserter = qdbd_connection.inserter(
-        batchlib._make_inserter_info(table))
+    column_names = list(column.name for column in table.list_columns())
 
-    doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
-        inserter, table, many_intervals, batchlib._regular_push)
+    qdbpd_write_fn(df, qdbd_connection, table, infer_types=False, dtype=dtype)
 
-    rows = []
-    for row in table.reader():
-        rows.append(row)
+    tables = [table]
 
-    for row in rows:
-        # Timestamp is copied by value
-        assert isinstance(row[0], np.datetime64)
+    with qdbd_connection.reader(tables, batch_size=batch_size) as reader:
+        seen = 0
 
-        assert row[1] is None
-        assert row[2] is None
-        assert row[3] is None
-        assert row[4] is None
-        assert row[5] is None
-        assert row[6] is None
+        for row in reader:
+            # We expect exactly 2 batches for a single table
+            assert seen < 2
+            seen += 1
 
+            assert len(row['$timestamp']) == batch_size
 
-@pytest.mark.skip(reason="deprecated")
-def test_reader_can_copy_rows(qdbd_connection, table, many_intervals):
-    # As a mitigation to the local table reference issue tested above,
-    # we provide the ability to copy rows.
-
-    inserter = qdbd_connection.inserter(
-        batchlib._make_inserter_info(table))
-
-    doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
-        inserter, table, many_intervals, batchlib._regular_push)
-
-    rows = []
-    for row in table.reader():
-        copied = row.copy()
-        rows.append(copied)
-
-    offset = 0
-    for row in rows:
-        assert row[1] == doubles[offset]
-        assert row[2] == blobs[offset]
-        assert row[3] == strings[offset]
-        assert row[4] == integers[offset]
-        assert row[5] == timestamps[offset]
-        assert row[6] == symbols[offset]
-
-        offset = offset + 1
-
-
-@pytest.mark.skip(reason="deprecated")
-def test_reader_can_select_columns(qdbd_connection, table, many_intervals):
-    # Verifies that we can select a subset of the total available columns.
-    inserter = qdbd_connection.inserter(
-        batchlib._make_inserter_info(table))
-
-    doubles, _, _, integers, _, _ = batchlib._test_with_table(
-        inserter, table, many_intervals, batchlib._regular_push)
-
-    offset = 0
-    for row in table.reader(columns=['the_int64', 'the_double']):
-        assert row[1] == integers[offset]
-        assert row[2] == doubles[offset]
-
-        with pytest.raises((IndexError, RuntimeError)):
-            print(str(row[3]))
-
-        offset = offset + 1
-
-
-@pytest.mark.skip(reason="deprecated")
-def test_reader_can_request_ranges(qdbd_connection, table, many_intervals):
-    # Verifies that we can select ranges
-    inserter = qdbd_connection.inserter(
-        batchlib._make_inserter_info(table))
-
-    _, _, _, _, _, _ = batchlib._test_with_table(
-        inserter, table, many_intervals, batchlib._regular_push)
-
-    first_range = (many_intervals[0], many_intervals[1])
-    second_range = (many_intervals[1], many_intervals[2])
-    assert 1 == reduce(
-        lambda x,
-        y: x + 1,
-        table.reader(
-            ranges=[first_range]),
-        0)
-    assert 2 == reduce(
-        lambda x,
-        y: x + 1,
-        table.reader(
-            ranges=[
-                first_range,
-                second_range]),
-        0)
-
-
-@pytest.mark.skip(reason="deprecated")
-def test_reader_raises_error_on_invalid_datetime_ranges(
-        qdbd_connection, table, many_intervals):
-    # Verifies that we can select ranges
-    inserter = qdbd_connection.inserter(
-        batchlib._make_inserter_info(table))
-
-    _, _, _, _, _, _ = batchlib._test_with_table(
-        inserter, table, many_intervals, batchlib._regular_push)
-
-    ns1 = many_intervals[0]
-    ns2 = many_intervals[1]
-
-    s1 = np.datetime64(ns1, 's')
-    s2 = np.datetime64(ns2, 's')
-
-    # Works
-    r = table.reader(ranges=[(ns1, ns2)])
-
-    with pytest.raises(quasardb.quasardb.InvalidDatetimeError):
-        r = table.reader(ranges=[(s1, ns2)])
-
-    with pytest.raises(quasardb.quasardb.InvalidDatetimeError):
-        r = table.reader(ranges=[(ns1, s2)])
-
-    with pytest.raises(quasardb.quasardb.InvalidDatetimeError):
-        r = table.reader(ranges=[(s1, s2)])
-
-
-@pytest.mark.skip(reason="deprecated")
-def test_reader_can_read_dicts(qdbd_connection, table, many_intervals):
-    # Verifies that we can select a subset of the total available columns.
-    inserter = qdbd_connection.inserter(
-        batchlib._make_inserter_info(table))
-
-    doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
-        inserter, table, many_intervals, batchlib._regular_push)
-
-    offset = 0
-    for row in table.reader(dict=True):
-        assert isinstance(row['$timestamp'], np.datetime64)
-        assert row['the_double'] == doubles[offset]
-        assert row['the_blob'] == blobs[offset]
-        assert row['the_string'] == strings[offset]
-        assert row['the_int64'] == integers[offset]
-        assert row['the_ts'] == timestamps[offset]
-        assert row['the_symbol'] == symbols[offset]
-
-        with pytest.raises(KeyError):
-            print(str(row['nothere']))
-
-        offset = offset + 1
-
-
-@pytest.mark.skip(reason="deprecated")
-def test_reader_can_copy_dict_rows(qdbd_connection, table, many_intervals):
-    # Just like our regular row reader, our dict-based ready also needs to
-    # copy the rows.
-    inserter = qdbd_connection.inserter(
-        batchlib._make_inserter_info(table))
-
-    doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
-        inserter, table, many_intervals, batchlib._regular_push)
-
-    offset = 0
-    rows = []
-
-    for row in table.reader(dict=True):
-        copied = row.copy()
-        rows.append(copied)
-
-    for row in rows:
-        assert row['the_double'] == doubles[offset]
-        assert row['the_blob'] == blobs[offset]
-        assert row['the_string'] == strings[offset]
-        assert row['the_int64'] == integers[offset]
-        assert row['the_ts'] == timestamps[offset]
-        assert row['the_symbol'] == symbols[offset]
-
-        with pytest.raises(KeyError):
-            print(str(row['nothere']))
-
-        offset = offset + 1
+            for column_name in column_names:
+                assert len(row[column_name]) == batch_size

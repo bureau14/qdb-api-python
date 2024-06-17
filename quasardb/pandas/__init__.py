@@ -382,7 +382,7 @@ def write_dataframes(
     data_by_table = []
 
     for table, df in dfs_:
-        logger.info("quasardb.pandas.write_dataframe, create = %s, dtype = %s", create, dtype)
+        logger.debug("quasardb.pandas.write_dataframe, create = %s, dtype = %s", create, dtype)
         assert isinstance(df, pd.DataFrame)
 
         # Create table if requested

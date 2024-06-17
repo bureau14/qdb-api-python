@@ -240,11 +240,11 @@ public:
     }
 
     // the reader_ptr is non-copyable
-    qdb::reader_ptr reader(std::vector<qdb::table> const & tables)
+    qdb::reader_ptr reader(std::vector<qdb::table> const & tables, std::size_t batch_size)
     {
         check_open();
 
-        return std::make_unique<qdb::reader>(_handle, tables);
+        return std::make_unique<qdb::reader>(_handle, tables, batch_size);
     }
 
     // the batch_inserter_ptr is non-copyable
@@ -533,7 +533,8 @@ static inline void register_cluster(Module & m)
         .def("table", &qdb::cluster::table)                                                   //
         .def("ts_batch", &qdb::cluster::inserter)                                             //
         .def("inserter", &qdb::cluster::inserter)                                             //
-        .def("reader", &qdb::cluster::reader)                                                 //
+        .def("reader", &qdb::cluster::reader, py::arg("tables"), py::kw_only(),               //
+            py::arg("batch_size") = std::size_t{0})                                           //
         .def("pinned_writer", &qdb::cluster::pinned_writer)                                   //
         .def("writer", &qdb::cluster::writer)                                                 //
         .def("find", &qdb::cluster::find)                                                     //
