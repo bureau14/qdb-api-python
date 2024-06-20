@@ -119,6 +119,8 @@ def test_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
 
     df2 = qdbpd.read_dataframe(table)
 
+    print("df2: {}".format(df2))
+
     _assert_df_equal(df1, df2)
 
 @pytest.mark.parametrize('sparsify', conftest.no_sparsify)
@@ -129,7 +131,7 @@ def test_dataframe_can_read_columns(qdbpd_write_fn, df_with_table, qdbd_connecti
 
     qdbpd_write_fn(df1, qdbd_connection, table, infer_types=False, dtype=dtype)
 
-    df2 = qdbpd.read_dataframe(table, columns=[column_name])
+    df2 = qdbpd.read_dataframe(table, column_names=[column_name])
 
     _assert_df_equal(df1, df2)
 
@@ -422,6 +424,6 @@ def test_regression_sc11337(qdbpd_write_fn, df_with_table, qdbd_connection, colu
 
     qdbpd_write_fn(df1, qdbd_connection, table.get_name(), fast=True, infer_types=True)
 
-    df2 = qdbpd.read_dataframe(table, columns=[column_name])
+    df2 = qdbpd.read_dataframe(table, column_names=[column_name])
 
     _assert_df_equal(df1, df2)

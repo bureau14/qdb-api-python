@@ -162,34 +162,62 @@ qdb::reader const & reader::enter()
     qdb::object_tracker::scoped_capture capture{object_tracker_};
 
     std::vector<qdb_bulk_reader_table_t> tables{};
-    tables.reserve(tables_.size());
+    tables.reserve(table_names_.size());
 
-    for (std::size_t i = 0; i < tables_.size(); ++i)
+    //
+    // Convert columns if applicable
+    //
+    qdb_string_t * columns{nullptr};
+
+    // If column names were provided, set them. Otherwise, it defaults to "all columns".
+    if (column_names_.empty() == false)
     {
-
-        qdb::table const & table_ = tables_.at(i);
-        auto const & columns_     = table_.list_columns();
 
         // Note that this particular converter copies the string and it's tracked
         // using the object tracker.
         //
         // Pre-allocate the data for the columns, make sure that the memory is tracked,
         // so we don't have to worry about memory loss.
+        columns = object_tracker::alloc<qdb_string_t>(column_names_.size() * sizeof(qdb_string_t));
 
-        qdb_string_t * columns =
-            object_tracker::alloc<qdb_string_t>(columns_.size() * sizeof(qdb_string_t));
-
-        for (std::size_t j = 0; j < columns_.size(); ++j)
+        for (std::size_t i = 0; i < column_names_.size(); ++i)
         {
             // This convert::value allocates memory on the heap and is tracked using
             // the object_tracker_ / scoped_capture
-            columns[j] = convert::value<std::string, qdb_string_t>(columns_.at(j).name);
+            columns[i] = convert::value<std::string, qdb_string_t>(column_names_.at(i));
         }
+    }
 
-        // :TODO(leon): support ranges
-        tables.emplace_back(
-            qdb_bulk_reader_table_t{convert::value<std::string, qdb_string_t>(table_.get_name()),
-                columns, columns_.size(), nullptr, 0});
+    qdb_ts_range_t * ranges{nullptr};
+
+    if (ranges_.empty() == false)
+    {
+        // Pre-allocate the data for the columns, make sure that the memory is tracked,
+        // so we don't have to worry about memory loss.
+        ranges = object_tracker::alloc<qdb_ts_range_t>(ranges_.size() * sizeof(qdb_ts_range_t));
+
+        for (std::size_t i = 0; i < ranges_.size(); ++i)
+        {
+            // This convert::value does not allocate anything on the heap
+            ranges[i] = convert::value<py::tuple, qdb_ts_range_t>(ranges_.at(i));
+        }
+    }
+
+    // We either have columns and have the actual array set, *or* we do not have any customized
+    // columns at all.
+    // Same applies for ranges
+    assert((columns == nullptr) == (column_names_.empty() == true));
+    assert((ranges == nullptr) == (ranges__.empty() == true));
+
+    for (std::string const & table_name : table_names_)
+    {
+        tables.emplace_back(qdb_bulk_reader_table_t{
+            convert::value<std::string, qdb_string_t>(table_name), //
+            columns,                                               //
+            column_names_.size(),                                  //
+            ranges,                                                //
+            ranges_.size()                                         //
+        });
     }
 
     qdb::qdb_throw_if_error(
@@ -222,9 +250,19 @@ void register_reader(py::module_ & m)
 
     // basic interface
     reader_c
-        .def(py::init<qdb::handle_ptr, std::vector<qdb::table> const &, std::size_t>(),        //
-            py::arg("conn"), py::arg("tables"), py::kw_only(),                                 //
-            py::arg("batch_size") = std::size_t{0})                                            //
+        .def(py::init<                                                                         //
+                 qdb::handle_ptr,                                                              //
+                 std::vector<std::string> const &,                                             //
+                 std::vector<std::string> const &,                                             //
+                 std::size_t,                                                                  //
+                 std::vector<py::tuple> const &>(),                                            //
+            py::arg("conn"),                                                                   //
+            py::arg("table_names"),                                                            //
+            py::kw_only(),                                                                     //
+            py::arg("column_names") = std::vector<std::string>{},                              //
+            py::arg("batch_size")   = std::size_t{0},                                          //
+            py::arg("ranges")       = std::vector<py::tuple>{}                                 //
+            )                                                                                  //
                                                                                                //
         .def("get_batch_size", &qdb::reader::get_batch_size)                                   //
                                                                                                //

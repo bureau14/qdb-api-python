@@ -33,7 +33,6 @@
 #include "handle.hpp"
 #include "logger.hpp"
 #include "object_tracker.hpp"
-#include "table.hpp"
 #include <qdb/ts.h>
 #include <unordered_map>
 #include <vector>
@@ -164,12 +163,19 @@ public:
      * of any metadata inside the tables (such as its name) will always exceed that
      * of the reader, which simplifies things a lot.
      */
-    reader(qdb::handle_ptr handle, std::vector<qdb::table> const & tables, std::size_t batch_size)
+    reader(                                            //
+        qdb::handle_ptr handle,                        //
+        std::vector<std::string> const & table_names,  //
+        std::vector<std::string> const & column_names, //
+        std::size_t batch_size,                        //
+        std::vector<py::tuple> const & ranges)         //
         : logger_("quasardb.reader")
         , handle_{handle}
         , reader_{}
-        , tables_{tables}
+        , table_names_{table_names}
+        , column_names_{column_names}
         , batch_size_{batch_size}
+        , ranges_{ranges}
     {}
 
     // prevent copy because of the table object, use a unique_ptr of the batch in cluster
@@ -219,7 +225,7 @@ public:
 
     iterator begin() const noexcept
     {
-        return iterator{handle_, reader_, batch_size_, tables_.size()};
+        return iterator{handle_, reader_, batch_size_, table_names_.size()};
     }
 
     iterator end() const noexcept
@@ -232,8 +238,10 @@ private:
     qdb::handle_ptr handle_;
     qdb_reader_handle_t reader_;
 
-    std::vector<qdb::table> tables_;
+    std::vector<std::string> table_names_;
+    std::vector<std::string> column_names_;
     std::size_t batch_size_;
+    std::vector<py::tuple> ranges_;
 
     qdb::object_tracker::scoped_repository object_tracker_;
 };
