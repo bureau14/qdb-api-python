@@ -318,20 +318,16 @@ public:
     ~masked_array()
     {}
 
-    py::object cast(py::return_value_policy policy) const
+    /**
+     * Cast this masked array to an actual numpy.ma.MaskedArray. This invokes
+     * a python function and can be slow.
+     */
+    py::handle cast(py::return_value_policy policy) const
     {
         py::module numpy_ma = py::module::import("numpy.ma");
         py::object init     = numpy_ma.attr("masked_array");
 
-        switch (policy)
-        {
-        case py::return_value_policy::move:
-            return init(std::move(arr_), std::move(mask_.array()));
-        default:
-            break;
-        }
-
-        return init(arr_, mask_.array());
+        return init(arr_, mask_.array()).inc_ref();
     }
 
     py::array data() const
