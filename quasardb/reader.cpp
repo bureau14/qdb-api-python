@@ -167,7 +167,7 @@ qdb::reader const & reader::enter()
     //
     // Convert columns if applicable
     //
-    qdb_string_t * columns{nullptr};
+    char const ** columns{nullptr};
 
     // If column names were provided, set them. Otherwise, it defaults to "all columns".
     if (column_names_.empty() == false)
@@ -178,13 +178,13 @@ qdb::reader const & reader::enter()
         //
         // Pre-allocate the data for the columns, make sure that the memory is tracked,
         // so we don't have to worry about memory loss.
-        columns = object_tracker::alloc<qdb_string_t>(column_names_.size() * sizeof(qdb_string_t));
+        columns = object_tracker::alloc<char const *>(column_names_.size() * sizeof(char const *));
 
         for (std::size_t i = 0; i < column_names_.size(); ++i)
         {
-            // This convert::value allocates memory on the heap and is tracked using
-            // the object_tracker_ / scoped_capture
-            columns[i] = convert::value<std::string, qdb_string_t>(column_names_.at(i));
+            // Because the scope of `column_names_` outlives this function / scope, we don't have
+            // to copy the string, but can just directly use the .c_str() and things will work out.
+            columns[i] = column_names_.at(i).c_str();
         }
     }
 
@@ -212,11 +212,13 @@ qdb::reader const & reader::enter()
     for (std::string const & table_name : table_names_)
     {
         tables.emplace_back(qdb_bulk_reader_table_t{
-            convert::value<std::string, qdb_string_t>(table_name), //
-            columns,                                               //
-            column_names_.size(),                                  //
-            ranges,                                                //
-            ranges_.size()                                         //
+            // because the scope of `table_name` outlives this function, we can just directly
+            // use .c_str() without any copies.
+            table_name.c_str(),   //
+            columns,              //
+            column_names_.size(), //
+            ranges,               //
+            ranges_.size()        //
         });
     }
 

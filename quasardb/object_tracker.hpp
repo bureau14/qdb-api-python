@@ -135,7 +135,7 @@ public:
     };
 
     template <typename T>
-    requires(!std::is_pointer_v<T>) [[nodiscard]] inline T * track(T * x) noexcept
+    [[nodiscard]] inline T * track(T * x) noexcept
     {
         return static_cast<T *>(track(make_trackable_object(std::unique_ptr<T>{x})));
     };
