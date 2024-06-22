@@ -92,8 +92,7 @@ private:
     using container_t = std::vector<trackable_object>;
 
 public:
-    repository()  = default;
-    ~repository() = default;
+    repository() = default;
 
     repository(repository const &)             = delete;
     repository(repository && other)            = delete;

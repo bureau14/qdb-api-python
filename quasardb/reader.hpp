@@ -51,12 +51,13 @@ using timestamp_column = std::vector<qdb_timespec_t>;
 using blob_column      = std::vector<qdb_blob_t>;
 using string_column    = std::vector<qdb_string_t>;
 
-/**
- * Utility function to convert one "chunk" of data
- */
 class reader_data
 {
 public:
+    /**
+     * Utility function which converts table data into a vanilla dict. Currently this works well, as
+     * there isn't any additional data/state we need to keep track of --
+     */
     static py::dict convert(qdb_bulk_reader_table_data_t const & data);
 };
 
@@ -130,7 +131,7 @@ public:
         assert(ptr_ != nullptr);
         assert(n_ < table_count_);
 
-        return reader_data::convert({ptr_[n_]});
+        return reader_data::convert(ptr_[n_]);
     }
 
 private:
@@ -242,8 +243,6 @@ private:
     std::vector<std::string> column_names_;
     std::size_t batch_size_;
     std::vector<py::tuple> ranges_;
-
-    qdb::object_tracker::scoped_repository object_tracker_;
 };
 
 using reader_ptr = std::unique_ptr<reader>;

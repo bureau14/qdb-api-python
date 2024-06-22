@@ -7,32 +7,32 @@ import numpy as np
 
 
 def test_can_open_reader(qdbd_connection, table):
-    tables = [table]
+    table_names = [table.get_name()]
 
-    with qdbd_connection.reader(tables) as reader:
+    with qdbd_connection.reader(table_names) as reader:
         rows = list(reader)
         assert len(rows) == 0
 
 
 def test_reader_has_infinite_batch_size_by_default(qdbd_connection, table):
-    tables = [table]
+    table_names = [table.get_name()]
 
-    with qdbd_connection.reader(tables) as reader:
+    with qdbd_connection.reader(table_names) as reader:
         assert reader.get_batch_size() == 0
 
 
 def test_cannot_provide_batch_size_as_regular_arg(qdbd_connection, table):
-    tables = [table]
+    table_names = [table.get_name()]
 
     with pytest.raises(TypeError):
-        with qdbd_connection.reader(tables, 128) as reader:
+        with qdbd_connection.reader(table_names, 128) as reader:
             assert reader.get_batch_size() == 128
 
 
 def test_can_set_batch_size_as_kwarg(qdbd_connection, table):
-    tables = [table]
+    table_names = [table.get_name()]
 
-    with qdbd_connection.reader(tables, batch_size=128) as reader:
+    with qdbd_connection.reader(table_names, batch_size=128) as reader:
         assert reader.get_batch_size() == 128
 
 
@@ -42,9 +42,9 @@ def test_reader_returns_dicts(qdbpd_write_fn, df_with_table, qdbd_connection):
     column_names = list(column.name for column in table.list_columns())
     qdbpd_write_fn(df, qdbd_connection, table, infer_types=False, dtype=dtype)
 
-    tables = [table]
+    table_names = [table.get_name()]
 
-    with qdbd_connection.reader(tables) as reader:
+    with qdbd_connection.reader(table_names) as reader:
         for row in reader:
             # These should be pure dicts
             assert isinstance(row, dict)
@@ -69,9 +69,9 @@ def test_reader_can_iterate_rows(qdbpd_write_fn, df_with_table, qdbd_connection,
 
     qdbpd_write_fn(df, qdbd_connection, table, infer_types=False, dtype=dtype)
 
-    tables = [table]
+    table_names = [table.get_name()]
 
-    with qdbd_connection.reader(tables) as reader:
+    with qdbd_connection.reader(table_names) as reader:
         seen = False
 
         for row in reader:
@@ -100,9 +100,9 @@ def test_reader_can_iterate_batches(qdbpd_write_fn, df_with_table, qdbd_connecti
 
     qdbpd_write_fn(df, qdbd_connection, table, infer_types=False, dtype=dtype)
 
-    tables = [table]
+    table_names = [table.get_name()]
 
-    with qdbd_connection.reader(tables, batch_size=batch_size) as reader:
+    with qdbd_connection.reader(table_names, batch_size=batch_size) as reader:
         seen = 0
 
         for row in reader:

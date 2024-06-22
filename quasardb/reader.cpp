@@ -158,8 +158,10 @@ reader_iterator & reader_iterator::operator++()
 
 qdb::reader const & reader::enter()
 {
-    // Scoped capture, because we're converting to qdb_string_t which needs to be released.
-    qdb::object_tracker::scoped_capture capture{object_tracker_};
+    // Very small scope, because we don't need any of the allocated memory after this function is
+    // finished, so we will also release memory early.
+    qdb::object_tracker::scoped_repository object_tracker{};
+    qdb::object_tracker::scoped_capture capture{object_tracker};
 
     std::vector<qdb_bulk_reader_table_t> tables{};
     tables.reserve(table_names_.size());
