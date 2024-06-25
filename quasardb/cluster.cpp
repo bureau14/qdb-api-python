@@ -13,7 +13,8 @@ cluster::cluster(const std::string & uri,
     const std::string & user_security_file,
     const std::string & cluster_public_key_file,
     std::chrono::milliseconds timeout,
-    bool do_version_check)
+    bool do_version_check,
+    std::size_t client_max_parallelism)
     : _uri{uri}
     , _handle{make_handle_ptr()}
     , _json_loads{pybind11::module::import("json").attr("loads")}
@@ -30,6 +31,11 @@ cluster::cluster(const std::string & uri,
         user_security_file, cluster_public_key_file);
 
     options().set_timeout(timeout);
+
+    if (client_max_parallelism != 0)
+    {
+        options().set_client_max_parallelism(client_max_parallelism);
+    }
 
     // HACKS(leon): we need to ensure there is always one callback active
     //              for qdb. Callbacks can be lost when the last active session
