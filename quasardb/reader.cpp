@@ -39,7 +39,7 @@ namespace detail
     {
         // typedef struct // NOLINT(modernize-use-using)
         // {
-        //     qdb_string_t name;
+        //     char const * name;
         //     qdb_ts_column_type_t data_type;
         //     union
         //     {
@@ -51,7 +51,7 @@ namespace detail
         //     } data;
         // } qdb_exp_batch_push_column_t;
 
-        py::str column_name = convert::value<qdb_string_t, py::str>(column.name);
+        py::str column_name{column.name};
 
         qdb::masked_array xs;
         switch (column.data_type)
@@ -209,7 +209,7 @@ qdb::reader const & reader::enter()
     // columns at all.
     // Same applies for ranges
     assert((columns == nullptr) == (column_names_.empty() == true));
-    assert((ranges == nullptr) == (ranges__.empty() == true));
+    assert((ranges == nullptr) == (ranges_.empty() == true));
 
     for (std::string const & table_name : table_names_)
     {
