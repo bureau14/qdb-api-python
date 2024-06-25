@@ -318,7 +318,11 @@ public:
     ~masked_array()
     {}
 
-    py::handle cast(py::return_value_policy /* policy */) const
+    /**
+     * Cast this masked array to an actual numpy.ma.MaskedArray. This invokes
+     * a python function and can be slow.
+     */
+    py::handle cast(py::return_value_policy policy) const
     {
         py::module numpy_ma = py::module::import("numpy.ma");
         py::object init     = numpy_ma.attr("masked_array");
@@ -410,6 +414,9 @@ public:
         return arr_.dtype();
     }
 
+    /**
+     * Returns size of array. Includes "masked" items, i.e. those that are not visible.
+     */
     inline std::size_t size() const noexcept
     {
         assert(arr_.size() == mask_.size());
@@ -640,7 +647,7 @@ public:
     /**
      * C++->Python
      */
-    static py::handle cast(type && src, return_value_policy policy, handle /* parent */)
+    static py::object cast(type && src, return_value_policy policy, handle /* parent */)
     {
         return src.cast(policy);
     }

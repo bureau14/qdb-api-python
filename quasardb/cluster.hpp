@@ -42,9 +42,9 @@
 #include "options.hpp"
 #include "perf.hpp"
 #include "query.hpp"
+#include "reader.hpp"
 #include "string.hpp"
 #include "table.hpp"
-#include "table_reader.hpp"
 #include "tag.hpp"
 #include "timestamp.hpp"
 #include "utils.hpp"
@@ -237,6 +237,18 @@ public:
         check_open();
 
         return qdb::table{_handle, alias};
+    }
+
+    // the reader_ptr is non-copyable
+    qdb::reader_ptr reader(                            //
+        std::vector<std::string> const & table_names,  //
+        std::vector<std::string> const & column_names, //
+        std::size_t batch_size,                        //
+        std::vector<py::tuple> const & ranges)         //
+    {
+        check_open();
+
+        return std::make_unique<qdb::reader>(_handle, table_names, column_names, batch_size, ranges);
     }
 
     // the batch_inserter_ptr is non-copyable
@@ -502,7 +514,8 @@ static inline void register_cluster(Module & m)
             py::arg("user_security_file")      = std::string{},                               //
             py::arg("cluster_public_key_file") = std::string{},                               //
             py::arg("timeout")                 = std::chrono::minutes{1},                     //
-            py::arg("do_version_check")        = false)                                              //
+            py::arg("do_version_check")        = false                                        //
+            )                                                                                 //
         .def("__enter__", &qdb::cluster::enter)                                               //
         .def("__exit__", &qdb::cluster::exit)                                                 //
         .def("tidy_memory", &qdb::cluster::tidy_memory)                                       //
@@ -525,6 +538,13 @@ static inline void register_cluster(Module & m)
         .def("table", &qdb::cluster::table)                                                   //
         .def("ts_batch", &qdb::cluster::inserter)                                             //
         .def("inserter", &qdb::cluster::inserter)                                             //
+        .def("reader", &qdb::cluster::reader,                                                 //
+            py::arg("table_names"),                                                           //
+            py::kw_only(),                                                                    //
+            py::arg("column_names") = std::vector<std::string>{},                             //
+            py::arg("batch_size")   = std::size_t{0},                                         //
+            py::arg("ranges")       = std::vector<py::tuple>{}                                //
+            )                                                                                 //
         .def("pinned_writer", &qdb::cluster::pinned_writer)                                   //
         .def("writer", &qdb::cluster::writer)                                                 //
         .def("find", &qdb::cluster::find)                                                     //
