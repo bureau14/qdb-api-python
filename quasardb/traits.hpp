@@ -218,6 +218,21 @@ VALUE_TRAIT_DECL(qdb_blob_t)
     }
 };
 
+VALUE_TRAIT_DECL(char const *)
+{
+    static constexpr bool is_qdb_primitive = false;
+
+    static constexpr char const * null_value() noexcept
+    {
+        return nullptr;
+    }
+
+    static constexpr bool is_null(char const * x) noexcept
+    {
+        return x == null_value();
+    }
+};
+
 VALUE_TRAIT_DECL(qdb_ts_double_point)
 {
     using primitive_type               = double;

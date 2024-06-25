@@ -35,9 +35,19 @@
 .. moduleauthor: quasardb SAS. All rights reserved
 """
 
-def generic_error_msg(msg, e):
+def generic_error_msg(msg, e = None):
     msg_str = "\n".join(msg)
-    return """
+
+    if e is None:
+        return """
+**************************************************************************
+
+{}
+
+**************************************************************************
+""".format(msg_str, type(e), str(e))
+    else:
+        return """
 **************************************************************************
 
 {}
@@ -46,8 +56,8 @@ def generic_error_msg(msg, e):
 
 Original exception:
 
-   Type:    {}
-   Message: {}
+  Type:    {}
+  Message: {}
 
 **************************************************************************
 """.format(msg_str, type(e), str(e))
@@ -79,9 +89,23 @@ def glibc_error_msg(e):
 
     return generic_error_msg(msg, e)
 
+def unknown_error_msg():
+    msg = [
+        "Unable to import quasardb module: unknown error. ",
+        "",
+        "This may have several causes, including, but not limited to: ",
+        " - a link error, ",
+        " - architecture mismatch, ",
+        " - the current working directory already contains a 'quasardb' subdirectory.",
+        "",
+        "If you believe this to be a bug, please reach out to QuasarDB at",
+        "support@quasar.ai"]
+
+    return generic_error_msg(msg)
 try:
     from quasardb.quasardb import *
 except BaseException as e:
+    print(e)
     if "undefined symbol" in str(e):
         print(link_error_msg(e))
         raise e
@@ -89,6 +113,11 @@ except BaseException as e:
         print(glibc_error_msg(e))
     else:
         from quasardb import *
+
+if not 'quasardb' in locals():
+    print(unknown_error_msg())
+    raise ImportError()
+
 
 from .extensions import extend_module
 extend_module(quasardb)

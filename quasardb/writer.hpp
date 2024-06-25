@@ -207,15 +207,10 @@ public:
     {
         // A specific set of columns to deduplicate has been provided, in which case
         // we'll need to do a small transformation of the column names.
-        auto where_duplicate = std::make_unique<qdb_string_t[]>(columns.size());
+        auto where_duplicate = std::make_unique<char const *[]>(columns.size());
 
         std::transform(std::cbegin(columns), std::cend(columns), where_duplicate.get(),
-            [](std::string const & column) -> qdb_string_t {
-                // Note, we're not copying any strings here. This works,
-                // because we pass the vector by reference, and it is "owned"
-                // by _push_impl, so the lifetime is longer.
-                return qdb_string_t{column.c_str(), column.size()};
-            });
+            [](std::string const & column) -> char const * { return column.c_str(); });
 
         out.deduplication_mode    = detail::to_qdb(mode);
         out.where_duplicate       = where_duplicate.release();

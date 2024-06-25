@@ -334,8 +334,9 @@ struct value_converter<clock_t::time_point, qdb::pydatetime>
         auto micros = std::chrono::duration_cast<microseconds_t>(since_epoch);
 
         return qdb::pydatetime::from_date_and_time(static_cast<int>(ymd.year()),
-            static_cast<unsigned>(ymd.month()), static_cast<unsigned>(ymd.day()), static_cast<int>(hms.hours().count()),
-            static_cast<int>(hms.minutes().count()), static_cast<int>(hms.seconds().count()), static_cast<int>(micros.count()));
+            static_cast<unsigned>(ymd.month()), static_cast<unsigned>(ymd.day()),
+            static_cast<int>(hms.hours().count()), static_cast<int>(hms.minutes().count()),
+            static_cast<int>(hms.seconds().count()), static_cast<int>(micros.count()));
     }
 };
 
@@ -419,12 +420,38 @@ struct value_converter<traits::bytestring_dtype, qdb_string_t>
         requires(ranges::sized_range<R> && ranges::contiguous_range<R>)
     inline qdb_string_t operator()(R && x) const
     {
-        std::size_t n     = (ranges::size(x) + 1) * sizeof(char_t);
-        char_t const * x_ = ranges::data(x);
-        char_t * tmp      = qdb::object_tracker::alloc<char_t>(n);
+        std::size_t n_chars = ranges::size(x);
+        std::size_t n_bytes = (n_chars + 1) * sizeof(char_t);
+        char_t const * x_   = ranges::data(x);
+        char_t * tmp        = qdb::object_tracker::alloc<char_t>(n_bytes);
 
-        std::memcpy((void *)(tmp), x_, ranges::size(x) + 1);
-        return qdb_string_t{tmp, ranges::size(x)};
+        std::memcpy((void *)(tmp), x_, n_bytes);
+
+        // For safety purposes, always null-terminate the output string.
+        tmp[n_chars] = '\0';
+        assert(tmp[n_chars] == '\0');
+
+        return qdb_string_t{tmp, n_chars};
+    }
+};
+
+template <>
+struct value_converter<std::string, qdb_string_t>
+{
+    value_converter<traits::bytestring_dtype, qdb_string_t> delegate_{};
+
+    inline qdb_string_t operator()(std::string const & x) const
+    {
+        return delegate_(x);
+    }
+};
+
+template <>
+struct value_converter<qdb_string_t, std::string>
+{
+    inline std::string operator()(qdb_string_t const & x) const
+    {
+        return {x.data, x.length};
     }
 };
 

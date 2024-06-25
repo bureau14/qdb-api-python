@@ -205,9 +205,10 @@ def query(cluster: quasardb.Cluster,
     df.set_index(index, inplace=True)
     return df
 
-def read_dataframe(table, row_index=False, columns=None, ranges=None):
+def stream_dataframe(table : quasardb.Table, *, batch_size : int = 0, column_names : list[str] = None, ranges : list = None):
     """
-    Read a Pandas Dataframe from a QuasarDB Timeseries table.
+    Read a Pandas Dataframe from a QuasarDB Timeseries table. Returns a generator with dataframes of size `batch_size`, which is useful
+    when traversing a large dataset which does not fit into memory.
 
     Parameters:
     -----------
@@ -215,52 +216,66 @@ def read_dataframe(table, row_index=False, columns=None, ranges=None):
     table : quasardb.Timeseries
       QuasarDB Timeseries table object, e.g. qdb_cluster.table('my_table')
 
+    batch_size : int
+      The amount of rows to fetch in a single read operation. If unset, or 0, will
+      return all data as an entire dataframe. Otherwise, returns a generator which
+      yields on dataframe at a time.
+
     columns : optional list
       List of columns to read in dataframe. The timestamp column '$timestamp' is
       always read.
 
       Defaults to all columns.
 
-    row_index: boolean
-      Whether or not to index by rows rather than timestamps. Set to true if your
-      dataset may contains null values and multiple rows may use the same timestamps.
-      Note: using row_index is significantly slower.
-      Defaults to false.
-
     ranges: optional list
       A list of time ranges to read, represented as tuples of Numpy datetime64[ns] objects.
       Defaults to the entire table.
 
     """
+    # Sanitize batch_size
+    if batch_size == None:
+        batch_size = 0
+    elif not isinstance(batch_size, int):
+        raise TypeError("batch_size should be an integer, but got: {} with value {}".format(type(batch_size), str(batch_size)))
 
-    if columns is None:
-        columns = list(c.name for c in table.list_columns())
+    kwargs = {}
 
-    if not row_index:
-        xs = dict((c, (read_series(table, c, ranges))) for c in columns)
-        return DataFrame(data=xs)
+    if column_names:
+        kwargs['column_names'] = column_names
 
-    kwargs = {
-        'columns': columns
-    }
     if ranges:
         kwargs['ranges'] = ranges
 
-    logger.debug("reading DataFrame from bulk reader")
+    with table.reader(**kwargs) as reader:
+        for batch in reader:
 
-    reader = table.reader(**kwargs)
-    xs = []
-    for row in reader:
-        xs.append(row.copy())
+            # We always expect the timestamp column, and set this as the index
+            assert '$timestamp' in batch
 
-    columns.insert(0, '$timestamp')
+            idx = pd.Index(batch.pop('$timestamp'), copy=False, name='$timestamp')
+            df = pd.DataFrame(batch, index=idx)
 
-    logger.debug(
-        "read %d rows, returning as DataFrame with %d columns",
-        len(xs),
-        len(columns))
+            yield df
 
-    return DataFrame(data=xs, columns=columns)
+
+def read_dataframe(table, **kwargs):
+    """
+    Read a Pandas Dataframe from a QuasarDB Timeseries table. Wraps around stream_dataframe(), and
+    returns everything as a single dataframe. batch_size is always explicitly set to 0.
+    """
+
+    if 'batch_size' in kwargs and kwargs['batch_size'] != 0 and kwargs['batch_size'] != None:
+        logger.warn("Providing a batch size with read_dataframe is unsupported, overriding batch_size to 0.")
+        logger.warn("If you wish to traverse the data in smaller batches, please use: stream_dataframe().")
+        kwargs['batch_size'] = 0
+
+    # Note that this is *lazy*, dfs is a generator, not a list -- as such, dataframes will be
+    # fetched on-demand, which means that an error could occur in the middle of processing
+    # dataframes.
+    dfs = stream_dataframe(table, **kwargs)
+
+    return pd.concat(dfs)
+
 
 def _extract_columns(df, cinfos):
     """
@@ -382,7 +397,7 @@ def write_dataframes(
     data_by_table = []
 
     for table, df in dfs_:
-        logger.info("quasardb.pandas.write_dataframe, create = %s, dtype = %s", create, dtype)
+        logger.debug("quasardb.pandas.write_dataframe, create = %s, dtype = %s", create, dtype)
         assert isinstance(df, pd.DataFrame)
 
         # Create table if requested

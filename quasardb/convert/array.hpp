@@ -79,8 +79,8 @@ struct convert_array;
 //
 /////
 template <typename From, typename To>
-requires(concepts::dtype<From> && !concepts::delegate_dtype<From> && concepts::qdb_primitive<To>) struct
-    convert_array<From, To>
+    requires(concepts::dtype<From> && !concepts::delegate_dtype<From> && concepts::qdb_primitive<To>)
+struct convert_array<From, To>
 {
     using value_type = typename From::value_type;
     static constexpr value_converter<From, To> const xform_{};
@@ -105,7 +105,8 @@ requires(concepts::dtype<From> && !concepts::delegate_dtype<From> && concepts::q
 //
 /////
 template <typename From, typename To>
-requires(concepts::delegate_dtype<From> && concepts::qdb_primitive<To>) struct convert_array<From, To>
+    requires(concepts::delegate_dtype<From> && concepts::qdb_primitive<To>)
+struct convert_array<From, To>
 {
     // Source value_type, e.g. std::int32_t
     using value_type = typename From::value_type;
@@ -144,7 +145,8 @@ requires(concepts::delegate_dtype<From> && concepts::qdb_primitive<To>) struct c
 //
 /////
 template <typename From, typename To>
-requires(concepts::qdb_primitive<From> && !concepts::delegate_dtype<To>) struct convert_array<From, To>
+    requires(concepts::qdb_primitive<From> && !concepts::delegate_dtype<To>)
+struct convert_array<From, To>
 {
     static constexpr value_converter<From, To> const xform_{};
 
@@ -168,7 +170,8 @@ requires(concepts::qdb_primitive<From> && !concepts::delegate_dtype<To>) struct 
 //
 /////
 template <typename From, typename To>
-requires(concepts::qdb_primitive<From> && concepts::delegate_dtype<To>) struct convert_array<From, To>
+    requires(concepts::qdb_primitive<From> && concepts::delegate_dtype<To>)
+struct convert_array<From, To>
 {
     // Destination value_type, e.g. std::int32_t
     using value_type = typename To::value_type;
@@ -252,6 +255,19 @@ static inline constexpr std::vector<To> array(py::array const & xs)
     return ranges::to<std::vector>(detail::to_range<From>(xs) | detail::convert_array<From, To>{}());
 }
 
+// qdb -> numpy
+template <concepts::qdb_primitive From, concepts::dtype To, ranges::input_range R>
+    requires(concepts::input_range_t<R, From>)
+static inline py::array array(R && xs)
+{
+    if (ranges::empty(xs)) [[unlikely]]
+    {
+        return {};
+    };
+
+    return detail::to_array<To>(xs | detail::convert_array<From, To>{}());
+}
+
 // numpy -> qdb
 template <concepts::dtype From, concepts::qdb_primitive To>
 static inline constexpr void masked_array(qdb::masked_array const & xs, std::vector<To> & dst)
@@ -268,7 +284,8 @@ static inline constexpr std::vector<To> masked_array(qdb::masked_array const & x
 
 // qdb -> numpy
 template <concepts::qdb_primitive From, concepts::dtype To, ranges::input_range R>
-requires(concepts::input_range_t<R, From>) static inline qdb::masked_array masked_array(R && xs)
+    requires(concepts::input_range_t<R, From>)
+static inline qdb::masked_array masked_array(R && xs)
 {
     if (ranges::empty(xs)) [[unlikely]]
     {
