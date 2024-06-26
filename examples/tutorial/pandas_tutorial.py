@@ -33,10 +33,9 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
     ranges = [(np.datetime64('2019-02-01', 'ns'), np.datetime64('2019-02-02', 'ns'))]
     t = c.table("stocks")
 
-    # By providing the row_index=True parameter, we explicitly tell the Pandas connector
-    # to retrieve rows using the row-oriented bulk reader and use the default Pandas sequential
-    # row index. This is useful if your dataset is sparse and may contain null values.
-    df = qdbpd.read_dataframe(t, row_index=True, ranges=ranges)
+    # The `read_dataframe` function provides a performance-efficient mechanism to read data
+    # from an entire table. We can optionally provide the time range we want to read from.
+    df = qdbpd.read_dataframe(t, ranges=ranges)
 
     # bulk-read-end
 
