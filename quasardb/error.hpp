@@ -89,6 +89,19 @@ public:
     {}
 };
 
+class uninitialized_exception : public exception
+{
+public:
+    uninitialized_exception() noexcept
+        : exception(qdb_e_uninitialized,
+            std::string("The requested operation is unavailable because the resource is uninitialized"))
+    {}
+
+    uninitialized_exception(std::string const & what) noexcept
+        : exception(qdb_e_uninitialized, what)
+    {}
+};
+
 class incompatible_type_exception : public exception
 {
 public:
@@ -308,6 +321,7 @@ static inline void register_errors(Module & m)
     py::register_exception<qdb::alias_already_exists_exception>(
         m, "AliasAlreadyExistsError", base_class);
     py::register_exception<qdb::alias_not_found_exception>(m, "AliasNotFoundError", base_class);
+    py::register_exception<qdb::uninitialized_exception>(m, "UninitializedError", base_class);
     py::register_exception<qdb::invalid_datetime_exception>(m, "InvalidDatetimeError", base_class);
     py::register_exception<qdb::incompatible_type_exception>(m, "IncompatibleTypeError", base_class);
     py::register_exception<qdb::not_implemented_exception>(m, "NotImplementedError", base_class);

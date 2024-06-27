@@ -14,6 +14,14 @@ def test_can_open_reader(qdbd_connection, table):
         assert len(rows) == 0
 
 
+def test_cannot_iterate_reader_without_open(qdbd_connection, table):
+    table_names = [table.get_name()]
+    reader = qdbd_connection.reader(table_names)
+
+    with pytest.raises(quasardb.UninitializedError):
+        rows = list(reader)
+
+
 def test_reader_has_infinite_batch_size_by_default(qdbd_connection, table):
     table_names = [table.get_name()]
 
