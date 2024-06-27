@@ -225,7 +225,7 @@ inline void qdb_throw_if_error(
         qdb_error_t err_;
         qdb_get_last_error(h, &err_, &msg_);
 
-        if (err_ != err)
+        if (err_ != err) [[unlikely]]
         {
             // Error context returned is not the same, which means this thread already made
             // another call to the QDB API, or the QDB API itself
@@ -235,6 +235,8 @@ inline void qdb_throw_if_error(
             case qdb_e_not_connected:
             case qdb_e_invalid_handle:
                 throw qdb::invalid_handle_exception{};
+            case qdb_e_invalid_argument:
+                throw qdb::invalid_argument_exception{};
             default:
                 throw qdb::exception{err, qdb_error(err)};
             }
