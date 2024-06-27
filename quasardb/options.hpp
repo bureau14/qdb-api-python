@@ -248,8 +248,6 @@ static inline void register_options(Module & m)
         .def("set_client_max_in_buf_size", &qdb::options::set_client_max_in_buf_size)     //
         .def("get_client_max_in_buf_size", &qdb::options::get_client_max_in_buf_size)     //
         .def("get_cluster_max_in_buf_size", &qdb::options::get_cluster_max_in_buf_size)   //
-        .def("set_client_max_parallelism", &qdb::options::set_client_max_parallelism,     //
-            py::arg("parallelism"))                                                       //
         .def("get_client_max_parallelism", &qdb::options::get_client_max_parallelism)     //
         .def("set_query_max_length", &qdb::options::set_query_max_length,                 //
             py::arg("query_max_length"))                                                  //

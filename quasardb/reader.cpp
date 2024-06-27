@@ -234,7 +234,7 @@ void reader::close()
 {
     // Even though that from the API it looks like value, qdb_reader_handle_t is actually a pointer
     // itself that needs to be released. This static assert checks for that.
-    static_assert(std::is_pointer<typeof(reader_)>());
+    static_assert(std::is_pointer<decltype(reader_)>());
 
     if (reader_ != nullptr)
     {
