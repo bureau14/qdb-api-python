@@ -234,7 +234,6 @@ def test_write_unindexed_dataframe(qdbpd_write_fn, df_with_table, df_count,
     _assert_df_equal(df_sorted, df_read)
 
 
-@pytest.mark.skip(reason="Temporarily skip bulk reader")
 def test_write_dataframe_push_fast(qdbpd_write_fn, qdbd_connection, df_with_table):
     (_, _, df1, table) = df_with_table
 
@@ -245,7 +244,6 @@ def test_write_dataframe_push_fast(qdbpd_write_fn, qdbd_connection, df_with_tabl
 
     _assert_df_equal(df1, df2)
 
-@pytest.mark.skip(reason="Temporarily skip bulk reader")
 def test_write_dataframe_push_truncate(qdbpd_write_fn, qdbd_connection, df_with_table):
     (_, _, df1, table) = df_with_table
 
@@ -257,7 +255,6 @@ def test_write_dataframe_push_truncate(qdbpd_write_fn, qdbd_connection, df_with_
 
     _assert_df_equal(df1, df2)
 
-@pytest.mark.skip(reason="Temporarily skip bulk reader")
 def test_write_dataframe_deduplicate(qdbpd_write_fn, qdbd_connection, df_with_table, deduplicate):
     (_, _, df1, table) = df_with_table
 
