@@ -158,7 +158,6 @@ def test_dataframe_can_read_ranges(qdbpd_write_fn, qdbd_connection, df_with_tabl
     assert df4.shape[0] == row_count / 2
     assert df5.shape[0] == (row_count / 4) * 3
 
-@pytest.mark.skip(reason="Temporarily skip bulk reader")
 def test_write_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
     (ctype, dtype, df, table) = df_with_table
 
@@ -168,8 +167,6 @@ def test_write_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
 
     _assert_df_equal(df, res)
 
-
-@pytest.mark.skip(reason="Temporarily skip bulk reader")
 def test_multiple_dataframe(qdbpd_writes_fn, dfs_with_tables, qdbd_connection):
 
     dfs = []
