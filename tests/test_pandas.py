@@ -113,7 +113,6 @@ def test_series_read_write(series_with_table):
     _assert_series_equal(series, res)
 
 
-@pytest.mark.skip(reason="Temporarily skip bulk reader")
 def test_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
     (_, _, df1, table) = df_with_table
     qdbpd_write_fn(df1, qdbd_connection, table)
