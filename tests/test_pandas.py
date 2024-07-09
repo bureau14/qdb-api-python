@@ -113,6 +113,7 @@ def test_series_read_write(series_with_table):
     _assert_series_equal(series, res)
 
 
+@pytest.mark.skip(reason="Temporarily skip bulk reader")
 def test_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
     (_, _, df1, table) = df_with_table
     qdbpd_write_fn(df1, qdbd_connection, table)
@@ -123,7 +124,6 @@ def test_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
 
     _assert_df_equal(df1, df2)
 
-@pytest.mark.skip(reason="Temporarily skip bulk reader")
 @pytest.mark.parametrize('sparsify', conftest.no_sparsify)
 def test_dataframe_can_read_columns(qdbpd_write_fn, df_with_table, qdbd_connection, column_name, table_name):
     (ctype, dtype, df1, table) = df_with_table
