@@ -137,7 +137,6 @@ def test_dataframe_can_read_columns(qdbpd_write_fn, df_with_table, qdbd_connecti
     _assert_df_equal(df1, df2)
 
 
-@pytest.mark.skip(reason="Temporarily skip bulk reader")
 def test_dataframe_can_read_ranges(qdbpd_write_fn, qdbd_connection, df_with_table, start_date, row_count):
     (ctype, dtype, df1, table) = df_with_table
 
