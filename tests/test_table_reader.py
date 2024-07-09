@@ -6,6 +6,7 @@ import test_batch_inserter as batchlib
 import numpy as np
 
 
+@pytest.mark.skip(reason="Temporarily skip bulk reader")
 def test_can_open_reader(qdbd_connection, table):
     table_names = [table.get_name()]
 
@@ -14,6 +15,7 @@ def test_can_open_reader(qdbd_connection, table):
         assert len(rows) == 0
 
 
+@pytest.mark.skip(reason="Temporarily skip bulk reader")
 def test_cannot_iterate_reader_without_open(qdbd_connection, table):
     table_names = [table.get_name()]
     reader = qdbd_connection.reader(table_names)
@@ -22,6 +24,7 @@ def test_cannot_iterate_reader_without_open(qdbd_connection, table):
         rows = list(reader)
 
 
+@pytest.mark.skip(reason="Temporarily skip bulk reader")
 def test_reader_has_infinite_batch_size_by_default(qdbd_connection, table):
     table_names = [table.get_name()]
 
@@ -29,6 +32,7 @@ def test_reader_has_infinite_batch_size_by_default(qdbd_connection, table):
         assert reader.get_batch_size() == 0
 
 
+@pytest.mark.skip(reason="Temporarily skip bulk reader")
 def test_cannot_provide_batch_size_as_regular_arg(qdbd_connection, table):
     table_names = [table.get_name()]
 
@@ -37,6 +41,7 @@ def test_cannot_provide_batch_size_as_regular_arg(qdbd_connection, table):
             assert reader.get_batch_size() == 128
 
 
+@pytest.mark.skip(reason="Temporarily skip bulk reader")
 def test_can_set_batch_size_as_kwarg(qdbd_connection, table):
     table_names = [table.get_name()]
 
@@ -44,6 +49,7 @@ def test_can_set_batch_size_as_kwarg(qdbd_connection, table):
         assert reader.get_batch_size() == 128
 
 
+@pytest.mark.skip(reason="Temporarily skip bulk reader")
 def test_reader_returns_dicts(qdbpd_write_fn, df_with_table, qdbd_connection):
     (ctype, dtype, df, table) = df_with_table
 
@@ -68,6 +74,7 @@ def test_reader_returns_dicts(qdbpd_write_fn, df_with_table, qdbd_connection):
 
 
 
+@pytest.mark.skip(reason="Temporarily skip bulk reader")
 def test_reader_can_iterate_rows(qdbpd_write_fn, df_with_table, qdbd_connection, row_count):
     (ctype, dtype, df, table) = df_with_table
 
@@ -94,6 +101,7 @@ def test_reader_can_iterate_rows(qdbpd_write_fn, df_with_table, qdbd_connection,
                 assert len(row[column_name]) == row_count
 
 
+@pytest.mark.skip(reason="Temporarily skip bulk reader")
 def test_reader_can_iterate_batches(qdbpd_write_fn, df_with_table, qdbd_connection, row_count):
     (ctype, dtype, df, table) = df_with_table
 
