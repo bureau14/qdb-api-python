@@ -182,7 +182,6 @@ def test_multiple_dataframe(qdbpd_writes_fn, dfs_with_tables, qdbd_connection):
 
 # Pandas is a retard when it comes to null values, so make sure to just only
 # generate "full" arrays when we don't infer / convert array types.
-@pytest.mark.skip(reason="Temporarily skip bulk reader")
 @pytest.mark.parametrize('sparsify', conftest.no_sparsify)
 def test_write_dataframe_no_infer(qdbpd_write_fn, df_with_table, qdbd_connection):
     (ctype, dtype, df, table) = df_with_table
@@ -199,7 +198,6 @@ def test_write_dataframe_no_infer(qdbpd_write_fn, df_with_table, qdbd_connection
         _assert_df_equal(df, res)
 
 
-@pytest.mark.skip(reason="Temporarily skip bulk reader")
 def test_write_unindexed_dataframe(qdbpd_write_fn, df_with_table, df_count,
                                    qdbd_connection, caplog):
     # CF. QDB-10203, we generate a dataframe which is unordered. The easiest
