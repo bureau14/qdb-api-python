@@ -119,9 +119,5 @@ if not 'quasardb' in locals():
     raise ImportError()
 
 
-import sys
-sys.stdout.reconfigure(encoding='utf-8')
-sys.stderr.reconfigure(encoding='utf-8')
-
 from .extensions import extend_module
 extend_module(quasardb)
