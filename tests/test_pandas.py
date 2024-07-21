@@ -119,8 +119,6 @@ def test_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
 
     df2 = qdbpd.read_dataframe(table)
 
-    print("df2: {}".format(df2))
-
     _assert_df_equal(df1, df2)
 
 @pytest.mark.parametrize('sparsify', conftest.no_sparsify)
