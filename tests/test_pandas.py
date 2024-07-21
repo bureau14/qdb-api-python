@@ -272,7 +272,6 @@ def test_write_dataframe_deduplicate(qdbpd_write_fn, qdbd_connection, df_with_ta
     _assert_df_equal(df1, df2)
 
 
-@pytest.mark.skip(reason="Temporarily skip bulk reader")
 def test_write_dataframe_create_table(qdbpd_write_fn, qdbd_connection, gen_df, table_name):
     (_, _, df1) = gen_df
 
@@ -287,7 +286,6 @@ def test_write_dataframe_create_table_twice(qdbpd_write_fn, qdbd_connection, df_
     (_, _, df, table)  = df_with_table
     qdbpd_write_fn(df, qdbd_connection, table, create=True)
 
-@pytest.mark.skip(reason="Temporarily skip bulk reader")
 def test_write_dataframe_create_table_with_shard_size(qdbpd_write_fn, qdbd_connection, gen_df, table_name):
     (_, _, df1) = gen_df
     table = qdbd_connection.ts(table_name)
@@ -357,7 +355,6 @@ def test_shuffled_columns(qdbpd_write_fn, qdbd_connection, table_name, start_dat
     qdbpd_write_fn(df, qdbd_connection, t, infer_types=True)
 
 
-@pytest.mark.skip(reason="Temporarily skip bulk reader")
 def test_regression_sc11057(qdbd_connection, table_name):
     """
     Our query results (apparently) return datetime64 arrays with a itemsize of 8,
@@ -412,7 +409,6 @@ def test_regression_sc11084(qdbd_connection, table_name):
 
     _assert_df_equal(df, df_)
 
-@pytest.mark.skip(reason="Temporarily skip bulk reader")
 @pytest.mark.parametrize('sparsify', conftest.no_sparsify)
 def test_regression_sc11337(qdbpd_write_fn, df_with_table, qdbd_connection, column_name):
     (ctype, dtype, df1, table) = df_with_table
