@@ -30,4 +30,11 @@ pytest-benchmark == 3.4.1; python_version <= '3.6'
 pdoc3 == 0.7.5
 teamcity-messages == 1.29
 setuptools-git == 1.2
+
+# XXX(leon): setuptools 71 causes an error on macOS python 3.9:
+#            >> TypeError: canonicalize_version() got an unexpected keyword argument 'strip_trailing_zero'
+#
+#            This issue is reported here, for the time being limit setuptools to < 71
+#            https://github.com/pypa/setuptools/issues/4483
+#
 setuptools < 71
