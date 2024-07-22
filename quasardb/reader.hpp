@@ -75,10 +75,8 @@ public:
     {}
 
     // Actual initialization
-    reader_iterator(handle_ptr handle,
-        qdb_reader_handle_t reader,
-        std::size_t batch_size,
-        std::size_t table_count) noexcept
+    reader_iterator(
+        handle_ptr handle, qdb_reader_handle_t reader, std::size_t batch_size, std::size_t table_count)
         : handle_{handle}
         , reader_{reader}
         , batch_size_{batch_size}
@@ -172,7 +170,7 @@ public:
         std::vector<py::tuple> const & ranges)         //
         : logger_("quasardb.reader")
         , handle_{handle}
-        , reader_{}
+        , reader_{nullptr}
         , table_names_{table_names}
         , column_names_{column_names}
         , batch_size_{batch_size}
@@ -224,8 +222,14 @@ public:
      */
     void close();
 
-    iterator begin() const noexcept
+    iterator begin() const
     {
+        if (reader_ == nullptr) [[unlikely]]
+        {
+            throw qdb::uninitialized_exception{
+                "Reader not yet opened: please encapsulate calls to the reader in a `with` block, or "
+                "explicitly `open` and `close` the resource"};
+        }
         return iterator{handle_, reader_, batch_size_, table_names_.size()};
     }
 
