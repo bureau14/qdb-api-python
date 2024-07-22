@@ -164,7 +164,6 @@ def test_write_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
 
     _assert_df_equal(df, res)
 
-
 def test_multiple_dataframe(qdbpd_writes_fn, dfs_with_tables, qdbd_connection):
 
     dfs = []
