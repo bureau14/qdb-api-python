@@ -227,7 +227,8 @@ static inline void register_options(Module & m)
     py::enum_<qdb_compression_t>{o, "Compression", py::arithmetic(), "Compression type"} //
         .value("Disabled", qdb_comp_none)                                                //
         .value("Fast", qdb_comp_fast)                                                    //
-        .value("Best", qdb_comp_best);                                                   //
+        .value("Best", qdb_comp_best)                                                    //
+        .value("Balanced", qdb_comp_balanced);                                           //
 
     py::enum_<qdb_encryption_t>{o, "Encryption", py::arithmetic(), "Encryption type"} //
         .value("Disabled", qdb_crypt_none)                                            //
