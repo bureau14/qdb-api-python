@@ -48,13 +48,13 @@ def test_compression_none(qdbd_connection):
 def test_compression_balanced(qdbd_connection):
     qdbd_connection.options().set_compression(quasardb.Options.Compression.Balanced)
 
-@pytest.mark.skip(reason="Not yet supported")
 def test_compression_best(qdbd_connection):
-    qdbd_connection.options().set_compression(quasardb.Options.Compression.Best)
+    with pytest.raises(quasardb.NotImplementedError):
+        qdbd_connection.options().set_compression(quasardb.Options.Compression.Best)
 
-@pytest.mark.skip(reason="Not yet supported")
 def test_compression_fast(qdbd_connection):
-    qdbd_connection.options().set_compression(quasardb.Options.Compression.Fast)
+    with pytest.raises(quasardb.NotImplementedError):
+        qdbd_connection.options().set_compression(quasardb.Options.Compression.Fast)
 
 def test_compression_invalid(qdbd_connection):
     with pytest.raises(TypeError):
