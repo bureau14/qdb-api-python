@@ -118,6 +118,7 @@ def test_properties_in_log(qdbpd_write_fn, qdbpd_query_fn, qdbd_connection, df_w
     qdbd_connection.properties().clear()
     qdbd_connection.properties().put(random_identifier, random_string)
 
+    # a faulty query will emit a log entry that will contain the user properties
     try:
         qdbpd_query_fn(qdbd_connection, "PUT BLOB a 'a'");
         qdbpd_query_fn(qdbd_connection, "PUT BLOB a 'a'");
