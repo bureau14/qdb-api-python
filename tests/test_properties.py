@@ -87,11 +87,6 @@ def _has_user_property_in_log_file(log_path, key, value):
             try:
                 d = json.loads(line)
 
-                logger.info("key: %s")
-                logger.info("value: %s")
-                logger.info("dict: %s")
-
-
                 if key in d and d[key] == value:
                     logger.info("found key %s matching value %s", key, value)
                     return True
@@ -123,8 +118,11 @@ def test_properties_in_log(qdbpd_write_fn, qdbpd_query_fn, qdbd_connection, df_w
     qdbd_connection.properties().clear()
     qdbd_connection.properties().put(random_identifier, random_string)
 
-    qdbpd_query_fn(qdbd_connection,
-                   "SELECT $timestamp, COUNT({}) FROM \"{}\" GROUP BY 1s".format(column_name, table_name))
+    try:
+        qdbpd_query_fn(qdbd_connection, "PUT BLOB a 'a'");
+        qdbpd_query_fn(qdbd_connection, "PUT BLOB a 'a'");
+    except:
+        pass
 
     log_file = _find_log_file()
 
