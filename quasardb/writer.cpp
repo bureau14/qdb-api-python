@@ -123,10 +123,10 @@ struct fill_column_dispatch
     {
         qdb_exp_batch_push_column_t ret{};
 
-        ret.name      = traits::null_value<qdb_string_t>();
+        ret.name      = nullptr;
         ret.data_type = ctype;
 
-        // We swap the pointer inside the `qdb_exp_batch_push_column__t` with the pointer
+        // We swap the pointer inside the `qdb_exp_batch_push_column_t` with the pointer
         // to the data as it is inside the `any_column`.
         //
         // This works, because all these `any_column`'s lifecycle is scoped to the
@@ -191,7 +191,7 @@ std::vector<qdb_exp_batch_push_column_t> const & staged_table::prepare_columns()
         // XXX(leon): reuses lifecycle of _column_infos[index], which *should* be fine,
         //            but ensuring we take a reference is super important here!
         std::string const & column_name = _column_infos[index].name;
-        column.name                     = qdb_string_t{column_name.data(), column_name.size()};
+        column.name                     = column_name.c_str();
 
 #ifndef NDEBUG
         // Symbol column is actually string data
@@ -222,7 +222,7 @@ void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
     qdb_ts_range_t * ranges,
     qdb_exp_batch_push_table_t & batch)
 {
-    batch.name = qdb_string_t{_table_name.data(), _table_name.size()};
+    batch.name = _table_name.c_str();
 
     prepare_table_data(batch.data);
     if (mode == qdb_exp_batch_push_truncate)
@@ -234,12 +234,13 @@ void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
     // Zero-initialize these
     batch.where_duplicate       = nullptr;
     batch.where_duplicate_count = 0;
-    batch.options               = qdb_exp_batch_option_standard;
+    batch.deduplication_mode    = qdb_exp_batch_deduplication_mode_disabled;
     batch.creation              = qdb_exp_batch_dont_create;
 
     enum detail::deduplication_mode_t mode_ = deduplicate_options.mode_;
 
-    std::visit([&mode_, &batch](auto const & columns) { _set_push_options(mode_, columns, batch); },
+    std::visit(
+        [&mode_, &batch](auto const & columns) { _set_deduplication_mode(mode_, columns, batch); },
         deduplicate_options.columns_);
 }
 

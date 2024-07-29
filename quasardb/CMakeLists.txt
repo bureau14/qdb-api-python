@@ -223,12 +223,6 @@ elseif (MSVC)
 
 
   )
-  if(QDB_CPU_IS_X86)
-    add_compile_options(
-      # Enable AVX as we target Core2 and later
-      /arch:AVX
-    )
-  endif()
 endif()
 
 ###
@@ -361,10 +355,11 @@ set(QDB_FILES
   properties.hpp
   query.hpp
   query.cpp
+  reader.cpp
+  reader.hpp
   string.hpp
   table.cpp
   table.hpp
-  table_reader.hpp
   tag.hpp
   timestamp.hpp
   traits.hpp
@@ -374,8 +369,6 @@ set(QDB_FILES
   writer.hpp
   detail/qdb_resource.hpp
   detail/ts_column.hpp
-  reader/ts_row.hpp
-  reader/ts_value.hpp
   utils/blob_deque.hpp
   utils/ostream.hpp
   utils/permutation.hpp

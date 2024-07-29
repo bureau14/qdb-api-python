@@ -111,21 +111,18 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
 
     # bulk-read-start
 
-    # We can initialize a bulk reader based directly from our table. By
-    # providing a dict=True parameter, the QuasarDB API will automatically
-    # expose our rows as dicts.
-    reader = t.reader(dict=True, ranges=[(np.datetime64('2019-02-01', 'ns'), np.datetime64('2019-02-02', 'ns'))])
+    # We can initialize a bulk reader based directly from our table. The reader needs to open
+    # and close to acquire / release the appropriate resources.
+    with t.reader(ranges=[(np.datetime64('2019-02-01', 'ns'), np.datetime64('2019-02-02', 'ns'))]) as reader:
 
-    # The bulk reader is exposed as a regular Python iterator
-    for row in reader:
+        # The bulk reader is exposed as a regular Python iterator, streaming batches of data.
+        for batch in reader:
 
-        # We can access the row locally within our loop:
-        print(row)
+            # We can access a batch of data, which is a regular python dict with column names
+            # as keys and numpy MaskedArrays as data.
+            print(batch)
 
-        # But because the QuasarDB Python API is zero-copy, our row maintains a
-        # reference to the underlying data. If we want to keep the row data alive
-        # longer than the local scope, you can use row.copy() as follows:
-        do_something_async_with(row.copy())
+            do_something_async_with(batch)
 
     # bulk-read-end
 

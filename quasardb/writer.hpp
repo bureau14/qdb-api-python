@@ -55,16 +55,16 @@ enum deduplication_mode_t
 
 };
 
-constexpr inline qdb_exp_batch_push_options_t to_push_options(enum detail::deduplication_mode_t mode)
+constexpr inline qdb_exp_batch_deduplication_mode_t to_qdb(enum detail::deduplication_mode_t mode)
 {
     switch (mode)
     {
     case deduplication_mode_drop:
-        return qdb_exp_batch_option_unique_drop;
+        return qdb_exp_batch_deduplication_mode_drop;
     case deduplication_mode_upsert:
-        return qdb_exp_batch_option_unique_upsert;
+        return qdb_exp_batch_deduplication_mode_upsert;
     default:
-        return qdb_exp_batch_option_standard;
+        return qdb_exp_batch_deduplication_mode_disabled;
     }
 }
 
@@ -192,27 +192,27 @@ public:
         qdb_ts_range_t * ranges,
         qdb_exp_batch_push_table_t & batch);
 
-    static inline void _set_push_options(
+    static inline void _set_deduplication_mode(
         enum detail::deduplication_mode_t mode, bool columns, qdb_exp_batch_push_table_t & out)
     {
-        out.options = (columns == true ? detail::to_push_options(mode) : qdb_exp_batch_option_standard);
+        // Set deduplication mode only when `columns` is true, in which we will deduplicate based on
+        // *all* columns.
+        out.deduplication_mode =
+            (columns == true ? detail::to_qdb(mode) : qdb_exp_batch_deduplication_mode_disabled);
     }
 
-    static inline void _set_push_options(enum detail::deduplication_mode_t mode,
+    static inline void _set_deduplication_mode(enum detail::deduplication_mode_t mode,
         std::vector<std::string> const & columns,
         qdb_exp_batch_push_table_t & out)
     {
-        auto where_duplicate = std::make_unique<qdb_string_t[]>(columns.size());
+        // A specific set of columns to deduplicate has been provided, in which case
+        // we'll need to do a small transformation of the column names.
+        auto where_duplicate = std::make_unique<char const *[]>(columns.size());
 
         std::transform(std::cbegin(columns), std::cend(columns), where_duplicate.get(),
-            [](std::string const & column) -> qdb_string_t {
-                // Note, we're not copying any strings here. This works,
-                // because we pass the vector by reference, and it is "owned"
-                // by _push_impl, so the lifetime is longer.
-                return qdb_string_t{column.c_str(), column.size()};
-            });
+            [](std::string const & column) -> char const * { return column.c_str(); });
 
-        out.options               = detail::to_push_options(mode);
+        out.deduplication_mode    = detail::to_qdb(mode);
         out.where_duplicate       = where_duplicate.release();
         out.where_duplicate_count = columns.size();
     }

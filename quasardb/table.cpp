@@ -2,9 +2,10 @@
 #include "dispatch.hpp"
 #include "metrics.hpp"
 #include "object_tracker.hpp"
-#include "table_reader.hpp"
+#include "reader.hpp"
 #include "traits.hpp"
 #include "convert/point.hpp"
+#include <memory> // for make_unique
 
 namespace qdb
 {
@@ -100,42 +101,8 @@ void table::_cache_metadata() const
     {
         _ttl = std::chrono::milliseconds{metadata->ttl};
     }
-}
 
-py::object table::reader(
-    const std::vector<std::string> & columns, py::object ranges, bool dict_mode) const
-{
-    _handle->check_open();
-
-    auto ranges_ = qdb::convert_ranges(ranges);
-
-    std::vector<detail::column_info> c_columns;
-
-    if (columns.empty())
-    {
-        // This is a kludge, because technically a table can have no columns, and we're
-        // abusing it as "no argument provided". It's a highly exceptional use case, and
-        // doesn't really have any implication in practice (we just look up twice), so it
-        // should be ok.
-        c_columns = list_columns();
-    }
-    else
-    {
-        c_columns.reserve(columns.size());
-        // This transformation can probably be optimized, but it's only invoked when constructing
-        // the reader so it's unlikely to be a performance bottleneck.
-        std::transform(std::cbegin(columns), std::cend(columns), std::back_inserter(c_columns),
-            [this](const auto & col) {
-                const auto & info = column_info_by_id(col);
-                return detail::column_info{info.type, col, info.symtable};
-            });
-    }
-
-    return (dict_mode == true
-                ? py::cast(qdb::table_reader<reader::ts_dict_row>(_handle, _alias, c_columns, ranges_),
-                    py::return_value_policy::move)
-                : py::cast(qdb::table_reader<reader::ts_fast_row>(_handle, _alias, c_columns, ranges_),
-                    py::return_value_policy::move));
+    _shard_size = std::chrono::milliseconds{metadata->shard_size};
 }
 
 qdb_uint_t table::erase_ranges(const std::string & column, py::object ranges)
@@ -286,4 +253,5 @@ std::pair<pybind11::array, masked_array> table::timestamp_get_ranges(
 
     return ret;
 }
+
 }; // namespace qdb

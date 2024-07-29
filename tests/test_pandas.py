@@ -129,7 +129,7 @@ def test_dataframe_can_read_columns(qdbpd_write_fn, df_with_table, qdbd_connecti
 
     qdbpd_write_fn(df1, qdbd_connection, table, infer_types=False, dtype=dtype)
 
-    df2 = qdbpd.read_dataframe(table, columns=[column_name])
+    df2 = qdbpd.read_dataframe(table, column_names=[column_name])
 
     _assert_df_equal(df1, df2)
 
@@ -163,7 +163,6 @@ def test_write_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
     res = qdbpd.read_dataframe(table)
 
     _assert_df_equal(df, res)
-
 
 def test_multiple_dataframe(qdbpd_writes_fn, dfs_with_tables, qdbd_connection):
 
@@ -422,6 +421,6 @@ def test_regression_sc11337(qdbpd_write_fn, df_with_table, qdbd_connection, colu
 
     qdbpd_write_fn(df1, qdbd_connection, table.get_name(), fast=True, infer_types=True)
 
-    df2 = qdbpd.read_dataframe(table, columns=[column_name])
+    df2 = qdbpd.read_dataframe(table, column_names=[column_name])
 
     _assert_df_equal(df1, df2)

@@ -32,6 +32,7 @@
 
 #include "handle.hpp"
 #include <qdb/option.h>
+#include "detail/qdb_resource.hpp"
 #include <chrono>
 
 namespace qdb
@@ -80,6 +81,21 @@ public:
             set_file_credential(user_security_file, cluster_public_key_file);
         }
     };
+
+    void set_timezone(std::string const & tz)
+    {
+        qdb::qdb_throw_if_error(*_handle, qdb_option_set_timezone(*_handle, tz.c_str()));
+    }
+
+    std::string get_timezone()
+    {
+        detail::qdb_resource<char const> tz{*_handle};
+        qdb::qdb_throw_if_error(*_handle, qdb_option_get_timezone(*_handle, &tz));
+
+        std::string ret{tz.get()};
+
+        return ret;
+    }
 
     void set_timeout(std::chrono::milliseconds ms)
     {
@@ -221,7 +237,8 @@ static inline void register_options(Module & m)
     py::enum_<qdb_compression_t>{o, "Compression", py::arithmetic(), "Compression type"} //
         .value("Disabled", qdb_comp_none)                                                //
         .value("Fast", qdb_comp_fast)                                                    //
-        .value("Best", qdb_comp_best);                                                   //
+        .value("Best", qdb_comp_best)                                                    //
+        .value("Balanced", qdb_comp_balanced);                                           //
 
     py::enum_<qdb_encryption_t>{o, "Encryption", py::arithmetic(), "Encryption type"} //
         .value("Disabled", qdb_crypt_none)                                            //
@@ -230,6 +247,8 @@ static inline void register_options(Module & m)
     o.def(py::init<qdb::handle_ptr>())                                                    //
         .def("set_timeout", &qdb::options::set_timeout)                                   //
         .def("get_timeout", &qdb::options::get_timeout)                                   //
+        .def("set_timezone", &qdb::options::set_timezone)                                 //
+        .def("get_timezone", &qdb::options::get_timezone)                                 //
         .def("enable_user_properties", &qdb::options::enable_user_properties)             //
         .def("disable_user_properties", &qdb::options::disable_user_properties)           //
         .def("set_stabilization_max_wait", &qdb::options::set_stabilization_max_wait)     //
@@ -242,8 +261,6 @@ static inline void register_options(Module & m)
         .def("set_client_max_in_buf_size", &qdb::options::set_client_max_in_buf_size)     //
         .def("get_client_max_in_buf_size", &qdb::options::get_client_max_in_buf_size)     //
         .def("get_cluster_max_in_buf_size", &qdb::options::get_cluster_max_in_buf_size)   //
-        .def("set_client_max_parallelism", &qdb::options::set_client_max_parallelism,     //
-            py::arg("parallelism"))                                                       //
         .def("get_client_max_parallelism", &qdb::options::get_client_max_parallelism)     //
         .def("set_query_max_length", &qdb::options::set_query_max_length,                 //
             py::arg("query_max_length"))                                                  //
