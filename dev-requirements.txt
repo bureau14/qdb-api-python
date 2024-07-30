@@ -23,6 +23,11 @@ pytest ~= 8.3.2
 pytest-runner ~= 6.0.1
 pytest-benchmark ~= 4.0.0
 
+# Seems like numpy>2 requires this in combination with pytest,
+# but is never set in the requirements.
+hypothesis ~= 6.108.5
+
+
 # XXX(leon): Later versions of pdoc3 are incompatible with our doc process!
 pdoc3 == 0.7.5
 teamcity-messages == 1.29
@@ -35,7 +40,3 @@ setuptools-git == 1.2
 #            https://github.com/pypa/setuptools/issues/4483
 #
 setuptools < 71
-
-# Seems like numpy>2 requires this in combination with pytest,
-# but is never set in the requirements.
-hypothesis ~= 6.108.5
