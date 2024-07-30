@@ -351,6 +351,8 @@ set(QDB_FILES
   numpy.cpp
   object_tracker.hpp
   options.hpp
+  properties.cpp
+  properties.hpp
   query.hpp
   query.cpp
   reader.cpp
