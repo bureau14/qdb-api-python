@@ -17,14 +17,11 @@ pandas ~= 2.1.1; python_version > '3.9'
 wheel == 0.37.1; python_version <= '3.6'
 wheel == 0.38.4; python_version > '3.6'
 
-pytest ~= 7.4.2; python_version > '3.6'
-pytest == 6.2.5; python_version <= '3.6'
-pytest-runner ~= 6.0.0; python_version > '3.6'
-pytest-runner == 5.3.1; python_version <= '3.6'
-pytest-benchmark ~= 4.0.0; python_version > '3.6'
-pytest-benchmark == 3.4.1; python_version <= '3.6'
-
 ## Any environment
+
+pytest ~= 8.3.2
+pytest-runner ~= 6.0.1
+pytest-benchmark ~= 4.0.0
 
 # XXX(leon): Later versions of pdoc3 are incompatible with our doc process!
 pdoc3 == 0.7.5
