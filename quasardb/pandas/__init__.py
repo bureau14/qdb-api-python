@@ -246,21 +246,14 @@ def stream_dataframe(table : quasardb.Table, *, batch_size : int = 0, column_nam
     if ranges:
         kwargs['ranges'] = ranges
 
-    print("kwargs: {}".format(kwargs))
-
     with table.reader(**kwargs) as reader:
-        print("has reader")
         for batch in reader:
-
-            print("got batch")
-
             # We always expect the timestamp column, and set this as the index
             assert '$timestamp' in batch
 
             idx = pd.Index(batch.pop('$timestamp'), copy=False, name='$timestamp')
             df = pd.DataFrame(batch, index=idx)
 
-            print("got df after batch, yielding df")
             yield df
 
 
