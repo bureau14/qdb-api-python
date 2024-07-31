@@ -182,12 +182,12 @@ setup(name=package_name,
           'Intended Audience :: Other Audience',
           'Intended Audience :: System Administrators',
           'Intended Audience :: Telecommunications Industry',
-          'Programming Language :: Python :: 3.6',
           'Programming Language :: Python :: 3.7',
           'Programming Language :: Python :: 3.8',
           'Programming Language :: Python :: 3.9',
           'Programming Language :: Python :: 3.10',
           'Programming Language :: Python :: 3.11',
+          'Programming Language :: Python :: 3.12',
           'Topic :: Database',
           'Topic :: Software Development :: Libraries :: Python Modules',
           "License :: OSI Approved :: BSD License",
@@ -198,10 +198,10 @@ setup(name=package_name,
       extras_require={
           "pandas": ["pandas"],
           "tests": [
-              "pytest >= 6.2.5",
-              "pytest-runner >= 5.3.1",
-              "pytest-benchmark == 3.4.1",
-              "teamcity-messages >= 1.29"]
+              "pytest",
+              "pytest-runner",
+              "pytest-benchmark",
+              "teamcity-messages"]
       },
 
       packages=packages,
