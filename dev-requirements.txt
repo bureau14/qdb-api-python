@@ -26,7 +26,7 @@ pytest-benchmark
 
 # Seems like numpy>2 requires this in combination with pytest,
 # but is never set in the requirements.
-hypothesis ~= 6.108.5
+hypothesis
 
 
 # XXX(leon): Later versions of pdoc3 are incompatible with our doc process!
