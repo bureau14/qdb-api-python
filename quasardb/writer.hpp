@@ -367,11 +367,12 @@ private:
     static staged_tables_t _stage_tables(writer::data const & data);
 
     void _push_impl(staged_tables_t & staged_tables,
-        qdb_exp_batch_push_mode_t mode,
+        qdb_exp_batch_options_t options,
         detail::deduplicate_options deduplicate_options,
         qdb_ts_range_t * ranges = nullptr);
 
     detail::deduplicate_options _deduplicate_from_args(py::kwargs args);
+    qdb_exp_batch_push_flags_t _push_flags_from_args(py::kwargs args);
 
 private:
     qdb::logger _logger;

@@ -281,7 +281,12 @@ void writer::push(writer::data const & data, py::kwargs args)
     qdb::object_tracker::scoped_capture capture{_object_tracker};
     staged_tables_t staged_tables = _stage_tables(data);
 
-    _push_impl(staged_tables, qdb_exp_batch_push_transactional, _deduplicate_from_args(args));
+    const qdb_exp_batch_options_t options = {
+        .mode       = qdb_exp_batch_push_transactional, //
+        .push_flags = _push_flags_from_args(args)       //
+    };
+
+    _push_impl(staged_tables, options, _deduplicate_from_args(args));
 }
 
 void writer::push_async(writer::data const & data, py::kwargs args)
@@ -289,7 +294,12 @@ void writer::push_async(writer::data const & data, py::kwargs args)
     qdb::object_tracker::scoped_capture capture{_object_tracker};
     staged_tables_t staged_tables = _stage_tables(data);
 
-    _push_impl(staged_tables, qdb_exp_batch_push_async, _deduplicate_from_args(args));
+    const qdb_exp_batch_options_t options = {
+        .mode       = qdb_exp_batch_push_async,   //
+        .push_flags = _push_flags_from_args(args) //
+    };
+
+    _push_impl(staged_tables, options, _deduplicate_from_args(args));
 }
 
 void writer::push_fast(writer::data const & data, py::kwargs args)
@@ -297,7 +307,12 @@ void writer::push_fast(writer::data const & data, py::kwargs args)
     qdb::object_tracker::scoped_capture capture{_object_tracker};
     staged_tables_t staged_tables = _stage_tables(data);
 
-    _push_impl(staged_tables, qdb_exp_batch_push_fast, _deduplicate_from_args(args));
+    const qdb_exp_batch_options_t options = {
+        .mode       = qdb_exp_batch_push_fast,    //
+        .push_flags = _push_flags_from_args(args) //
+    };
+
+    _push_impl(staged_tables, options, _deduplicate_from_args(args));
 }
 
 void writer::push_truncate(writer::data const & data, py::kwargs args)
@@ -343,7 +358,12 @@ void writer::push_truncate(writer::data const & data, py::kwargs args)
         tr                                        = staged_table.time_range();
     }
 
-    _push_impl(staged_tables, qdb_exp_batch_push_truncate, deduplicate, &tr);
+    const qdb_exp_batch_options_t options = {
+        .mode       = qdb_exp_batch_push_truncate, //
+        .push_flags = _push_flags_from_args(args)  //
+    };
+
+    _push_impl(staged_tables, options, deduplicate, &tr);
 }
 
 detail::deduplicate_options writer::_deduplicate_from_args(py::kwargs args)
@@ -391,6 +411,37 @@ detail::deduplicate_options writer::_deduplicate_from_args(py::kwargs args)
 
     throw qdb::invalid_argument_exception{error_msg};
 };
+
+qdb_exp_batch_push_flags_t writer::_push_flags_from_args(py::kwargs args)
+{
+    if (!args.contains("push_flags"))
+    {
+        return qdb_exp_batch_push_flag_none;
+    }
+
+    if (py::isinstance<py::str>(args["push_flags"]))
+    {
+        const auto & flag = py::cast<std::string>(args["push_flags"]);
+
+        if (flag == "write_through")
+        {
+            return qdb_exp_batch_push_flag_write_through;
+        }
+
+        std::string error_msg = "invalid argument provided for `push_flags`: expected "
+                                "'write_through', got: ";
+        error_msg += flag;
+
+        throw qdb::invalid_argument_exception{error_msg};
+    }
+    else
+    {
+        std::string error_msg = "Invalid argument provided for `push_flags`: expected string, got: ";
+        error_msg += args["push_flags"].cast<py::str>();
+
+        throw qdb::invalid_argument_exception{error_msg};
+    }
+}
 
 /* static */ writer::staged_tables_t writer::_stage_tables(writer::data const & data)
 {
@@ -459,7 +510,7 @@ detail::deduplicate_options writer::_deduplicate_from_args(py::kwargs args)
 }
 
 void writer::_push_impl(writer::staged_tables_t & staged_tables,
-    qdb_exp_batch_push_mode_t mode,
+    qdb_exp_batch_options_t options,
     detail::deduplicate_options deduplicate_options,
     qdb_ts_range_t * ranges)
 {
@@ -482,7 +533,7 @@ void writer::_push_impl(writer::staged_tables_t & staged_tables,
         detail::staged_table & staged_table = pos->second;
         auto & batch_table                  = batch.at(cur++);
 
-        staged_table.prepare_batch(mode, deduplicate_options, ranges, batch_table);
+        staged_table.prepare_batch(options.mode, deduplicate_options, ranges, batch_table);
 
         if (batch_table.data.column_count == 0) [[unlikely]]
         {
@@ -497,8 +548,8 @@ void writer::_push_impl(writer::staged_tables_t & staged_tables,
     // Make sure to measure the time it takes to do the actual push
     qdb::metrics::scoped_capture capture{"qdb_batch_push"};
 
-    qdb::qdb_throw_if_error(
-        *_handle, qdb_exp_batch_push(*_handle, mode, batch.data(), nullptr, batch.size()));
+    qdb::qdb_throw_if_error(*_handle,
+        qdb_exp_batch_push_with_options(*_handle, &options, batch.data(), nullptr, batch.size()));
 }
 
 void register_writer(py::module_ & m)
