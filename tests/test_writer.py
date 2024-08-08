@@ -340,6 +340,28 @@ def test_insert_data_ordered_multiple_shards_two_push(qdbd_connection, table):
         assert row['$timestamp'] == timestamps[idx]
         assert row['the_int64'] == values[idx]
 
+def test_write_through_flag(qdbd_connection, table):
+    timestamp = np.datetime64('2020-01-01T00:00:00', 'ns')
+    value = 'aaa'
+
+    writer = qdbd_connection.writer()
+    writer.start_row(table, timestamp)
+    writer.set_string(2, value)
+    writer.push(write_through=True)
+
+    res = qdbd_connection.query(
+        'SELECT "$timestamp","the_string" FROM "{}"'.format(
+            table.get_name()))
+    assert len(res) == 1
+    assert res[0]['$timestamp'] == timestamp
+    assert res[0]['the_string'] == value
+
+def test_write_through_flag_throws_when_incorrect(qdbd_connection, table):
+    writer = qdbd_connection.writer()
+    writer.start_row(table, np.datetime64('2020-01-01T00:00:00', 'ns'))
+    with pytest.raises(quasardb.InvalidArgumentError):
+        writer.push(write_through='wrong!')
+
 # generative tests
 
 
