@@ -311,6 +311,7 @@ def write_dataframes(
         deduplicate=False,
         deduplication_mode='drop',
         infer_types=True,
+        write_through=False,
         writer=None):
     """
     Store a dataframe into a table with the pin column API.
@@ -378,6 +379,11 @@ def write_dataframes(
 
       Defaults to False.
 
+    write_through: optional bool
+      Tell the server to not cache data after write.  This flag can have a positive
+      or negative impact on performance and should be used carefully,
+      by default caching is left at the discretion of the server.
+
     """
 
     # If dfs is a dict, we convert it to a list of tuples.
@@ -430,6 +436,7 @@ def write_dataframes(
                               deduplicate=deduplicate,
                               deduplication_mode=deduplication_mode,
                               infer_types=infer_types,
+                              write_through=write_through,
                               writer=writer)
 
 def write_dataframe(
