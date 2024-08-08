@@ -414,30 +414,20 @@ detail::deduplicate_options writer::_deduplicate_from_args(py::kwargs args)
 
 qdb_exp_batch_push_flags_t writer::_push_flags_from_args(py::kwargs args)
 {
-    if (!args.contains("push_flags"))
+    if (!args.contains("write_through"))
     {
         return qdb_exp_batch_push_flag_none;
     }
 
-    if (py::isinstance<py::str>(args["push_flags"]))
+    if (py::isinstance<py::bool_>(args["write_through"]))
     {
-        const auto & flag = py::cast<std::string>(args["push_flags"]);
-
-        if (flag == "write_through")
-        {
-            return qdb_exp_batch_push_flag_write_through;
-        }
-
-        std::string error_msg = "invalid argument provided for `push_flags`: expected "
-                                "'write_through', got: ";
-        error_msg += flag;
-
-        throw qdb::invalid_argument_exception{error_msg};
+        return py::cast<bool>(args["write_through"]) ? qdb_exp_batch_push_flag_write_through
+                                                     : qdb_exp_batch_push_flag_none;
     }
     else
     {
-        std::string error_msg = "Invalid argument provided for `push_flags`: expected string, got: ";
-        error_msg += args["push_flags"].cast<py::str>();
+        std::string error_msg = "Invalid argument provided for `write_through`: expected bool, got: ";
+        error_msg += args["write_through"].cast<py::str>();
 
         throw qdb::invalid_argument_exception{error_msg};
     }
