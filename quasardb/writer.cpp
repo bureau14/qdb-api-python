@@ -415,17 +415,18 @@ detail::deduplicate_options writer::_deduplicate_from_args(py::kwargs args)
     throw qdb::invalid_argument_exception{error_msg};
 };
 
-qdb_exp_batch_push_flags_t writer::_push_flags_from_args(py::kwargs args)
+qdb_uint_t writer::_push_flags_from_args(py::kwargs args)
 {
     if (!args.contains("write_through"))
     {
-        return qdb_exp_batch_push_flag_none;
+        return static_cast<qdb_uint_t>(qdb_exp_batch_push_flag_none);
     }
 
     try
     {
-        return py::cast<bool>(args["write_through"]) ? qdb_exp_batch_push_flag_write_through
-                                                     : qdb_exp_batch_push_flag_none;
+        return py::cast<bool>(args["write_through"])
+                   ? static_cast<qdb_uint_t>(qdb_exp_batch_push_flag_write_through)
+                   : static_cast<qdb_uint_t>(qdb_exp_batch_push_flag_none);
     }
     catch (py::cast_error const & /*e*/)
     {

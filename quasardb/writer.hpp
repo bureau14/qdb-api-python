@@ -380,7 +380,7 @@ private:
         detail::retry_options const & retry_options);
 
     detail::deduplicate_options _deduplicate_from_args(py::kwargs args);
-    qdb_exp_batch_push_flags_t _push_flags_from_args(py::kwargs args);
+    qdb_uint_t _push_flags_from_args(py::kwargs args);
 
 private:
     qdb::logger _logger;
