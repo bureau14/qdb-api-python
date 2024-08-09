@@ -466,11 +466,44 @@ void writer::_do_push(qdb_exp_batch_push_mode_t mode,
     std::vector<qdb_exp_batch_push_table_t> const & batch,
     detail::retry_options const & retry_options)
 {
-    // Make sure to measure the time it takes to do the actual push
-    qdb::metrics::scoped_capture capture{"qdb_batch_push"};
+    qdb_error_t err{qdb_e_ok};
 
-    qdb::qdb_throw_if_error(
-        *_handle, qdb_exp_batch_push(*_handle, mode, batch.data(), nullptr, batch.size()));
+    {
+        // Make sure to measure the time it takes to do the actual push.
+        // This is in its own scoped block so that we only actually measure
+        // the push time, not e.g. retry time.
+        qdb::metrics::scoped_capture capture{"qdb_batch_push"};
+
+        err = qdb_exp_batch_push(*_handle, mode, batch.data(), nullptr, batch.size());
+    }
+
+    if (detail::is_retryable(err) && retry_options.has_next())
+        [[unlikely]] // Unlikely, because err is most likely to be qdb_e_ok
+    {
+        // The error is retryable, and we have retries left
+        std::chrono::milliseconds sleep = retry_options.sleep_duration();
+
+        if (err == qdb_e_async_pipe_full) [[likely]]
+        {
+            _logger.warn("Async pipelines are currently full");
+        }
+        else
+        {
+            _logger.warn("A temporary error occurred");
+        }
+
+        _logger.warn("Sleeping for %d milliseconds", sleep.count());
+
+        std::this_thread::sleep_for(sleep);
+
+        // Now try again -- easier way to go about this is to enter recursion. Note how
+        // we permutate the retry_options, which automatically adjusts the amount of retries
+        // left and the next sleep duration.
+        _logger.warn("Retrying push operation, retries left: %d", retry_options.retries_left_);
+        return _do_push(mode, batch, retry_options.next());
+    }
+
+    qdb::qdb_throw_if_error(*_handle, err);
 }
 
 void writer::_push_impl(writer::staged_tables_t & staged_tables,
@@ -490,7 +523,6 @@ void writer::_push_impl(writer::staged_tables_t & staged_tables,
     batch.assign(staged_tables.size(), qdb_exp_batch_push_table_t());
 
     int cur = 0;
-    _logger.debug("writer::_push_impl");
 
     for (auto pos = staged_tables.begin(); pos != staged_tables.end(); ++pos)
     {

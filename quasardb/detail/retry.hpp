@@ -90,6 +90,9 @@ struct retry_options
      */
     retry_options next() const
     {
+
+        assert(has_next() == true);
+
         return retry_options{retries_left_ - 1, delay_ * exponent_, exponent_, jitter_};
     }
 
