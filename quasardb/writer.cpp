@@ -244,6 +244,23 @@ void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
         deduplicate_options.columns_);
 }
 
+/* static */ detail::retry_options detail::retry_options::from_kwargs(py::kwargs args)
+{
+    if (!args.contains("retries"))
+    {
+        return {};
+    }
+
+    if (!args.contains("retry_delay"))
+    {
+        return {args["retries"].cast<std::size_t>()};
+    }
+
+    // TODO(leon): support additional arguments such as exponent and jitter.
+    //             for now we just use default values.
+    return {args["retries"].cast<std::size_t>(), args["retry_delay"].cast<std::chrono::milliseconds>()};
+}
+
 }; // namespace qdb::detail
 
 namespace qdb
@@ -281,7 +298,8 @@ void writer::push(writer::data const & data, py::kwargs args)
     qdb::object_tracker::scoped_capture capture{_object_tracker};
     staged_tables_t staged_tables = _stage_tables(data);
 
-    _push_impl(staged_tables, qdb_exp_batch_push_transactional, _deduplicate_from_args(args));
+    _push_impl(staged_tables, qdb_exp_batch_push_transactional, _deduplicate_from_args(args),
+        detail::retry_options::from_kwargs(args));
 }
 
 void writer::push_async(writer::data const & data, py::kwargs args)
@@ -289,7 +307,8 @@ void writer::push_async(writer::data const & data, py::kwargs args)
     qdb::object_tracker::scoped_capture capture{_object_tracker};
     staged_tables_t staged_tables = _stage_tables(data);
 
-    _push_impl(staged_tables, qdb_exp_batch_push_async, _deduplicate_from_args(args));
+    _push_impl(staged_tables, qdb_exp_batch_push_async, _deduplicate_from_args(args),
+        detail::retry_options::from_kwargs(args));
 }
 
 void writer::push_fast(writer::data const & data, py::kwargs args)
@@ -297,7 +316,8 @@ void writer::push_fast(writer::data const & data, py::kwargs args)
     qdb::object_tracker::scoped_capture capture{_object_tracker};
     staged_tables_t staged_tables = _stage_tables(data);
 
-    _push_impl(staged_tables, qdb_exp_batch_push_fast, _deduplicate_from_args(args));
+    _push_impl(staged_tables, qdb_exp_batch_push_fast, _deduplicate_from_args(args),
+        detail::retry_options::from_kwargs(args));
 }
 
 void writer::push_truncate(writer::data const & data, py::kwargs args)
@@ -343,7 +363,8 @@ void writer::push_truncate(writer::data const & data, py::kwargs args)
         tr                                        = staged_table.time_range();
     }
 
-    _push_impl(staged_tables, qdb_exp_batch_push_truncate, deduplicate, &tr);
+    _push_impl(staged_tables, qdb_exp_batch_push_truncate, deduplicate,
+        detail::retry_options::from_kwargs(args), &tr);
 }
 
 detail::deduplicate_options writer::_deduplicate_from_args(py::kwargs args)
@@ -470,7 +491,8 @@ void writer::_do_push(
 
 void writer::_push_impl(writer::staged_tables_t & staged_tables,
     qdb_exp_batch_push_mode_t mode,
-    detail::deduplicate_options deduplicate_options,
+    detail::deduplicate_options const & deduplicate_options,
+    detail::retry_options const & retry_options,
     qdb_ts_range_t * ranges)
 {
     _handle->check_open();
