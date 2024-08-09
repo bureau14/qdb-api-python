@@ -311,8 +311,9 @@ def write_dataframes(
         deduplicate=False,
         deduplication_mode='drop',
         infer_types=True,
-        write_through=False,
-        writer=None):
+        writer=None,
+        retries=0,
+        write_through=False):
     """
     Store a dataframe into a table with the pin column API.
 
@@ -383,6 +384,12 @@ def write_dataframes(
       If True, data is not cached after write.
       By default is False, in which case caching is left at the discretion of the server.
 
+    retries: optional int
+      Number of times to retry in case of a push failure. This is useful in case of async
+      pipeline failures, or when doing transactional inserts that may occasionally cause
+      transaction conflicts.
+
+      Retries with exponential backoff, starts at 3 seconds, and doubles every retry attempt.
     """
 
     # If dfs is a dict, we convert it to a list of tuples.
@@ -435,8 +442,13 @@ def write_dataframes(
                               deduplicate=deduplicate,
                               deduplication_mode=deduplication_mode,
                               infer_types=infer_types,
+<<<<<<< HEAD
                               write_through=write_through,
                               writer=writer)
+=======
+                              writer=writer,
+                              retries=retries)
+>>>>>>> master
 
 def write_dataframe(
         df,

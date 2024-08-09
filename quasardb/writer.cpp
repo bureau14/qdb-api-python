@@ -286,7 +286,8 @@ void writer::push(writer::data const & data, py::kwargs args)
         .push_flags = _push_flags_from_args(args)       //
     };
 
-    _push_impl(staged_tables, options, _deduplicate_from_args(args));
+    _push_impl(
+        staged_tables, options, _deduplicate_from_args(args), detail::retry_options::from_kwargs(args));
 }
 
 void writer::push_async(writer::data const & data, py::kwargs args)
@@ -299,7 +300,8 @@ void writer::push_async(writer::data const & data, py::kwargs args)
         .push_flags = _push_flags_from_args(args) //
     };
 
-    _push_impl(staged_tables, options, _deduplicate_from_args(args));
+    _push_impl(
+        staged_tables, options, _deduplicate_from_args(args), detail::retry_options::from_kwargs(args));
 }
 
 void writer::push_fast(writer::data const & data, py::kwargs args)
@@ -312,7 +314,8 @@ void writer::push_fast(writer::data const & data, py::kwargs args)
         .push_flags = _push_flags_from_args(args) //
     };
 
-    _push_impl(staged_tables, options, _deduplicate_from_args(args));
+    _push_impl(
+        staged_tables, options, _deduplicate_from_args(args), detail::retry_options::from_kwargs(args));
 }
 
 void writer::push_truncate(writer::data const & data, py::kwargs args)
@@ -363,7 +366,7 @@ void writer::push_truncate(writer::data const & data, py::kwargs args)
         .push_flags = _push_flags_from_args(args)  //
     };
 
-    _push_impl(staged_tables, options, deduplicate, &tr);
+    _push_impl(staged_tables, options, deduplicate, detail::retry_options::from_kwargs(args), &tr);
 }
 
 detail::deduplicate_options writer::_deduplicate_from_args(py::kwargs args)
@@ -499,9 +502,54 @@ qdb_exp_batch_push_flags_t writer::_push_flags_from_args(py::kwargs args)
     return staged_tables;
 }
 
+void writer::_do_push(qdb_exp_batch_options_t const & options,
+    std::vector<qdb_exp_batch_push_table_t> const & batch,
+    detail::retry_options const & retry_options)
+{
+    qdb_error_t err{qdb_e_ok};
+
+    {
+        // Make sure to measure the time it takes to do the actual push.
+        // This is in its own scoped block so that we only actually measure
+        // the push time, not e.g. retry time.
+        qdb::metrics::scoped_capture capture{"qdb_batch_push"};
+
+        err = qdb_exp_batch_push(*_handle, mode, batch.data(), nullptr, batch.size());
+    }
+
+    if (detail::is_retryable(err) && retry_options.has_next())
+        [[unlikely]] // Unlikely, because err is most likely to be qdb_e_ok
+    {
+        // The error is retryable, and we have retries left
+        std::chrono::milliseconds sleep = retry_options.sleep_duration();
+
+        if (err == qdb_e_async_pipe_full) [[likely]]
+        {
+            _logger.warn("Async pipelines are currently full");
+        }
+        else
+        {
+            _logger.warn("A temporary error occurred");
+        }
+
+        _logger.warn("Sleeping for %d milliseconds", sleep.count());
+
+        std::this_thread::sleep_for(sleep);
+
+        // Now try again -- easier way to go about this is to enter recursion. Note how
+        // we permutate the retry_options, which automatically adjusts the amount of retries
+        // left and the next sleep duration.
+        _logger.warn("Retrying push operation, retries left: %d", retry_options.retries_left_);
+        return _do_push(mode, batch, retry_options.next());
+    }
+
+    qdb::qdb_throw_if_error(*_handle, err);
+}
+
 void writer::_push_impl(writer::staged_tables_t & staged_tables,
-    qdb_exp_batch_options_t options,
-    detail::deduplicate_options deduplicate_options,
+    qdb_exp_batch_options_t const & options,
+    detail::deduplicate_options const & deduplicate_options,
+    detail::retry_options const & retry_options,
     qdb_ts_range_t * ranges)
 {
     _handle->check_open();
@@ -515,7 +563,6 @@ void writer::_push_impl(writer::staged_tables_t & staged_tables,
     batch.assign(staged_tables.size(), qdb_exp_batch_push_table_t());
 
     int cur = 0;
-    _logger.debug("writer::_push_impl");
 
     for (auto pos = staged_tables.begin(); pos != staged_tables.end(); ++pos)
     {
@@ -535,11 +582,7 @@ void writer::_push_impl(writer::staged_tables_t & staged_tables,
             batch_table.data.column_count, table_name);
     }
 
-    // Make sure to measure the time it takes to do the actual push
-    qdb::metrics::scoped_capture capture{"qdb_batch_push"};
-
-    qdb::qdb_throw_if_error(*_handle,
-        qdb_exp_batch_push_with_options(*_handle, &options, batch.data(), nullptr, batch.size()));
+    _do_push(options, batch, retry_options);
 }
 
 void register_writer(py::module_ & m)
