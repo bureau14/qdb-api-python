@@ -385,3 +385,18 @@ def test_regression_sc11333(qdbd_connection, table_name, start_date, row_count):
 
         res = qdbnp.read_array(t, col)
         assert_indexed_arrays_equal((idx, data[i]), res)
+
+def test_write_through_flag(arrays_with_index_and_table, qdbd_connection):
+    (ctype, dtype, data, index, table) = arrays_with_index_and_table
+
+    col = table.column_id_by_index(0)
+    qdbnp.write_arrays([data[0]], qdbd_connection, table, index=index, write_through=True)
+
+    res = qdbnp.read_array(table, col)
+    assert_indexed_arrays_equal((index, data[0]), res)
+
+def test_write_through_flag_throws_when_incorrect(arrays_with_index_and_table, qdbd_connection):
+    (ctype, dtype, data, index, table) = arrays_with_index_and_table
+
+    with pytest.raises(quasardb.InvalidArgumentError):
+        qdbnp.write_arrays([data[0]], qdbd_connection, table, index=index, write_through='wrong!')

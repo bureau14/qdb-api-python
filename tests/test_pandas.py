@@ -424,3 +424,18 @@ def test_regression_sc11337(qdbpd_write_fn, df_with_table, qdbd_connection, colu
     df2 = qdbpd.read_dataframe(table, column_names=[column_name])
 
     _assert_df_equal(df1, df2)
+
+def test_write_through_flag(qdbpd_write_fn, df_with_table, qdbd_connection):
+    (_, _, df, table) = df_with_table
+
+    qdbpd_write_fn(df, qdbd_connection, table, write_through=True)
+
+    df2 = qdbpd.read_dataframe(table)
+
+    _assert_df_equal(df, df2)
+
+def test_write_through_flag_throws_when_incorrect(qdbpd_write_fn, df_with_table, qdbd_connection):
+    (_, _, df, table) = df_with_table
+
+    with pytest.raises(quasardb.InvalidArgumentError):
+        qdbpd_write_fn(df, qdbd_connection, table, write_through='wrong!')
