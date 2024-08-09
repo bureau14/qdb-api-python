@@ -111,6 +111,16 @@ struct retry_options
     {}
 
     static retry_options from_kwargs(py::kwargs args);
+
+    inline constexpr bool has_next() const
+    {
+        return retries_left_ > 0;
+    }
+
+    inline retry_options next() const
+    {
+        return retry_options{retries_left_ - 1, delay_ * exponent_, exponent_, jitter_};
+    }
 };
 
 using int64_column     = std::vector<qdb_int_t>;
@@ -401,8 +411,9 @@ private:
         detail::retry_options const & retry_options,
         qdb_ts_range_t * ranges = nullptr);
 
-    void _do_push(
-        qdb_exp_batch_push_mode_t mode, std::vector<qdb_exp_batch_push_table_t> const & batch);
+    void _do_push(qdb_exp_batch_push_mode_t mode,
+        std::vector<qdb_exp_batch_push_table_t> const & batch,
+        detail::retry_options const & retry_options);
 
     detail::deduplicate_options _deduplicate_from_args(py::kwargs args);
 
