@@ -104,4 +104,17 @@ struct retry_options
     }
 };
 
+constexpr bool is_retryable(qdb_error_t e)
+{
+    switch (e)
+    {
+    case qdb_e_async_pipe_full:
+    case qdb_e_try_again:
+        return true;
+        break;
+    default:
+        return false;
+    };
+}
+
 }; // namespace qdb::detail
