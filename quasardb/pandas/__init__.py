@@ -380,9 +380,8 @@ def write_dataframes(
       Defaults to False.
 
     write_through: optional bool
-      Tell the server to not cache data after write.  This flag can have a positive
-      or negative impact on performance and should be used carefully,
-      by default caching is left at the discretion of the server.
+      If True, data is not cached after write.
+      By default is False, in which case caching is left at the discretion of the server.
 
     """
 
