@@ -458,6 +458,16 @@ detail::deduplicate_options writer::_deduplicate_from_args(py::kwargs args)
     return staged_tables;
 }
 
+void writer::_do_push(
+    qdb_exp_batch_push_mode_t mode, std::vector<qdb_exp_batch_push_table_t> const & batch)
+{
+    // Make sure to measure the time it takes to do the actual push
+    qdb::metrics::scoped_capture capture{"qdb_batch_push"};
+
+    qdb::qdb_throw_if_error(
+        *_handle, qdb_exp_batch_push(*_handle, mode, batch.data(), nullptr, batch.size()));
+}
+
 void writer::_push_impl(writer::staged_tables_t & staged_tables,
     qdb_exp_batch_push_mode_t mode,
     detail::deduplicate_options deduplicate_options,
@@ -494,11 +504,7 @@ void writer::_push_impl(writer::staged_tables_t & staged_tables,
             batch_table.data.column_count, table_name);
     }
 
-    // Make sure to measure the time it takes to do the actual push
-    qdb::metrics::scoped_capture capture{"qdb_batch_push"};
-
-    qdb::qdb_throw_if_error(
-        *_handle, qdb_exp_batch_push(*_handle, mode, batch.data(), nullptr, batch.size()));
+    _do_push(mode, batch);
 }
 
 void register_writer(py::module_ & m)

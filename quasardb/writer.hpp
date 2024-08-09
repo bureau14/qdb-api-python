@@ -371,6 +371,9 @@ private:
         detail::deduplicate_options deduplicate_options,
         qdb_ts_range_t * ranges = nullptr);
 
+    void _do_push(
+        qdb_exp_batch_push_mode_t mode, std::vector<qdb_exp_batch_push_table_t> const & batch);
+
     detail::deduplicate_options _deduplicate_from_args(py::kwargs args);
 
 private:
