@@ -37,7 +37,9 @@
 #include "object_tracker.hpp"
 #include "table.hpp"
 #include "utils.hpp"
+#include "detail/retry.hpp"
 #include <chrono>
+#include <random>
 #include <variant>
 #include <vector>
 
@@ -83,44 +85,6 @@ struct deduplicate_options
     deduplicate_options(deduplication_mode_t mode, detail::deduplicate columns)
         : columns_{columns}
         , mode_{mode} {};
-};
-
-struct retry_options
-{
-    // how many retries are left. 0 means no retries
-    std::size_t retries_left_;
-
-    // delay for the next retry
-    std::chrono::milliseconds delay_;
-
-    // factor by which delay is increased every retry
-    std::size_t exponent_;
-
-    // random jitter. 0.1 means the next delay will be within 10% range (higher or
-    // lower) of delay_
-    double jitter_;
-
-    retry_options(std::size_t retries   = 0,
-        std::chrono::milliseconds delay = std::chrono::milliseconds{3000},
-        std::size_t exponent            = 2,
-        double jitter                   = 0.1)
-        : retries_left_{retries}
-        , delay_{delay}
-        , exponent_{exponent}
-        , jitter_{jitter}
-    {}
-
-    static retry_options from_kwargs(py::kwargs args);
-
-    inline constexpr bool has_next() const
-    {
-        return retries_left_ > 0;
-    }
-
-    inline retry_options next() const
-    {
-        return retry_options{retries_left_ - 1, delay_ * exponent_, exponent_, jitter_};
-    }
 };
 
 using int64_column     = std::vector<qdb_int_t>;

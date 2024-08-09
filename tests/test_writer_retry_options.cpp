@@ -17,12 +17,13 @@ QDB_REGISTER_MODULE(test_writer_retry_options, m)
 
     m_.def("test_permutate_once", []() -> void {
         qdb::detail::retry_options retry_options{1};
-        TEST_CHECK_EQUAL(retry_options.retries_left_, 1);
         TEST_CHECK_EQUAL(retry_options.has_next(), true);
+        TEST_CHECK_EQUAL(retry_options.sleep_duration().count(), 3000);
 
         auto next_ = retry_options.next();
         TEST_CHECK_EQUAL(next_.retries_left_, 0);
         TEST_CHECK_EQUAL(next_.has_next(), false);
+        TEST_CHECK_EQUAL(next_.sleep_duration().count(), 6000);
     });
 }
 

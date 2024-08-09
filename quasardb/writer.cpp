@@ -244,23 +244,6 @@ void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
         deduplicate_options.columns_);
 }
 
-/* static */ detail::retry_options detail::retry_options::from_kwargs(py::kwargs args)
-{
-    if (!args.contains("retries"))
-    {
-        return {};
-    }
-
-    if (!args.contains("retry_delay"))
-    {
-        return {args["retries"].cast<std::size_t>()};
-    }
-
-    // TODO(leon): support additional arguments such as exponent and jitter.
-    //             for now we just use default values.
-    return {args["retries"].cast<std::size_t>(), args["retry_delay"].cast<std::chrono::milliseconds>()};
-}
-
 }; // namespace qdb::detail
 
 namespace qdb
