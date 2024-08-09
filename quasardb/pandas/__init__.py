@@ -442,13 +442,9 @@ def write_dataframes(
                               deduplicate=deduplicate,
                               deduplication_mode=deduplication_mode,
                               infer_types=infer_types,
-<<<<<<< HEAD
                               write_through=write_through,
-                              writer=writer)
-=======
                               writer=writer,
                               retries=retries)
->>>>>>> master
 
 def write_dataframe(
         df,

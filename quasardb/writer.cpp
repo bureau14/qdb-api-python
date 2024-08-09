@@ -514,7 +514,7 @@ void writer::_do_push(qdb_exp_batch_options_t const & options,
         // the push time, not e.g. retry time.
         qdb::metrics::scoped_capture capture{"qdb_batch_push"};
 
-        err = qdb_exp_batch_push(*_handle, mode, batch.data(), nullptr, batch.size());
+        err = qdb_exp_batch_push_with_options(*_handle, &options, batch.data(), nullptr, batch.size());
     }
 
     if (detail::is_retryable(err) && retry_options.has_next())
@@ -540,7 +540,7 @@ void writer::_do_push(qdb_exp_batch_options_t const & options,
         // we permutate the retry_options, which automatically adjusts the amount of retries
         // left and the next sleep duration.
         _logger.warn("Retrying push operation, retries left: %d", retry_options.retries_left_);
-        return _do_push(mode, batch, retry_options.next());
+        return _do_push(options, batch, retry_options.next());
     }
 
     qdb::qdb_throw_if_error(*_handle, err);
