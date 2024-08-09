@@ -37,6 +37,9 @@
 #include "object_tracker.hpp"
 #include "table.hpp"
 #include "utils.hpp"
+#include "detail/retry.hpp"
+#include <chrono>
+#include <random>
 #include <variant>
 #include <vector>
 
@@ -368,8 +371,13 @@ private:
 
     void _push_impl(staged_tables_t & staged_tables,
         qdb_exp_batch_push_mode_t mode,
-        detail::deduplicate_options deduplicate_options,
+        detail::deduplicate_options const & deduplicate_options,
+        detail::retry_options const & retry_options,
         qdb_ts_range_t * ranges = nullptr);
+
+    void _do_push(qdb_exp_batch_push_mode_t mode,
+        std::vector<qdb_exp_batch_push_table_t> const & batch,
+        detail::retry_options const & retry_options);
 
     detail::deduplicate_options _deduplicate_from_args(py::kwargs args);
 
