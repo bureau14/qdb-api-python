@@ -186,6 +186,33 @@ public:
     {}
 };
 
+class try_again_exception : public exception
+{
+public:
+    try_again_exception() noexcept
+        : exception(qdb_e_try_again,
+            std::string("The operation could not be completed at this time, please try again"))
+    {}
+
+    try_again_exception(std::string const & what) noexcept
+        : exception(qdb_e_try_again, what)
+    {}
+};
+
+class async_pipeline_full_exception : public exception
+{
+public:
+    async_pipeline_full_exception() noexcept
+        : exception(qdb_e_async_pipe_full,
+            std::string("The async pipelines are currently full, please try again later or slow down "
+                        "your ingestion speed."))
+    {}
+
+    async_pipeline_full_exception(std::string const & what) noexcept
+        : exception(qdb_e_async_pipe_full, what)
+    {}
+};
+
 class invalid_datetime_exception : public exception
 {
 public:
@@ -292,6 +319,12 @@ inline void qdb_throw_if_error(
         case qdb_e_invalid_argument:
             throw qdb::invalid_argument_exception{msg_data_};
 
+        case qdb_e_try_again:
+            throw qdb::try_again_exception{msg_data_};
+
+        case qdb_e_async_pipe_full:
+            throw qdb::async_pipeline_full_exception{msg_data_};
+
         default:
             throw qdb::exception{err_, msg_data_};
         };
@@ -329,6 +362,8 @@ static inline void register_errors(Module & m)
     py::register_exception<qdb::invalid_argument_exception>(m, "InvalidArgumentError", base_class);
     py::register_exception<qdb::invalid_query_exception>(m, "InvalidQueryError", base_class);
     py::register_exception<qdb::invalid_handle_exception>(m, "InvalidHandleError", base_class);
+    py::register_exception<qdb::try_again_exception>(m, "TryAgainError", base_class);
+    py::register_exception<qdb::async_pipeline_full_exception>(m, "AsyncPipelineFullError", base_class);
 }
 
 } // namespace qdb

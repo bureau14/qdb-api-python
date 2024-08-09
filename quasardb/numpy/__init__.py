@@ -569,7 +569,8 @@ def write_arrays(
         deduplicate=False,
         deduplication_mode='drop',
         infer_types = True,
-        writer = None):
+        writer = None,
+        retries = 0):
     """
     Write multiple aligned numpy arrays to a table.
 
@@ -658,6 +659,14 @@ def write_arrays(
 
       Reuse of the Writer allows for some performance improvements.
 
+
+    retries: optional int
+      Number of times to retry in case of a push failure. This is useful in case of async
+      pipeline failures, or when doing transactional inserts that may occasionally cause
+      transaction conflicts.
+
+      Retries with exponential backoff, starts at 3 seconds, and doubles every retry attempt.
+
     """
 
     if table:
@@ -673,7 +682,8 @@ def write_arrays(
                             deduplicate=deduplicate,
                             deduplication_mode=deduplication_mode,
                             infer_types=infer_types,
-                            writer=writer)
+                            writer=writer,
+                            retries=retries)
 
 
     ret = []
