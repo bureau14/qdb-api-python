@@ -570,7 +570,8 @@ def write_arrays(
         deduplication_mode='drop',
         infer_types = True,
         writer = None,
-        retries = 3):
+        retries = 3,
+        write_through = False):
     """
     Write multiple aligned numpy arrays to a table.
 
@@ -653,6 +654,10 @@ def write_arrays(
 
       Defaults to False.
 
+    write_through: optional bool
+      If True, data is not cached after write.
+      By default is False, in which case caching is left at the discretion of the server.
+
     writer: optional quasardb.Writer
       Allows you to explicitly provide a Writer to use, which is expected to be
       initialized with the `table`.
@@ -682,6 +687,7 @@ def write_arrays(
                             deduplicate=deduplicate,
                             deduplication_mode=deduplication_mode,
                             infer_types=infer_types,
+                            write_through=write_through,
                             writer=writer,
                             retries=retries)
 
@@ -752,15 +758,15 @@ def write_arrays(
     start = time.time()
 
     if fast is True:
-        writer.push_fast(push_data, deduplicate=deduplicate, deduplication_mode=deduplication_mode)
+        writer.push_fast(push_data, deduplicate=deduplicate, deduplication_mode=deduplication_mode, write_through=write_through)
     elif truncate is True:
-        writer.push_truncate(push_data, deduplicate=deduplicate, deduplication_mode=deduplication_mode)
+        writer.push_truncate(push_data, deduplicate=deduplicate, deduplication_mode=deduplication_mode, write_through=write_through)
     elif isinstance(truncate, tuple):
-        writer.push_truncate(push_data, range=truncate, deduplicate=deduplicate, deduplication_mode=deduplication_mode)
+        writer.push_truncate(push_data, range=truncate, deduplicate=deduplicate, deduplication_mode=deduplication_mode, write_through=write_through)
     elif _async is True:
-        writer.push_async(push_data, deduplicate=deduplicate, deduplication_mode=deduplication_mode)
+        writer.push_async(push_data, deduplicate=deduplicate, deduplication_mode=deduplication_mode, write_through=write_through)
     else:
-        writer.push(push_data, deduplicate=deduplicate, deduplication_mode=deduplication_mode)
+        writer.push(push_data, deduplicate=deduplicate, deduplication_mode=deduplication_mode, write_through=write_through)
 
     logger.debug("pushed %d rows in %s seconds",
                 n_rows, (time.time() - start))

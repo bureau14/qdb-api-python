@@ -281,8 +281,13 @@ void writer::push(writer::data const & data, py::kwargs args)
     qdb::object_tracker::scoped_capture capture{_object_tracker};
     staged_tables_t staged_tables = _stage_tables(data);
 
-    _push_impl(staged_tables, qdb_exp_batch_push_transactional, _deduplicate_from_args(args),
-        detail::retry_options::from_kwargs(args));
+    const qdb_exp_batch_options_t options = {
+        .mode       = qdb_exp_batch_push_transactional, //
+        .push_flags = _push_flags_from_args(args)       //
+    };
+
+    _push_impl(
+        staged_tables, options, _deduplicate_from_args(args), detail::retry_options::from_kwargs(args));
 }
 
 void writer::push_async(writer::data const & data, py::kwargs args)
@@ -290,8 +295,13 @@ void writer::push_async(writer::data const & data, py::kwargs args)
     qdb::object_tracker::scoped_capture capture{_object_tracker};
     staged_tables_t staged_tables = _stage_tables(data);
 
-    _push_impl(staged_tables, qdb_exp_batch_push_async, _deduplicate_from_args(args),
-        detail::retry_options::from_kwargs(args));
+    const qdb_exp_batch_options_t options = {
+        .mode       = qdb_exp_batch_push_async,   //
+        .push_flags = _push_flags_from_args(args) //
+    };
+
+    _push_impl(
+        staged_tables, options, _deduplicate_from_args(args), detail::retry_options::from_kwargs(args));
 }
 
 void writer::push_fast(writer::data const & data, py::kwargs args)
@@ -299,8 +309,13 @@ void writer::push_fast(writer::data const & data, py::kwargs args)
     qdb::object_tracker::scoped_capture capture{_object_tracker};
     staged_tables_t staged_tables = _stage_tables(data);
 
-    _push_impl(staged_tables, qdb_exp_batch_push_fast, _deduplicate_from_args(args),
-        detail::retry_options::from_kwargs(args));
+    const qdb_exp_batch_options_t options = {
+        .mode       = qdb_exp_batch_push_fast,    //
+        .push_flags = _push_flags_from_args(args) //
+    };
+
+    _push_impl(
+        staged_tables, options, _deduplicate_from_args(args), detail::retry_options::from_kwargs(args));
 }
 
 void writer::push_truncate(writer::data const & data, py::kwargs args)
@@ -346,8 +361,12 @@ void writer::push_truncate(writer::data const & data, py::kwargs args)
         tr                                        = staged_table.time_range();
     }
 
-    _push_impl(staged_tables, qdb_exp_batch_push_truncate, deduplicate,
-        detail::retry_options::from_kwargs(args), &tr);
+    const qdb_exp_batch_options_t options = {
+        .mode       = qdb_exp_batch_push_truncate, //
+        .push_flags = _push_flags_from_args(args)  //
+    };
+
+    _push_impl(staged_tables, options, deduplicate, detail::retry_options::from_kwargs(args), &tr);
 }
 
 detail::deduplicate_options writer::_deduplicate_from_args(py::kwargs args)
@@ -395,6 +414,28 @@ detail::deduplicate_options writer::_deduplicate_from_args(py::kwargs args)
 
     throw qdb::invalid_argument_exception{error_msg};
 };
+
+qdb_uint_t writer::_push_flags_from_args(py::kwargs args)
+{
+    if (!args.contains("write_through"))
+    {
+        return static_cast<qdb_uint_t>(qdb_exp_batch_push_flag_none);
+    }
+
+    try
+    {
+        return py::cast<bool>(args["write_through"])
+                   ? static_cast<qdb_uint_t>(qdb_exp_batch_push_flag_write_through)
+                   : static_cast<qdb_uint_t>(qdb_exp_batch_push_flag_none);
+    }
+    catch (py::cast_error const & /*e*/)
+    {
+        std::string error_msg = "Invalid argument provided for `write_through`: expected bool, got: ";
+        error_msg += py::str(py::type::of(args["write_through"])).cast<std::string>();
+
+        throw qdb::invalid_argument_exception{error_msg};
+    }
+}
 
 /* static */ writer::staged_tables_t writer::_stage_tables(writer::data const & data)
 {
@@ -462,7 +503,7 @@ detail::deduplicate_options writer::_deduplicate_from_args(py::kwargs args)
     return staged_tables;
 }
 
-void writer::_do_push(qdb_exp_batch_push_mode_t mode,
+void writer::_do_push(qdb_exp_batch_options_t const & options,
     std::vector<qdb_exp_batch_push_table_t> const & batch,
     detail::retry_options const & retry_options)
 {
@@ -474,7 +515,7 @@ void writer::_do_push(qdb_exp_batch_push_mode_t mode,
         // the push time, not e.g. retry time.
         qdb::metrics::scoped_capture capture{"qdb_batch_push"};
 
-        err = qdb_exp_batch_push(*_handle, mode, batch.data(), nullptr, batch.size());
+        err = qdb_exp_batch_push_with_options(*_handle, &options, batch.data(), nullptr, batch.size());
     }
 
     if (detail::is_retryable(err) && retry_options.has_next())
@@ -500,14 +541,14 @@ void writer::_do_push(qdb_exp_batch_push_mode_t mode,
         // we permutate the retry_options, which automatically adjusts the amount of retries
         // left and the next sleep duration.
         _logger.warn("Retrying push operation, retries left: %d", retry_options.retries_left_);
-        return _do_push(mode, batch, retry_options.next());
+        return _do_push(options, batch, retry_options.next());
     }
 
     qdb::qdb_throw_if_error(*_handle, err);
 }
 
 void writer::_push_impl(writer::staged_tables_t & staged_tables,
-    qdb_exp_batch_push_mode_t mode,
+    qdb_exp_batch_options_t const & options,
     detail::deduplicate_options const & deduplicate_options,
     detail::retry_options const & retry_options,
     qdb_ts_range_t * ranges)
@@ -530,7 +571,7 @@ void writer::_push_impl(writer::staged_tables_t & staged_tables,
         detail::staged_table & staged_table = pos->second;
         auto & batch_table                  = batch.at(cur++);
 
-        staged_table.prepare_batch(mode, deduplicate_options, ranges, batch_table);
+        staged_table.prepare_batch(options.mode, deduplicate_options, ranges, batch_table);
 
         if (batch_table.data.column_count == 0) [[unlikely]]
         {
@@ -542,7 +583,7 @@ void writer::_push_impl(writer::staged_tables_t & staged_tables,
             batch_table.data.column_count, table_name);
     }
 
-    _do_push(mode, batch, retry_options);
+    _do_push(options, batch, retry_options);
 }
 
 void register_writer(py::module_ & m)
