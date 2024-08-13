@@ -51,7 +51,7 @@ struct retry_options
     // added or removed from delay_
     double jitter_;
 
-    retry_options(std::size_t retries   = 0,
+    retry_options(std::size_t retries   = 3,
         std::chrono::milliseconds delay = std::chrono::milliseconds{3000},
         std::size_t exponent            = 2,
         double jitter                   = 0.1)

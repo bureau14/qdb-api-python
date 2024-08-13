@@ -312,7 +312,7 @@ def write_dataframes(
         deduplication_mode='drop',
         infer_types=True,
         writer=None,
-        retries=0):
+        retries=3):
     """
     Store a dataframe into a table with the pin column API.
 

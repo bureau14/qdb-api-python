@@ -570,7 +570,7 @@ def write_arrays(
         deduplication_mode='drop',
         infer_types = True,
         writer = None,
-        retries = 0):
+        retries = 3):
     """
     Write multiple aligned numpy arrays to a table.
 
