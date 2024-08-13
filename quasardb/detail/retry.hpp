@@ -41,6 +41,12 @@ struct retry_options
     // how many retries are left. 0 means no retries
     std::size_t retries_left_;
 
+    // a canary when running tests, to trigger 'please retry' errors for this amount of times
+#ifdef QDB_TESTS_ENABLED
+#    warning "Tests are enabled, enabling retry canary"
+    std::size_t test_canary_retry_count_;
+#endif
+
     // delay for the next retry
     std::chrono::milliseconds delay_;
 
