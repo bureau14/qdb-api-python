@@ -53,24 +53,41 @@ struct retry_options
     double jitter;
 
 #ifdef QDB_TESTS_ENABLED
-    // a canary when running tests, to trigger 'please retry' errors for this amount of times,
+    // a mock when running tests, to trigger 'please retry' errors for this amount of times,
     // only enabled when building for tests.
-    std::size_t test_canary_retry_count;
+    std::size_t mock_failures_left;
 
     /**
-     * Retry options with test canary
+     * Retry options with failure mocking for tests
      */
-    retry_options(std::size_t retries       = 3,
-        std::chrono::milliseconds delay     = std::chrono::milliseconds{3000},
-        std::size_t exponent                = 2,
-        double jitter                       = 0.1,
-        std::size_t test_canary_retry_count = 0)
+    retry_options(std::size_t retries   = 3,
+        std::chrono::milliseconds delay = std::chrono::milliseconds{3000},
+        std::size_t exponent            = 2,
+        double jitter                   = 0.1,
+        std::size_t mock_failures       = 0)
         : retries_left{retries}
         , delay{delay}
         , exponent{exponent}
         , jitter{jitter}
-        , test_canary_retry_count{test_canary_retry_count}
+        , mock_failures_left{mock_failures}
     {}
+
+    /**
+     * Returns true if we have an additional failure to mock for tests
+     */
+    inline constexpr bool has_mock_failure() const
+    {
+        return mock_failures_left > 0;
+    }
+
+    retry_options mock_failure() const
+    {
+        // We can get away with an assertion here, because this code is not part of the production
+        // release, so we don't have to "play nice" and throw exceptions.
+        assert(has_mock_failure() == true);
+
+        return {retries_left, delay, exponent, jitter, mock_failures_left - 1};
+    }
 
 #else
 
@@ -91,46 +108,33 @@ struct retry_options
 
     static retry_options from_kwargs(py::kwargs args)
     {
-        // TODO(leon): standardize theses default parameters in a constexpr somewhere, so that
-        //             we don't have to maintain the same standard values in multiple places.
-        std::size_t retries{3};
-        std::chrono::milliseconds delay{std::chrono::milliseconds{3000}};
-        std::size_t exponent{2};
-        double jitter{0.1};
-
-        if (args.contains("retries"))
+        if (args.contains("retries") == false)
         {
-            retries = args["retries"].cast<std::size_t>();
+            return {};
         }
 
-        if (args.contains("retry_delay"))
+        auto retries = args["retries"];
+
+        // We're going to assume that retries is an actual RetryOptions class, because
+        // our Numpy and Pandas adapters always coerce it to that type. By making this
+        // assumption, we can slightly optimize this code path.
+        //
+        // By providing an explicit RetryOptions object is also the only way to fine-tune
+        // other parameters.
+
+        try
         {
-            delay = args["retry_delay"].cast<std::chrono::milliseconds>();
+            return retries.cast<retry_options>();
         }
-
-        if (args.contains("retry_exponent"))
+        catch (py::cast_error const & /*e*/)
         {
-            exponent = args["retry_exponent"].cast<std::size_t>();
+            // For convenience, we also give the user the choice to just provide `retries`
+            // as an integer, in which case we'll assume this is the number of retries the
+            // user wants to perform.
+            //
+            // In all likelihood, this is the only parameter the user will want to tune.
+            return {retries.cast<std::size_t>()};
         }
-
-        if (args.contains("retry_jitter"))
-        {
-            jitter = args["retry_jitterr"].cast<double>();
-        }
-
-#ifdef QDB_TESTS_ENABLED
-        std::size_t test_canary_retry_count{0};
-
-        if (args.contains("retry_test_canary_retry_count"))
-        {
-            test_canary_retry_count = args["retry_test_canary_retry_count"].cast<std::size_t>();
-        }
-
-        return {retries, delay, exponent, jitter, test_canary_retry_count};
-
-#else
-        return {retries, delay, exponent, jitter};
-#endif
     }
 
     inline constexpr bool has_next() const
@@ -188,11 +192,11 @@ static inline void register_retry_options(py::module_ & m)
 #ifdef QDB_TESTS_ENABLED                                                                           //
     retry_options_c                                                                                //
         .def(py::init<std::size_t, std::chrono::milliseconds, std::size_t, double, std::size_t>(), //
-            py::arg("retries")                 = std::size_t{3},                                   //
-            py::arg("delay")                   = std::chrono::milliseconds{3000},                  //
-            py::arg("exponent")                = std::size_t{2},                                   //
-            py::arg("jitter")                  = double{0.1},                                      //
-            py::arg("test_canary_retry_count") = std::size_t{0}                                    //
+            py::arg("retries")       = std::size_t{3},                                             //
+            py::arg("delay")         = std::chrono::milliseconds{3000},                            //
+            py::arg("exponent")      = std::size_t{2},                                             //
+            py::arg("jitter")        = double{0.1},                                                //
+            py::arg("mock_failures") = std::size_t{0}                                              //
         );
 #else
     retry_options_c                                                                   //
@@ -204,18 +208,21 @@ static inline void register_retry_options(py::module_ & m)
         );
 #endif
 
-    retry_options_c                                                                        //
-        .def_readwrite("retries_left", &retry_options::retries_left)                       //
-        .def_readwrite("delay", &retry_options::delay)                                     //
-        .def_readwrite("exponent", &retry_options::exponent)                               //
-        .def_readwrite("jitter", &retry_options::jitter)                                   //
-                                                                                           //
-#ifdef QDB_TESTS_ENABLED                                                                   //
-        .def_readwrite("test_canary_retry_count", &retry_options::test_canary_retry_count) //
-#endif                                                                                     //
-                                                                                           //
-        .def("has_next", &retry_options::has_next)                                         //
-        .def("next", &retry_options::next)                                                 //
+    retry_options_c                                                              //
+        .def_readwrite("retries_left", &retry_options::retries_left)             //
+        .def_readwrite("delay", &retry_options::delay)                           //
+        .def_readwrite("exponent", &retry_options::exponent)                     //
+        .def_readwrite("jitter", &retry_options::jitter)                         //
+                                                                                 //
+        .def("has_next", &retry_options::has_next)                               //
+        .def("next", &retry_options::next)                                       //
+                                                                                 //
+#ifdef QDB_TESTS_ENABLED                                                         //
+        .def_readwrite("mock_failures_left", &retry_options::mock_failures_left) //
+        .def("has_mock_failure", &retry_options::has_mock_failure)               //
+        .def("mock_failure", &retry_options::mock_failure)                       //
+#endif                                                                           //
+                                                                                 //
 
         ;
 }

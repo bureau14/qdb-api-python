@@ -48,3 +48,9 @@ def test_retries_out_of_bounds():
 
     with pytest.raises(quasardb.OutOfBoundsError):
         x.next()
+
+def test_mock_failures_disabled_by_default():
+    x = RetryOptions()
+
+    assert x.has_mock_failure() == False
+    assert x.mock_failures_left == 0
