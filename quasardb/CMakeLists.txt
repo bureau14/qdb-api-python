@@ -146,6 +146,10 @@ endif()
 ###
 
 if(CLANG OR GNU)
+  if(QDB_TESTS_ENABLED)
+    add_compile_definitions(-DQDB_TESTS_ENABLED)
+  endif()
+
   if(CLANG AND NOT APPLE)
     # Clang + Ninja eats colors
     add_compile_options(
@@ -198,6 +202,11 @@ elseif (MSVC)
   message(STATUS "[qdb-api-python] Detected: msvc")
   add_definitions(/DSTATIC_LINKED)
   add_definitions(/D_CRT_SECURE_NO_WARNINGS=1)
+
+  if(QDB_TESTS_ENABLED)
+    add_compile_definitions(/DQDB_TESTS_ENABLED)
+  endif()
+
 
   add_compile_options(
     /volatile:iso
