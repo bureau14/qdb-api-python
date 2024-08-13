@@ -30,6 +30,7 @@
  */
 #pragma once
 
+#include "../error.hpp"
 #include <pybind11/pybind11.h>
 #include <chrono>
 
@@ -39,55 +40,102 @@ namespace qdb::detail
 struct retry_options
 {
     // how many retries are left. 0 means no retries
-    std::size_t retries_left_;
-
-    // a canary when running tests, to trigger 'please retry' errors for this amount of times
-#ifdef QDB_TESTS_ENABLED
-#    warning "Tests are enabled, enabling retry canary"
-    std::size_t test_canary_retry_count_;
-#endif
+    std::size_t retries_left;
 
     // delay for the next retry
-    std::chrono::milliseconds delay_;
+    std::chrono::milliseconds delay;
 
     // factor by which delay is increased every retry
-    std::size_t exponent_;
+    std::size_t exponent;
 
     // random jitter added/removed to delay_. Jitter of 0.1 means that 10% is automatically
     // added or removed from delay_
-    double jitter_;
+    double jitter;
 
+#ifdef QDB_TESTS_ENABLED
+    // a canary when running tests, to trigger 'please retry' errors for this amount of times,
+    // only enabled when building for tests.
+    std::size_t test_canary_retry_count;
+
+    /**
+     * Retry options with test canary
+     */
+    retry_options(std::size_t retries       = 3,
+        std::chrono::milliseconds delay     = std::chrono::milliseconds{3000},
+        std::size_t exponent                = 2,
+        double jitter                       = 0.1,
+        std::size_t test_canary_retry_count = 0)
+        : retries_left{retries}
+        , delay{delay}
+        , exponent{exponent}
+        , jitter{jitter}
+        , test_canary_retry_count{test_canary_retry_count}
+    {}
+
+#else
+
+    /**
+     * Retry options constructor
+     */
     retry_options(std::size_t retries   = 3,
         std::chrono::milliseconds delay = std::chrono::milliseconds{3000},
         std::size_t exponent            = 2,
         double jitter                   = 0.1)
-        : retries_left_{retries}
-        , delay_{delay}
-        , exponent_{exponent}
-        , jitter_{jitter}
+        : retries_left{retries}
+        , delay{delay}
+        , exponent{exponent}
+        , jitter{jitter}
     {}
+
+#endif
 
     static retry_options from_kwargs(py::kwargs args)
     {
-        if (!args.contains("retries"))
+        // TODO(leon): standardize theses default parameters in a constexpr somewhere, so that
+        //             we don't have to maintain the same standard values in multiple places.
+        std::size_t retries{3};
+        std::chrono::milliseconds delay{std::chrono::milliseconds{3000}};
+        std::size_t exponent{2};
+        double jitter{0.1};
+
+        if (args.contains("retries"))
         {
-            return {};
+            retries = args["retries"].cast<std::size_t>();
         }
 
-        if (!args.contains("retry_delay"))
+        if (args.contains("retry_delay"))
         {
-            return {args["retries"].cast<std::size_t>()};
+            delay = args["retry_delay"].cast<std::chrono::milliseconds>();
         }
 
-        // TODO(leon): support additional arguments such as exponent and jitter.
-        //             for now we just use default values.
-        return {
-            args["retries"].cast<std::size_t>(), args["retry_delay"].cast<std::chrono::milliseconds>()};
+        if (args.contains("retry_exponent"))
+        {
+            exponent = args["retry_exponent"].cast<std::size_t>();
+        }
+
+        if (args.contains("retry_jitter"))
+        {
+            jitter = args["retry_jitterr"].cast<double>();
+        }
+
+#ifdef QDB_TESTS_ENABLED
+        std::size_t test_canary_retry_count{0};
+
+        if (args.contains("retry_test_canary_retry_count"))
+        {
+            test_canary_retry_count = args["retry_test_canary_retry_count"].cast<std::size_t>();
+        }
+
+        return {retries, delay, exponent, jitter, test_canary_retry_count};
+
+#else
+        return {retries, delay, exponent, jitter};
+#endif
     }
 
     inline constexpr bool has_next() const
     {
-        return retries_left_ > 0;
+        return retries_left > 0;
     }
 
     /**
@@ -95,20 +143,25 @@ struct retry_options
      */
     retry_options next() const
     {
+        if (has_next() == false) [[unlikely]]
+        {
+            throw qdb::out_of_bounds_exception{
+                "RetryOptions.next() called but retries already exhausted."};
+        }
 
         assert(has_next() == true);
 
-        return retry_options{retries_left_ - 1, delay_ * exponent_, exponent_, jitter_};
+        return retry_options{retries_left - 1, delay * exponent, exponent, jitter};
     }
 
     /**
-     * Returns the next sleep duration, based on `delay_` and the provided jitter.
+     * Returns the next sleep duration, based on `delay` and the provided jitter.
      */
 
     std::chrono::milliseconds sleep_duration() const
     {
         // TODO(leon): include jitter_
-        return delay_;
+        return delay;
     }
 };
 
@@ -123,6 +176,48 @@ constexpr bool is_retryable(qdb_error_t e)
     default:
         return false;
     };
+}
+
+static inline void register_retry_options(py::module_ & m)
+{
+
+    namespace py = pybind11;
+
+    auto retry_options_c = py::class_<retry_options>{m, "RetryOptions"};
+
+#ifdef QDB_TESTS_ENABLED                                                                           //
+    retry_options_c                                                                                //
+        .def(py::init<std::size_t, std::chrono::milliseconds, std::size_t, double, std::size_t>(), //
+            py::arg("retries")                 = std::size_t{3},                                   //
+            py::arg("delay")                   = std::chrono::milliseconds{3000},                  //
+            py::arg("exponent")                = std::size_t{2},                                   //
+            py::arg("jitter")                  = double{0.1},                                      //
+            py::arg("test_canary_retry_count") = std::size_t{0}                                    //
+        );
+#else
+    retry_options_c                                                                   //
+        .def(py::init<std::size_t, std::chrono::milliseconds, std::size_t, double>(), //
+            py::arg("retries")  = std::size_t{3},                                     //
+            py::arg("delay")    = std::chrono::milliseconds{3000},                    //
+            py::arg("exponent") = std::size_t{2},                                     //
+            py::arg("jitter")   = double{0.1}                                         //
+        );
+#endif
+
+    retry_options_c                                                                        //
+        .def_readwrite("retries_left", &retry_options::retries_left)                       //
+        .def_readwrite("delay", &retry_options::delay)                                     //
+        .def_readwrite("exponent", &retry_options::exponent)                               //
+        .def_readwrite("jitter", &retry_options::jitter)                                   //
+                                                                                           //
+#ifdef QDB_TESTS_ENABLED                                                                   //
+        .def_readwrite("test_canary_retry_count", &retry_options::test_canary_retry_count) //
+#endif                                                                                     //
+                                                                                           //
+        .def("has_next", &retry_options::has_next)                                         //
+        .def("next", &retry_options::next)                                                 //
+
+        ;
 }
 
 }; // namespace qdb::detail

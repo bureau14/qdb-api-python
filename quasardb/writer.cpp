@@ -540,7 +540,7 @@ void writer::_do_push(qdb_exp_batch_options_t const & options,
         // Now try again -- easier way to go about this is to enter recursion. Note how
         // we permutate the retry_options, which automatically adjusts the amount of retries
         // left and the next sleep duration.
-        _logger.warn("Retrying push operation, retries left: %d", retry_options.retries_left_);
+        _logger.warn("Retrying push operation, retries left: %d", retry_options.retries_left);
         return _do_push(options, batch, retry_options.next());
     }
 

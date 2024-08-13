@@ -68,6 +68,7 @@ PYBIND11_MODULE(quasardb, m)
     qdb::register_metrics(m);
 
     qdb::detail::register_ts_column(m);
+    qdb::detail::register_retry_options(m);
 
     for (const auto & initializer : qdb::initializers())
     {

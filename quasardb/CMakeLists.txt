@@ -390,7 +390,6 @@ if(QDB_TESTS_ENABLED)
     ../tests/conftest.cpp
     ../tests/conftest.hpp
     ../tests/test_convert.cpp
-    ../tests/test_writer_retry_options.cpp
   )
 endif()
 
