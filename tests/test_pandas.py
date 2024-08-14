@@ -464,6 +464,7 @@ def test_retries(qdbpd_write_fn, df_with_table, qdbd_connection, retry_options, 
     else:
         do_write_fn()
 
+    # Verify retry count is exactly as expected by inspecting logs.
     retries_seen = 0
 
     for lr in caplog.records:
