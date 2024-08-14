@@ -52,45 +52,6 @@ struct retry_options
     // added or removed from delay_
     double jitter;
 
-#ifdef QDB_TESTS_ENABLED
-    // a mock when running tests, to trigger 'please retry' errors for this amount of times,
-    // only enabled when building for tests.
-    std::size_t mock_failures_left;
-
-    /**
-     * Retry options with failure mocking for tests
-     */
-    retry_options(std::size_t retries   = 3,
-        std::chrono::milliseconds delay = std::chrono::milliseconds{3000},
-        std::size_t exponent            = 2,
-        double jitter                   = 0.1,
-        std::size_t mock_failures       = 0)
-        : retries_left{retries}
-        , delay{delay}
-        , exponent{exponent}
-        , jitter{jitter}
-        , mock_failures_left{mock_failures}
-    {}
-
-    /**
-     * Returns true if we have an additional failure to mock for tests
-     */
-    inline constexpr bool has_mock_failure() const
-    {
-        return mock_failures_left > 0;
-    }
-
-    retry_options mock_failure() const
-    {
-        // We can get away with an assertion here, because this code is not part of the production
-        // release, so we don't have to "play nice" and throw exceptions.
-        assert(has_mock_failure() == true);
-
-        return {retries_left, delay, exponent, jitter, mock_failures_left - 1};
-    }
-
-#else
-
     /**
      * Retry options constructor
      */
@@ -103,8 +64,6 @@ struct retry_options
         , exponent{exponent}
         , jitter{jitter}
     {}
-
-#endif
 
     static retry_options from_kwargs(py::kwargs args)
     {
@@ -169,6 +128,37 @@ struct retry_options
     }
 };
 
+#ifdef QDB_TESTS_ENABLED
+struct mock_failure_options
+{
+
+    // a mock when running tests, to trigger 'please retry' errors for this amount of times,
+    // only enabled when building for tests.
+    std::size_t failures_left;
+
+    mock_failure_options(std::size_t failures = 0)
+        : failures_left{failures}
+    {}
+
+    /**
+     * Returns true if we have an additional failure to mock for tests
+     */
+    inline constexpr bool has_next() const
+    {
+        return failures_left > 0;
+    }
+
+    mock_failure_options next() const
+    {
+        // We can get away with an assertion here, because this code is not part of the production
+        // release, so we don't have to "play nice" and throw exceptions.
+        assert(has_next() == true);
+
+        return {failures_left - 1};
+    }
+};
+#endif
+
 constexpr bool is_retryable(qdb_error_t e)
 {
     switch (e)
@@ -187,44 +177,39 @@ static inline void register_retry_options(py::module_ & m)
 
     namespace py = pybind11;
 
-    auto retry_options_c = py::class_<retry_options>{m, "RetryOptions"};
+    py::class_<retry_options> retry_options_c{m, "RetryOptions"};
 
-#ifdef QDB_TESTS_ENABLED                                                                           //
-    retry_options_c                                                                                //
-        .def(py::init<std::size_t, std::chrono::milliseconds, std::size_t, double, std::size_t>(), //
-            py::arg("retries")       = std::size_t{3},                                             //
-            py::arg("delay")         = std::chrono::milliseconds{3000},                            //
-            py::arg("exponent")      = std::size_t{2},                                             //
-            py::arg("jitter")        = double{0.1},                                                //
-            py::arg("mock_failures") = std::size_t{0}                                              //
-        );
-#else
     retry_options_c                                                                   //
         .def(py::init<std::size_t, std::chrono::milliseconds, std::size_t, double>(), //
             py::arg("retries")  = std::size_t{3},                                     //
             py::arg("delay")    = std::chrono::milliseconds{3000},                    //
             py::arg("exponent") = std::size_t{2},                                     //
             py::arg("jitter")   = double{0.1}                                         //
-        );
-#endif
-
-    retry_options_c                                                              //
-        .def_readwrite("retries_left", &retry_options::retries_left)             //
-        .def_readwrite("delay", &retry_options::delay)                           //
-        .def_readwrite("exponent", &retry_options::exponent)                     //
-        .def_readwrite("jitter", &retry_options::jitter)                         //
-                                                                                 //
-        .def("has_next", &retry_options::has_next)                               //
-        .def("next", &retry_options::next)                                       //
-                                                                                 //
-#ifdef QDB_TESTS_ENABLED                                                         //
-        .def_readwrite("mock_failures_left", &retry_options::mock_failures_left) //
-        .def("has_mock_failure", &retry_options::has_mock_failure)               //
-        .def("mock_failure", &retry_options::mock_failure)                       //
-#endif                                                                           //
-                                                                                 //
-
+            )                                                                         //
+                                                                                      //
+        .def_readwrite("retries_left", &retry_options::retries_left)                  //
+        .def_readwrite("delay", &retry_options::delay)                                //
+        .def_readwrite("exponent", &retry_options::exponent)                          //
+        .def_readwrite("jitter", &retry_options::jitter)                              //
+                                                                                      //
+        .def("has_next", &retry_options::has_next)                                    //
+        .def("next", &retry_options::next)                                            //
         ;
+
+#ifdef QDB_TESTS_ENABLED
+    py::class_<mock_failure_options> mock_failure_options_c{m, "MockFailureOptions"};
+
+    mock_failure_options_c                                                    //
+        .def(py::init<std::size_t>(),                                         //
+            py::arg("failures") = std::size_t{0}                              //
+            )                                                                 //
+                                                                              //
+        .def_readwrite("failures_left", &mock_failure_options::failures_left) //
+                                                                              //
+        .def("has_next", &mock_failure_options::has_next)                     //
+        .def("next", &mock_failure_options::next)                             //
+        ;
+#endif
 }
 
 }; // namespace qdb::detail

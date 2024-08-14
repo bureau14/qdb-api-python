@@ -1,3 +1,8 @@
+
+import pytest
+import quasardb
+from quasardb import RetryOptions
+
 ###
 #
 # XXX: If this import fails, ensure that you built the quasardb python API with
@@ -5,15 +10,13 @@
 #
 #      ```
 #      export QDB_TESTS_ENABLED=ON
-#      python3 setup.py test --addopts "-s tests/test_retry_options.py"
+#      python3 setup.py test --addopts "-s tests/test_retry.py"
 #      ```
 #
 #      This is because the retry options are built-in with failure mocking
 #      ability when compiled with tests enabled.
+from quasardb import MockFailureOptions
 
-import pytest
-import quasardb
-from quasardb import RetryOptions
 
 def test_default_retry_thrice():
     x = RetryOptions()
@@ -50,7 +53,22 @@ def test_retries_out_of_bounds():
         x.next()
 
 def test_mock_failures_disabled_by_default():
-    x = RetryOptions()
+    x = MockFailureOptions()
 
-    assert x.has_mock_failure() == False
-    assert x.mock_failures_left == 0
+    assert x.has_next() == False
+    assert x.failures_left == 0
+
+def test_mock_failures_permutations():
+    x1 = MockFailureOptions(2)
+
+    x2 = x1.next()
+    x3 = x2.next()
+
+    assert x1.has_next() == True
+    assert x1.failures_left == 2
+
+    assert x2.has_next() == True
+    assert x2.failures_left == 1
+
+    assert x3.has_next() == False
+    assert x3.failures_left == 0
