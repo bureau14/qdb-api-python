@@ -85,6 +85,8 @@ struct deduplicate_options
     deduplicate_options(deduplication_mode_t mode, detail::deduplicate columns)
         : columns_{columns}
         , mode_{mode} {};
+
+    static detail::deduplicate_options from_kwargs(py::kwargs args);
 };
 
 using int64_column     = std::vector<qdb_int_t>;
@@ -372,14 +374,15 @@ private:
     void _push_impl(staged_tables_t & staged_tables,
         qdb_exp_batch_options_t const & options,
         detail::deduplicate_options const & deduplicate_options,
-        detail::retry_options const & retry_options,
+        detail::retry_options retry_options,
+        detail::mock_failure_options mock_failure_options,
         qdb_ts_range_t * ranges = nullptr);
 
     void _do_push(qdb_exp_batch_options_t const & options,
         std::vector<qdb_exp_batch_push_table_t> const & batch,
-        detail::retry_options const & retry_options);
+        detail::retry_options retry_options,
+        detail::mock_failure_options mock_failure_options);
 
-    detail::deduplicate_options _deduplicate_from_args(py::kwargs args);
     qdb_uint_t _push_flags_from_args(py::kwargs args);
 
 private:

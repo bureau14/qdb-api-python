@@ -128,16 +128,22 @@ struct retry_options
     }
 };
 
-#ifdef QDB_TESTS_ENABLED
+// A mock when running tests, to trigger 'please retry' errors for this amount of times,
+// only enabled when building for tests.
+//
+// We take extra precautions that parts of the code are only compiled when tests are built,
+// but for convenience we do always expose this class type and its variables, to avoid preprocessor
+// ifdef/ifndef madness all over the place and keep function signatures simple.
 struct mock_failure_options
 {
-
-    // a mock when running tests, to trigger 'please retry' errors for this amount of times,
-    // only enabled when building for tests.
     std::size_t failures_left;
 
-    constexpr mock_failure_options(std::size_t failures = 0)
+    // The type of error we raise
+    qdb_error_t err;
+
+    constexpr mock_failure_options(std::size_t failures = 0, qdb_error_t err = qdb_e_async_pipe_full)
         : failures_left{failures}
+        , err{err}
     {}
 
     /**
@@ -157,17 +163,26 @@ struct mock_failure_options
         return {failures_left - 1};
     }
 
+    inline constexpr qdb_error_t error() const
+    {
+        return err;
+    }
+
     static inline mock_failure_options from_kwargs(py::kwargs args)
     {
+        // Keeping this out of the main build prevents accidental mistakes
+#ifdef QDB_TESTS_ENABLED
         if (args.contains("mock_failure_options") == false)
         {
             return {};
         }
 
         return args["mock_failure_options"].cast<mock_failure_options>();
+#else
+        return {};
+#endif
     }
 };
-#endif
 
 constexpr bool is_retryable(qdb_error_t e)
 {
@@ -207,6 +222,8 @@ static inline void register_retry_options(py::module_ & m)
         .def("next", &retry_options::next)                                            //
         ;
 
+    // Do not expose any of this unless we are building in test mode, this keeps
+    // the bloat out of our API but most of all prevents accidental mistakes.
 #ifdef QDB_TESTS_ENABLED
     py::class_<mock_failure_options> mock_failure_options_c{m, "MockFailureOptions"};
 

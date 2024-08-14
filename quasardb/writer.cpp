@@ -5,6 +5,7 @@
 #include "numpy.hpp"
 #include "traits.hpp"
 #include "convert/array.hpp"
+#include "detail/retry.hpp"
 
 namespace qdb::detail
 {
@@ -244,132 +245,7 @@ void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
         deduplicate_options.columns_);
 }
 
-}; // namespace qdb::detail
-
-namespace qdb
-{
-
-void writer::data::append(
-    qdb::table const & table, py::handle const & index, py::list const & column_data)
-{
-    py::array index_ = numpy::array::ensure<traits::datetime64_ns_dtype>(index);
-
-    /**
-     * Additional check that all the data is actually of the same length, and data has been
-     * provided for each and every column.
-     */
-    if (column_data.size() != table.list_columns().size())
-    {
-        throw qdb::invalid_argument_exception{"data must be provided for every table column"};
-    }
-
-    for (py::handle const & data : column_data)
-    {
-        qdb::masked_array data_ = data.cast<qdb::masked_array>();
-        if (data_.size() != static_cast<std::size_t>(index_.size()))
-        {
-            throw qdb::invalid_argument_exception{
-                "every data array should be exactly the same length as the index array"};
-        }
-    }
-
-    xs_.push_back(value_type{table, index_, column_data});
-}
-
-void writer::push(writer::data const & data, py::kwargs args)
-{
-    qdb::object_tracker::scoped_capture capture{_object_tracker};
-    staged_tables_t staged_tables = _stage_tables(data);
-
-    const qdb_exp_batch_options_t options = {
-        .mode       = qdb_exp_batch_push_transactional, //
-        .push_flags = _push_flags_from_args(args)       //
-    };
-
-    _push_impl(
-        staged_tables, options, _deduplicate_from_args(args), detail::retry_options::from_kwargs(args));
-}
-
-void writer::push_async(writer::data const & data, py::kwargs args)
-{
-    qdb::object_tracker::scoped_capture capture{_object_tracker};
-    staged_tables_t staged_tables = _stage_tables(data);
-
-    const qdb_exp_batch_options_t options = {
-        .mode       = qdb_exp_batch_push_async,   //
-        .push_flags = _push_flags_from_args(args) //
-    };
-
-    _push_impl(
-        staged_tables, options, _deduplicate_from_args(args), detail::retry_options::from_kwargs(args));
-}
-
-void writer::push_fast(writer::data const & data, py::kwargs args)
-{
-    qdb::object_tracker::scoped_capture capture{_object_tracker};
-    staged_tables_t staged_tables = _stage_tables(data);
-
-    const qdb_exp_batch_options_t options = {
-        .mode       = qdb_exp_batch_push_fast,    //
-        .push_flags = _push_flags_from_args(args) //
-    };
-
-    _push_impl(
-        staged_tables, options, _deduplicate_from_args(args), detail::retry_options::from_kwargs(args));
-}
-
-void writer::push_truncate(writer::data const & data, py::kwargs args)
-{
-    qdb::object_tracker::scoped_capture capture{_object_tracker};
-    staged_tables_t staged_tables = _stage_tables(data);
-
-    auto deduplicate = _deduplicate_from_args(args);
-
-    // Sanity check, this should be checked for in the python-side of things as well,
-    // but people can invoke this manually if they want.
-    if (!std::holds_alternative<bool>(deduplicate.columns_)
-        || std::get<bool>(deduplicate.columns_) != false) [[unlikely]]
-    {
-        throw qdb::invalid_argument_exception{"Cannot set `deduplicate` for push_truncate."};
-    };
-
-    // As we are actively removing data, let's add an additional check to ensure the user
-    // doesn't accidentally truncate his whole database without inserting anything.
-    if (data.empty()) [[unlikely]]
-    {
-        throw qdb::invalid_argument_exception{"Writer is empty: you did not provide any rows to push."};
-    }
-
-    qdb_ts_range_t tr;
-
-    if (args.contains("range"))
-    {
-        tr = convert::value<py::tuple, qdb_ts_range_t>(py::cast<py::tuple>(args["range"]));
-    }
-    else
-    {
-        // TODO(leon): support multiple tables for push truncate
-        if (staged_tables.size() != 1) [[unlikely]]
-        {
-            throw qdb::invalid_argument_exception{
-                "Writer push truncate only supports a single "
-                "table unless an explicit range is provided: you provided more than one table without"
-                " an explicit range."};
-        }
-
-        detail::staged_table const & staged_table = staged_tables.cbegin()->second;
-        tr                                        = staged_table.time_range();
-    }
-
-    const qdb_exp_batch_options_t options = {
-        .mode       = qdb_exp_batch_push_truncate, //
-        .push_flags = _push_flags_from_args(args)  //
-    };
-
-    _push_impl(staged_tables, options, deduplicate, detail::retry_options::from_kwargs(args), &tr);
-}
-
-detail::deduplicate_options writer::_deduplicate_from_args(py::kwargs args)
+/* static */ detail::deduplicate_options detail::deduplicate_options::from_kwargs(py::kwargs args)
 {
     if (!args.contains("deduplicate") || !args.contains("deduplication_mode"))
     {
@@ -414,6 +290,153 @@ detail::deduplicate_options writer::_deduplicate_from_args(py::kwargs args)
 
     throw qdb::invalid_argument_exception{error_msg};
 };
+
+}; // namespace qdb::detail
+
+namespace qdb
+{
+
+void writer::data::append(
+    qdb::table const & table, py::handle const & index, py::list const & column_data)
+{
+    py::array index_ = numpy::array::ensure<traits::datetime64_ns_dtype>(index);
+
+    /**
+     * Additional check that all the data is actually of the same length, and data has been
+     * provided for each and every column.
+     */
+    if (column_data.size() != table.list_columns().size())
+    {
+        throw qdb::invalid_argument_exception{"data must be provided for every table column"};
+    }
+
+    for (py::handle const & data : column_data)
+    {
+        qdb::masked_array data_ = data.cast<qdb::masked_array>();
+        if (data_.size() != static_cast<std::size_t>(index_.size()))
+        {
+            throw qdb::invalid_argument_exception{
+                "every data array should be exactly the same length as the index array"};
+        }
+    }
+
+    xs_.push_back(value_type{table, index_, column_data});
+}
+
+void writer::push(writer::data const & data, py::kwargs args)
+{
+    qdb::object_tracker::scoped_capture capture{_object_tracker};
+    staged_tables_t staged_tables = _stage_tables(data);
+
+    const qdb_exp_batch_options_t options = {
+        .mode       = qdb_exp_batch_push_transactional, //
+        .push_flags = _push_flags_from_args(args)       //
+    };
+
+    _push_impl(                                         //
+        staged_tables,                                  //
+        options,                                        //
+        detail::deduplicate_options::from_kwargs(args), //
+        detail::retry_options::from_kwargs(args),       //
+        detail::mock_failure_options::from_kwargs(args) //
+    );                                                  //
+}
+
+void writer::push_async(writer::data const & data, py::kwargs args)
+{
+    qdb::object_tracker::scoped_capture capture{_object_tracker};
+    staged_tables_t staged_tables = _stage_tables(data);
+
+    const qdb_exp_batch_options_t options = {
+        .mode       = qdb_exp_batch_push_async,   //
+        .push_flags = _push_flags_from_args(args) //
+    };
+
+    _push_impl(                                         //
+        staged_tables,                                  //
+        options,                                        //
+        detail::deduplicate_options::from_kwargs(args), //
+        detail::retry_options::from_kwargs(args),       //
+        detail::mock_failure_options::from_kwargs(args) //
+    );                                                  //
+}
+
+void writer::push_fast(writer::data const & data, py::kwargs args)
+{
+    qdb::object_tracker::scoped_capture capture{_object_tracker};
+    staged_tables_t staged_tables = _stage_tables(data);
+
+    const qdb_exp_batch_options_t options = {
+        .mode       = qdb_exp_batch_push_fast,    //
+        .push_flags = _push_flags_from_args(args) //
+    };
+
+    _push_impl(                                         //
+        staged_tables,                                  //
+        options,                                        //
+        detail::deduplicate_options::from_kwargs(args), //
+        detail::retry_options::from_kwargs(args),       //
+        detail::mock_failure_options::from_kwargs(args) //
+    );                                                  //
+}
+
+void writer::push_truncate(writer::data const & data, py::kwargs args)
+{
+    qdb::object_tracker::scoped_capture capture{_object_tracker};
+    staged_tables_t staged_tables = _stage_tables(data);
+
+    auto deduplicate = detail::deduplicate_options::from_kwargs(args);
+
+    // Sanity check, this should be checked for in the python-side of things as well,
+    // but people can invoke this manually if they want.
+    if (!std::holds_alternative<bool>(deduplicate.columns_)
+        || std::get<bool>(deduplicate.columns_) != false) [[unlikely]]
+    {
+        throw qdb::invalid_argument_exception{"Cannot set `deduplicate` for push_truncate."};
+    };
+
+    // As we are actively removing data, let's add an additional check to ensure the user
+    // doesn't accidentally truncate his whole database without inserting anything.
+    if (data.empty()) [[unlikely]]
+    {
+        throw qdb::invalid_argument_exception{"Writer is empty: you did not provide any rows to push."};
+    }
+
+    qdb_ts_range_t tr;
+
+    if (args.contains("range"))
+    {
+        tr = convert::value<py::tuple, qdb_ts_range_t>(py::cast<py::tuple>(args["range"]));
+    }
+    else
+    {
+        // TODO(leon): support multiple tables for push truncate
+        if (staged_tables.size() != 1) [[unlikely]]
+        {
+            throw qdb::invalid_argument_exception{
+                "Writer push truncate only supports a single "
+                "table unless an explicit range is provided: you provided more than one table without"
+                " an explicit range."};
+        }
+
+        detail::staged_table const & staged_table = staged_tables.cbegin()->second;
+        tr                                        = staged_table.time_range();
+    }
+
+    const qdb_exp_batch_options_t options = {
+        .mode       = qdb_exp_batch_push_truncate, //
+        .push_flags = _push_flags_from_args(args)  //
+    };
+
+    _push_impl(                                          //
+        staged_tables,                                   //
+        options,                                         //
+        deduplicate,                                     //
+        detail::retry_options::from_kwargs(args),        //
+        detail::mock_failure_options::from_kwargs(args), //
+        &tr                                              //
+    );                                                   //
+}
 
 qdb_uint_t writer::_push_flags_from_args(py::kwargs args)
 {
@@ -503,12 +526,27 @@ qdb_uint_t writer::_push_flags_from_args(py::kwargs args)
     return staged_tables;
 }
 
-void writer::_do_push(qdb_exp_batch_options_t const & options,
-    std::vector<qdb_exp_batch_push_table_t> const & batch,
-    detail::retry_options const & retry_options)
+void writer::_do_push(                                     //
+    qdb_exp_batch_options_t const & options,               //
+    std::vector<qdb_exp_batch_push_table_t> const & batch, //
+    detail::retry_options retry_options,                   //
+    detail::mock_failure_options mock_failure_options      //
+    )                                                      //
 {
     qdb_error_t err{qdb_e_ok};
 
+#ifdef QDB_TESTS_ENABLED
+    bool mocked_failure{false};
+
+    if (mock_failure_options.has_next() == true)
+    {
+        mock_failure_options = mock_failure_options.next();
+        err                  = mock_failure_options.error();
+        mocked_failure       = true;
+        _logger.info("mocked failure, failures left: %d", mock_failure_options.failures_left);
+    }
+    else
+#endif
     {
         // Make sure to measure the time it takes to do the actual push.
         // This is in its own scoped block so that we only actually measure
@@ -535,13 +573,19 @@ void writer::_do_push(qdb_exp_batch_options_t const & options,
 
         _logger.warn("Sleeping for %d milliseconds", sleep.count());
 
-        std::this_thread::sleep_for(sleep);
+        // If we mocked a failure, we don't want to waste time actually sleeping
+#ifdef QDB_TESTS_ENABLED
+        if (mocked_failure == false)
+#endif
+        {
+            std::this_thread::sleep_for(sleep);
+        }
 
         // Now try again -- easier way to go about this is to enter recursion. Note how
         // we permutate the retry_options, which automatically adjusts the amount of retries
         // left and the next sleep duration.
         _logger.warn("Retrying push operation, retries left: %d", retry_options.retries_left);
-        return _do_push(options, batch, retry_options.next());
+        return _do_push(options, batch, retry_options.next(), mock_failure_options);
     }
 
     qdb::qdb_throw_if_error(*_handle, err);
@@ -550,7 +594,8 @@ void writer::_do_push(qdb_exp_batch_options_t const & options,
 void writer::_push_impl(writer::staged_tables_t & staged_tables,
     qdb_exp_batch_options_t const & options,
     detail::deduplicate_options const & deduplicate_options,
-    detail::retry_options const & retry_options,
+    detail::retry_options retry_options,
+    detail::mock_failure_options mock_failure_options,
     qdb_ts_range_t * ranges)
 {
     _handle->check_open();
@@ -583,7 +628,7 @@ void writer::_push_impl(writer::staged_tables_t & staged_tables,
             batch_table.data.column_count, table_name);
     }
 
-    _do_push(options, batch, retry_options);
+    _do_push(options, batch, retry_options, mock_failure_options);
 }
 
 void register_writer(py::module_ & m)

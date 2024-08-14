@@ -287,8 +287,16 @@ inline void qdb_throw_if_error(
             case qdb_e_not_connected:
             case qdb_e_invalid_handle:
                 throw qdb::invalid_handle_exception{};
+
             case qdb_e_invalid_argument:
                 throw qdb::invalid_argument_exception{};
+
+            case qdb_e_try_again:
+                throw qdb::try_again_exception{};
+
+            case qdb_e_async_pipe_full:
+                throw qdb::async_pipeline_full_exception{};
+
             default:
                 throw qdb::exception{err, qdb_error(err)};
             }
