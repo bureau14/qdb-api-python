@@ -4,19 +4,9 @@ import quasardb
 from quasardb import RetryOptions
 
 ###
-#
 # XXX: If this import fails, ensure that you built the quasardb python API with
-#      export QDB_TESTS_ENABLED=ON. E.g.
-#
-#      ```
-#      export QDB_TESTS_ENABLED=ON
-#      python3 setup.py test --addopts "-s tests/test_retry.py"
-#      ```
-#
-#      This is because the retry options are built-in with failure mocking
-#      ability when compiled with tests enabled.
+#      export QDB_TESTS_ENABLED=ON.
 from quasardb import MockFailureOptions
-
 
 def test_default_retry_thrice():
     x = RetryOptions()
