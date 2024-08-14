@@ -564,14 +564,14 @@ void writer::_do_push(                                     //
 
         if (err == qdb_e_async_pipe_full) [[likely]]
         {
-            _logger.warn("Async pipelines are currently full");
+            _logger.info("Async pipelines are currently full");
         }
         else
         {
             _logger.warn("A temporary error occurred");
         }
 
-        _logger.warn("Sleeping for %d milliseconds", sleep.count());
+        _logger.info("Sleeping for %d milliseconds", sleep.count());
 
         // If we mocked a failure, we don't want to waste time actually sleeping
 #ifdef QDB_TESTS_ENABLED
