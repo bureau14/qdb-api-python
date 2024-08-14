@@ -441,20 +441,33 @@ def test_write_through_flag_throws_when_incorrect(qdbpd_write_fn, df_with_table,
         qdbpd_write_fn(df, qdbd_connection, table, write_through='wrong!')
 
 
-def test_retries(qdbpd_write_fn, df_with_table, qdbd_connection, retry_options, mock_failure_options):
+def test_retries(qdbpd_write_fn, df_with_table, qdbd_connection, retry_options, mock_failure_options, caplog):
+    caplog.set_level(logging.WARNING)
+
     (_, _, df, table) = df_with_table
 
     do_write_fn = lambda: qdbpd_write_fn(df, qdbd_connection, table, retries=retry_options, mock_failure_options=mock_failure_options)
 
     retries_expected = mock_failure_options.failures_left
+    expect_failure = False
+
     if retries_expected > retry_options.retries_left:
         retries_expected = retry_options.retries_left
+        expect_failure = True
+        logger.info("mock failures(%d) > retries(%d), expecting failure", mock_failure_options.failures_left, retry_options.retries_left)
 
     logger.info("expected retries: %d", retries_expected)
 
-    if mock_failure_options.failures_left > retry_options.retries_left:
-        logger.info("mocked failures(%d) > retries(%d), expecting failure", mock_failure_options.failures_left, retry_options.retries_left)
+    if expect_failure == True:
         with pytest.raises(quasardb.AsyncPipelineFullError):
             do_write_fn()
     else:
         do_write_fn()
+
+    retries_seen = 0
+
+    for lr in caplog.records:
+        if 'Retrying push operation' in lr.message:
+            retries_seen = retries_seen + 1
+
+    assert retries_seen == retries_expected
