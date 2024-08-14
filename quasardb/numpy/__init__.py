@@ -414,6 +414,17 @@ def _ensure_list(xs, cinfos):
     return ret
 
 
+def _coerce_retries(retries) -> quasardb.RetryOptions:
+    if retries is None:
+        return quasardb.RetryOptions()
+    elif isinstance(retries, int):
+        return quasardb.RetryOptions(retries=retries)
+    elif isinstance(retries, quasardb.RetryOptions):
+        return retries
+    else:
+        raise TypeError("retries should either be an integer or quasardb.RetryOptions, got: " + type(retries))
+
+
 def ensure_ma(xs, dtype=None):
     if isinstance(dtype, list):
         assert(isinstance(xs, list) == True)
@@ -556,22 +567,25 @@ def write_array(
     logger.info("Writing array (%d rows of dtype %s) to columns %s.%s (type %s)", len(data), data.dtype, table.get_name(), column, ctype)
     write_with[ctype](column, index, data)
 
-
 def write_arrays(
         data,
         cluster,
         table = None,
+        *,
         dtype = None,
         index = None,
         _async = False,
         fast = False,
         truncate = False,
-        deduplicate=False,
-        deduplication_mode='drop',
+        deduplicate = False,
+        deduplication_mode = 'drop',
         infer_types = True,
         writer = None,
+        write_through = False,
         retries = 3,
-        write_through = False):
+
+        # We accept additional kwargs that will be passed through the writer.push() methods
+        **kwargs):
     """
     Write multiple aligned numpy arrays to a table.
 
@@ -664,14 +678,15 @@ def write_arrays(
 
       Reuse of the Writer allows for some performance improvements.
 
-
-    retries: optional int
+    retries: optional int or quasardb.RetryOptions
       Number of times to retry in case of a push failure. This is useful in case of async
       pipeline failures, or when doing transactional inserts that may occasionally cause
       transaction conflicts.
 
       Retries with exponential backoff, starts at 3 seconds, and doubles every retry attempt.
 
+      Alternatively, a quasardb.RetryOptions object can be passed to more carefully fine-tune
+      retry behavior.
     """
 
     if table:
@@ -689,7 +704,8 @@ def write_arrays(
                             infer_types=infer_types,
                             write_through=write_through,
                             writer=writer,
-                            retries=retries)
+                            retries=retries,
+                            **kwargs)
 
 
     ret = []
@@ -754,19 +770,32 @@ def write_arrays(
         n_rows += len(index_)
         ret.append(table)
 
+    retries = _coerce_retries(retries)
+
+    # By default, we push all additional kwargs to the writer.push() function. This allows transparent propagation
+    # arguments.
+    #
+    # The initial use case was that so we can add additional parameters for test mocks, e.g. `mock_failures` so that
+    # we can validate the retry functionality.
+    push_kwargs = kwargs
+    push_kwargs['deduplicate'] = deduplicate
+    push_kwargs['deduplication_mode'] = deduplication_mode
+    push_kwargs['write_through'] = write_through
+    push_kwargs['retries'] = retries
+
     logger.debug("pushing %d rows", n_rows)
     start = time.time()
 
     if fast is True:
-        writer.push_fast(push_data, deduplicate=deduplicate, deduplication_mode=deduplication_mode, write_through=write_through)
+        writer.push_fast(push_data, **push_kwargs)
     elif truncate is True:
-        writer.push_truncate(push_data, deduplicate=deduplicate, deduplication_mode=deduplication_mode, write_through=write_through)
+        writer.push_truncate(push_data, **push_kwargs)
     elif isinstance(truncate, tuple):
-        writer.push_truncate(push_data, range=truncate, deduplicate=deduplicate, deduplication_mode=deduplication_mode, write_through=write_through)
+        writer.push_truncate(push_data, range=truncate, **push_kwargs)
     elif _async is True:
-        writer.push_async(push_data, deduplicate=deduplicate, deduplication_mode=deduplication_mode, write_through=write_through)
+        writer.push_async(push_data, **push_kwargs)
     else:
-        writer.push(push_data, deduplicate=deduplicate, deduplication_mode=deduplication_mode, write_through=write_through)
+        writer.push(push_data, **push_kwargs)
 
     logger.debug("pushed %d rows in %s seconds",
                 n_rows, (time.time() - start))
