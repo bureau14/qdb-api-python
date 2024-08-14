@@ -55,17 +55,17 @@ struct retry_options
     /**
      * Retry options constructor
      */
-    retry_options(std::size_t retries   = 3,
-        std::chrono::milliseconds delay = std::chrono::milliseconds{3000},
-        std::size_t exponent            = 2,
-        double jitter                   = 0.1)
+    constexpr retry_options(std::size_t retries = 3,
+        std::chrono::milliseconds delay         = std::chrono::milliseconds{3000},
+        std::size_t exponent                    = 2,
+        double jitter                           = 0.1)
         : retries_left{retries}
         , delay{delay}
         , exponent{exponent}
         , jitter{jitter}
     {}
 
-    static retry_options from_kwargs(py::kwargs args)
+    static inline retry_options from_kwargs(py::kwargs args)
     {
         if (args.contains("retries") == false)
         {
@@ -104,7 +104,7 @@ struct retry_options
     /**
      * Returns new object, with `retries_left_` and `delay_` adjusted accordingly.
      */
-    retry_options next() const
+    inline constexpr retry_options next() const
     {
         if (has_next() == false) [[unlikely]]
         {
@@ -121,7 +121,7 @@ struct retry_options
      * Returns the next sleep duration, based on `delay` and the provided jitter.
      */
 
-    std::chrono::milliseconds sleep_duration() const
+    inline constexpr std::chrono::milliseconds sleep_duration() const
     {
         // TODO(leon): include jitter_
         return delay;
@@ -136,7 +136,7 @@ struct mock_failure_options
     // only enabled when building for tests.
     std::size_t failures_left;
 
-    mock_failure_options(std::size_t failures = 0)
+    constexpr mock_failure_options(std::size_t failures = 0)
         : failures_left{failures}
     {}
 
@@ -148,13 +148,23 @@ struct mock_failure_options
         return failures_left > 0;
     }
 
-    mock_failure_options next() const
+    inline constexpr mock_failure_options next() const
     {
         // We can get away with an assertion here, because this code is not part of the production
         // release, so we don't have to "play nice" and throw exceptions.
         assert(has_next() == true);
 
         return {failures_left - 1};
+    }
+
+    static inline mock_failure_options from_kwargs(py::kwargs args)
+    {
+        if (args.contains("mock_failure_options") == false)
+        {
+            return {};
+        }
+
+        return args["mock_failure_options"].cast<mock_failure_options>();
     }
 };
 #endif
@@ -181,7 +191,8 @@ static inline void register_retry_options(py::module_ & m)
 
     retry_options_c                                                                   //
         .def(py::init<std::size_t, std::chrono::milliseconds, std::size_t, double>(), //
-            py::arg("retries")  = std::size_t{3},                                     //
+            py::arg("retries") = std::size_t{3},                                      //
+            py::kw_only(),                                                            //
             py::arg("delay")    = std::chrono::milliseconds{3000},                    //
             py::arg("exponent") = std::size_t{2},                                     //
             py::arg("jitter")   = double{0.1}                                         //
