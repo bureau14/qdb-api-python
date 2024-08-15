@@ -265,6 +265,76 @@ private:
     std::vector<qdb_exp_batch_push_column_t> _columns_data;
 };
 
+/**
+ * Convenience class that holds data that can be pushed to the writer. Makes it
+ * easier for the end-user to provide the data in the correct format, in a single
+ * function call, if they decide to use the low-level writer API themselves.
+ */
+class writer_data
+{
+public:
+    struct value_type
+    {
+        qdb::table table;
+        py::array index;
+        py::list column_data;
+    };
+
+public:
+    void append(qdb::table const & table, py::handle const & index, py::list const & column_data)
+    {
+        py::array index_ = numpy::array::ensure<traits::datetime64_ns_dtype>(index);
+
+        /**
+         * Additional check that all the data is actually of the same length, and data has been
+         * provided for each and every column.
+         */
+        if (column_data.size() != table.list_columns().size())
+        {
+            throw qdb::invalid_argument_exception{"data must be provided for every table column"};
+        }
+
+        for (py::handle const & data : column_data)
+        {
+            qdb::masked_array data_ = data.cast<qdb::masked_array>();
+            if (data_.size() != static_cast<std::size_t>(index_.size()))
+            {
+                throw qdb::invalid_argument_exception{
+                    "every data array should be exactly the same length as the index array"};
+            }
+        }
+
+        xs_.push_back(value_type{table, index_, column_data});
+    }
+
+    inline bool empty() const noexcept
+    {
+        return xs_.empty();
+    }
+
+    inline value_type const & front() const noexcept
+    {
+        assert(empty() == false);
+
+        return xs_.front();
+    }
+
+    inline value_type const & back() const noexcept
+    {
+        assert(empty() == false);
+
+        return xs_.back();
+    }
+
+    std::vector<value_type> xs() const
+    {
+        return xs_;
+    }
+
+private:
+    std::vector<value_type> xs_;
+};
+
 static qdb_uint_t batch_push_flags_from_kwargs(py::kwargs const & kwargs)
 {
     if (!kwargs.contains("write_through"))
@@ -301,78 +371,6 @@ class writer
     using staged_tables_t  = std::map<std::string, detail::staged_table>;
 
 public:
-    /**
-     * Convenience class that holds data that can be pushed to the writer. Makes it
-     * easier for the end-user to provide the data in the correct format, in a single
-     * function call, if they decide to use the low-level writer API themselves.
-     */
-    class data
-    {
-        friend class writer;
-
-    protected:
-        struct value_type
-        {
-            qdb::table table;
-            py::array index;
-            py::list column_data;
-        };
-
-    public:
-        void append(qdb::table const & table, py::handle const & index, py::list const & column_data)
-        {
-            py::array index_ = numpy::array::ensure<traits::datetime64_ns_dtype>(index);
-
-            /**
-             * Additional check that all the data is actually of the same length, and data has been
-             * provided for each and every column.
-             */
-            if (column_data.size() != table.list_columns().size())
-            {
-                throw qdb::invalid_argument_exception{"data must be provided for every table column"};
-            }
-
-            for (py::handle const & data : column_data)
-            {
-                qdb::masked_array data_ = data.cast<qdb::masked_array>();
-                if (data_.size() != static_cast<std::size_t>(index_.size()))
-                {
-                    throw qdb::invalid_argument_exception{
-                        "every data array should be exactly the same length as the index array"};
-                }
-            }
-
-            xs_.push_back(value_type{table, index_, column_data});
-        }
-
-        inline bool empty() const noexcept
-        {
-            return xs_.empty();
-        }
-
-        inline value_type const & front() const noexcept
-        {
-            assert(empty() == false);
-
-            return xs_.front();
-        }
-
-        inline value_type const & back() const noexcept
-        {
-            assert(empty() == false);
-
-            return xs_.back();
-        }
-
-        std::vector<value_type> xs() const
-        {
-            return xs_;
-        }
-
-    private:
-        std::vector<value_type> xs_;
-    };
-
 public:
     writer(qdb::handle_ptr h)
         : _logger("quasardb.writer")
@@ -388,7 +386,7 @@ public:
 
     const std::vector<qdb_exp_batch_push_column_t> & prepare_columns();
 
-    void push(writer::data const & data, py::kwargs kwargs)
+    void push(detail::writer_data const & data, py::kwargs kwargs)
     {
         qdb::object_tracker::scoped_capture capture{_object_tracker};
         staged_tables_t staged_tables = _stage_tables(data);
@@ -405,7 +403,7 @@ public:
         );                 //
     }
 
-    void push_async(writer::data const & data, py::kwargs kwargs)
+    void push_async(detail::writer_data const & data, py::kwargs kwargs)
     {
         qdb::object_tracker::scoped_capture capture{_object_tracker};
         staged_tables_t staged_tables = _stage_tables(data);
@@ -422,7 +420,7 @@ public:
         );                 //
     }
 
-    void push_fast(writer::data const & data, py::kwargs kwargs)
+    void push_fast(detail::writer_data const & data, py::kwargs kwargs)
     {
         qdb::object_tracker::scoped_capture capture{_object_tracker};
         staged_tables_t staged_tables = _stage_tables(data);
@@ -439,7 +437,7 @@ public:
         );                 //
     }
 
-    void push_truncate(writer::data const & data, py::kwargs kwargs)
+    void push_truncate(detail::writer_data const & data, py::kwargs kwargs)
     {
         qdb::object_tracker::scoped_capture capture{_object_tracker};
         staged_tables_t staged_tables = _stage_tables(data);
@@ -508,8 +506,6 @@ private:
 
         return pos->second;
     }
-
-    static staged_tables_t _stage_tables(writer::data const & data);
 
     void _push_impl(staged_tables_t & staged_tables,
         qdb_exp_batch_options_t const & options,
@@ -603,6 +599,76 @@ private:
 
         qdb::qdb_throw_if_error(*_handle, err);
     }
+    static staged_tables_t _stage_tables(detail::writer_data const & data)
+    {
+        // XXX(leon): this function could potentially be moved to e.g. a free
+        // function as it doesn't really depend upon anything in writer, but
+        // then we'll have to globally declare staged_tables_t and it gets a
+        // bit messy.
+
+        staged_tables_t staged_tables;
+
+        for (detail::writer_data::value_type const & table_data : data.xs())
+        {
+            qdb::table table     = table_data.table;
+            py::array index      = table_data.index;
+            py::list column_data = table_data.column_data;
+
+            auto column_infos = table.list_columns();
+
+            if (column_infos.size() != column_data.size()) [[unlikely]]
+            {
+                throw qdb::invalid_argument_exception{
+                    "data must be provided for every column of the table."};
+            }
+
+            detail::staged_table & staged_table = writer::_get_staged_table(table, staged_tables);
+
+            staged_table.set_index(index);
+
+            for (std::size_t i = 0; i < column_data.size(); ++i)
+            {
+                py::object x = column_data[i];
+
+                if (!x.is_none()) [[likely]]
+                {
+                    switch (column_infos.at(i).type)
+                    {
+                    case qdb_ts_column_double:
+                        staged_table.set_double_column(
+                            i, x.cast<qdb::masked_array_t<traits::float64_dtype>>());
+                        break;
+                    case qdb_ts_column_blob:
+                        staged_table.set_blob_column(i, x.cast<qdb::masked_array>());
+                        break;
+                    case qdb_ts_column_int64:
+                        staged_table.set_int64_column(
+                            i, x.cast<qdb::masked_array_t<traits::int64_dtype>>());
+                        break;
+                    case qdb_ts_column_timestamp:
+                        staged_table.set_timestamp_column(
+                            i, x.cast<qdb::masked_array_t<traits::datetime64_ns_dtype>>());
+                        break;
+                    case qdb_ts_column_string:
+                        /* FALLTHROUGH */
+                    case qdb_ts_column_symbol:
+                        staged_table.set_string_column(i, x.cast<qdb::masked_array>());
+                        break;
+                    case qdb_ts_column_uninitialized:
+                        // Likely a corruption
+                        throw qdb::invalid_argument_exception{"Uninitialized column."};
+
+                        break;
+                        // Likely a corruption
+                    default:
+                        throw qdb::invalid_argument_exception{"Unrecognized column type."};
+                    }
+                }
+            }
+        }
+
+        return staged_tables;
+    }
 
 private:
     qdb::logger _logger;
@@ -627,11 +693,11 @@ static void register_writer(py::module_ & m)
     namespace py = pybind11;
 
     // Writer data
-    auto writer_data_c = py::class_<qdb::writer::data>{m, "WriterData"};
+    auto writer_data_c = py::class_<qdb::detail::writer_data>{m, "WriterData"};
     writer_data_c.def(py::init())
-        .def("append", &qdb::writer::data::append, py::arg("table"), py::arg("index"),
+        .def("append", &qdb::detail::writer_data::append, py::arg("table"), py::arg("index"),
             py::arg("column_data"), "Append new data")
-        .def("empty", &qdb::writer::data::empty, "Returns true if underlying data is empty");
+        .def("empty", &qdb::detail::writer_data::empty, "Returns true if underlying data is empty");
 
     // And the actual pinned writer
     auto writer_c = py::class_<qdb::writer>{m, "Writer"};
