@@ -367,6 +367,8 @@ set(QDB_FILES
   utils.hpp
   writer.cpp
   writer.hpp
+  detail/retry.hpp
+  detail/retry.cpp
   detail/qdb_resource.hpp
   detail/ts_column.hpp
   utils/blob_deque.hpp
@@ -386,10 +388,12 @@ if(QDB_TESTS_ENABLED)
   add_compile_definitions(QDB_TESTS_ENABLED)
 
   set(QDB_TEST_FILES
-
     ../tests/conftest.cpp
     ../tests/conftest.hpp
     ../tests/test_convert.cpp
+
+    ../tests/detail/mock_failure.hpp
+    ../tests/detail/mock_failure.cpp
   )
 endif()
 

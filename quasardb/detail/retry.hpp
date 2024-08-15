@@ -31,7 +31,6 @@
 #pragma once
 
 #include "../error.hpp"
-#include <pybind11/pybind11.h>
 #include <chrono>
 
 namespace qdb::detail
@@ -39,6 +38,8 @@ namespace qdb::detail
 
 struct retry_options
 {
+    qdb::logger logger_;
+
     // how many retries are left. 0 means no retries
     std::size_t retries_left;
 
@@ -55,11 +56,12 @@ struct retry_options
     /**
      * Retry options constructor
      */
-    constexpr retry_options(std::size_t retries = 3,
-        std::chrono::milliseconds delay         = std::chrono::milliseconds{3000},
-        std::size_t exponent                    = 2,
-        double jitter                           = 0.1)
-        : retries_left{retries}
+    retry_options(std::size_t retries   = 3,
+        std::chrono::milliseconds delay = std::chrono::milliseconds{3000},
+        std::size_t exponent            = 2,
+        double jitter                   = 0.1)
+        : logger_("quasardb.detail.retry")
+        , retries_left{retries}
         , delay{delay}
         , exponent{exponent}
         , jitter{jitter}
@@ -96,7 +98,7 @@ struct retry_options
         }
     }
 
-    inline constexpr bool has_next() const
+    inline constexpr bool has_next() const noexcept
     {
         return retries_left > 0;
     }
@@ -104,7 +106,7 @@ struct retry_options
     /**
      * Returns new object, with `retries_left_` and `delay_` adjusted accordingly.
      */
-    inline constexpr retry_options next() const
+    inline retry_options next() const
     {
         if (has_next() == false) [[unlikely]]
         {
@@ -117,127 +119,48 @@ struct retry_options
         return retry_options{retries_left - 1, delay * exponent, exponent, jitter};
     }
 
-    /**
-     * Returns the next sleep duration, based on `delay` and the provided jitter.
-     */
-
-    inline constexpr std::chrono::milliseconds sleep_duration() const
+    template <typename Dispatch>
+    inline constexpr void sleep() const
     {
-        // TODO(leon): include jitter_
-        return delay;
+        logger_.info("Sleeping for %d milliseconds", delay.count());
+
+        Dispatch::sleep(delay);
     }
-};
-
-// A mock when running tests, to trigger 'please retry' errors for this amount of times,
-// only enabled when building for tests.
-//
-// We take extra precautions that parts of the code are only compiled when tests are built,
-// but for convenience we do always expose this class type and its variables, to avoid preprocessor
-// ifdef/ifndef madness all over the place and keep function signatures simple.
-struct mock_failure_options
-{
-    std::size_t failures_left;
-
-    // The type of error we raise
-    qdb_error_t err;
-
-    constexpr mock_failure_options(std::size_t failures = 0, qdb_error_t err = qdb_e_async_pipe_full)
-        : failures_left{failures}
-        , err{err}
-    {}
 
     /**
-     * Returns true if we have an additional failure to mock for tests
+     * Returns true if we have retries left and the error is retryable.
      */
-    inline constexpr bool has_next() const
+    inline constexpr bool should_retry(qdb_error_t e) const noexcept
     {
-        return failures_left > 0;
+        // We check for `is_retryable` first, because in all likelihood e is qdb_e_ok
+        return retry_options::is_retryable(e) && has_next();
     }
 
-    inline constexpr mock_failure_options next() const
+    static constexpr bool is_retryable(qdb_error_t e) noexcept
     {
-        // We can get away with an assertion here, because this code is not part of the production
-        // release, so we don't have to "play nice" and throw exceptions.
-        assert(has_next() == true);
-
-        return {failures_left - 1};
-    }
-
-    inline constexpr qdb_error_t error() const
-    {
-        return err;
-    }
-
-    static inline mock_failure_options from_kwargs(py::kwargs args)
-    {
-        // Keeping this out of the main build prevents accidental mistakes
-#ifdef QDB_TESTS_ENABLED
-        if (args.contains("mock_failure_options") == false)
+        switch (e)
         {
-            return {};
-        }
-
-        return args["mock_failure_options"].cast<mock_failure_options>();
-#else
-        return {};
-#endif
+        case qdb_e_async_pipe_full:
+        case qdb_e_try_again:
+            return true;
+            break;
+        default:
+            return false;
+        };
     }
 };
 
-constexpr bool is_retryable(qdb_error_t e)
+/**
+ * Default sleep dispatcher that uses the STL for sleeping
+ */
+struct default_sleep_dispatch
 {
-    switch (e)
+    static void sleep(std::chrono::milliseconds const & delay)
     {
-    case qdb_e_async_pipe_full:
-    case qdb_e_try_again:
-        return true;
-        break;
-    default:
-        return false;
+        std::this_thread::sleep_for(delay);
     };
-}
+};
 
-static inline void register_retry_options(py::module_ & m)
-{
-
-    namespace py = pybind11;
-
-    py::class_<retry_options> retry_options_c{m, "RetryOptions"};
-
-    retry_options_c                                                                   //
-        .def(py::init<std::size_t, std::chrono::milliseconds, std::size_t, double>(), //
-            py::arg("retries") = std::size_t{3},                                      //
-            py::kw_only(),                                                            //
-            py::arg("delay")    = std::chrono::milliseconds{3000},                    //
-            py::arg("exponent") = std::size_t{2},                                     //
-            py::arg("jitter")   = double{0.1}                                         //
-            )                                                                         //
-                                                                                      //
-        .def_readwrite("retries_left", &retry_options::retries_left)                  //
-        .def_readwrite("delay", &retry_options::delay)                                //
-        .def_readwrite("exponent", &retry_options::exponent)                          //
-        .def_readwrite("jitter", &retry_options::jitter)                              //
-                                                                                      //
-        .def("has_next", &retry_options::has_next)                                    //
-        .def("next", &retry_options::next)                                            //
-        ;
-
-    // Do not expose any of this unless we are building in test mode, this keeps
-    // the bloat out of our API but most of all prevents accidental mistakes.
-#ifdef QDB_TESTS_ENABLED
-    py::class_<mock_failure_options> mock_failure_options_c{m, "MockFailureOptions"};
-
-    mock_failure_options_c                                                    //
-        .def(py::init<std::size_t>(),                                         //
-            py::arg("failures") = std::size_t{0}                              //
-            )                                                                 //
-                                                                              //
-        .def_readwrite("failures_left", &mock_failure_options::failures_left) //
-                                                                              //
-        .def("has_next", &mock_failure_options::has_next)                     //
-        .def("next", &mock_failure_options::next)                             //
-        ;
-#endif
-}
+void register_retry_options(py::module_ & m);
 
 }; // namespace qdb::detail

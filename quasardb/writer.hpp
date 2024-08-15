@@ -341,10 +341,10 @@ public:
 
     const std::vector<qdb_exp_batch_push_column_t> & prepare_columns();
 
-    void push(writer::data const & data, py::kwargs args);
-    void push_async(writer::data const & data, py::kwargs args);
-    void push_fast(writer::data const & data, py::kwargs args);
-    void push_truncate(writer::data const & data, py::kwargs args);
+    void push(writer::data const & data, py::kwargs kwargs);
+    void push_async(writer::data const & data, py::kwargs kwargs);
+    void push_fast(writer::data const & data, py::kwargs kwargs);
+    void push_truncate(writer::data const & data, py::kwargs kwargs);
 
 private:
     static inline detail::staged_table & _get_staged_table(
@@ -373,17 +373,14 @@ private:
 
     void _push_impl(staged_tables_t & staged_tables,
         qdb_exp_batch_options_t const & options,
-        detail::deduplicate_options const & deduplicate_options,
-        detail::retry_options retry_options,
-        detail::mock_failure_options mock_failure_options,
+        py::kwargs const & kwargs,
         qdb_ts_range_t * ranges = nullptr);
 
     void _do_push(qdb_exp_batch_options_t const & options,
         std::vector<qdb_exp_batch_push_table_t> const & batch,
-        detail::retry_options retry_options,
-        detail::mock_failure_options mock_failure_options);
+        detail::retry_options const & retry_options);
 
-    qdb_uint_t _push_flags_from_args(py::kwargs args);
+    qdb_uint_t _push_flags_from_kwargs(py::kwargs const & args);
 
 private:
     qdb::logger _logger;
