@@ -4,7 +4,7 @@
 namespace qdb::detail
 {
 
-QDB_REGISTER_MODULE(mock_failure_options, m)
+QDB_REGISTER_MODULE(test_convert, m)
 {
     py::class_<mock_failure_options>{m, "MockFailureOptions"}                 //
                                                                               //
