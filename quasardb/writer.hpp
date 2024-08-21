@@ -357,6 +357,103 @@ static qdb_uint_t batch_push_flags_from_kwargs(py::kwargs const & kwargs)
     }
 }
 
+/**
+ * Wraps an index to staged tables. Provides functionality for indexing writer
+ * data into staged tables as well.
+ */
+class staged_tables
+{
+public:
+    using key_type       = std::string;
+    using value_type     = staged_table;
+    using container_type = std::map<key_type, staged_table>;
+    using iterator       = container_type::iterator;
+    using const_iterator = container_type::const_iterator;
+
+public:
+    /**
+     * Free function that takes indexes all writer data into a staged_table object.
+     */
+    static staged_tables index(writer_data const & data);
+
+public:
+    constexpr inline container_type::size_type size() const
+    {
+        return idx_.size();
+    }
+
+    constexpr inline bool empty() const
+    {
+        return idx_.empty();
+    }
+
+    inline iterator begin()
+    {
+        return idx_.begin();
+    }
+
+    inline iterator end()
+    {
+        return idx_.end();
+    }
+
+    inline const_iterator begin() const
+    {
+        return idx_.cbegin();
+    }
+
+    inline const_iterator cend() const
+    {
+        return idx_.cend();
+    }
+
+    /**
+     * Returns the first staged table. Useful in scenarios where we are only working with a single
+     * table.
+     */
+    inline value_type & first()
+    {
+        assert(size() == 1);
+
+        return idx_.begin()->second;
+    }
+
+    /**
+     * Returns the first staged table. Useful in scenarios where we are only working with a single
+     * table.
+     */
+    inline value_type const & first() const
+    {
+        assert(size() == 1);
+
+        return idx_.cbegin()->second;
+    }
+
+    /**
+     * Retrieves table by table object, or creates a new empty entry.
+     */
+    inline value_type & get_or_create(qdb::table const & table)
+    {
+        std::string const & table_name = table.get_name();
+        auto pos                       = idx_.lower_bound(table_name);
+
+        if (pos == idx_.end() || pos->first != table_name) [[unlikely]]
+        {
+            // The table was not yet found
+            pos = idx_.emplace_hint(pos, table_name, table);
+            assert(pos->second.empty());
+        }
+
+        assert(pos != idx_.end());
+        assert(pos->first == table_name);
+
+        return pos->second;
+    }
+
+private:
+    container_type idx_;
+};
+
 } // namespace detail
 
 class writer
@@ -368,7 +465,6 @@ class writer
     using blob_column      = detail::blob_column;
     using string_column    = detail::string_column;
     using any_column       = detail::any_column;
-    using staged_tables_t  = std::map<std::string, detail::staged_table>;
 
 public:
 public:
@@ -389,58 +485,56 @@ public:
     void push(detail::writer_data const & data, py::kwargs kwargs)
     {
         qdb::object_tracker::scoped_capture capture{_object_tracker};
-        staged_tables_t staged_tables = _stage_tables(data);
 
         const qdb_exp_batch_options_t options = {
             .mode       = qdb_exp_batch_push_transactional,            //
             .push_flags = detail::batch_push_flags_from_kwargs(kwargs) //
         };
 
-        _push_impl(        //
-            staged_tables, //
-            options,       //
-            kwargs         //
-        );                 //
+        _push_impl(                             //
+            detail::staged_tables::index(data), //
+            options,                            //
+            kwargs                              //
+        );                                      //
     }
 
     void push_async(detail::writer_data const & data, py::kwargs kwargs)
     {
         qdb::object_tracker::scoped_capture capture{_object_tracker};
-        staged_tables_t staged_tables = _stage_tables(data);
 
         const qdb_exp_batch_options_t options = {
             .mode       = qdb_exp_batch_push_async,                    //
             .push_flags = detail::batch_push_flags_from_kwargs(kwargs) //
         };
 
-        _push_impl(        //
-            staged_tables, //
-            options,       //
-            kwargs         //
-        );                 //
+        _push_impl(                             //
+            detail::staged_tables::index(data), //
+            options,                            //
+            kwargs                              //
+        );                                      //
     }
 
     void push_fast(detail::writer_data const & data, py::kwargs kwargs)
     {
         qdb::object_tracker::scoped_capture capture{_object_tracker};
-        staged_tables_t staged_tables = _stage_tables(data);
+        auto staged_tables = detail::staged_tables::index(data);
 
         const qdb_exp_batch_options_t options = {
             .mode       = qdb_exp_batch_push_fast,                     //
             .push_flags = detail::batch_push_flags_from_kwargs(kwargs) //
         };
 
-        _push_impl(        //
-            staged_tables, //
-            options,       //
-            kwargs         //
-        );                 //
+        _push_impl(                             //
+            detail::staged_tables::index(data), //
+            options,                            //
+            kwargs                              //
+        );                                      //
     }
 
     void push_truncate(detail::writer_data const & data, py::kwargs kwargs)
     {
         qdb::object_tracker::scoped_capture capture{_object_tracker};
-        staged_tables_t staged_tables = _stage_tables(data);
+        auto idx = detail::staged_tables::index(data);
 
         // As we are actively removing data, let's add an additional check to ensure the user
         // doesn't accidentally truncate his whole database without inserting anything.
@@ -459,7 +553,7 @@ public:
         else
         {
             // TODO(leon): support multiple tables for push truncate
-            if (staged_tables.size() != 1) [[unlikely]]
+            if (idx.size() != 1) [[unlikely]]
             {
                 throw qdb::invalid_argument_exception{"Writer push truncate only supports a single "
                                                       "table unless an explicit range is provided: you "
@@ -467,7 +561,7 @@ public:
                                                       " an explicit range."};
             }
 
-            detail::staged_table const & staged_table = staged_tables.cbegin()->second;
+            detail::staged_table const & staged_table = idx.first();
             tr                                        = staged_table.time_range();
         }
 
@@ -476,45 +570,23 @@ public:
             .push_flags = detail::batch_push_flags_from_kwargs(kwargs) //
         };
 
-        _push_impl(        //
-            staged_tables, //
-            options,       //
-            kwargs,        //
-            &tr            //
-        );                 //
+        _push_impl(         //
+            std::move(idx), //
+            options,        //
+            kwargs,         //
+            &tr             //
+        );                  //
     }
 
 private:
-    static inline detail::staged_table & _get_staged_table(
-        qdb::table const & table, staged_tables_t & staged_tables)
-    {
-        std::string table_name = table.get_name();
-
-        auto pos = staged_tables.lower_bound(table_name);
-
-        // XXX(leon): can be optimized by using lower_bound and reusing the `pos` for insertion into
-        //            the correct place.
-        if (pos == staged_tables.end() || pos->first != table_name) [[unlikely]]
-        {
-            // The table was not yet found
-            pos = staged_tables.emplace_hint(pos, table_name, table);
-            assert(pos->second.empty());
-        }
-
-        assert(pos != staged_tables.end());
-        assert(pos->first == table_name);
-
-        return pos->second;
-    }
-
-    void _push_impl(staged_tables_t & staged_tables,
+    void _push_impl(detail::staged_tables && idx,
         qdb_exp_batch_options_t const & options,
         py::kwargs const & kwargs,
         qdb_ts_range_t * ranges = nullptr)
     {
         _handle->check_open();
 
-        if (staged_tables.empty()) [[unlikely]]
+        if (idx.empty()) [[unlikely]]
         {
             throw qdb::invalid_argument_exception{"No data written to batch writer."};
         }
@@ -522,11 +594,11 @@ private:
         auto deduplicate_options = detail::deduplicate_options::from_kwargs(kwargs);
 
         std::vector<qdb_exp_batch_push_table_t> batch;
-        batch.assign(staged_tables.size(), qdb_exp_batch_push_table_t());
+        batch.assign(idx.size(), qdb_exp_batch_push_table_t());
 
         int cur = 0;
 
-        for (auto pos = staged_tables.begin(); pos != staged_tables.end(); ++pos)
+        for (auto pos = idx.begin(); pos != idx.end(); ++pos)
         {
             std::string const & table_name      = pos->first;
             detail::staged_table & staged_table = pos->second;
@@ -598,76 +670,6 @@ private:
         }
 
         qdb::qdb_throw_if_error(*_handle, err);
-    }
-    static staged_tables_t _stage_tables(detail::writer_data const & data)
-    {
-        // XXX(leon): this function could potentially be moved to e.g. a free
-        // function as it doesn't really depend upon anything in writer, but
-        // then we'll have to globally declare staged_tables_t and it gets a
-        // bit messy.
-
-        staged_tables_t staged_tables;
-
-        for (detail::writer_data::value_type const & table_data : data.xs())
-        {
-            qdb::table table     = table_data.table;
-            py::array index      = table_data.index;
-            py::list column_data = table_data.column_data;
-
-            auto column_infos = table.list_columns();
-
-            if (column_infos.size() != column_data.size()) [[unlikely]]
-            {
-                throw qdb::invalid_argument_exception{
-                    "data must be provided for every column of the table."};
-            }
-
-            detail::staged_table & staged_table = writer::_get_staged_table(table, staged_tables);
-
-            staged_table.set_index(index);
-
-            for (std::size_t i = 0; i < column_data.size(); ++i)
-            {
-                py::object x = column_data[i];
-
-                if (!x.is_none()) [[likely]]
-                {
-                    switch (column_infos.at(i).type)
-                    {
-                    case qdb_ts_column_double:
-                        staged_table.set_double_column(
-                            i, x.cast<qdb::masked_array_t<traits::float64_dtype>>());
-                        break;
-                    case qdb_ts_column_blob:
-                        staged_table.set_blob_column(i, x.cast<qdb::masked_array>());
-                        break;
-                    case qdb_ts_column_int64:
-                        staged_table.set_int64_column(
-                            i, x.cast<qdb::masked_array_t<traits::int64_dtype>>());
-                        break;
-                    case qdb_ts_column_timestamp:
-                        staged_table.set_timestamp_column(
-                            i, x.cast<qdb::masked_array_t<traits::datetime64_ns_dtype>>());
-                        break;
-                    case qdb_ts_column_string:
-                        /* FALLTHROUGH */
-                    case qdb_ts_column_symbol:
-                        staged_table.set_string_column(i, x.cast<qdb::masked_array>());
-                        break;
-                    case qdb_ts_column_uninitialized:
-                        // Likely a corruption
-                        throw qdb::invalid_argument_exception{"Uninitialized column."};
-
-                        break;
-                        // Likely a corruption
-                    default:
-                        throw qdb::invalid_argument_exception{"Unrecognized column type."};
-                    }
-                }
-            }
-        }
-
-        return staged_tables;
     }
 
 private:

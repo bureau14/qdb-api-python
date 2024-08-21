@@ -290,6 +290,77 @@ void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
     throw qdb::invalid_argument_exception{error_msg};
 };
 
+/* static */ staged_tables staged_tables::index(detail::writer_data const & data)
+{
+    // XXX(leon): this function could potentially be moved to e.g. a free
+    // function as it doesn't really depend upon anything in writer, but
+    // then we'll have to globally declare staged_tables_t and it gets a
+    // bit messy.
+
+    detail::staged_tables ret;
+
+    for (detail::writer_data::value_type const & table_data : data.xs())
+    {
+        qdb::table table     = table_data.table;
+        py::array index      = table_data.index;
+        py::list column_data = table_data.column_data;
+
+        auto column_infos = table.list_columns();
+
+        if (column_infos.size() != column_data.size()) [[unlikely]]
+        {
+            throw qdb::invalid_argument_exception{
+                "data must be provided for every column of the table."};
+        }
+
+        detail::staged_table & staged_table = ret.get_or_create(table);
+
+        staged_table.set_index(index);
+
+        for (std::size_t i = 0; i < column_data.size(); ++i)
+        {
+            py::object x = column_data[i];
+
+            if (!x.is_none()) [[likely]]
+            {
+                switch (column_infos.at(i).type)
+                {
+                case qdb_ts_column_double:
+                    staged_table.set_double_column(
+                        i, x.cast<qdb::masked_array_t<traits::float64_dtype>>());
+                    break;
+                case qdb_ts_column_blob:
+                    staged_table.set_blob_column(i, x.cast<qdb::masked_array>());
+                    break;
+                case qdb_ts_column_int64:
+                    staged_table.set_int64_column(
+                        i, x.cast<qdb::masked_array_t<traits::int64_dtype>>());
+                    break;
+                case qdb_ts_column_timestamp:
+                    staged_table.set_timestamp_column(
+                        i, x.cast<qdb::masked_array_t<traits::datetime64_ns_dtype>>());
+                    break;
+                case qdb_ts_column_string:
+                    /* FALLTHROUGH */
+                case qdb_ts_column_symbol:
+                    staged_table.set_string_column(i, x.cast<qdb::masked_array>());
+                    break;
+                case qdb_ts_column_uninitialized:
+                    // Likely a corruption
+                    throw qdb::invalid_argument_exception{"Uninitialized column."};
+
+                    break;
+                    // Likely a corruption
+                default:
+                    throw qdb::invalid_argument_exception{"Unrecognized column type."};
+                }
+            }
+        }
+    }
+
+    return ret;
+}
+
 }; // namespace qdb::detail
 
 namespace qdb
