@@ -252,14 +252,20 @@ concept sleep_strategy =
            } -> std::same_as<void>;
        };
 
-template <typename T>
-concept batch_push_strategy = requires(T s, qdb_handle_t handle_) {
-    {
-        s.invoke(handle_)
-        //      qdb_exp_batch_push_with_options(
-        //                *_handle, &options, batch.data(), nullptr, batch.size())
-    } -> std::same_as<qdb_error_t>;
-};
+template <typename Fn, typename... Args>
+concept qdb_invoke_strategy =
+
+    // Fn must always return a function
+    std::invocable<Fn>
+
+    // And it returns a qdb_error_t
+    && requires(Fn callback, Args... args) {
+           {
+               callback(std::forward<Args>(args)...)
+               //      qdb_exp_batch_push_with_options(
+               //                *_handle, &options, batch.data(), nullptr, batch.size())
+           } -> std::same_as<qdb_error_t>;
+       };
 
 // Assertions
 static_assert(dtype<traits::unicode_dtype>);

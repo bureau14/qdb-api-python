@@ -8,11 +8,17 @@
 #include <list>
 
 #ifndef QDB_TESTS_ENABLED
+#    include "detail/invoke.hpp"
 #    include "detail/sleep.hpp"
-using sleep_strategy_t = qdb::detail::default_sleep_strategy<>;
+template <typename Fn, typename... Args>
+using invoke_strategy_t = qdb::detail::default_invoke_strategy<Fn, Args...>;
+using sleep_strategy_t  = qdb::detail::default_sleep_strategy<>;
 #else
+#    include "../tests/detail/invoke.hpp"
 #    include "../tests/detail/sleep.hpp"
-using sleep_strategy_t = qdb::detail::mock_sleep_strategy<>;
+template <typename Fn, typename... Args>
+using invoke_strategy_t = qdb::detail::mock_invoke_strategy<Fn, Args...>;
+using sleep_strategy_t  = qdb::detail::mock_sleep_strategy<>;
 #endif
 
 namespace qdb

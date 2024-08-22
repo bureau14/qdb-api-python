@@ -367,6 +367,7 @@ set(QDB_FILES
   utils.hpp
   writer.cpp
   writer.hpp
+  detail/invoke.hpp
   detail/retry.hpp
   detail/retry.cpp
   detail/sleep.hpp
