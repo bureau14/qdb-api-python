@@ -365,7 +365,6 @@ set(QDB_FILES
   traits.hpp
   utils.cpp
   utils.hpp
-  writer.cpp
   writer.hpp
   detail/invoke.hpp
   detail/retry.hpp
@@ -373,6 +372,8 @@ set(QDB_FILES
   detail/sleep.hpp
   detail/qdb_resource.hpp
   detail/ts_column.hpp
+  detail/writer.cpp
+  detail/writer.hpp
   utils/blob_deque.hpp
   utils/ostream.hpp
   utils/permutation.hpp

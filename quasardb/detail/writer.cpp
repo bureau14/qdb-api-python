@@ -362,6 +362,3 @@ void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
 }
 
 }; // namespace qdb::detail
-
-namespace qdb
-{}; // namespace qdb

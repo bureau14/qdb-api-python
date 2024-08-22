@@ -8,17 +8,15 @@
 #include <list>
 
 #ifndef QDB_TESTS_ENABLED
-#    include "detail/invoke.hpp"
 #    include "detail/sleep.hpp"
-template <typename Fn, typename... Args>
-using invoke_strategy_t = qdb::detail::default_invoke_strategy<Fn, Args...>;
-using sleep_strategy_t  = qdb::detail::default_sleep_strategy<>;
+#    include "detail/writer.hpp"
+using push_strategy_t  = qdb::detail::default_writer_push_strategy;
+using sleep_strategy_t = qdb::detail::default_sleep_strategy<>;
 #else
-#    include "../tests/detail/invoke.hpp"
 #    include "../tests/detail/sleep.hpp"
-template <typename Fn, typename... Args>
-using invoke_strategy_t = qdb::detail::mock_invoke_strategy<Fn, Args...>;
-using sleep_strategy_t  = qdb::detail::mock_sleep_strategy<>;
+#    include "../tests/detail/writer.hpp"
+using push_strategy_t  = qdb::detail::mock_failure_writer_push_strategy;
+using sleep_strategy_t = qdb::detail::mock_sleep_strategy<>;
 #endif
 
 namespace qdb
@@ -80,7 +78,7 @@ PYBIND11_MODULE(quasardb, m)
     qdb::register_masked_array(m);
     qdb::register_reader(m);
 
-    qdb::register_writer<sleep_strategy_t>(m);
+    qdb::register_writer<push_strategy_t, sleep_strategy_t>(m);
 
     qdb::register_metrics(m);
 
