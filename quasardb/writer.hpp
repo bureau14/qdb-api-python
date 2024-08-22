@@ -31,6 +31,7 @@
 #pragma once
 
 #include "batch_column.hpp"
+#include "concepts.hpp"
 #include "dispatch.hpp"
 #include "error.hpp"
 #include "logger.hpp"
@@ -482,6 +483,7 @@ public:
 
     const std::vector<qdb_exp_batch_push_column_t> & prepare_columns();
 
+    template <qdb::concepts::sleep_strategy SS>
     void push(detail::writer_data const & data, py::kwargs kwargs)
     {
         qdb::object_tracker::scoped_capture capture{_object_tracker};
@@ -491,13 +493,14 @@ public:
             .push_flags = detail::batch_push_flags_from_kwargs(kwargs) //
         };
 
-        _push_impl(                             //
+        _push_impl<SS>(                         //
             detail::staged_tables::index(data), //
             options,                            //
             kwargs                              //
         );                                      //
     }
 
+    template <qdb::concepts::sleep_strategy SS>
     void push_async(detail::writer_data const & data, py::kwargs kwargs)
     {
         qdb::object_tracker::scoped_capture capture{_object_tracker};
@@ -507,13 +510,14 @@ public:
             .push_flags = detail::batch_push_flags_from_kwargs(kwargs) //
         };
 
-        _push_impl(                             //
+        _push_impl<SS>(                         //
             detail::staged_tables::index(data), //
             options,                            //
             kwargs                              //
         );                                      //
     }
 
+    template <qdb::concepts::sleep_strategy SS>
     void push_fast(detail::writer_data const & data, py::kwargs kwargs)
     {
         qdb::object_tracker::scoped_capture capture{_object_tracker};
@@ -524,13 +528,14 @@ public:
             .push_flags = detail::batch_push_flags_from_kwargs(kwargs) //
         };
 
-        _push_impl(                             //
+        _push_impl<SS>(                         //
             detail::staged_tables::index(data), //
             options,                            //
             kwargs                              //
         );                                      //
     }
 
+    template <qdb::concepts::sleep_strategy SS>
     void push_truncate(detail::writer_data const & data, py::kwargs kwargs)
     {
         qdb::object_tracker::scoped_capture capture{_object_tracker};
@@ -570,7 +575,7 @@ public:
             .push_flags = detail::batch_push_flags_from_kwargs(kwargs) //
         };
 
-        _push_impl(         //
+        _push_impl<SS>(     //
             std::move(idx), //
             options,        //
             kwargs,         //
@@ -579,6 +584,7 @@ public:
     }
 
 private:
+    template <concepts::sleep_strategy SS>
     void _push_impl(detail::staged_tables && idx,
         qdb_exp_batch_options_t const & options,
         py::kwargs const & kwargs,
@@ -616,9 +622,10 @@ private:
                 batch_table.data.column_count, table_name);
         }
 
-        _do_push(options, batch, detail::retry_options::from_kwargs(kwargs));
+        _do_push<SS>(options, batch, detail::retry_options::from_kwargs(kwargs));
     }
 
+    template <concepts::sleep_strategy SleepStrategy>
     void _do_push(qdb_exp_batch_options_t const & options,
         std::vector<qdb_exp_batch_push_table_t> const & batch,
         detail::retry_options const & retry_options)
@@ -662,11 +669,16 @@ private:
                 _logger.warn("A temporary error occurred");
             }
 
+            std::chrono::milliseconds delay = retry_options.delay;
+            _logger.info("Sleeping for %d milliseconds", delay.count());
+
+            SleepStrategy::sleep(delay);
+
             // Now try again -- easier way to go about this is to enter recursion. Note how
             // we permutate the retry_options, which automatically adjusts the amount of retries
             // left and the next sleep duration.
             _logger.warn("Retrying push operation, retries left: %d", retry_options.retries_left);
-            return _do_push(options, batch, retry_options.next());
+            return _do_push<SleepStrategy>(options, batch, retry_options.next());
         }
 
         qdb::qdb_throw_if_error(*_handle, err);
@@ -690,6 +702,7 @@ public:
 // behavior
 using writer_ptr = std::unique_ptr<writer>;
 
+template <qdb::concepts::sleep_strategy SS>
 static void register_writer(py::module_ & m)
 {
     namespace py = pybind11;
@@ -711,13 +724,13 @@ static void register_writer(py::module_ & m)
 
     // push functions
     writer_c
-        .def("push", &qdb::writer::push, "Regular batch push") //
-        .def("push_async", &qdb::writer::push_async,
+        .def("push", &qdb::writer::push<SS>, "Regular batch push") //
+        .def("push_async", &qdb::writer::push_async<SS>,
             "Asynchronous batch push that buffers data inside the QuasarDB daemon") //
-        .def("push_fast", &qdb::writer::push_fast,
+        .def("push_fast", &qdb::writer::push_fast<SS>,
             "Fast, in-place batch push that is efficient when doing lots of small, incremental "
             "pushes.") //
-        .def("push_truncate", &qdb::writer::push_truncate,
+        .def("push_truncate", &qdb::writer::push_truncate<SS>,
             "Before inserting data, truncates any existing data. This is useful when you want your "
             "insertions to be idempotent, e.g. in "
             "case of a retry.");

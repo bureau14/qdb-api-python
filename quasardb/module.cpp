@@ -7,8 +7,17 @@
 #include <functional>
 #include <list>
 
+#ifndef QDB_TESTS_ENABLED
+#    include "detail/sleep.hpp"
+using sleep_strategy_t = qdb::detail::default_sleep_strategy<>;
+#else
+#    include "../tests/detail/sleep.hpp"
+using sleep_strategy_t = qdb::detail::mock_sleep_strategy<>;
+#endif
+
 namespace qdb
 {
+
 /**
  * This approach is inspired from pybind11, where we keep a global static variable
  * of initializers for components/modules that which to register with our global
@@ -64,7 +73,9 @@ PYBIND11_MODULE(quasardb, m)
     qdb::register_batch_inserter(m);
     qdb::register_masked_array(m);
     qdb::register_reader(m);
-    qdb::register_writer(m);
+
+    qdb::register_writer<sleep_strategy_t>(m);
+
     qdb::register_metrics(m);
 
     qdb::detail::register_ts_column(m);

@@ -369,6 +369,7 @@ set(QDB_FILES
   writer.hpp
   detail/retry.hpp
   detail/retry.cpp
+  detail/sleep.hpp
   detail/qdb_resource.hpp
   detail/ts_column.hpp
   utils/blob_deque.hpp
@@ -394,6 +395,7 @@ if(QDB_TESTS_ENABLED)
 
     ../tests/detail/mock_failure.hpp
     ../tests/detail/mock_failure.cpp
+    ../tests/detail/sleep.hpp
   )
 endif()
 

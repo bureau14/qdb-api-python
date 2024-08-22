@@ -119,14 +119,6 @@ struct retry_options
         return retry_options{retries_left - 1, delay * exponent, exponent, jitter};
     }
 
-    template <typename Dispatch>
-    inline constexpr void sleep() const
-    {
-        logger_.info("Sleeping for %d milliseconds", delay.count());
-
-        Dispatch::sleep(delay);
-    }
-
     /**
      * Returns true if we have retries left and the error is retryable.
      */
@@ -148,17 +140,6 @@ struct retry_options
             return false;
         };
     }
-};
-
-/**
- * Default sleep dispatcher that uses the STL for sleeping
- */
-struct default_sleep_dispatch
-{
-    static void sleep(std::chrono::milliseconds const & delay)
-    {
-        std::this_thread::sleep_for(delay);
-    };
 };
 
 void register_retry_options(py::module_ & m);
