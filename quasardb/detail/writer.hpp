@@ -327,27 +327,10 @@ private:
     std::vector<value_type> xs_;
 };
 
-static qdb_uint_t batch_push_flags_from_kwargs(py::kwargs const & kwargs)
+struct batch_push_flags
 {
-    if (!kwargs.contains("write_through"))
-    {
-        return static_cast<qdb_uint_t>(qdb_exp_batch_push_flag_none);
-    }
-
-    try
-    {
-        return py::cast<bool>(kwargs["write_through"])
-                   ? static_cast<qdb_uint_t>(qdb_exp_batch_push_flag_write_through)
-                   : static_cast<qdb_uint_t>(qdb_exp_batch_push_flag_none);
-    }
-    catch (py::cast_error const & /*e*/)
-    {
-        std::string error_msg = "Invalid argument provided for `write_through`: expected bool, got: ";
-        error_msg += py::str(py::type::of(kwargs["write_through"])).cast<std::string>();
-
-        throw qdb::invalid_argument_exception{error_msg};
-    }
-}
+    static qdb_uint_t from_kwargs(py::kwargs const & kwargs);
+};
 
 /**
  * Wraps an index to staged tables. Provides functionality for indexing writer

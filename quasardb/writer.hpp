@@ -74,8 +74,8 @@ public:
         qdb::object_tracker::scoped_capture capture{_object_tracker};
 
         const qdb_exp_batch_options_t options = {
-            .mode       = qdb_exp_batch_push_transactional,            //
-            .push_flags = detail::batch_push_flags_from_kwargs(kwargs) //
+            .mode       = qdb_exp_batch_push_transactional,             //
+            .push_flags = detail::batch_push_flags::from_kwargs(kwargs) //
         };
 
         _push_impl<PushStrategy, SleepStrategy>( //
@@ -93,8 +93,8 @@ public:
         qdb::object_tracker::scoped_capture capture{_object_tracker};
 
         const qdb_exp_batch_options_t options = {
-            .mode       = qdb_exp_batch_push_async,                    //
-            .push_flags = detail::batch_push_flags_from_kwargs(kwargs) //
+            .mode       = qdb_exp_batch_push_async,                     //
+            .push_flags = detail::batch_push_flags::from_kwargs(kwargs) //
         };
 
         _push_impl<PushStrategy, SleepStrategy>( //
@@ -113,8 +113,8 @@ public:
         auto staged_tables = detail::staged_tables::index(data);
 
         const qdb_exp_batch_options_t options = {
-            .mode       = qdb_exp_batch_push_fast,                     //
-            .push_flags = detail::batch_push_flags_from_kwargs(kwargs) //
+            .mode       = qdb_exp_batch_push_fast,                      //
+            .push_flags = detail::batch_push_flags::from_kwargs(kwargs) //
         };
 
         _push_impl<PushStrategy, SleepStrategy>( //
@@ -162,8 +162,8 @@ public:
         }
 
         const qdb_exp_batch_options_t options = {
-            .mode       = qdb_exp_batch_push_truncate,                 //
-            .push_flags = detail::batch_push_flags_from_kwargs(kwargs) //
+            .mode       = qdb_exp_batch_push_truncate,                  //
+            .push_flags = detail::batch_push_flags::from_kwargs(kwargs) //
         };
 
         _push_impl<PushStrategy, SleepStrategy>( //

@@ -244,6 +244,28 @@ void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
         deduplicate_options.columns_);
 }
 
+/* static */ qdb_uint_t detail::batch_push_flags::from_kwargs(py::kwargs const & kwargs)
+{
+    if (!kwargs.contains("write_through"))
+    {
+        return static_cast<qdb_uint_t>(qdb_exp_batch_push_flag_none);
+    }
+
+    try
+    {
+        return py::cast<bool>(kwargs["write_through"])
+                   ? static_cast<qdb_uint_t>(qdb_exp_batch_push_flag_write_through)
+                   : static_cast<qdb_uint_t>(qdb_exp_batch_push_flag_none);
+    }
+    catch (py::cast_error const & /*e*/)
+    {
+        std::string error_msg = "Invalid argument provided for `write_through`: expected bool, got: ";
+        error_msg += py::str(py::type::of(kwargs["write_through"])).cast<std::string>();
+
+        throw qdb::invalid_argument_exception{error_msg};
+    }
+}
+
 /* static */ detail::deduplicate_options detail::deduplicate_options::from_kwargs(py::kwargs args)
 {
     if (!args.contains("deduplicate") || !args.contains("deduplication_mode"))
