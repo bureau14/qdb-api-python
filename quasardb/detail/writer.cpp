@@ -1,10 +1,10 @@
 #include "writer.hpp"
+#include "../convert/array.hpp"
 #include "concepts.hpp"
 #include "dispatch.hpp"
 #include "numpy.hpp"
+#include "retry.hpp"
 #include "traits.hpp"
-#include "convert/array.hpp"
-#include "detail/retry.hpp"
 
 namespace qdb::detail
 {
@@ -244,18 +244,61 @@ void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
         deduplicate_options.columns_);
 }
 
+/* static */ py::kwargs batch_push_mode::ensure(py::kwargs kwargs)
+{
+    if (kwargs.contains(kw_push_mode) == false)
+        [[unlikely]] // Our pandas/numpy adapters always set this, so unlikely
+    {
+
+        kwargs[batch_push_mode::kw_push_mode] = batch_push_mode::default_push_mode;
+    }
+
+    return kwargs;
+}
+
+/* static */ py::kwargs batch_push_mode::set(py::kwargs kwargs, qdb_exp_batch_push_mode_t push_mode)
+{
+    assert(kwargs.contains(kw_push_mode) == false);
+
+    kwargs[batch_push_mode::kw_push_mode] = push_mode;
+
+    return kwargs;
+}
+
+/* static */ qdb_exp_batch_push_mode_t batch_push_mode::from_kwargs(py::kwargs const & kwargs)
+{
+    assert(kwargs.contains(batch_push_mode::kw_push_mode));
+
+    return py::cast<qdb_exp_batch_push_mode_t>(kwargs[batch_push_mode::kw_push_mode]);
+}
+
+/* static */ py::kwargs detail::batch_push_flags::ensure(py::kwargs kwargs)
+{
+    if (kwargs.contains(batch_push_flags::kw_write_through) == false)
+    {
+        kwargs[batch_push_flags::kw_write_through] = batch_push_flags::default_write_through;
+    }
+
+    return kwargs;
+}
+
 /* static */ qdb_uint_t detail::batch_push_flags::from_kwargs(py::kwargs const & kwargs)
 {
-    if (!kwargs.contains("write_through"))
-    {
-        return static_cast<qdb_uint_t>(qdb_exp_batch_push_flag_none);
-    }
+    assert(kwargs.contains(batch_push_flags::kw_write_through));
+
+    // By default no flags are set
+    qdb_uint_t ret = qdb_exp_batch_push_flag_none;
 
     try
     {
-        return py::cast<bool>(kwargs["write_through"])
-                   ? static_cast<qdb_uint_t>(qdb_exp_batch_push_flag_write_through)
-                   : static_cast<qdb_uint_t>(qdb_exp_batch_push_flag_none);
+        bool write_through = py::cast<bool>(kwargs["write_through"]);
+
+        // Likely as it's the default, if not, this static assert should fail:
+        static_assert(batch_push_flags::default_write_through == true);
+        if (write_through == true) [[likely]]
+        {
+            ret |= static_cast<qdb_uint_t>(qdb_exp_batch_push_flag_write_through);
+        }
     }
     catch (py::cast_error const & /*e*/)
     {
@@ -264,6 +307,18 @@ void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
 
         throw qdb::invalid_argument_exception{error_msg};
     }
+
+    return ret;
+}
+
+/* static */ qdb_exp_batch_options_t detail::batch_options::from_kwargs(py::kwargs const & kwargs)
+{
+    auto kwargs_ = detail::batch_push_mode::ensure(kwargs);
+
+    return {
+        .mode       = detail::batch_push_mode::from_kwargs(kwargs_), //
+        .push_flags = detail::batch_push_flags::from_kwargs(kwargs_) //
+    };
 }
 
 /* static */ detail::deduplicate_options detail::deduplicate_options::from_kwargs(py::kwargs args)
@@ -382,5 +437,4 @@ void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
 
     return ret;
 }
-
 }; // namespace qdb::detail

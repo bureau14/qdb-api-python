@@ -787,15 +787,18 @@ def write_arrays(
     start = time.time()
 
     if fast is True:
-        writer.push_fast(push_data, **push_kwargs)
+        push_kwargs['push_mode'] = quasardb.WriterPushMode.Fast
     elif truncate is True:
-        writer.push_truncate(push_data, **push_kwargs)
+        push_kwargs['push_mode'] = quasardb.WriterPushMode.Truncate
     elif isinstance(truncate, tuple):
-        writer.push_truncate(push_data, range=truncate, **push_kwargs)
+        push_kwargs['push_mode'] = quasardb.WriterPushMode.Truncate
+        push_kwargs['range'] = truncate
     elif _async is True:
-        writer.push_async(push_data, **push_kwargs)
+        push_kwargs['push_mode'] = quasardb.WriterPushMode.Async
     else:
-        writer.push(push_data, **push_kwargs)
+        push_kwargs['push_mode'] = quasardb.WriterPushMode.Transactional
+
+    writer.push(push_data, **push_kwargs)
 
     logger.debug("pushed %d rows in %s seconds",
                 n_rows, (time.time() - start))

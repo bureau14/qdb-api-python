@@ -73,14 +73,11 @@ public:
     {
         qdb::object_tracker::scoped_capture capture{_object_tracker};
 
-        const qdb_exp_batch_options_t options = {
-            .mode       = qdb_exp_batch_push_transactional,             //
-            .push_flags = detail::batch_push_flags::from_kwargs(kwargs) //
-        };
+        // We always want to have a push mode at this point
+        kwargs = detail::batch_push_mode::ensure(kwargs);
 
         _push_impl<PushStrategy, SleepStrategy>( //
             detail::staged_tables::index(data),  //
-            options,                             //
             kwargs                               //
         );                                       //
     }
@@ -90,18 +87,11 @@ public:
         qdb::concepts::sleep_strategy SleepStrategy>      //
     void push_async(detail::writer_data const & data, py::kwargs kwargs)
     {
-        qdb::object_tracker::scoped_capture capture{_object_tracker};
+        _logger.warn("writer.push_async() is deprecated, please invoke writer.push() directly and "
+                     "provide the push mode as a kwarg");
 
-        const qdb_exp_batch_options_t options = {
-            .mode       = qdb_exp_batch_push_async,                     //
-            .push_flags = detail::batch_push_flags::from_kwargs(kwargs) //
-        };
-
-        _push_impl<PushStrategy, SleepStrategy>( //
-            detail::staged_tables::index(data),  //
-            options,                             //
-            kwargs                               //
-        );                                       //
+        return push<PushStrategy, SleepStrategy>(
+            data, detail::batch_push_mode::set(kwargs, qdb_exp_batch_push_async));
     }
 
     template <                                            //
@@ -109,19 +99,11 @@ public:
         qdb::concepts::sleep_strategy SleepStrategy>      //
     void push_fast(detail::writer_data const & data, py::kwargs kwargs)
     {
-        qdb::object_tracker::scoped_capture capture{_object_tracker};
-        auto staged_tables = detail::staged_tables::index(data);
+        _logger.warn("writer.push_fast() is deprecated, please invoke writer.push() directly and "
+                     "provide the push mode as a kwarg");
 
-        const qdb_exp_batch_options_t options = {
-            .mode       = qdb_exp_batch_push_fast,                      //
-            .push_flags = detail::batch_push_flags::from_kwargs(kwargs) //
-        };
-
-        _push_impl<PushStrategy, SleepStrategy>( //
-            detail::staged_tables::index(data),  //
-            options,                             //
-            kwargs                               //
-        );                                       //
+        return push<PushStrategy, SleepStrategy>(
+            data, detail::batch_push_mode::set(kwargs, qdb_exp_batch_push_fast));
     }
 
     template <                                            //
@@ -129,61 +111,80 @@ public:
         qdb::concepts::sleep_strategy SleepStrategy>      //
     void push_truncate(detail::writer_data const & data, py::kwargs kwargs)
     {
-        qdb::object_tracker::scoped_capture capture{_object_tracker};
-        auto idx = detail::staged_tables::index(data);
+        _logger.warn("writer.push_fast() is deprecated, please invoke writer.push() directly and "
+                     "provide the push mode as a kwarg");
 
-        // As we are actively removing data, let's add an additional check to ensure the user
-        // doesn't accidentally truncate his whole database without inserting anything.
-        if (data.empty()) [[unlikely]]
-        {
-            throw qdb::invalid_argument_exception{
-                "Writer is empty: you did not provide any rows to push."};
-        }
+        return push<PushStrategy, SleepStrategy>(
+            data, detail::batch_push_mode::set(kwargs, qdb_exp_batch_push_truncate));
 
-        qdb_ts_range_t tr;
+        // qdb::object_tracker::scoped_capture capture{_object_tracker};
+        // auto idx = detail::staged_tables::index(data);
 
-        if (kwargs.contains("range"))
-        {
-            tr = convert::value<py::tuple, qdb_ts_range_t>(py::cast<py::tuple>(kwargs["range"]));
-        }
-        else
-        {
-            // TODO(leon): support multiple tables for push truncate
-            if (idx.size() != 1) [[unlikely]]
-            {
-                throw qdb::invalid_argument_exception{"Writer push truncate only supports a single "
-                                                      "table unless an explicit range is provided: you "
-                                                      "provided more than one table without"
-                                                      " an explicit range."};
-            }
+        // // As we are actively removing data, let's add an additional check to ensure the user
+        // // doesn't accidentally truncate his whole database without inserting anything.
+        // if (data.empty()) [[unlikely]]
+        // {
+        //     throw qdb::invalid_argument_exception{
+        //         "Writer is empty: you did not provide any rows to push."};
+        // }
 
-            detail::staged_table const & staged_table = idx.first();
-            tr                                        = staged_table.time_range();
-        }
+        // qdb_ts_range_t tr;
 
-        const qdb_exp_batch_options_t options = {
-            .mode       = qdb_exp_batch_push_truncate,                  //
-            .push_flags = detail::batch_push_flags::from_kwargs(kwargs) //
-        };
+        // if (kwargs.contains("range"))
+        // {
+        //     tr = convert::value<py::tuple, qdb_ts_range_t>(py::cast<py::tuple>(kwargs["range"]));
+        // }
+        // else
+        // {
+        //     // TODO(leon): support multiple tables for push truncate
+        //     if (idx.size() != 1) [[unlikely]]
+        //     {
+        //         throw qdb::invalid_argument_exception{"Writer push truncate only supports a single "
+        //                                               "table unless an explicit range is provided:
+        //                                               you " "provided more than one table without" "
+        //                                               an explicit range."};
+        //     }
 
-        _push_impl<PushStrategy, SleepStrategy>( //
-            std::move(idx),                      //
-            options,                             //
-            kwargs,                              //
-            &tr                                  //
-        );                                       //
+        //     detail::staged_table const & staged_table = idx.first();
+        //     tr                                        = staged_table.time_range();
+        // }
+
+        // const qdb_exp_batch_options_t options = {
+        //     .mode       = qdb_exp_batch_push_truncate,                  //
+        //     .push_flags = detail::batch_push_flags::from_kwargs(kwargs) //
+        // };
+
+        // _push_impl<PushStrategy, SleepStrategy>( //
+        //     std::move(idx),                      //
+        //     options,                             //
+        //     kwargs,                              //
+        //     &tr                                  //
+        // );                                       //
     }
 
 private:
     template <                                       //
         concepts::writer_push_strategy PushStrategy, //
         concepts::sleep_strategy SleepStrategy>      //
-    void _push_impl(detail::staged_tables && idx,
-        qdb_exp_batch_options_t const & options,
-        py::kwargs const & kwargs,
-        qdb_ts_range_t * ranges = nullptr)
+    void _push_impl(                                 //
+        detail::staged_tables && idx,                //
+        py::kwargs kwargs)                           //
     {
         _handle->check_open();
+
+        // Ensure some default variables that are set
+        kwargs = detail::batch_push_flags::ensure(kwargs);
+
+        std::vector<qdb_ts_range_t> truncate_ranges{};
+
+        if (detail::batch_push_mode::from_kwargs(kwargs) == qdb_exp_batch_push_truncate)
+            [[unlikely]] // Unlikely because truncate isn't used much
+        {
+            kwargs          = detail::batch_truncate_ranges::ensure(kwargs, idx);
+            truncate_ranges = detail::batch_truncate_ranges::from_kwargs(kwargs);
+        }
+
+        qdb_exp_batch_options_t options = detail::batch_options::from_kwargs(kwargs);
 
         if (idx.empty()) [[unlikely]]
         {
@@ -195,6 +196,12 @@ private:
         std::vector<qdb_exp_batch_push_table_t> batch;
         batch.assign(idx.size(), qdb_exp_batch_push_table_t());
 
+        qdb_ts_range_t * truncate_ranges_{nullptr};
+        if (truncate_ranges.empty() == false) [[unlikely]]
+        {
+            truncate_ranges_ = truncate_ranges.data();
+        }
+
         int cur = 0;
 
         for (auto pos = idx.begin(); pos != idx.end(); ++pos)
@@ -203,7 +210,11 @@ private:
             detail::staged_table & staged_table = pos->second;
             auto & batch_table                  = batch.at(cur++);
 
-            staged_table.prepare_batch(options.mode, deduplicate_options, ranges, batch_table);
+            staged_table.prepare_batch( //
+                options.mode,           //
+                deduplicate_options,    //
+                truncate_ranges_,       //
+                batch_table);
 
             if (batch_table.data.column_count == 0) [[unlikely]]
             {
@@ -309,6 +320,14 @@ static void register_writer(py::module_ & m)
         .def("append", &qdb::detail::writer_data::append, py::arg("table"), py::arg("index"),
             py::arg("column_data"), "Append new data")
         .def("empty", &qdb::detail::writer_data::empty, "Returns true if underlying data is empty");
+
+    // Different push modes, makes it easy to convert to<>from native types, as we accept the push
+    // mode as a kwarg.
+    py::enum_<qdb_exp_batch_push_mode_t>{m, "WriterPushMode", py::arithmetic(), "Push Mode"} //
+        .value("Transactional", qdb_exp_batch_push_transactional)                            //
+        .value("Fast", qdb_exp_batch_push_fast)                                              //
+        .value("Truncate", qdb_exp_batch_push_truncate)                                      //
+        .value("Async", qdb_exp_batch_push_fast);                                            //
 
     // And the actual pinned writer
     auto writer_c = py::class_<qdb::writer>{m, "Writer"};

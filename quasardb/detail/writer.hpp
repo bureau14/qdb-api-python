@@ -31,6 +31,7 @@
 #pragma once
 
 #include "../concepts.hpp"
+#include "../convert/value.hpp"
 #include "../dispatch.hpp"
 #include "../error.hpp"
 #include "../logger.hpp"
@@ -327,11 +328,6 @@ private:
     std::vector<value_type> xs_;
 };
 
-struct batch_push_flags
-{
-    static qdb_uint_t from_kwargs(py::kwargs const & kwargs);
-};
-
 /**
  * Wraps an index to staged tables. Provides functionality for indexing writer
  * data into staged tables as well.
@@ -427,6 +423,105 @@ public:
 
 private:
     container_type idx_;
+};
+
+struct batch_push_flags
+{
+    static constexpr char const * kw_write_through = "write_through";
+    static constexpr bool default_write_through    = true;
+
+    /**
+     * Ensures all options are always explicitly set, according to the defaults above.
+     */
+    static py::kwargs ensure(py::kwargs kwargs);
+
+    /**
+     * Returns the push mode, throws error if push mode is not set.
+     */
+    static qdb_uint_t from_kwargs(py::kwargs const & kwargs);
+};
+
+struct batch_push_mode
+{
+    static constexpr char const * kw_push_mode                   = "push_mode";
+    static constexpr qdb_exp_batch_push_mode_t default_push_mode = qdb_exp_batch_push_transactional;
+
+    /**
+     * Ensures push mode is always set in the kwargs, and uses the `default_push_mode` if not found.
+     */
+    static py::kwargs ensure(py::kwargs kwargs);
+
+    /**
+     * Sets the push mode to a certain value.
+     */
+    static py::kwargs set(py::kwargs kwargs, qdb_exp_batch_push_mode_t push_mode);
+
+    /**
+     * Returns the push mode, throws error if push mode is not set.
+     */
+    static qdb_exp_batch_push_mode_t from_kwargs(py::kwargs const & kwargs);
+};
+
+struct batch_options
+{
+    static qdb_exp_batch_options_t from_kwargs(py::kwargs const & kwargs);
+};
+
+struct batch_truncate_ranges
+{
+
+    static constexpr char const * kw_range = "range";
+
+    /**
+     * Ensures a range is set. If not set, derives it from the range of the provided
+     * tables.
+     */
+    static py::kwargs ensure(py::kwargs kwargs, detail::staged_tables const & idx)
+    {
+        if (kwargs.contains(kw_range) == false)
+        {
+            if (idx.size() != 1) [[unlikely]]
+            {
+                throw qdb::invalid_argument_exception{"Writer push truncate only supports a single "
+                                                      "table unless an explicit range is provided: "
+                                                      "you  provided more than one table without "
+                                                      " an explicit range."};
+            }
+
+            detail::staged_table const & staged_table = idx.first();
+
+            auto range_ = staged_table.time_range();
+
+            py::print("1 before");
+            py::tuple x = convert::value<qdb_ts_range_t, py::tuple>(range_);
+            py::print("2 middle");
+            kwargs[kw_range] = x;
+            py::print("3 after");
+        }
+
+        return kwargs;
+    }
+
+    /**
+     * Returns the truncate ranges based on the kwargs.
+     */
+    static std::vector<qdb_ts_range_t> from_kwargs(py::kwargs kwargs)
+    {
+        // This function *could* be invoked, but doesn't make sense to be invoked, when we're not
+        // doing a push truncate.
+        //
+        // Strictly speaking this assertion is not necessary, but it doesn't hurt to have it.
+        assert(qdb::detail::batch_push_mode::from_kwargs(kwargs) == qdb_exp_batch_push_truncate);
+
+        // We also always assume a range is provided, i.e. `ensure` is called beforehand.
+        assert(kwargs.contains(detail::batch_truncate_ranges::kw_range) == true);
+        std::vector<qdb_ts_range_t> ret{};
+
+        py::tuple range_ = py::cast<py::tuple>(kwargs[detail::batch_truncate_ranges::kw_range]);
+        ret.push_back(convert::value<py::tuple, qdb_ts_range_t>(range_));
+
+        return ret;
+    }
 };
 
 /**
