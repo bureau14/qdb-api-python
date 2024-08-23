@@ -439,3 +439,67 @@ def test_write_through_flag_throws_when_incorrect(qdbpd_write_fn, df_with_table,
 
     with pytest.raises(quasardb.InvalidArgumentError):
         qdbpd_write_fn(df, qdbd_connection, table, write_through='wrong!')
+
+
+def test_retries(qdbpd_write_fn, df_with_table, qdbd_connection, retry_options, mock_failure_options, caplog):
+    caplog.set_level(logging.INFO)
+
+    (_, _, df, table) = df_with_table
+
+    do_write_fn = lambda: qdbpd_write_fn(df, qdbd_connection, table, retries=retry_options, mock_failure_options=mock_failure_options)
+
+    retries_expected = mock_failure_options.failures_left
+    expect_failure = False
+
+    if retries_expected > retry_options.retries_left:
+        retries_expected = retry_options.retries_left
+        expect_failure = True
+        logger.info("mock failures(%d) > retries(%d), expecting failure", mock_failure_options.failures_left, retry_options.retries_left)
+
+    logger.info("expected retries: %d", retries_expected)
+
+    if expect_failure == True:
+        with pytest.raises(quasardb.AsyncPipelineFullError):
+            do_write_fn()
+    else:
+        do_write_fn()
+
+    # Verify retry count is exactly as expected by inspecting logs.
+    retries_seen = 0
+
+    for lr in caplog.records:
+        if 'Retrying push operation' in lr.message:
+            retries_seen = retries_seen + 1
+
+    assert retries_seen == retries_expected
+
+    # Verify the amount of milliseconds we "sleep"
+    import datetime
+
+    delays_ms = []
+
+    # We always log in milliseconds (because we use std::chrono::millis), and the recommended
+    # way to convert a datetime to milliseconds is to divide it by a 1ms timedelta.
+    next_delay_ms = int(retry_options.delay / datetime.timedelta(milliseconds=1))
+    for i in range(retries_expected):
+        delays_ms.append(next_delay_ms)
+
+        # We could use the permutation .next() function of retry_options instead, but then if
+        # there would be a bug in there we would not detect it. And this isn't really rocket
+        # science.
+        next_delay_ms = next_delay_ms * retry_options.exponent
+
+    # Now, verify we have seen each and every one of these delays
+    for delay_ms in delays_ms:
+        seen = False
+        needle = 'Sleeping for {} milliseconds'.format(delay_ms)
+
+        for lr in caplog.records:
+            if needle in lr.message:
+                seen = True
+                break
+
+        if seen == False:
+            logger.error("expected to find delay of %d milliseconds, but could not find in logs", delay_ms)
+
+        assert seen == True

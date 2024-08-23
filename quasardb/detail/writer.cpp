@@ -1,10 +1,10 @@
 #include "writer.hpp"
+#include "../convert/array.hpp"
 #include "concepts.hpp"
 #include "dispatch.hpp"
-#include "metrics.hpp"
 #include "numpy.hpp"
+#include "retry.hpp"
 #include "traits.hpp"
-#include "convert/array.hpp"
 
 namespace qdb::detail
 {
@@ -244,132 +244,84 @@ void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
         deduplicate_options.columns_);
 }
 
-}; // namespace qdb::detail
-
-namespace qdb
+/* static */ py::kwargs batch_push_mode::ensure(py::kwargs kwargs)
 {
-
-void writer::data::append(
-    qdb::table const & table, py::handle const & index, py::list const & column_data)
-{
-    py::array index_ = numpy::array::ensure<traits::datetime64_ns_dtype>(index);
-
-    /**
-     * Additional check that all the data is actually of the same length, and data has been
-     * provided for each and every column.
-     */
-    if (column_data.size() != table.list_columns().size())
+    if (kwargs.contains(kw_push_mode) == false)
+        [[unlikely]] // Our pandas/numpy adapters always set this, so unlikely
     {
-        throw qdb::invalid_argument_exception{"data must be provided for every table column"};
+
+        kwargs[batch_push_mode::kw_push_mode] = batch_push_mode::default_push_mode;
     }
 
-    for (py::handle const & data : column_data)
+    return kwargs;
+}
+
+/* static */ py::kwargs batch_push_mode::set(py::kwargs kwargs, qdb_exp_batch_push_mode_t push_mode)
+{
+    assert(kwargs.contains(kw_push_mode) == false);
+
+    kwargs[batch_push_mode::kw_push_mode] = push_mode;
+
+    return kwargs;
+}
+
+/* static */ qdb_exp_batch_push_mode_t batch_push_mode::from_kwargs(py::kwargs const & kwargs)
+{
+    assert(kwargs.contains(batch_push_mode::kw_push_mode));
+
+    return py::cast<qdb_exp_batch_push_mode_t>(kwargs[batch_push_mode::kw_push_mode]);
+}
+
+/* static */ py::kwargs detail::batch_push_flags::ensure(py::kwargs kwargs)
+{
+    if (kwargs.contains(batch_push_flags::kw_write_through) == false)
     {
-        qdb::masked_array data_ = data.cast<qdb::masked_array>();
-        if (data_.size() != static_cast<std::size_t>(index_.size()))
+        kwargs[batch_push_flags::kw_write_through] = batch_push_flags::default_write_through;
+    }
+
+    return kwargs;
+}
+
+/* static */ qdb_uint_t detail::batch_push_flags::from_kwargs(py::kwargs const & kwargs)
+{
+    assert(kwargs.contains(batch_push_flags::kw_write_through));
+
+    // By default no flags are set
+    qdb_uint_t ret = qdb_exp_batch_push_flag_none;
+
+    try
+    {
+        bool write_through = py::cast<bool>(kwargs["write_through"]);
+
+        // Likely as it's the default, if not, this static assert should fail:
+        static_assert(batch_push_flags::default_write_through == true);
+        if (write_through == true) [[likely]]
         {
-            throw qdb::invalid_argument_exception{
-                "every data array should be exactly the same length as the index array"};
+            ret |= static_cast<qdb_uint_t>(qdb_exp_batch_push_flag_write_through);
         }
     }
-
-    xs_.push_back(value_type{table, index_, column_data});
-}
-
-void writer::push(writer::data const & data, py::kwargs args)
-{
-    qdb::object_tracker::scoped_capture capture{_object_tracker};
-    staged_tables_t staged_tables = _stage_tables(data);
-
-    const qdb_exp_batch_options_t options = {
-        .mode       = qdb_exp_batch_push_transactional, //
-        .push_flags = _push_flags_from_args(args)       //
-    };
-
-    _push_impl(
-        staged_tables, options, _deduplicate_from_args(args), detail::retry_options::from_kwargs(args));
-}
-
-void writer::push_async(writer::data const & data, py::kwargs args)
-{
-    qdb::object_tracker::scoped_capture capture{_object_tracker};
-    staged_tables_t staged_tables = _stage_tables(data);
-
-    const qdb_exp_batch_options_t options = {
-        .mode       = qdb_exp_batch_push_async,   //
-        .push_flags = _push_flags_from_args(args) //
-    };
-
-    _push_impl(
-        staged_tables, options, _deduplicate_from_args(args), detail::retry_options::from_kwargs(args));
-}
-
-void writer::push_fast(writer::data const & data, py::kwargs args)
-{
-    qdb::object_tracker::scoped_capture capture{_object_tracker};
-    staged_tables_t staged_tables = _stage_tables(data);
-
-    const qdb_exp_batch_options_t options = {
-        .mode       = qdb_exp_batch_push_fast,    //
-        .push_flags = _push_flags_from_args(args) //
-    };
-
-    _push_impl(
-        staged_tables, options, _deduplicate_from_args(args), detail::retry_options::from_kwargs(args));
-}
-
-void writer::push_truncate(writer::data const & data, py::kwargs args)
-{
-    qdb::object_tracker::scoped_capture capture{_object_tracker};
-    staged_tables_t staged_tables = _stage_tables(data);
-
-    auto deduplicate = _deduplicate_from_args(args);
-
-    // Sanity check, this should be checked for in the python-side of things as well,
-    // but people can invoke this manually if they want.
-    if (!std::holds_alternative<bool>(deduplicate.columns_)
-        || std::get<bool>(deduplicate.columns_) != false) [[unlikely]]
+    catch (py::cast_error const & /*e*/)
     {
-        throw qdb::invalid_argument_exception{"Cannot set `deduplicate` for push_truncate."};
-    };
+        std::string error_msg = "Invalid argument provided for `write_through`: expected bool, got: ";
+        error_msg += py::str(py::type::of(kwargs["write_through"])).cast<std::string>();
 
-    // As we are actively removing data, let's add an additional check to ensure the user
-    // doesn't accidentally truncate his whole database without inserting anything.
-    if (data.empty()) [[unlikely]]
-    {
-        throw qdb::invalid_argument_exception{"Writer is empty: you did not provide any rows to push."};
+        throw qdb::invalid_argument_exception{error_msg};
     }
 
-    qdb_ts_range_t tr;
-
-    if (args.contains("range"))
-    {
-        tr = convert::value<py::tuple, qdb_ts_range_t>(py::cast<py::tuple>(args["range"]));
-    }
-    else
-    {
-        // TODO(leon): support multiple tables for push truncate
-        if (staged_tables.size() != 1) [[unlikely]]
-        {
-            throw qdb::invalid_argument_exception{
-                "Writer push truncate only supports a single "
-                "table unless an explicit range is provided: you provided more than one table without"
-                " an explicit range."};
-        }
-
-        detail::staged_table const & staged_table = staged_tables.cbegin()->second;
-        tr                                        = staged_table.time_range();
-    }
-
-    const qdb_exp_batch_options_t options = {
-        .mode       = qdb_exp_batch_push_truncate, //
-        .push_flags = _push_flags_from_args(args)  //
-    };
-
-    _push_impl(staged_tables, options, deduplicate, detail::retry_options::from_kwargs(args), &tr);
+    return ret;
 }
 
-detail::deduplicate_options writer::_deduplicate_from_args(py::kwargs args)
+/* static */ qdb_exp_batch_options_t detail::batch_options::from_kwargs(py::kwargs const & kwargs)
+{
+    auto kwargs_ = detail::batch_push_mode::ensure(kwargs);
+
+    return {
+        .mode       = detail::batch_push_mode::from_kwargs(kwargs_), //
+        .push_flags = detail::batch_push_flags::from_kwargs(kwargs_) //
+    };
+}
+
+/* static */ detail::deduplicate_options detail::deduplicate_options::from_kwargs(py::kwargs args)
 {
     if (!args.contains("deduplicate") || !args.contains("deduplication_mode"))
     {
@@ -415,33 +367,16 @@ detail::deduplicate_options writer::_deduplicate_from_args(py::kwargs args)
     throw qdb::invalid_argument_exception{error_msg};
 };
 
-qdb_uint_t writer::_push_flags_from_args(py::kwargs args)
+/* static */ staged_tables staged_tables::index(detail::writer_data const & data)
 {
-    if (!args.contains("write_through"))
-    {
-        return static_cast<qdb_uint_t>(qdb_exp_batch_push_flag_none);
-    }
+    // XXX(leon): this function could potentially be moved to e.g. a free
+    // function as it doesn't really depend upon anything in writer, but
+    // then we'll have to globally declare staged_tables_t and it gets a
+    // bit messy.
 
-    try
-    {
-        return py::cast<bool>(args["write_through"])
-                   ? static_cast<qdb_uint_t>(qdb_exp_batch_push_flag_write_through)
-                   : static_cast<qdb_uint_t>(qdb_exp_batch_push_flag_none);
-    }
-    catch (py::cast_error const & /*e*/)
-    {
-        std::string error_msg = "Invalid argument provided for `write_through`: expected bool, got: ";
-        error_msg += py::str(py::type::of(args["write_through"])).cast<std::string>();
+    detail::staged_tables ret;
 
-        throw qdb::invalid_argument_exception{error_msg};
-    }
-}
-
-/* static */ writer::staged_tables_t writer::_stage_tables(writer::data const & data)
-{
-    staged_tables_t staged_tables;
-
-    for (writer::data::value_type const & table_data : data.xs())
+    for (detail::writer_data::value_type const & table_data : data.xs())
     {
         qdb::table table     = table_data.table;
         py::array index      = table_data.index;
@@ -455,7 +390,7 @@ qdb_uint_t writer::_push_flags_from_args(py::kwargs args)
                 "data must be provided for every column of the table."};
         }
 
-        detail::staged_table & staged_table = writer::_get_staged_table(table, staged_tables);
+        detail::staged_table & staged_table = ret.get_or_create(table);
 
         staged_table.set_index(index);
 
@@ -500,122 +435,6 @@ qdb_uint_t writer::_push_flags_from_args(py::kwargs args)
         }
     }
 
-    return staged_tables;
+    return ret;
 }
-
-void writer::_do_push(qdb_exp_batch_options_t const & options,
-    std::vector<qdb_exp_batch_push_table_t> const & batch,
-    detail::retry_options const & retry_options)
-{
-    qdb_error_t err{qdb_e_ok};
-
-    {
-        // Make sure to measure the time it takes to do the actual push.
-        // This is in its own scoped block so that we only actually measure
-        // the push time, not e.g. retry time.
-        qdb::metrics::scoped_capture capture{"qdb_batch_push"};
-
-        err = qdb_exp_batch_push_with_options(*_handle, &options, batch.data(), nullptr, batch.size());
-    }
-
-    if (detail::is_retryable(err) && retry_options.has_next())
-        [[unlikely]] // Unlikely, because err is most likely to be qdb_e_ok
-    {
-        // The error is retryable, and we have retries left
-        std::chrono::milliseconds sleep = retry_options.sleep_duration();
-
-        if (err == qdb_e_async_pipe_full) [[likely]]
-        {
-            _logger.warn("Async pipelines are currently full");
-        }
-        else
-        {
-            _logger.warn("A temporary error occurred");
-        }
-
-        _logger.warn("Sleeping for %d milliseconds", sleep.count());
-
-        std::this_thread::sleep_for(sleep);
-
-        // Now try again -- easier way to go about this is to enter recursion. Note how
-        // we permutate the retry_options, which automatically adjusts the amount of retries
-        // left and the next sleep duration.
-        _logger.warn("Retrying push operation, retries left: %d", retry_options.retries_left_);
-        return _do_push(options, batch, retry_options.next());
-    }
-
-    qdb::qdb_throw_if_error(*_handle, err);
-}
-
-void writer::_push_impl(writer::staged_tables_t & staged_tables,
-    qdb_exp_batch_options_t const & options,
-    detail::deduplicate_options const & deduplicate_options,
-    detail::retry_options const & retry_options,
-    qdb_ts_range_t * ranges)
-{
-    _handle->check_open();
-
-    if (staged_tables.empty())
-    {
-        throw qdb::invalid_argument_exception{"No data written to batch writer."};
-    }
-
-    std::vector<qdb_exp_batch_push_table_t> batch;
-    batch.assign(staged_tables.size(), qdb_exp_batch_push_table_t());
-
-    int cur = 0;
-
-    for (auto pos = staged_tables.begin(); pos != staged_tables.end(); ++pos)
-    {
-        std::string const & table_name      = pos->first;
-        detail::staged_table & staged_table = pos->second;
-        auto & batch_table                  = batch.at(cur++);
-
-        staged_table.prepare_batch(options.mode, deduplicate_options, ranges, batch_table);
-
-        if (batch_table.data.column_count == 0) [[unlikely]]
-        {
-            throw qdb::invalid_argument_exception{
-                "Writer is empty: you did not provide any columns to push."};
-        }
-
-        _logger.debug("Pushing %d rows with %d columns in %s", batch_table.data.row_count,
-            batch_table.data.column_count, table_name);
-    }
-
-    _do_push(options, batch, retry_options);
-}
-
-void register_writer(py::module_ & m)
-{
-    namespace py = pybind11;
-
-    // Writer data
-    auto writer_data_c = py::class_<qdb::writer::data>{m, "WriterData"};
-    writer_data_c.def(py::init())
-        .def("append", &qdb::writer::data::append, py::arg("table"), py::arg("index"),
-            py::arg("column_data"), "Append new data")
-        .def("empty", &qdb::writer::data::empty, "Returns true if underlying data is empty");
-
-    // And the actual pinned writer
-    auto writer_c = py::class_<qdb::writer>{m, "Writer"};
-
-    // basic interface
-    writer_c.def(py::init<qdb::handle_ptr>()); //
-
-    writer_c.def_readwrite("_legacy_state", &qdb::writer::legacy_state_);
-
-    // push functions
-    writer_c
-        .def("push", &qdb::writer::push, "Regular batch push") //
-        .def("push_async", &qdb::writer::push_async,
-            "Asynchronous batch push that buffers data inside the QuasarDB daemon") //
-        .def("push_fast", &qdb::writer::push_fast,
-            "Fast, in-place batch push that is efficient when doing lots of small, incremental "
-            "pushes.") //
-        .def("push_truncate", &qdb::writer::push_truncate,
-            "Before inserting data, truncates any existing data. This is useful when you want your "
-            "insertions to be idempotent, e.g. in "
-            "case of a retry.");
-}
-}; // namespace qdb
+}; // namespace qdb::detail

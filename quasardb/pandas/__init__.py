@@ -302,99 +302,38 @@ def _extract_columns(df, cinfos):
 def write_dataframes(
         dfs,
         cluster,
-        dtype=None,
-        create=False,
-        shard_size=None,
-        _async=False,
-        fast=False,
-        truncate=False,
-        deduplicate=False,
-        deduplication_mode='drop',
-        infer_types=True,
-        writer=None,
-        retries=3,
-        write_through=False):
+        *,
+        create = False,
+        shard_size = None,
+        **kwargs):
     """
-    Store a dataframe into a table with the pin column API.
+    Store dataframes into a table. Any additional parameters not documented here
+    are passed to numpy.write_arrays(). Please consult the pydoc of that function
+    for additional accepted parameters.
 
     Parameters:
     -----------
 
-    df: pandas.DataFrame
-      The pandas dataframe to store.
+    dfs: dict[str | quasardb.Table, pd.DataFrame] | list[tuple[str | quasardb.Table, pd.DataFrame]]
+      This can be either a dict that maps table (either objects or names) to a dataframe, or a list
+      of table<>dataframe tuples.
 
     cluster: quasardb.Cluster
       Active connection to the QuasarDB cluster
 
-    table: quasardb.Timeseries or str
-      Either a string or a reference to a QuasarDB Timeseries table object.
-      For example, 'my_table' or cluster.table('my_table') are both valid values.
-
-    dtype: optional dtype, list of dtype, or dict of dtype
-      Optional data type to force. If a single dtype, will force that dtype to all
-      columns. If list-like, will map dtypes to dataframe columns by their offset.
-      If dict-like, will map dtypes to dataframe columns by their label.
-
-      If a dtype for a column is provided in this argument, and infer_types is also
-      True, this argument takes precedence.
-
     create: optional bool
-      Whether to create the table. Defaults to false.
+      Whether to create the table. Defaults to False.
 
     shard_size: optional datetime.timedelta
-      The shard size of the timeseries you wish to create.
-
-    deduplicate: bool or list[str]
-      Enables server-side deduplication of data when it is written into the table.
-      When True, automatically deduplicates rows when all values of a row are identical.
-      When a list of strings is provided, deduplicates only based on the values of
-      these columns.
-
-      Defaults to False.
-
-    infer_types: optional bool
-      If true, will attemp to convert types from Python to QuasarDB natives types if
-      the provided dataframe has incompatible types. For example, a dataframe with integers
-      will automatically convert these to doubles if the QuasarDB table expects it.
-
-      **Important**: as conversions are expensive and often the majority of time spent
-      when inserting data into QuasarDB, we strongly recommend setting this to ``False``
-      for performance-sensitive code.
-
-    truncate: optional bool
-      Truncate (also referred to as upsert) the data in-place. Will detect time range to truncate
-      from the time range inside the dataframe.
-
-      Defaults to False.
-
-    _async: optional bool
-      If true, uses asynchronous insertion API where commits are buffered server-side and
-      acknowledged before they are written to disk. If you insert to the same table from
-      multiple processes, setting this to True may improve performance.
-
-      Defaults to False.
-
-    fast: optional bool
-      Whether to use 'fast push'. If you incrementally add small batches of data to table,
-      you may see better performance if you set this to True.
-
-      Defaults to False.
-
-    write_through: optional bool
-      If True, data is not cached after write.
-      By default is False, in which case caching is left at the discretion of the server.
-
-    retries: optional int
-      Number of times to retry in case of a push failure. This is useful in case of async
-      pipeline failures, or when doing transactional inserts that may occasionally cause
-      transaction conflicts.
-
-      Retries with exponential backoff, starts at 3 seconds, and doubles every retry attempt.
+      The shard size of the timeseries you wish to create when `create` is True.
     """
 
     # If dfs is a dict, we convert it to a list of tuples.
     if isinstance(dfs, dict):
         dfs = dfs.items()
+
+    if shard_size is not None and create == False:
+        raise ValueError("Invalid argument: shard size provided while create is False")
 
     # If the tables are provided as strings, we look them up.
     dfs_ = []
@@ -404,11 +343,10 @@ def write_dataframes(
 
         dfs_.append((table, df))
 
-
     data_by_table = []
 
     for table, df in dfs_:
-        logger.debug("quasardb.pandas.write_dataframe, create = %s, dtype = %s", create, dtype)
+        logger.debug("quasardb.pandas.write_dataframe, create = %s", create)
         assert isinstance(df, pd.DataFrame)
 
         # Create table if requested
@@ -435,16 +373,7 @@ def write_dataframes(
     return qdbnp.write_arrays(data_by_table, cluster,
                               table=None,
                               index=None,
-                              dtype=dtype,
-                              _async=_async,
-                              fast=fast,
-                              truncate=truncate,
-                              deduplicate=deduplicate,
-                              deduplication_mode=deduplication_mode,
-                              infer_types=infer_types,
-                              write_through=write_through,
-                              writer=writer,
-                              retries=retries)
+                              **kwargs)
 
 def write_dataframe(
         df,
