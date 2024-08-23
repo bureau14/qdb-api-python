@@ -365,10 +365,15 @@ set(QDB_FILES
   traits.hpp
   utils.cpp
   utils.hpp
-  writer.cpp
   writer.hpp
+  detail/invoke.hpp
+  detail/retry.hpp
+  detail/retry.cpp
+  detail/sleep.hpp
   detail/qdb_resource.hpp
   detail/ts_column.hpp
+  detail/writer.cpp
+  detail/writer.hpp
   utils/blob_deque.hpp
   utils/ostream.hpp
   utils/permutation.hpp
@@ -382,12 +387,17 @@ if(QDB_TESTS_ENABLED)
 ------------------------------------------------------------------ \
 [qdb-api-python] Tests enabled -- do not enable for release builds \
 ------------------------------------------------------------------ \ ")
-  set(QDB_TEST_FILES
 
+  add_compile_definitions(QDB_TESTS_ENABLED)
+
+  set(QDB_TEST_FILES
     ../tests/conftest.cpp
     ../tests/conftest.hpp
     ../tests/test_convert.cpp
-    ../tests/test_writer_retry_options.cpp
+
+    ../tests/detail/mock_failure.hpp
+    ../tests/detail/mock_failure.cpp
+    ../tests/detail/sleep.hpp
   )
 endif()
 

@@ -4,6 +4,7 @@
 #include <pybind11/numpy.h>
 #include <range/v3/range/concepts.hpp>
 #include <range/v3/range/traits.hpp>
+#include <chrono>
 #include <iterator>
 #include <type_traits>
 
@@ -114,12 +115,13 @@ static_assert(not qdb_primitive<qdb_ts_string_point>);
 template <typename Dtype>
 concept dtype = std::is_base_of_v<traits::dtype<Dtype::kind>, Dtype>
 
-    && std::is_enum_v<decltype(Dtype::kind)>
+                && std::is_enum_v<decltype(Dtype::kind)>
 
     ;
 
 template <typename Dtype>
-concept fixed_width_dtype = dtype<Dtype>
+concept fixed_width_dtype =
+    dtype<Dtype>
 
     // Check base class
     && std::is_base_of_v<traits::fixed_width_dtype<Dtype::kind, Dtype::size>, Dtype>;
@@ -147,14 +149,14 @@ concept dtype8 = dtype_of_width<Dtype, 1>;
 template <typename Dtype>
 concept datetime64_dtype = fixed_width_dtype<Dtype>
 
-    // Verify base class is datetime64_dtype
-    && std::is_base_of_v<traits::datetime64_dtype<Dtype::precision>, Dtype>
+                           // Verify base class is datetime64_dtype
+                           && std::is_base_of_v<traits::datetime64_dtype<Dtype::precision>, Dtype>
 
-    // datetime64 is always a 64bit object
-    && dtype64<Dtype>
+                           // datetime64 is always a 64bit object
+                           && dtype64<Dtype>
 
-    // It needs to have a precision
-    && std::is_enum_v<decltype(Dtype::precision)>;
+                           // It needs to have a precision
+                           && std::is_enum_v<decltype(Dtype::precision)>;
 
 template <typename Dtype>
 concept variable_width_dtype =
@@ -173,11 +175,11 @@ concept variable_width_dtype =
 template <typename Dtype>
 concept object_dtype = dtype<Dtype>
 
-    // Objects are always fixed width (64-bit pointers, effectively)
-    && fixed_width_dtype<Dtype>
+                       // Objects are always fixed width (64-bit pointers, effectively)
+                       && fixed_width_dtype<Dtype>
 
-    // Verify base class
-    && std::is_base_of_v<traits::object_dtype<typename Dtype::value_type>, Dtype>;
+                       // Verify base class
+                       && std::is_base_of_v<traits::object_dtype<typename Dtype::value_type>, Dtype>;
 
 // Trivial dtypes are useful for deciding whether you can use fast memcpy-based
 // conversions, e.g. when numpy's int64 has the exact same representation as
@@ -229,6 +231,47 @@ concept delegate_dtype =
     // very least nothrow_convertible.
     && std::is_nothrow_convertible_v<delegate_from_type_t<Dtype>, delegate_to_type_t<Dtype>>;
 
+////////////////////////////////////////////////////////////////////////////////
+//
+// Python API useful concepts, for e.g. batch writer
+//
+///////////////////
+
+template <typename T>
+concept duration = traits::is_chrono_duration<T>::value;
+
+template <typename T, typename Duration = T::duration_t>
+concept sleep_strategy =
+    // Should always be a valid chrono duration
+    duration<Duration>
+
+    // And have a sleep function that takes a duration, and returns void
+    && requires(T s, Duration duration_) {
+           {
+               s.sleep(duration_)
+           } -> std::same_as<void>;
+       };
+
+template <typename T>
+concept writer_push_strategy =
+    // Check that we can do a batch push invoke
+    requires(                                                     //
+        T t,                                                      //
+        qdb_handle_t handle,                                      //
+        qdb_exp_batch_options_t const * options,                  //
+        qdb_exp_batch_push_table_t const * tables,                //
+        qdb_exp_batch_push_table_schema_t const ** table_schemas, //
+        qdb_size_t table_count,                                   //
+        py::kwargs const & kwargs                                 //
+    ) {
+        {
+            t(handle, options, tables, table_schemas, table_count)
+        } -> std::same_as<qdb_error_t>;
+        {
+            T::from_kwargs(kwargs)
+        } -> std::same_as<T>;
+    };
+
 // Assertions
 static_assert(dtype<traits::unicode_dtype>);
 
@@ -275,4 +318,5 @@ static_assert(not trivial_dtype<traits::float32_dtype>);
 
 static_assert(fixed_width_dtype<traits::float64_dtype>);
 static_assert(fixed_width_dtype<traits::float32_dtype>);
+
 }; // namespace qdb::concepts

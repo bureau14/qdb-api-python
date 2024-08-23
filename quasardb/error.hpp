@@ -89,6 +89,18 @@ public:
     {}
 };
 
+class out_of_bounds_exception : public exception
+{
+public:
+    out_of_bounds_exception() noexcept
+        : exception(qdb_e_out_of_bounds, std::string("The requested operation is out of bounds"))
+    {}
+
+    out_of_bounds_exception(std::string const & what) noexcept
+        : exception(qdb_e_out_of_bounds, what)
+    {}
+};
+
 class uninitialized_exception : public exception
 {
 public:
@@ -275,8 +287,16 @@ inline void qdb_throw_if_error(
             case qdb_e_not_connected:
             case qdb_e_invalid_handle:
                 throw qdb::invalid_handle_exception{};
+
             case qdb_e_invalid_argument:
                 throw qdb::invalid_argument_exception{};
+
+            case qdb_e_try_again:
+                throw qdb::try_again_exception{};
+
+            case qdb_e_async_pipe_full:
+                throw qdb::async_pipeline_full_exception{};
+
             default:
                 throw qdb::exception{err, qdb_error(err)};
             }
@@ -293,6 +313,9 @@ inline void qdb_throw_if_error(
 
         case qdb_e_invalid_query:
             throw qdb::invalid_query_exception{msg_data_};
+
+        case qdb_e_out_of_bounds:
+            throw qdb::out_of_bounds_exception{msg_data_};
 
         case qdb_e_not_connected:
         case qdb_e_invalid_handle:
@@ -364,6 +387,7 @@ static inline void register_errors(Module & m)
     py::register_exception<qdb::invalid_handle_exception>(m, "InvalidHandleError", base_class);
     py::register_exception<qdb::try_again_exception>(m, "TryAgainError", base_class);
     py::register_exception<qdb::async_pipeline_full_exception>(m, "AsyncPipelineFullError", base_class);
+    py::register_exception<qdb::out_of_bounds_exception>(m, "OutOfBoundsError", base_class);
 }
 
 } // namespace qdb
