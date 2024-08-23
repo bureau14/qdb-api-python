@@ -348,12 +348,12 @@ public:
     static staged_tables index(writer_data const & data);
 
 public:
-    constexpr inline container_type::size_type size() const
+    inline container_type::size_type size() const
     {
         return idx_.size();
     }
 
-    constexpr inline bool empty() const
+    inline bool empty() const
     {
         return idx_.empty();
     }
