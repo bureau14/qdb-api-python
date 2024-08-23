@@ -222,8 +222,9 @@ private:
                     "Writer is empty: you did not provide any columns to push."};
             }
 
-            _logger.debug("Pushing %d rows with %d columns in %s", batch_table.data.row_count,
-                batch_table.data.column_count, table_name);
+            _logger.debug("Pushing %d rows with %d columns in %s using %s push mode",
+                batch_table.data.row_count, batch_table.data.column_count, table_name,
+                detail::batch_push_mode::to_string(options.mode));
         }
 
         _do_push<PushStrategy, SleepStrategy>(         //

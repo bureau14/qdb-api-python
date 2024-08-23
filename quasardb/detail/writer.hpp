@@ -460,6 +460,26 @@ struct batch_push_mode
      * Returns the push mode, throws error if push mode is not set.
      */
     static qdb_exp_batch_push_mode_t from_kwargs(py::kwargs const & kwargs);
+
+    /**
+     * Converts the push mode to a string representation, useful for debugging/logging purposes.
+     */
+    static std::string to_string(qdb_exp_batch_push_mode_t push_mode) noexcept
+    {
+        switch (push_mode)
+        {
+        case qdb_exp_batch_push_transactional:
+            return "transactional";
+        case qdb_exp_batch_push_fast:
+            return "fast";
+        case qdb_exp_batch_push_async:
+            return "async";
+        case qdb_exp_batch_push_truncate:
+            return "truncate";
+        default:
+            return "invalid";
+        };
+    }
 };
 
 struct batch_options
