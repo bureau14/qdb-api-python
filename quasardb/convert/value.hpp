@@ -32,6 +32,7 @@
 
 #include "../concepts.hpp"
 #include "../error.hpp"
+#include "../numpy.hpp"
 #include "../object_tracker.hpp"
 #include "../pytypes.hpp"
 #include "../traits.hpp"
@@ -379,6 +380,23 @@ struct value_converter<qdb::pydatetime, qdb_timespec_t>
     }
 };
 
+/**
+ * Creates a numpy datetime64[ns] out of a nanosecond-precision int64
+ */
+template <>
+struct value_converter<std::int64_t, qdb::numpy::datetime64>
+{
+    inline qdb::numpy::datetime64 operator()(std::int64_t const & x) const
+    {
+        return qdb::numpy::datetime64{x};
+    }
+};
+
+/**
+ * Creates a nanosecond precision int64 out of a qdb_timespec_t. The resulting
+ * integer represents the amount of nanoseconds since epoch, which is the
+ * same representation numpy uses internally.
+ */
 template <>
 struct value_converter<qdb_timespec_t, std::int64_t>
 {
@@ -386,6 +404,21 @@ struct value_converter<qdb_timespec_t, std::int64_t>
     {
         // XXX(leon): potential overflow
         return x.tv_nsec + x.tv_sec * 1'000'000'000ull;
+    }
+};
+
+/**
+ * Convenience wrapper which directly converts timespecs to numpy datetime64
+ */
+template <>
+struct value_converter<qdb_timespec_t, qdb::numpy::datetime64>
+{
+    value_converter<std::int64_t, qdb::numpy::datetime64> int64_to_datetime64_{};
+    value_converter<qdb_timespec_t, std::int64_t> ts_to_int64_{};
+
+    inline qdb::numpy::datetime64 operator()(qdb_timespec_t const & x) const
+    {
+        return int64_to_datetime64_(ts_to_int64_(x));
     }
 };
 
@@ -624,6 +657,17 @@ struct value_converter<qdb_string_t, traits::unicode_dtype>
     inline auto operator()(qdb_string_t const & x) const
     {
         return unicode::utf32::encode_view(unicode::utf8::decode_view(delegate_(x)));
+    }
+};
+
+template <>
+struct value_converter<qdb_ts_range_t, py::tuple>
+{
+    value_converter<qdb_timespec_t, qdb::numpy::datetime64> delegate_{};
+
+    inline py::tuple operator()(qdb_ts_range_t const & x) const
+    {
+        return py::make_tuple(delegate_(x.begin), delegate_(x.end));
     }
 };
 

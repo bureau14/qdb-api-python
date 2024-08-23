@@ -30,7 +30,7 @@
  */
 #pragma once
 
-#include <pybind11/pybind11.h>
+#include "../error.hpp"
 #include <chrono>
 
 namespace qdb::detail
@@ -38,85 +38,110 @@ namespace qdb::detail
 
 struct retry_options
 {
+    qdb::logger logger_;
+
     // how many retries are left. 0 means no retries
-    std::size_t retries_left_;
+    std::size_t retries_left;
 
     // delay for the next retry
-    std::chrono::milliseconds delay_;
+    std::chrono::milliseconds delay;
 
     // factor by which delay is increased every retry
-    std::size_t exponent_;
+    std::size_t exponent;
 
     // random jitter added/removed to delay_. Jitter of 0.1 means that 10% is automatically
     // added or removed from delay_
-    double jitter_;
+    double jitter;
 
+    /**
+     * Retry options constructor
+     */
     retry_options(std::size_t retries   = 3,
         std::chrono::milliseconds delay = std::chrono::milliseconds{3000},
         std::size_t exponent            = 2,
         double jitter                   = 0.1)
-        : retries_left_{retries}
-        , delay_{delay}
-        , exponent_{exponent}
-        , jitter_{jitter}
+        : logger_("quasardb.detail.retry")
+        , retries_left{retries}
+        , delay{delay}
+        , exponent{exponent}
+        , jitter{jitter}
     {}
 
-    static retry_options from_kwargs(py::kwargs args)
+    static inline retry_options from_kwargs(py::kwargs args)
     {
-        if (!args.contains("retries"))
+        if (args.contains("retries") == false)
         {
             return {};
         }
 
-        if (!args.contains("retry_delay"))
-        {
-            return {args["retries"].cast<std::size_t>()};
-        }
+        auto retries = args["retries"];
 
-        // TODO(leon): support additional arguments such as exponent and jitter.
-        //             for now we just use default values.
-        return {
-            args["retries"].cast<std::size_t>(), args["retry_delay"].cast<std::chrono::milliseconds>()};
+        // We're going to assume that retries is an actual RetryOptions class, because
+        // our Numpy and Pandas adapters always coerce it to that type. By making this
+        // assumption, we can slightly optimize this code path.
+        //
+        // By providing an explicit RetryOptions object is also the only way to fine-tune
+        // other parameters.
+
+        try
+        {
+            return retries.cast<retry_options>();
+        }
+        catch (py::cast_error const & /*e*/)
+        {
+            // For convenience, we also give the user the choice to just provide `retries`
+            // as an integer, in which case we'll assume this is the number of retries the
+            // user wants to perform.
+            //
+            // In all likelihood, this is the only parameter the user will want to tune.
+            return {retries.cast<std::size_t>()};
+        }
     }
 
-    inline constexpr bool has_next() const
+    inline constexpr bool has_next() const noexcept
     {
-        return retries_left_ > 0;
+        return retries_left > 0;
     }
 
     /**
      * Returns new object, with `retries_left_` and `delay_` adjusted accordingly.
      */
-    retry_options next() const
+    inline retry_options next() const
     {
+        if (has_next() == false) [[unlikely]]
+        {
+            throw qdb::out_of_bounds_exception{
+                "RetryOptions.next() called but retries already exhausted."};
+        }
 
         assert(has_next() == true);
 
-        return retry_options{retries_left_ - 1, delay_ * exponent_, exponent_, jitter_};
+        return retry_options{retries_left - 1, delay * exponent, exponent, jitter};
     }
 
     /**
-     * Returns the next sleep duration, based on `delay_` and the provided jitter.
+     * Returns true if we have retries left and the error is retryable.
      */
-
-    std::chrono::milliseconds sleep_duration() const
+    inline constexpr bool should_retry(qdb_error_t e) const noexcept
     {
-        // TODO(leon): include jitter_
-        return delay_;
+        // We check for `is_retryable` first, because in all likelihood e is qdb_e_ok
+        return retry_options::is_retryable(e) && has_next();
+    }
+
+    static constexpr bool is_retryable(qdb_error_t e) noexcept
+    {
+        switch (e)
+        {
+        case qdb_e_async_pipe_full:
+        case qdb_e_try_again:
+            return true;
+            break;
+        default:
+            return false;
+        };
     }
 };
 
-constexpr bool is_retryable(qdb_error_t e)
-{
-    switch (e)
-    {
-    case qdb_e_async_pipe_full:
-    case qdb_e_try_again:
-        return true;
-        break;
-    default:
-        return false;
-    };
-}
+void register_retry_options(py::module_ & m);
 
 }; // namespace qdb::detail
