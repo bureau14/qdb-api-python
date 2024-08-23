@@ -919,3 +919,43 @@ def table_1col(qdbd_connection, table_name, column_info):
     t = qdbd_connection.ts(table_name)
     t.create([column_info])
     return t
+
+
+###
+# Retry-related fixtures, including failure mocks
+#
+
+@pytest.fixture(params=[0, 1, 2, 4],
+                ids=['retry_count=0', 'retry_count=1', 'retry_count=2', 'retry_count=4'])
+def retry_count(request):
+    return request.param
+
+
+@pytest.fixture(params=[datetime.timedelta(milliseconds=500),
+                        datetime.timedelta(seconds=1),
+                        datetime.timedelta(seconds=3)],
+                ids=['retry_delay=500ms', 'retry_delay=1s', 'retry_delay=3s'])
+def retry_delay(request):
+    return request.param
+
+
+@pytest.fixture(params=[1, 2, 4],
+                ids=['retry_exponent=1', 'retry_exponent=2', 'retry_exponent=4'])
+def retry_exponent(request):
+    return request.param
+
+
+@pytest.fixture
+def retry_options(retry_count, retry_delay, retry_exponent):
+    return quasardb.RetryOptions(retries=retry_count, delay=retry_delay, exponent=retry_exponent)
+
+
+@pytest.fixture(params=[0, 1, 2],
+                ids=['failure_count=0', 'failure_count=1', 'failure_count=2'])
+def mock_failure_count(request):
+    return request.param
+
+
+@pytest.fixture
+def mock_failure_options(mock_failure_count):
+    return quasardb.MockFailureOptions(failures=mock_failure_count)

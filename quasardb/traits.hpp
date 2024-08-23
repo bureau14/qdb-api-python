@@ -631,4 +631,12 @@ inline typename T::value_type null_value() noexcept
     return T::null_value();
 };
 
+template <class T>
+struct is_chrono_duration : std::false_type
+{};
+
+template <class Rep, class Period>
+struct is_chrono_duration<std::chrono::duration<Rep, Period>> : std::true_type
+{};
+
 }; // namespace qdb::traits
