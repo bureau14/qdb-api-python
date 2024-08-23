@@ -15,10 +15,12 @@ ROW_COUNT = 1000
 
 logger = logging.getLogger("test-pandas")
 
+
 def _to_numpy_masked(xs):
     data = xs.to_numpy()
     mask = xs.isna()
     return ma.masked_array(data=data, mask=mask)
+
 
 def _assert_series_equal(lhs, rhs):
     lhs_ = _to_numpy_masked(lhs)
@@ -32,7 +34,7 @@ def _assert_series_equal(lhs, rhs):
     lhs_ = lhs_.torecords()
     rhs_ = rhs_.torecords()
 
-    for ((lval, lmask), (rval, rmask)) in zip(lhs_, rhs_):
+    for (lval, lmask), (rval, rmask) in zip(lhs_, rhs_):
         assert lmask == rmask
 
         if lmask is False:
@@ -54,51 +56,70 @@ def _assert_df_equal(lhs, rhs):
         _assert_series_equal(lhs[col], rhs[col])
 
 
-def gen_idx(start_time, count, step=1, unit='D'):
-    return pd.Index(data=pd.date_range(start=start_time,
-                                       end=(start_time + (np.timedelta64(step, unit) * count)),
-                                       periods=count),
-                    dtype='datetime64[ns]',
-                    name='$timestamp')
+def gen_idx(start_time, count, step=1, unit="D"):
+    return pd.Index(
+        data=pd.date_range(
+            start=start_time,
+            end=(start_time + (np.timedelta64(step, unit) * count)),
+            periods=count,
+        ),
+        dtype="datetime64[ns]",
+        name="$timestamp",
+    )
 
 
-def gen_df(start_time, count, step=1, unit='D'):
+def gen_df(start_time, count, step=1, unit="D"):
     idx = gen_idx(start_time, count, step, unit)
 
-    return pd.DataFrame(data={"the_double": np.random.uniform(-100.0, 100.0, count),
-                              "the_int64": np.random.randint(-100, 100, count),
-                              "the_blob": np.array(list(np.random.bytes(np.random.randint(16, 32)) for i in range(count)),
-                                                   'O'),
-                              "the_string": np.array([("content_" + str(item))
-                                                      for item in range(count)], 'U'),
-                              "the_ts": np.array([
-                                  (start_time + np.timedelta64(i, 's'))
-                                  for i in range(count)]).astype('datetime64[ns]'),
-                              "the_symbol": np.array([("symbol_" + str(item))
-                                                      for item in range(count)], 'U')},
-
-                        index=idx)
+    return pd.DataFrame(
+        data={
+            "the_double": np.random.uniform(-100.0, 100.0, count),
+            "the_int64": np.random.randint(-100, 100, count),
+            "the_blob": np.array(
+                list(np.random.bytes(np.random.randint(16, 32)) for i in range(count)),
+                "O",
+            ),
+            "the_string": np.array(
+                [("content_" + str(item)) for item in range(count)], "U"
+            ),
+            "the_ts": np.array(
+                [(start_time + np.timedelta64(i, "s")) for i in range(count)]
+            ).astype("datetime64[ns]"),
+            "the_symbol": np.array(
+                [("symbol_" + str(item)) for item in range(count)], "U"
+            ),
+        },
+        index=idx,
+    )
 
 
 def gen_series(start_time, count):
-    idx = pd.date_range(start_time, periods=count, freq='S')
+    idx = pd.date_range(start_time, periods=count, freq="S")
 
-    return {"the_double": pd.Series(np.random.uniform(-100.0, 100.0, count),
-                                    index=idx),
-            "the_int64": pd.Series(np.random.randint(-100, 100, count),
-                                   index=idx),
-            "the_blob": pd.Series(np.array(list(np.random.bytes(np.random.randint(16, 32)) for i in range(count)),
-                                           'O'),
-                                  index=idx),
-            "the_string": pd.Series(np.array([("content_" + str(item)) for item in range(count)],
-                                             'U'),
-                                    index=idx),
-            "the_ts": pd.Series(np.array([(start_time + np.timedelta64(i, 's'))
-                                          for i in range(count)]).astype('datetime64[ns]'),
-                                index=idx),
-            "the_symbol": pd.Series(np.array([("symbol_" + str(item)) for item in range(count)],
-                                             'U'),
-                                    index=idx)}
+    return {
+        "the_double": pd.Series(np.random.uniform(-100.0, 100.0, count), index=idx),
+        "the_int64": pd.Series(np.random.randint(-100, 100, count), index=idx),
+        "the_blob": pd.Series(
+            np.array(
+                list(np.random.bytes(np.random.randint(16, 32)) for i in range(count)),
+                "O",
+            ),
+            index=idx,
+        ),
+        "the_string": pd.Series(
+            np.array([("content_" + str(item)) for item in range(count)], "U"),
+            index=idx,
+        ),
+        "the_ts": pd.Series(
+            np.array(
+                [(start_time + np.timedelta64(i, "s")) for i in range(count)]
+            ).astype("datetime64[ns]"),
+            index=idx,
+        ),
+        "the_symbol": pd.Series(
+            np.array([("symbol_" + str(item)) for item in range(count)], "U"), index=idx
+        ),
+    }
 
 
 def test_series_read_write(series_with_table):
@@ -121,8 +142,11 @@ def test_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
 
     _assert_df_equal(df1, df2)
 
-@pytest.mark.parametrize('sparsify', conftest.no_sparsify)
-def test_dataframe_can_read_columns(qdbpd_write_fn, df_with_table, qdbd_connection, column_name, table_name):
+
+@pytest.mark.parametrize("sparsify", conftest.no_sparsify)
+def test_dataframe_can_read_columns(
+    qdbpd_write_fn, df_with_table, qdbd_connection, column_name, table_name
+):
     (ctype, dtype, df1, table) = df_with_table
     assert column_name in df1.columns
     assert len(df1.columns) == 1
@@ -134,13 +158,15 @@ def test_dataframe_can_read_columns(qdbpd_write_fn, df_with_table, qdbd_connecti
     _assert_df_equal(df1, df2)
 
 
-def test_dataframe_can_read_ranges(qdbpd_write_fn, qdbd_connection, df_with_table, start_date, row_count):
+def test_dataframe_can_read_ranges(
+    qdbpd_write_fn, qdbd_connection, df_with_table, start_date, row_count
+):
     (ctype, dtype, df1, table) = df_with_table
 
     qdbpd_write_fn(df1, qdbd_connection, table)
 
-    offset_25 = start_date + np.timedelta64(int(row_count / 4), 's')
-    offset_75 = start_date + (3 * np.timedelta64(int(row_count / 4), 's'))
+    offset_25 = start_date + np.timedelta64(int(row_count / 4), "s")
+    offset_75 = start_date + (3 * np.timedelta64(int(row_count / 4), "s"))
 
     range_0_25 = (start_date, offset_25)
     range_25_75 = (offset_25, offset_75)
@@ -155,6 +181,7 @@ def test_dataframe_can_read_ranges(qdbpd_write_fn, qdbd_connection, df_with_tabl
     assert df4.shape[0] == row_count / 2
     assert df5.shape[0] == (row_count / 4) * 3
 
+
 def test_write_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
     (ctype, dtype, df, table) = df_with_table
 
@@ -164,29 +191,34 @@ def test_write_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
 
     _assert_df_equal(df, res)
 
+
 def test_multiple_dataframe(qdbpd_writes_fn, dfs_with_tables, qdbd_connection):
 
     dfs = []
 
-    for (_, _, df, table) in dfs_with_tables:
+    for _, _, df, table in dfs_with_tables:
         dfs.append((table.get_name(), df))
 
     qdbpd_writes_fn(dfs, qdbd_connection, infer_types=True, fast=True)
 
-    for (_, _, df, table) in dfs_with_tables:
+    for _, _, df, table in dfs_with_tables:
         res = qdbpd.read_dataframe(table)
         _assert_df_equal(df, res)
 
+
 # Pandas is a retard when it comes to null values, so make sure to just only
 # generate "full" arrays when we don't infer / convert array types.
-@pytest.mark.parametrize('sparsify', conftest.no_sparsify)
+@pytest.mark.parametrize("sparsify", conftest.no_sparsify)
 def test_write_dataframe_no_infer(qdbpd_write_fn, df_with_table, qdbd_connection):
     (ctype, dtype, df, table) = df_with_table
 
     # We always need to infer
     if dtype == np.str_:
         logger.warn("Skipping test because pandas messes up strings")
-        with pytest.raises(TypeError, match=r'Data for column \'([a-z]{16})\' with type \'ColumnType.String\' was provided in dtype \''):
+        with pytest.raises(
+            TypeError,
+            match=r"Data for column \'([a-z]{16})\' with type \'ColumnType.String\' was provided in dtype \'",
+        ):
             qdbpd_write_fn(df, qdbd_connection, table, infer_types=False)
     else:
         qdbpd_write_fn(df, qdbd_connection, table, infer_types=False)
@@ -195,8 +227,9 @@ def test_write_dataframe_no_infer(qdbpd_write_fn, df_with_table, qdbd_connection
         _assert_df_equal(df, res)
 
 
-def test_write_unindexed_dataframe(qdbpd_write_fn, df_with_table, df_count,
-                                   qdbd_connection, caplog):
+def test_write_unindexed_dataframe(
+    qdbpd_write_fn, df_with_table, df_count, qdbd_connection, caplog
+):
     # CF. QDB-10203, we generate a dataframe which is unordered. The easiest
     # way to do this is reuse our gen_df function with overlapping timestamps,
     # and concatenate the data.
@@ -220,7 +253,7 @@ def test_write_unindexed_dataframe(qdbpd_write_fn, df_with_table, df_count,
 
     # We store unsorted
     caplog.clear()
-    caplog.set_level(logging.WARN, logger='quasardb.pandas')
+    caplog.set_level(logging.WARN, logger="quasardb.pandas")
     qdbpd_write_fn(df_unsorted, qdbd_connection, table)
     msgs = [x.message for x in caplog.records]
     assert "dataframe index is unsorted, resorting dataframe based on index" in msgs
@@ -241,6 +274,7 @@ def test_write_dataframe_push_fast(qdbpd_write_fn, qdbd_connection, df_with_tabl
 
     _assert_df_equal(df1, df2)
 
+
 def test_write_dataframe_push_truncate(qdbpd_write_fn, qdbd_connection, df_with_table):
     (_, _, df1, table) = df_with_table
 
@@ -252,7 +286,10 @@ def test_write_dataframe_push_truncate(qdbpd_write_fn, qdbd_connection, df_with_
 
     _assert_df_equal(df1, df2)
 
-def test_write_dataframe_deduplicate(qdbpd_write_fn, qdbd_connection, df_with_table, deduplicate):
+
+def test_write_dataframe_deduplicate(
+    qdbpd_write_fn, qdbd_connection, df_with_table, deduplicate
+):
     (_, _, df1, table) = df_with_table
 
     # Main validation:
@@ -264,15 +301,21 @@ def test_write_dataframe_deduplicate(qdbpd_write_fn, qdbd_connection, df_with_ta
     # should be deduplicated upon insertion.
 
     # Ensures that we can do a full-circle write and read of a dataframe
-    qdbpd_write_fn(df1, qdbd_connection, table, deduplicate=False, deduplication_mode='drop')
-    qdbpd_write_fn(df1, qdbd_connection, table, deduplicate=deduplicate, deduplication_mode='drop')
+    qdbpd_write_fn(
+        df1, qdbd_connection, table, deduplicate=False, deduplication_mode="drop"
+    )
+    qdbpd_write_fn(
+        df1, qdbd_connection, table, deduplicate=deduplicate, deduplication_mode="drop"
+    )
 
     df2 = qdbpd.read_dataframe(table)
 
     _assert_df_equal(df1, df2)
 
 
-def test_write_dataframe_create_table(qdbpd_write_fn, qdbd_connection, gen_df, table_name):
+def test_write_dataframe_create_table(
+    qdbpd_write_fn, qdbd_connection, gen_df, table_name
+):
     (_, _, df1) = gen_df
 
     table = qdbd_connection.ts(table_name)
@@ -282,75 +325,88 @@ def test_write_dataframe_create_table(qdbpd_write_fn, qdbd_connection, gen_df, t
 
     _assert_df_equal(df1, df2)
 
-def test_write_dataframe_create_table_twice(qdbpd_write_fn, qdbd_connection, df_with_table):
-    (_, _, df, table)  = df_with_table
+
+def test_write_dataframe_create_table_twice(
+    qdbpd_write_fn, qdbd_connection, df_with_table
+):
+    (_, _, df, table) = df_with_table
     qdbpd_write_fn(df, qdbd_connection, table, create=True)
 
-def test_write_dataframe_create_table_with_shard_size(qdbpd_write_fn, qdbd_connection, gen_df, table_name):
+
+def test_write_dataframe_create_table_with_shard_size(
+    qdbpd_write_fn, qdbd_connection, gen_df, table_name
+):
     (_, _, df1) = gen_df
     table = qdbd_connection.ts(table_name)
 
-    qdbpd_write_fn(df1,
-                   qdbd_connection,
-                   table,
-                   create=True,
-                   shard_size=timedelta(weeks=4))
+    qdbpd_write_fn(
+        df1, qdbd_connection, table, create=True, shard_size=timedelta(weeks=4)
+    )
 
     df2 = qdbpd.read_dataframe(table)
 
     _assert_df_equal(df1, df2)
 
 
-def test_query(qdbpd_write_fn, # parametrized
-               qdbpd_query_fn, # parametrized
-               df_with_table,  # parametrized
-               qdbd_connection,
-               column_name,
-               table_name):
+def test_query(
+    qdbpd_write_fn,  # parametrized
+    qdbpd_query_fn,  # parametrized
+    df_with_table,  # parametrized
+    qdbd_connection,
+    column_name,
+    table_name,
+):
     (_, _, df1, table) = df_with_table
     qdbpd_write_fn(df1, qdbd_connection, table)
 
-    df2 = qdbpd_query_fn(qdbd_connection,
-                         "SELECT $timestamp, {} FROM \"{}\"".format(column_name, table_name)
-                         ).set_index('$timestamp').reindex()
+    df2 = (
+        qdbpd_query_fn(
+            qdbd_connection,
+            'SELECT $timestamp, {} FROM "{}"'.format(column_name, table_name),
+        )
+        .set_index("$timestamp")
+        .reindex()
+    )
 
     _assert_df_equal(df1, df2)
 
 
-def test_inference(
-        qdbpd_write_fn, # parametrized
-        df_with_table,
-        qdbd_connection):
+def test_inference(qdbpd_write_fn, df_with_table, qdbd_connection):  # parametrized
     # Note that there are no tests; we effectively only test whether it doesn't
     # throw.
     (_, _, df, table) = df_with_table
     qdbpd_write_fn(df, qdbd_connection, table, infer_types=True)
 
 
-def test_shuffled_columns(qdbpd_write_fn, qdbd_connection, table_name, start_date, row_count):
+def test_shuffled_columns(
+    qdbpd_write_fn, qdbd_connection, table_name, start_date, row_count
+):
     t = qdbd_connection.table(table_name)
 
     # Specific regresion test used in Python user guide / API documentation
-    cols = [quasardb.ColumnInfo(quasardb.ColumnType.Double, "open"),
-            quasardb.ColumnInfo(quasardb.ColumnType.Double, "close"),
-            quasardb.ColumnInfo(quasardb.ColumnType.Double, "high"),
-            quasardb.ColumnInfo(quasardb.ColumnType.Double, "low"),
-            quasardb.ColumnInfo(quasardb.ColumnType.Int64, "volume")]
+    cols = [
+        quasardb.ColumnInfo(quasardb.ColumnType.Double, "open"),
+        quasardb.ColumnInfo(quasardb.ColumnType.Double, "close"),
+        quasardb.ColumnInfo(quasardb.ColumnType.Double, "high"),
+        quasardb.ColumnInfo(quasardb.ColumnType.Double, "low"),
+        quasardb.ColumnInfo(quasardb.ColumnType.Int64, "volume"),
+    ]
 
     t.create(cols)
 
-    idx = np.array([start_date + np.timedelta64(i, 's')
-                    for i in range(row_count)]).astype('datetime64[ns]')
+    idx = np.array(
+        [start_date + np.timedelta64(i, "s") for i in range(row_count)]
+    ).astype("datetime64[ns]")
 
     data = {
-        '$timestamp': idx,
-        '$table': [table_name for i in range(row_count)],
-        'close': np.random.uniform(100, 200, row_count),
-        'volume': np.random.randint(10000, 20000, row_count),
-        'open': np.random.uniform(100, 200, row_count),
-}
+        "$timestamp": idx,
+        "$table": [table_name for i in range(row_count)],
+        "close": np.random.uniform(100, 200, row_count),
+        "volume": np.random.randint(10000, 20000, row_count),
+        "open": np.random.uniform(100, 200, row_count),
+    }
 
-    df = pd.DataFrame(data).set_index('$timestamp').reindex()
+    df = pd.DataFrame(data).set_index("$timestamp").reindex()
 
     qdbpd_write_fn(df, qdbd_connection, t, infer_types=True)
 
@@ -364,24 +420,36 @@ def test_regression_sc11057(qdbd_connection, table_name):
     properly deals with these arrays.
     """
 
-    idx  = [np.datetime64('2022-09-08T12:00:01', 'ns'),
-            np.datetime64('2022-09-08T12:00:02', 'ns'),
-            np.datetime64('2022-09-08T12:00:03', 'ns')]
-    data = {'record_timestamp': [np.datetime64('2022-09-08T13:00:04', 'ns'),
-                                 np.datetime64('2022-09-08T13:00:05', 'ns'),
-                                 np.datetime64('2022-09-08T13:00:06', 'ns')],
-            'unique_tagname': np.array(['ABC', 'DEF', 'GHI'], dtype='unicode')}
+    idx = [
+        np.datetime64("2022-09-08T12:00:01", "ns"),
+        np.datetime64("2022-09-08T12:00:02", "ns"),
+        np.datetime64("2022-09-08T12:00:03", "ns"),
+    ]
+    data = {
+        "record_timestamp": [
+            np.datetime64("2022-09-08T13:00:04", "ns"),
+            np.datetime64("2022-09-08T13:00:05", "ns"),
+            np.datetime64("2022-09-08T13:00:06", "ns"),
+        ],
+        "unique_tagname": np.array(["ABC", "DEF", "GHI"], dtype="unicode"),
+    }
     df = pd.DataFrame(data=data, index=idx)
 
-    qdbpd.write_dataframe(df, qdbd_connection, table_name, create=True, infer_types=True)
+    qdbpd.write_dataframe(
+        df, qdbd_connection, table_name, create=True, infer_types=True
+    )
 
-    q = 'select $timestamp, record_timestamp, unique_tagname from "{}"'.format(table_name)
+    q = 'select $timestamp, record_timestamp, unique_tagname from "{}"'.format(
+        table_name
+    )
     df_ = qdbpd.query(qdbd_connection, q)
-    df_ = df_.groupby('unique_tagname').last().set_index('$timestamp')
+    df_ = df_.groupby("unique_tagname").last().set_index("$timestamp")
 
-    qdbpd.write_dataframe(df_, qdbd_connection, '{}_out'.format(table_name), create=True, infer_types=True)
+    qdbpd.write_dataframe(
+        df_, qdbd_connection, "{}_out".format(table_name), create=True, infer_types=True
+    )
 
-    result = qdbpd.read_dataframe(qdbd_connection.table('{}_out'.format(table_name)))
+    result = qdbpd.read_dataframe(qdbd_connection.table("{}_out".format(table_name)))
 
     _assert_df_equal(df_, result)
 
@@ -395,27 +463,36 @@ def test_regression_sc11084(qdbd_connection, table_name):
     """
 
     n_rows = 8192
-    start = np.datetime64('2022-09-08T12:00:00', 'ns')
-    idx = [start + np.timedelta64(i, 'ns') for i in range(0, n_rows)]
+    start = np.datetime64("2022-09-08T12:00:00", "ns")
+    idx = [start + np.timedelta64(i, "ns") for i in range(0, n_rows)]
 
-    data1 = np.full(int(n_rows / 2), np.nan, dtype='float64')
-    data2 = np.full(int(n_rows / 2), 1.11, dtype='float64')
-    data = {'val': np.concatenate([data1, data2])}
+    data1 = np.full(int(n_rows / 2), np.nan, dtype="float64")
+    data2 = np.full(int(n_rows / 2), 1.11, dtype="float64")
+    data = {"val": np.concatenate([data1, data2])}
 
     df = pd.DataFrame(data=data, index=idx)
-    qdbpd.write_dataframe(df, qdbd_connection, table_name, create=True, infer_types=True)
+    qdbpd.write_dataframe(
+        df, qdbd_connection, table_name, create=True, infer_types=True
+    )
 
-    df_ = qdbpd.query(qdbd_connection, "select $timestamp, val from \"{}\"".format(table_name), index='$timestamp')
+    df_ = qdbpd.query(
+        qdbd_connection,
+        'select $timestamp, val from "{}"'.format(table_name),
+        index="$timestamp",
+    )
 
     _assert_df_equal(df, df_)
 
-@pytest.mark.parametrize('sparsify', conftest.no_sparsify)
-def test_regression_sc11337(qdbpd_write_fn, df_with_table, qdbd_connection, column_name):
+
+@pytest.mark.parametrize("sparsify", conftest.no_sparsify)
+def test_regression_sc11337(
+    qdbpd_write_fn, df_with_table, qdbd_connection, column_name
+):
     (ctype, dtype, df1, table) = df_with_table
     assert column_name in df1.columns
     assert len(df1.columns) == 1
 
-    df1 = df1.astype('object')
+    df1 = df1.astype("object")
 
     df1[column_name][4] = pd.NA
 
@@ -424,6 +501,7 @@ def test_regression_sc11337(qdbpd_write_fn, df_with_table, qdbd_connection, colu
     df2 = qdbpd.read_dataframe(table, column_names=[column_name])
 
     _assert_df_equal(df1, df2)
+
 
 def test_write_through_flag(qdbpd_write_fn, df_with_table, qdbd_connection):
     (_, _, df, table) = df_with_table
@@ -434,19 +512,54 @@ def test_write_through_flag(qdbpd_write_fn, df_with_table, qdbd_connection):
 
     _assert_df_equal(df, df2)
 
-def test_write_through_flag_throws_when_incorrect(qdbpd_write_fn, df_with_table, qdbd_connection):
+
+def test_write_through_flag_throws_when_incorrect(
+    qdbpd_write_fn, df_with_table, qdbd_connection
+):
     (_, _, df, table) = df_with_table
 
     with pytest.raises(quasardb.InvalidArgumentError):
-        qdbpd_write_fn(df, qdbd_connection, table, write_through='wrong!')
+        qdbpd_write_fn(df, qdbd_connection, table, write_through="wrong!")
 
 
-def test_retries(qdbpd_write_fn, df_with_table, qdbd_connection, retry_options, mock_failure_options, caplog):
+def test_push_mode(qdbpd_write_fn, df_with_table, push_mode, qdbd_connection, caplog):
+    (_, _, df, table) = df_with_table
+
+    expected = "transactional push mode"
+    kwargs = {}
+    if push_mode == quasardb.WriterPushMode.Fast:
+        expected = "fast push mode"
+        kwargs["fast"] = True
+    elif push_mode == quasardb.WriterPushMode.Async:
+        expected = "async push mode"
+        kwargs["_async"] = True
+
+    caplog.clear()
+    caplog.set_level(logging.DEBUG, logger="quasardb.writer")
+    qdbpd_write_fn(df, qdbd_connection, table, **kwargs)
+
+    assert any(expected in x.message for x in caplog.records)
+
+
+def test_retries(
+    qdbpd_write_fn,
+    df_with_table,
+    qdbd_connection,
+    retry_options,
+    mock_failure_options,
+    caplog,
+):
     caplog.set_level(logging.INFO)
 
     (_, _, df, table) = df_with_table
 
-    do_write_fn = lambda: qdbpd_write_fn(df, qdbd_connection, table, retries=retry_options, mock_failure_options=mock_failure_options)
+    do_write_fn = lambda: qdbpd_write_fn(
+        df,
+        qdbd_connection,
+        table,
+        retries=retry_options,
+        mock_failure_options=mock_failure_options,
+    )
 
     retries_expected = mock_failure_options.failures_left
     expect_failure = False
@@ -454,7 +567,11 @@ def test_retries(qdbpd_write_fn, df_with_table, qdbd_connection, retry_options, 
     if retries_expected > retry_options.retries_left:
         retries_expected = retry_options.retries_left
         expect_failure = True
-        logger.info("mock failures(%d) > retries(%d), expecting failure", mock_failure_options.failures_left, retry_options.retries_left)
+        logger.info(
+            "mock failures(%d) > retries(%d), expecting failure",
+            mock_failure_options.failures_left,
+            retry_options.retries_left,
+        )
 
     logger.info("expected retries: %d", retries_expected)
 
@@ -468,7 +585,7 @@ def test_retries(qdbpd_write_fn, df_with_table, qdbd_connection, retry_options, 
     retries_seen = 0
 
     for lr in caplog.records:
-        if 'Retrying push operation' in lr.message:
+        if "Retrying push operation" in lr.message:
             retries_seen = retries_seen + 1
 
     assert retries_seen == retries_expected
@@ -492,7 +609,7 @@ def test_retries(qdbpd_write_fn, df_with_table, qdbd_connection, retry_options, 
     # Now, verify we have seen each and every one of these delays
     for delay_ms in delays_ms:
         seen = False
-        needle = 'Sleeping for {} milliseconds'.format(delay_ms)
+        needle = "Sleeping for {} milliseconds".format(delay_ms)
 
         for lr in caplog.records:
             if needle in lr.message:
@@ -500,6 +617,9 @@ def test_retries(qdbpd_write_fn, df_with_table, qdbd_connection, retry_options, 
                 break
 
         if seen == False:
-            logger.error("expected to find delay of %d milliseconds, but could not find in logs", delay_ms)
+            logger.error(
+                "expected to find delay of %d milliseconds, but could not find in logs",
+                delay_ms,
+            )
 
         assert seen == True
