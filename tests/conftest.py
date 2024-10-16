@@ -74,7 +74,9 @@ def qdbd_secure_connection(qdbd_settings):
         user_name=qdbd_settings.get("security").get("user_name"),
         user_private_key=qdbd_settings.get("security").get("user_private_key"),
         cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"),
+        enable_encryption=True,
     )
+
     conn.purge_all(datetime.timedelta(minutes=1))
     yield conn
     conn.close()
@@ -92,6 +94,7 @@ def qdbd_direct_connection(request):
             user_name=settings.get("security").get("user_name"),
             user_private_key=settings.get("security").get("user_private_key"),
             cluster_public_key=settings.get("security").get("cluster_public_key"),
+            enable_encryption=True,
         )
 
 

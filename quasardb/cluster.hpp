@@ -74,6 +74,7 @@ public:
         const std::string & cluster_public_key_file = {},
         std::chrono::milliseconds timeout           = std::chrono::minutes{1},
         bool do_version_check                       = false,
+        bool enable_encryption                      = false,
         std::size_t client_max_parallelism          = 0);
 
 public:
@@ -515,15 +516,17 @@ static inline void register_cluster(Module & m)
         "Represents a connection to the QuasarDB cluster. ") //
         .def(py::init<const std::string &, const std::string &, const std::string &,
                  const std::string &, const std::string &, const std::string &,
-                 std::chrono::milliseconds, bool, std::size_t>(),                       //
+             std::chrono::milliseconds, bool, bool, std::size_t>(),                     //
             py::arg("uri"),                                                             //
             py::arg("user_name")               = std::string{},                         //
             py::arg("user_private_key")        = std::string{},                         //
             py::arg("cluster_public_key")      = std::string{},                         //
+            py::kw_only(),                                                              //
             py::arg("user_security_file")      = std::string{},                         //
             py::arg("cluster_public_key_file") = std::string{},                         //
             py::arg("timeout")                 = std::chrono::minutes{1},               //
             py::arg("do_version_check")        = false,                                 //
+            py::arg("enable_encryption")       = false,                                 //
             py::arg("client_max_parallelism")  = std::size_t{0}                         //
             )                                                                           //
         .def("__enter__", &qdb::cluster::enter)                                         //

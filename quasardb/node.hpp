@@ -51,13 +51,19 @@ public:
         const std::string & user_private_key        = {},
         const std::string & cluster_public_key      = {},
         const std::string & user_security_file      = {},
-        const std::string & cluster_public_key_file = {})
+        const std::string & cluster_public_key_file = {},
+        bool enable_encryption = false)
         : _uri{node_uri}
         , _handle{make_handle_ptr()}
         , _direct_handle{make_direct_handle_ptr()}
     {
         qdb::options{_handle}.apply_credentials(user_name, user_private_key, cluster_public_key,
             user_security_file, cluster_public_key_file);
+
+        if (enable_encryption) {
+          qdb::options{_handle}.set_encryption(qdb_crypt_aes_gcm_256);
+        }
+        
         _direct_handle->connect(_handle, node_uri);
     }
 
@@ -108,13 +114,16 @@ static inline void register_node(Module & m)
 
     py::class_<qdb::node>(m, "Node")
         .def(py::init<std::string const &, std::string const &, std::string const &, std::string const &,
-                std::string const &, std::string const &>(),
-            py::arg("uri"),                                     //
-            py::arg("user_name")          = std::string{},      //
-            py::arg("user_private_key")   = std::string{},      //
-            py::arg("cluster_public_key") = std::string{},      //
-            py::arg("user_security_file")      = std::string{}, //
-            py::arg("cluster_public_key_file") = std::string{}) //
+             std::string const &, std::string const &, bool>(),
+            py::arg("uri"),                                      //
+            py::arg("user_name")               = std::string{},  //
+            py::arg("user_private_key")        = std::string{},  //
+            py::arg("cluster_public_key")      = std::string{},  //
+            py::kw_only(),                                       //             
+            py::arg("user_security_file")      = std::string{},  //
+            py::arg("cluster_public_key_file") = std::string{},  //
+            py::arg("enable_encryption")       = false           //
+             ) //
         .def("prefix_get", &qdb::node::prefix_get)
         .def("blob", &qdb::node::blob)
         .def("integer", &qdb::node::integer);
