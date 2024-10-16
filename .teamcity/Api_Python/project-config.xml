@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" parent-id="Api" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2021.1/project-config.xsd">
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" parent-id="Api" uuid="" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2021.1/project-config.xsd">
   <name>Python</name>
-  <parameters />
+  <parameters>
+    <param name="env.QDB_ENCRYPT_TRAFFIC" value="1" spec="select label_3='Enabled' display='normal' description='Whether or not full stream encryption is enabled for secure connections. Python API tests currently assume full stream encryption is enabled.' readOnly='true' label='Enable full stream encryption' data_1='0' label_1='Disabled' data_3='1'" />
+  </parameters>
   <project-extensions>
     <extension id="PROJECT_EXT_1" type="versionedSettings">
       <parameters>
