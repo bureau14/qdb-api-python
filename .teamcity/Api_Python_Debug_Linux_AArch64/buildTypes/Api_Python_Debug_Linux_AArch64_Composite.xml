@@ -27,6 +27,10 @@
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="*" />
       </dependency>
+      <dependency id="python313" sourceBuildTypeId="Api_Python_Debug_Linux_AArch64_Python313" cleanDestination="false">
+        <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
+        <artifact sourcePath="*" />
+      </dependency>
       <dependency id="python37" sourceBuildTypeId="Api_Python_Debug_Linux_AArch64_Python37" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="*" />
@@ -72,6 +76,12 @@
         </options>
       </depend-on>
       <depend-on sourceBuildTypeId="Api_Python_Debug_Linux_AArch64_Python312">
+        <options>
+          <option name="take-started-build-with-same-revisions" value="true" />
+          <option name="take-successful-builds-only" value="true" />
+        </options>
+      </depend-on>
+      <depend-on sourceBuildTypeId="Api_Python_Debug_Linux_AArch64_Python313">
         <options>
           <option name="take-started-build-with-same-revisions" value="true" />
           <option name="take-successful-builds-only" value="true" />

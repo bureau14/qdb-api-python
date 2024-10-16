@@ -4,7 +4,7 @@
   <description />
   <settings ref="Api_Python_Release_Linux_X8664Core2_Build">
     <parameters>
-      <param name="python_version" value="3.9.16" />
+      <param name="python_version" value="3.9" />
     </parameters>
     <build-runners />
     <vcs-settings />
@@ -13,4 +13,3 @@
     <cleanup />
   </settings>
 </build-type>
-

@@ -4,7 +4,7 @@
   <description />
   <settings ref="Api_Python_Release_Linux_AArch64_Build">
     <parameters>
-      <param name="python_version" value="3.10.10" />
+      <param name="python_version" value="3.10" />
     </parameters>
     <build-runners />
     <vcs-settings />
@@ -13,4 +13,3 @@
     <cleanup />
   </settings>
 </build-type>
-
