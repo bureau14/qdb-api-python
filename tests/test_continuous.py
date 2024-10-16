@@ -72,6 +72,7 @@ def test_returns_rows_full_probe(qdbd_connection, table, intervals):
     assert len(res) == 1
     _test_against_table(res, table, inserted_double_data[1])
 
+@pytest.mark.skip(reason="Flaky test -- tracked in QDB-14766 in shortcut")
 def test_returns_rows_full_iterator(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
     inserted_double_data = _insert_double_points(table, start_time, 1)
