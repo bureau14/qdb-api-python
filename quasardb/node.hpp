@@ -61,7 +61,7 @@ public:
             user_security_file, cluster_public_key_file);
 
         if (enable_encryption) {
-          qdb::options{_handle}.set_encryption(qdb_crypt_aes_gcm_256);
+          qdb::options{_handle}.set_encryption(qdb_crypt_aegis_256);
         }
         
         _direct_handle->connect(_handle, node_uri);

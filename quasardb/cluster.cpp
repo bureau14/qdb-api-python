@@ -40,7 +40,7 @@ cluster::cluster(const std::string & uri,
 
     if (enable_encryption == true)
     {
-        options().set_encryption(qdb_crypt_aes_gcm_256);
+        options().set_encryption(qdb_crypt_aegis_256);
     }
 
     
