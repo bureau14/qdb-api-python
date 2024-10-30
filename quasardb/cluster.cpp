@@ -14,7 +14,7 @@ cluster::cluster(const std::string & uri,
     const std::string & cluster_public_key_file,
     std::chrono::milliseconds timeout,
     bool do_version_check,
-                 bool enable_encryption,
+    bool enable_encryption,
     std::size_t client_max_parallelism)
     : _uri{uri}
     , _handle{make_handle_ptr()}
@@ -43,7 +43,6 @@ cluster::cluster(const std::string & uri,
         options().set_encryption(qdb_crypt_aegis_256);
     }
 
-    
     // HACKS(leon): we need to ensure there is always one callback active
     //              for qdb. Callbacks can be lost when the last active session
     //              gets closed. As such, the most pragmatic place to 'check'
