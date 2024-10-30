@@ -264,7 +264,7 @@ void register_reader(py::module_ & m)
             py::arg("table_names"),                                                            //
             py::kw_only(),                                                                     //
             py::arg("column_names") = std::vector<std::string>{},                              //
-            py::arg("batch_size")   = std::size_t{0},                                          //
+            py::arg("batch_size")   = std::size_t{1 << 16},                                    //
             py::arg("ranges")       = std::vector<py::tuple>{}                                 //
             )                                                                                  //
                                                                                                //
