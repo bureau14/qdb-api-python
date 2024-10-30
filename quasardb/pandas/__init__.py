@@ -205,7 +205,7 @@ def query(cluster: quasardb.Cluster,
     df.set_index(index, inplace=True)
     return df
 
-def stream_dataframe(table : quasardb.Table, *, batch_size : int = 0, column_names : list = None, ranges : list = None):
+def stream_dataframe(table : quasardb.Table, *, batch_size : int = 2**16, column_names : list = None, ranges : list = None):
     """
     Read a Pandas Dataframe from a QuasarDB Timeseries table. Returns a generator with dataframes of size `batch_size`, which is useful
     when traversing a large dataset which does not fit into memory.
@@ -217,9 +217,8 @@ def stream_dataframe(table : quasardb.Table, *, batch_size : int = 0, column_nam
       QuasarDB Timeseries table object, e.g. qdb_cluster.table('my_table')
 
     batch_size : int
-      The amount of rows to fetch in a single read operation. If unset, or 0, will
-      return all data as an entire dataframe. Otherwise, returns a generator which
-      yields on dataframe at a time.
+      The amount of rows to fetch in a single read operation. If unset, uses 2^16 (65536) rows
+      as batch size by default.
 
     column_names : optional list
       List of columns to read in dataframe. The timestamp column '$timestamp' is
@@ -234,7 +233,7 @@ def stream_dataframe(table : quasardb.Table, *, batch_size : int = 0, column_nam
     """
     # Sanitize batch_size
     if batch_size == None:
-        batch_size = 0
+        batch_size = 2**16
     elif not isinstance(batch_size, int):
         raise TypeError("batch_size should be an integer, but got: {} with value {}".format(type(batch_size), str(batch_size)))
 
@@ -264,9 +263,9 @@ def read_dataframe(table, **kwargs):
     """
 
     if 'batch_size' in kwargs and kwargs['batch_size'] != 0 and kwargs['batch_size'] != None:
-        logger.warn("Providing a batch size with read_dataframe is unsupported, overriding batch_size to 0.")
+        logger.warn("Providing a batch size with read_dataframe is unsupported, overriding batch_size to 65536.")
         logger.warn("If you wish to traverse the data in smaller batches, please use: stream_dataframe().")
-        kwargs['batch_size'] = 0
+        kwargs['batch_size'] = 2**16
 
     # Note that this is *lazy*, dfs is a generator, not a list -- as such, dataframes will be
     # fetched on-demand, which means that an error could occur in the middle of processing
