@@ -1,9 +1,13 @@
 # pylint: disable=C0103,C0111,C0302,W0212,W0702
 
 import pytest
-import quasardb
+import conftest
+import numpy as np
 
 import logging
+
+import quasardb
+import quasardb.pandas as qdbpd
 
 logger = logging.getLogger("test-user-properties")
 
@@ -99,8 +103,11 @@ def _has_user_property_in_log_file(log_path, key, value):
     return False
 
 
-@pytest.mark.skip(reason="there is a bug in qdbd logging, this test hangs the build supsicios ticket: QDB-14910")
-def test_properties_in_log(qdbpd_write_fn, qdbpd_query_fn, qdbd_connection, df_with_table, table_name, column_name, random_identifier, random_string):
+# We really only need a single column type
+@conftest.override_sparsify('none')
+@conftest.override_cdtypes(np.dtype('unicode'))
+@conftest.override_row_count(224)
+def test_properties_in_log(qdbpd_write_fn, qdbd_connection, df_with_table, table_name, column_name, random_identifier, random_string):
     """
     This test is a bit more involved, it will try to ensure that the user properties metadata is actually
     logged in the qdbd logs.
@@ -120,8 +127,8 @@ def test_properties_in_log(qdbpd_write_fn, qdbpd_query_fn, qdbd_connection, df_w
 
     # a faulty query will emit a log entry that will contain the user properties
     try:
-        qdbpd_query_fn(qdbd_connection, "PUT BLOB a 'a'");
-        qdbpd_query_fn(qdbd_connection, "PUT BLOB a 'a'");
+        qdbpd.query(qdbd_connection, "PUT BLOB a 'a'");
+        qdbpd.query(qdbd_connection, "PUT BLOB a 'a'");
     except:
         pass
 
