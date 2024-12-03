@@ -103,7 +103,10 @@ def _has_user_property_in_log_file(log_path, key, value):
     return False
 
 
-# We really only need a single column type
+# Ensure only a single variation is executed:
+#  - no null values / sparse data in table
+#  - single data type
+#  - no different ariations of row types
 @conftest.override_sparsify('none')
 @conftest.override_cdtypes(np.dtype('unicode'))
 @conftest.override_row_count(224)
