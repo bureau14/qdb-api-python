@@ -248,6 +248,11 @@ def row_count(request):
     yield request.param
 
 
+# Makes it easier to "select" a row count.
+def override_row_count(x):
+    return pytest.mark.parametrize('row_count', [x], ids=['row_count={}'.format(x)])
+
+
 @pytest.fixture(params=[1, 2, 4, 8, 16],
                 ids=['df_count=1',
                      'df_count=2',
