@@ -122,6 +122,8 @@ def test_properties_in_log(qdbpd_write_fn, qdbd_connection, df_with_table, table
 
     qdbd_connection.options().enable_user_properties()
 
+    # XXX(leon): do we even need to write this at all? It doesn't appear that the test
+    # even relies on this data being present?
     (_, _, df, table) = df_with_table
     qdbpd_write_fn(df, qdbd_connection, table, fast=True)
 
