@@ -6,7 +6,10 @@ PYTHON_VERSION=${1}
 function parse_version {
     local version=${1}
 
-    if [[ ${version}  == 3.12* ]]
+    if [[ ${version}  == 3.13* ]]
+    then
+        echo "cp313-cp313"
+    elif [[ ${version}  == 3.12* ]]
     then
         echo "cp312-cp312"
     elif [[ ${version}  == 3.11* ]]
@@ -34,5 +37,10 @@ function parse_version {
 
 PARSED=$(parse_version ${PYTHON_VERSION})
 
-PYTHON_BIN="/opt/python/${PARSED}/bin/python"
-ln -s ${PYTHON_BIN} /usr/bin/python3
+PYTHON_BINDIR="/opt/python/${PARSED}/bin/"
+
+echo 'export PATH='$PYTHON_BINDIR':$PATH' | tee -a ~/.bashrc
+PATH=$PYTHON_BINDIR:$PATH
+
+# Install dependencies
+python3 --version && pip3 install --upgrade pip setuptools wheel
