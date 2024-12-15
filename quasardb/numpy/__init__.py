@@ -99,14 +99,13 @@ class InvalidDataCardinalityError(ValueError):
 # First entry will always be the 'preferred' dtype, other ones
 # those that we can natively convert in native code.
 _ctype_to_dtype = {
-    quasardb.ColumnType.String: [np.dtype(np.unicode_)],
-    quasardb.ColumnType.Symbol: [np.dtype(np.unicode_)],
-    quasardb.ColumnType.Int64: [np.dtype(np.int64), np.dtype(np.int32), np.dtype(np.int16)],
-    quasardb.ColumnType.Double: [np.dtype(np.float64), np.dtype(np.float32)],
+    quasardb.ColumnType.String: [np.dtype('U')],
+    quasardb.ColumnType.Symbol: [np.dtype('U')],
+    quasardb.ColumnType.Int64: [np.dtype('i8'), np.dtype('i4'), np.dtype('i2')],
+    quasardb.ColumnType.Double: [np.dtype('f8'), np.dtype('f4')],
     quasardb.ColumnType.Blob: [np.dtype('S'), np.dtype('O')],
     quasardb.ColumnType.Timestamp: [np.dtype('datetime64[ns]')]
 }
-
 
 def _best_dtype_for_ctype(ctype: quasardb.quasardb.ColumnType):
     """
