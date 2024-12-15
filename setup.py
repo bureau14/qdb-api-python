@@ -232,10 +232,10 @@ setup(name=package_name,
       extras_require={
           "pandas": ["pandas"],
           "tests": [
-              "pytest >= 6.2.5",
-              "pytest-runner >= 5.3.1",
-              "pytest-benchmark == 3.4.1",
-              "teamcity-messages >= 1.29"]
+              "pytest",
+              "pytest-runner",
+              "pytest-benchmark",
+              "teamcity-messages"]
       },
 
       packages=packages,
