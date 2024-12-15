@@ -1,5 +1,9 @@
 #!/bin/bash
 
+SCRIPT_DIR="$(cd "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+
+source ${SCRIPT_DIR}/00.common.sh
+
 set -e -u -x
 
 function relabel_wheel {
