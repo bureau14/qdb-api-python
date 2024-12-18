@@ -196,12 +196,7 @@ setup(name=package_name,
       setup_requires=[],
       install_requires=["numpy"],
       extras_require={
-          "pandas": ["pandas"],
-          "tests": [
-              "pytest",
-              "pytest-runner",
-              "pytest-benchmark",
-              "teamcity-messages"]
+          "pandas": ["pandas"]
       },
 
       packages=packages,
