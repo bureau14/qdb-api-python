@@ -37,5 +37,3 @@ hypothesis
 pdoc3 == 0.7.5
 teamcity-messages == 1.29
 setuptools-git == 1.2
-
-setuptools == 75.6.0
