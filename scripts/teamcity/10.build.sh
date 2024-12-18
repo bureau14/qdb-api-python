@@ -4,22 +4,34 @@ SCRIPT_DIR="$(cd "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 
 source ${SCRIPT_DIR}/00.common.sh
 
-set -e -u -x
+
+# No more errors should occur after here
+set -e -u -x -o pipefail
+
+# Now use a virtualenv to run the tests
+PYTHON="${PYTHON_CMD:-python3}"
+${PYTHON} -m venv --clear ${SCRIPT_DIR}/../../.env/
+if [[ "$(uname)" == MINGW* ]]
+then
+    VENV_PYTHON="${SCRIPT_DIR}/../../.env/Scripts/python.exe"
+else
+    VENV_PYTHON="${SCRIPT_DIR}/../../.env/bin/python"
+fi
 
 function relabel_wheel {
     wheel="$1"
 
-    if ! auditwheel show "$wheel"
+    if ! ${VENV_PYTHON} -m auditwheel show "$wheel"
     then
-        echo "Skipping non-platform wheel $wheel"
+        echo "Skipping non-platform specific wheel $wheel"
     else
         # ${AUDITWHEEL_PLAT} is defined in manylinux base docker image
-        auditwheel repair "$wheel" --plat "$AUDITWHEEL_PLAT" -w dist/
+        ${VENV_PYTHON} -m auditwheel repair "$wheel" --plat "$AUDITWHEEL_PLAT" -w dist/
     fi
 }
 
-PYTHON="${PYTHON_CMD:-python3}"
 DIST_DIR=dist
+
 
 PLATFORM=''
 if [[ "$OSTYPE" == "darwin"* ]] ; then
@@ -29,18 +41,17 @@ fi
 rm -r -f build/ ${DIST_DIR}/
 
 if [[ "$OSTYPE" == "darwin"* && $PYTHON == "python3.9"* ]]; then
-    ${PYTHON} -m pip install --user --upgrade setuptools==63.0.0b1 wheel
+    ${VENV_PYTHON} -m pip install --upgrade setuptools==63.0.0b1 wheel
 else
-    ${PYTHON} -m pip install --user --upgrade setuptools wheel
+    ${VENV_PYTHON} -m pip install --upgrade setuptools wheel auditwheel
 fi
-${PYTHON} -m pip install --user -r dev-requirements.txt
+
+${VENV_PYTHON} -m pip install -r dev-requirements.txt
 
 export DISTUTILS_DEBUG=1
 export QDB_TESTS_ENABLED=OFF
 
-${PYTHON} setup.py sdist -v -d ${DIST_DIR}/
-${PYTHON} setup.py bdist_egg -v -d ${DIST_DIR}/ ${PLATFORM}
-${PYTHON} setup.py bdist_wheel -v -d ${DIST_DIR}/ ${PLATFORM}
+${VENV_PYTHON} -m build -w
 
 for whl in ${DIST_DIR}/*.whl; do
     relabel_wheel "$whl"
