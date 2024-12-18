@@ -131,9 +131,6 @@ then
     rm -rf build/
 fi
 
-# First build our wheel in isolation
-
-
 # Now use a virtualenv to run the tests
 
 ${PYTHON} -m venv --clear ${SCRIPT_DIR}/../../.env/
