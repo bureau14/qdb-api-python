@@ -129,8 +129,6 @@ then
 fi
 
 # First build our wheel in isolation
-export QDB_TESTS_ENABLED=ON
-${PYTHON} -m build -w
 
 
 # Now use a virtualenv to run the tests
@@ -144,10 +142,11 @@ else
 fi
 
 
-${VENV_PYTHON} -m pip install --upgrade pip
-${VENV_PYTHON} -m pip install --upgrade wheel
-${VENV_PYTHON} -m pip install --upgrade setuptools
 ${VENV_PYTHON} -m pip install -r dev-requirements.txt
+
+export QDB_TESTS_ENABLED=ON
+${VENV_PYTHON} -m build -w
+
 ${VENV_PYTHON} -m pip install dist/quasardb-*.whl
 
 echo "Invoking pytest"
