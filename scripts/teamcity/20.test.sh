@@ -150,7 +150,7 @@ ${VENV_PYTHON} -m pip install -r dev-requirements.txt
 export QDB_TESTS_ENABLED=ON
 ${VENV_PYTHON} -m build -w
 
-${VENV_PYTHON} -m pip install --force-reinstall dist/quasardb-*.whl
+${VENV_PYTHON} -m pip install --no-deps --force-reinstall dist/quasardb-*.whl
 
 echo "Invoking pytest"
 
