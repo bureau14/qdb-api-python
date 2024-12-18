@@ -29,9 +29,9 @@ def _qdbd_settings():
     user_key = {}
     cluster_key = ""
 
-    with open('user_private.key', 'r') as user_key_file:
+    with open('../user_private.key', 'r') as user_key_file:
         user_key = json.load(user_key_file)
-    with open('cluster_public.key', 'r') as cluster_key_file:
+    with open('../cluster_public.key', 'r') as cluster_key_file:
         cluster_key = cluster_key_file.read()
     return {
         "uri": {

@@ -4,7 +4,7 @@ SCRIPT_DIR="$(cd "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 
 source ${SCRIPT_DIR}/00.common.sh
 
-set -u -x
+set -e -u -x
 
 PYTHON="${PYTHON_CMD:-python3}"
 
@@ -133,12 +133,12 @@ fi
 
 # Now use a virtualenv to run the tests
 
-${PYTHON} -m venv --clear .env/
+${PYTHON} -m venv --clear ${SCRIPT_DIR}/../../.env/
 if [[ "$(uname)" == MINGW* ]]
 then
-    VENV_PYTHON=".env/Scripts/python.exe"
+    VENV_PYTHON="${SCRIPT_DIR}/../../.env/Scripts/python.exe"
 else
-    VENV_PYTHON=".env/bin/python"
+    VENV_PYTHON="${SCRIPT_DIR}/../../.env/bin/python"
 fi
 
 
@@ -147,7 +147,7 @@ ${VENV_PYTHON} -m pip install -r dev-requirements.txt
 export QDB_TESTS_ENABLED=ON
 ${VENV_PYTHON} -m build -w
 
-${VENV_PYTHON} -m pip install dist/quasardb-*.whl
+${VENV_PYTHON} -m pip install --force-reinstall dist/quasardb-*.whl
 
 echo "Invoking pytest"
 
@@ -157,4 +157,16 @@ then
     TEST_OPTS+=" --junitxml=${JUNIT_XML_FILE}"
 fi
 
-exec ${VENV_PYTHON} -m pytest ${TEST_OPTS}
+if [[ -d "test_tmp/" ]]
+then
+    rm -rf test_tmp
+fi
+
+mkdir test_tmp
+pushd test_tmp
+
+${VENV_PYTHON} -m pytest ${TEST_OPTS} ..
+
+popd
+
+rm -rf test_tmp
