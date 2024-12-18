@@ -53,6 +53,12 @@ export QDB_TESTS_ENABLED=OFF
 
 ${VENV_PYTHON} -m build -w
 
+echo "dist dir: ${DIST_DIR}"
+echo "files in dist dir: "
+find ${DIST_DIR}
+echo "current dir: "
+pwd
+
 for whl in ${DIST_DIR}/*.whl; do
     relabel_wheel "$whl"
 done
