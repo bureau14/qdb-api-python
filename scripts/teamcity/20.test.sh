@@ -4,7 +4,7 @@ SCRIPT_DIR="$(cd "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 
 source ${SCRIPT_DIR}/00.common.sh
 
-set -e -u -x
+set -u -x
 
 PYTHON="${PYTHON_CMD:-python3}"
 
@@ -115,6 +115,9 @@ then
         exit -1
     fi
 fi
+
+# No more errors should occur after here
+set -e -o pipefail
 
 if [[ -d "dist/" ]]
 then
