@@ -18,6 +18,8 @@ pandas >= 2.1.2; python_version > '3.9'
 
 ## Any environment
 
+build
+setuptools
 wheel
 
 pytest

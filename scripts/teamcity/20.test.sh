@@ -8,29 +8,6 @@ set -u -x
 
 PYTHON="${PYTHON_CMD:-python3}"
 
-# remove previous environment
-if [ -d .env ]; then
-    case "$(uname)" in
-        MINGW*)
-            source .env/Scripts/activate
-        ;;
-        *)
-            source .env/bin/activate
-        ;;
-    esac
-    ${PYTHON} -m pip freeze > to_remove.txt
-
-    if [ -s to_remove.txt ]; then
-        ${PYTHON} -m pip uninstall -r to_remove.txt -y
-    fi
-
-    deactivate
-    rm -Rf .env
-fi
-
-${PYTHON} -m venv .env/
-
-
 ###
 # NOTE(leon):
 ###
@@ -139,36 +116,46 @@ then
     fi
 fi
 
+if [[ -d "dist/" ]]
+then
+    echo "Removing dist/"
+    rm -rf dist/
+fi
+
+if [[ -d "build/" ]]
+then
+    echo "Removing build/"
+    rm -rf build/
+fi
+
+# First build our wheel in isolation
+export QDB_TESTS_ENABLED=ON
+${PYTHON} -m build -w
 
 
-case "$(uname)" in
-    MINGW*)
-        source .env/Scripts/activate
-    ;;
-    *)
-        source .env/bin/activate
-    ;;
-esac
+# Now use a virtualenv to run the tests
 
-# first remove system then user
-# ${PYTHON} -m pip uninstall -r dev-requirements.txt -y
-${PYTHON} -m pip install --upgrade pip
-${PYTHON} -m pip install --upgrade wheel
-${PYTHON} -m pip install --upgrade setuptools
-${PYTHON} -m pip install -r dev-requirements.txt
+${PYTHON} -m venv --clear .env/
+if [[ "$(uname)" == MINGW* ]]
+then
+    VENV_PYTHON=".env/Scripts/python.exe"
+else
+    VENV_PYTHON=".env/bin/python"
+fi
 
-TEST_OPTS="-s"
+
+${VENV_PYTHON} -m pip install --upgrade pip
+${VENV_PYTHON} -m pip install --upgrade wheel
+${VENV_PYTHON} -m pip install --upgrade setuptools
+${VENV_PYTHON} -m pip install -r dev-requirements.txt
+${VENV_PYTHON} -m pip install dist/quasardb-*.whl
+
+echo "Invoking pytest"
+
+TEST_OPTS=""
 if [[ ! -z ${JUNIT_XML_FILE-} ]]
 then
     TEST_OPTS+=" --junitxml=${JUNIT_XML_FILE}"
 fi
 
-export QDB_TESTS_ENABLED=ON
-
-echo "Installing quasardb module locally"
-
-${PYTHON} setup.py install
-
-echo "Invoking pytest"
-
-exec ${PYTHON} -m pytest ${TEST_OPTS}
+exec ${VENV_PYTHON} -m pytest ${TEST_OPTS}
