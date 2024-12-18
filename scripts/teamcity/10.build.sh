@@ -6,7 +6,7 @@ source ${SCRIPT_DIR}/00.common.sh
 
 
 # No more errors should occur after here
-set -e -u -x -o pipefail
+set -e -u -x
 
 # Now use a virtualenv to run the tests
 PYTHON="${PYTHON_CMD:-python3}"
