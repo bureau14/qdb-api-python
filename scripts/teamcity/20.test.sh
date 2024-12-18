@@ -165,5 +165,12 @@ fi
 
 export QDB_TESTS_ENABLED=ON
 
-echo "Invoking pytest with --addopts '${TEST_OPTS}'"
-${PYTHON} setup.py test  --addopts "${TEST_OPTS}"
+echo "Installing quasardb module locally"
+
+${PYTHON} setup.py install
+
+echo "Invoking pytest"
+
+PYTEST=$(command -v pytest)
+
+exec ${PYTEST} "${TEST_OPTS}"
