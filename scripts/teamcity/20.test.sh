@@ -171,4 +171,4 @@ ${PYTHON} setup.py install
 
 echo "Invoking pytest"
 
-exec ${PYTHON} -m pytest "${TEST_OPTS}"
+exec ${PYTHON} -m pytest ${TEST_OPTS}
