@@ -157,16 +157,6 @@ then
     TEST_OPTS+=" --junitxml=${JUNIT_XML_FILE}"
 fi
 
-if [[ -d "test_tmp/" ]]
-then
-    rm -rf test_tmp
-fi
-
-mkdir test_tmp
-pushd test_tmp
-
-${VENV_PYTHON} -m pytest ${TEST_OPTS} ..
-
+pushd tests
+exec ${VENV_PYTHON} -m pytest ${TEST_OPTS}
 popd
-
-rm -rf test_tmp
