@@ -4,8 +4,19 @@ SCRIPT_DIR="$(cd "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 
 source ${SCRIPT_DIR}/00.common.sh
 
-python3 -m pip install dist/quasardb*.whl
-python3 -m pip install -r dev-requirements.txt
+${PYTHON} -m venv --clear ${SCRIPT_DIR}/../../.env/
+if [[ "$(uname)" == MINGW* ]]
+then
+    VENV_PYTHON="${SCRIPT_DIR}/../../.env/Scripts/python.exe"
+else
+    VENV_PYTHON="${SCRIPT_DIR}/../../.env/bin/python"
+fi
+
+
+${VENV_PYTHON} -m pip install --no-deps --force-reinstall dist/quasardb-*.whl
+${VENV_PYTHON} -m pip install -r dev-requirements.txt
+
+rm -rf doc || true
 mkdir doc || true
-python3 docgen.py
+${VENV_PYTHON} docgen.py
 tar -czvf dist/doc.tar.gz doc/*
