@@ -196,7 +196,8 @@ setup(name=package_name,
       setup_requires=[],
       install_requires=["numpy"],
       extras_require={
-          "pandas": ["pandas"]
+          "pandas": ["pandas"],
+          "test": ["pytest"],
       },
 
       packages=packages,
@@ -205,5 +206,4 @@ setup(name=package_name,
       include_package_data=True,
       cmdclass=cmdclass,
       zip_safe=False,
-      test_suite="tests",
       )
