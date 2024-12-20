@@ -8,29 +8,6 @@ set -u -x
 
 PYTHON="${PYTHON_CMD:-python3}"
 
-# remove previous environment
-if [ -d .env ]; then
-    case "$(uname)" in
-        MINGW*)
-            source .env/Scripts/activate
-        ;;
-        *)
-            source .env/bin/activate
-        ;;
-    esac
-    ${PYTHON} -m pip freeze > to_remove.txt
-
-    if [ -s to_remove.txt ]; then
-        ${PYTHON} -m pip uninstall -r to_remove.txt -y
-    fi
-
-    deactivate
-    rm -Rf .env
-fi
-
-${PYTHON} -m venv .env/
-
-
 ###
 # NOTE(leon):
 ###
@@ -139,31 +116,47 @@ then
     fi
 fi
 
+# No more errors should occur after here
+set -e -o pipefail
+
+if [[ -d "dist/" ]]
+then
+    echo "Removing dist/"
+    rm -rf dist/
+fi
+
+if [[ -d "build/" ]]
+then
+    echo "Removing build/"
+    rm -rf build/
+fi
+
+# Now use a virtualenv to run the tests
+
+${PYTHON} -m venv --clear ${SCRIPT_DIR}/../../.env/
+if [[ "$(uname)" == MINGW* ]]
+then
+    VENV_PYTHON="${SCRIPT_DIR}/../../.env/Scripts/python.exe"
+else
+    VENV_PYTHON="${SCRIPT_DIR}/../../.env/bin/python"
+fi
 
 
-case "$(uname)" in
-    MINGW*)
-        source .env/Scripts/activate
-    ;;
-    *)
-        source .env/bin/activate
-    ;;
-esac
+${VENV_PYTHON} -m pip install -r dev-requirements.txt
 
-# first remove system then user
-# ${PYTHON} -m pip uninstall -r dev-requirements.txt -y
-${PYTHON} -m pip install --upgrade pip
-${PYTHON} -m pip install --upgrade wheel
-${PYTHON} -m pip install --upgrade setuptools
-${PYTHON} -m pip install -r dev-requirements.txt
+export QDB_TESTS_ENABLED=ON
+${VENV_PYTHON} -m build -w
 
-TEST_OPTS="-s"
+${VENV_PYTHON} -m pip install --no-deps --force-reinstall dist/quasardb-*.whl
+
+echo "Invoking pytest"
+
+TEST_OPTS="--teamcity"
 if [[ ! -z ${JUNIT_XML_FILE-} ]]
 then
     TEST_OPTS+=" --junitxml=${JUNIT_XML_FILE}"
 fi
 
-export QDB_TESTS_ENABLED=ON
-
-echo "Invoking pytest with --addopts '${TEST_OPTS}'"
-${PYTHON} setup.py test  --addopts "${TEST_OPTS}"
+pushd tests
+exec ${VENV_PYTHON} -m pytest ${TEST_OPTS}
+popd
