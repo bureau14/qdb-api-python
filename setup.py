@@ -222,11 +222,7 @@ setup(name=package_name,
       install_requires=["numpy"],
       extras_require={
           "pandas": ["pandas"],
-          "tests": [
-              "pytest",
-              "pytest-runner",
-              "pytest-benchmark",
-              "teamcity-messages"]
+          "test": ["pytest"],
       },
 
       packages=packages,
@@ -235,5 +231,4 @@ setup(name=package_name,
       include_package_data=True,
       cmdclass=cmdclass,
       zip_safe=False,
-      test_suite="tests",
       )
