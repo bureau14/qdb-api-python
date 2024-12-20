@@ -391,13 +391,13 @@ if(QDB_TESTS_ENABLED)
   add_compile_definitions(QDB_TESTS_ENABLED)
 
   set(QDB_TEST_FILES
-    tests/conftest.cpp
-    tests/conftest.hpp
-    tests/test_convert.cpp
+    ../tests/conftest.cpp
+    ../tests/conftest.hpp
+    ../tests/test_convert.cpp
 
-    tests/detail/mock_failure.hpp
-    tests/detail/mock_failure.cpp
-    tests/detail/sleep.hpp
+    ../tests/detail/mock_failure.hpp
+    ../tests/detail/mock_failure.cpp
+    ../tests/detail/sleep.hpp
   )
 endif()
 

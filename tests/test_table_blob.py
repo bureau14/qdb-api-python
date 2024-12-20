@@ -3,7 +3,7 @@ import datetime
 import pytest
 import numpy as np
 import quasardb
-import quasardb.tests.test_table as tslib
+import test_table as tslib
 
 
 def test_blob_get_ranges__when_timeseries_is_empty(table, intervals):

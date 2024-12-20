@@ -6,10 +6,10 @@ import numpy as np
 import numpy.ma as ma
 import pandas as pd
 import pytest
+import conftest
 
 import quasardb
 import quasardb.pandas as qdbpd
-import quasardb.tests.conftest as conftest
 
 ROW_COUNT = 1000
 

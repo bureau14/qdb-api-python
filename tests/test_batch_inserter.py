@@ -2,7 +2,7 @@
 from builtins import range as xrange, int as long  # pylint: disable=W0622
 from functools import reduce  # pylint: disable=W0622
 import datetime
-import quasardb.tests.test_table as tslib
+import test_table as tslib
 from time import sleep
 
 import pytest

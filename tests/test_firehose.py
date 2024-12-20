@@ -1,10 +1,9 @@
 # pylint: disable=C0103,C0111,C0302,W0212
 import numpy as np
+import test_batch_inserter as batchlib
 import time
 import multiprocessing
 from sys import platform
-
-from quasardb.tests import test_batch_inserter as batchlib
 
 
 def _ensure_timeout(f, timeout=3):

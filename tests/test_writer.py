@@ -2,12 +2,12 @@
 from builtins import range as xrange, int as long  # pylint: disable=W0622
 from functools import reduce  # pylint: disable=W0622
 import datetime
+import test_table as tslib
 from time import sleep
-import numpy as np
 
 import pytest
 import quasardb
-import quasardb.tests.test_table as tslib
+import numpy as np
 
 
 def _generate_data(count, start=np.datetime64('2017-01-01', 'ns')):

@@ -13,8 +13,8 @@
 using push_strategy_t  = qdb::detail::default_writer_push_strategy;
 using sleep_strategy_t = qdb::detail::default_sleep_strategy<>;
 #else
-#    include "tests/detail/sleep.hpp"
-#    include "tests/detail/writer.hpp"
+#    include "../tests/detail/sleep.hpp"
+#    include "../tests/detail/writer.hpp"
 using push_strategy_t  = qdb::detail::mock_failure_writer_push_strategy;
 using sleep_strategy_t = qdb::detail::mock_sleep_strategy<>;
 #endif
