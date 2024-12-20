@@ -16,11 +16,21 @@ else
     VENV_PYTHON="${SCRIPT_DIR}/../../.env/bin/python"
 fi
 
-
-${VENV_PYTHON} -m pip install --no-deps --force-reinstall dist/quasardb-*.whl
 ${VENV_PYTHON} -m pip install -r dev-requirements.txt
+${VENV_PYTHON} -m pip install --no-deps --force-reinstall dist/quasardb-*.whl
 
+
+# To avoid conflicts with `quasardb` directory and `import quasardb`
+rm -rf tmp || true
 rm -rf doc || true
-mkdir doc || true
-${VENV_PYTHON} docgen.py
+
+mkdir tmp
+pushd tmp
+
+${VENV_PYTHON} ../docgen.py
+
+popd
+
+mv -v tmp/doc doc
+
 tar -czvf dist/doc.tar.gz doc/*
