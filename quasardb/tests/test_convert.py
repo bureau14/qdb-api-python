@@ -8,13 +8,13 @@
 #      python3 setup.py test --addopts "-s tests/test_convert.py"
 #      ```
 
-from quasardb import test_convert as m
+from quasardb.tests import test_convert as m
 
 #
 ###
 
-from utils import assert_indexed_arrays_equal
-import conftest
+from quasardb.tests.utils import assert_indexed_arrays_equal
+import quasardb.tests.conftest as conftest
 
 def test_unicode_u32_decode_traits():
     m.test_unicode_u32_decode_traits()

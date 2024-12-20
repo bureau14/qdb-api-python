@@ -1,13 +1,13 @@
 # pylint: disable=C0103,C0111,C0302,W0212,W0702
 
 import pytest
-import conftest
 import numpy as np
 
 import logging
 
 import quasardb
 import quasardb.pandas as qdbpd
+import quasardb.tests.conftest as conftest
 
 logger = logging.getLogger("test-user-properties")
 

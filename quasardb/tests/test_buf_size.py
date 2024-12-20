@@ -1,10 +1,10 @@
 # pylint: disable=C0103,C0111,C0302,W0212
 
-import conftest
 import quasardb
 import pytest
 
-import test_batch_inserter as batchlib
+import quasardb.tests.conftest as conftest
+from quasardb.tests import test_batch_inserter as batchlib
 
 
 # Don't use `qdbd_connection` fixture, as it's module-scoped (for perf reasons)

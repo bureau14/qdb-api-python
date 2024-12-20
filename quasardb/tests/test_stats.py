@@ -4,8 +4,8 @@ import pytest
 import quasardb
 import quasardb.stats as qdbst
 
-import test_batch_inserter as batchlib
-import conftest
+from quasardb.tests import test_batch_inserter as batchlib
+import quasardb.tests.conftest as conftest
 
 _has_stats = False
 

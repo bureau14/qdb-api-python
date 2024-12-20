@@ -6,11 +6,11 @@ import numpy as np
 import numpy.ma as ma
 import pandas as pd
 import pytest
-import conftest
 
 import quasardb
 import quasardb.numpy as qdbnp
-from utils import assert_indexed_arrays_equal, assert_ma_equal
+import quasardb.tests.conftest as conftest
+from quasardb.tests.utils import assert_indexed_arrays_equal, assert_ma_equal
 
 logger = logging.getLogger("test-numpy")
 

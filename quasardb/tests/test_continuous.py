@@ -2,9 +2,10 @@
 import pytest
 import quasardb
 import numpy as np
-import test_table as tslib
 import time
 import datetime
+
+import quasardb.tests.test_table as tslib
 
 def _insert_double_points(table, start_time, points=10):
     inserted_double_data = tslib._generate_double_ts(start_time, points)

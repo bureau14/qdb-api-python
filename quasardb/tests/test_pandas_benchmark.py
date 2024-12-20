@@ -1,8 +1,8 @@
 # pylint: disable=C0103,C0111,C0302,W0212
 import pytest
 import numpy as np
-import test_batch_inserter as batchlib
-import test_pandas as pandaslib
+from quasardb.tests import test_batch_inserter as batchlib
+from quasardb.tests import test_pandas as pandaslib
 import quasardb.pandas as qdbpd
 
 row_count = 10000
