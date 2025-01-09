@@ -42,8 +42,8 @@ def _ensure_stats(conn, table):
 # fairly conservative.
 _expected_user_stats = ['requests.total_count',
                         'requests.successes_count',
-                        'requests.bytes_in',
-                        'requests.bytes_out',
+                        'requests.in_bytes',
+                        'requests.out_bytes',
                         'perf.ts.table_insert.deserialization.total_ns',
                         'perf.ts.table_insert.processing.total_ns']
 
@@ -51,11 +51,10 @@ _expected_user_stats = ['requests.total_count',
 _expected_cumulative_stats = [
     'requests.total_count',
     'requests.successes_count',
-    'requests.bytes_in',
-    'requests.bytes_out',
+    'requests.in_bytes',
+    'requests.out_bytes',
     'perf.ts.buffered_table_insert.deserialization.total_ns',
-    'perf.ts.buffered_table_insert.processing.total_ns',
-    'partitions_count']
+    'perf.ts.buffered_table_insert.processing.total_ns']
 
 
 def _validate_node_stats(stats):
