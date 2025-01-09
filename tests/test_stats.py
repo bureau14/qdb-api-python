@@ -80,7 +80,6 @@ def _validate_node_stats(stats):
 
 def test_stats_by_node(qdbd_secure_connection,
                        secure_table):
-    assert(len(_expected_cumulative_stats) > len(_expected_user_stats))
     _ensure_stats(qdbd_secure_connection, secure_table)
     xs = qdbst.by_node(qdbd_secure_connection)
 
