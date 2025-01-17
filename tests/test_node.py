@@ -118,7 +118,7 @@ def test_node_empty_prefix(qdbd_direct_connection):
 
 
 def test_node_find_prefixes(qdbd_direct_connection):
-    res = qdbd_direct_connection.prefix_get("$qdb.statistics.", 20)
+    res = qdbd_direct_connection.prefix_get("$qdb", 20)
     assert len(res) > 0
 
 
