@@ -219,7 +219,7 @@ setup(name=package_name,
       ],
       keywords='quasardb timeseries database API driver ',
       setup_requires=[],
-      install_requires=["numpy"],
+      install_requires=["numpy < 2"],
       extras_require={
           "pandas": ["pandas"],
           "test": ["pytest"],
