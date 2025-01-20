@@ -143,6 +143,19 @@ public:
         return std::chrono::milliseconds{ms};
     }
 
+    void set_client_max_batch_load(std::size_t shard_count)
+    {
+        qdb::qdb_throw_if_error(*_handle,
+            qdb_option_set_client_max_batch_load(*_handle, static_cast<qdb_size_t>(shard_count)));
+    }
+
+    qdb_size_t get_client_max_batch_load()
+    {
+        qdb_size_t shard_count{0};
+        qdb::qdb_throw_if_error(*_handle, qdb_option_get_client_max_batch_load(*_handle, &shard_count));
+        return shard_count;
+    }
+
     void set_max_cardinality(qdb_uint_t cardinality)
     {
         qdb::qdb_throw_if_error(*_handle, qdb_option_set_max_cardinality(*_handle, cardinality));
@@ -260,6 +273,8 @@ static inline void register_options(Module & m)
         .def("set_user_credentials", &qdb::options::set_user_credentials)                 //
         .def("set_client_max_in_buf_size", &qdb::options::set_client_max_in_buf_size)     //
         .def("get_client_max_in_buf_size", &qdb::options::get_client_max_in_buf_size)     //
+        .def("set_client_max_batch_load", &qdb::options::set_client_max_batch_load)       //
+        .def("get_client_max_batch_load", &qdb::options::get_client_max_batch_load)       //
         .def("get_cluster_max_in_buf_size", &qdb::options::get_cluster_max_in_buf_size)   //
         .def("get_client_max_parallelism", &qdb::options::get_client_max_parallelism)     //
         .def("set_query_max_length", &qdb::options::set_query_max_length,                 //
