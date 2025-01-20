@@ -38,7 +38,18 @@ def test_set_query_max_length(qdbd_connection):
     qdbd_connection.options().set_query_max_length(1234)
     assert qdbd_connection.options().get_query_max_length() == 1234
 
+def test_get_client_max_batch_load(qdbd_connection):
+    assert qdbd_connection.options().get_client_max_batch_load() >= 0
 
+def test_set_client_max_batch_load(qdbd_connection):
+    # Make sure to remember the default value, as the connection may be reused
+    old = qdbd_connection.options().get_client_max_batch_load()
+
+    try:
+        qdbd_connection.options().set_client_max_batch_load(1234)
+        assert qdbd_connection.options().get_client_max_batch_load() == 1234
+    finally:
+        qdbd_connection.options().set_client_max_batch_load(old)
 
 
 def test_compression_none(qdbd_connection):
