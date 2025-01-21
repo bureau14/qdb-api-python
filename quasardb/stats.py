@@ -201,7 +201,13 @@ def _get_stat(dconn, k):
     # blob
     try:
         return dconn.integer(k).get()
+
+    # Older versions of qdb api returned 'alias not found'
     except quasardb.quasardb.AliasNotFoundError:
+        return _clean_blob(dconn.blob(k).get())
+
+    # Since ~ 3.14.2, it returns 'Incompatible Type'
+    except quasardb.quasardb.IncompatibleTypeError:
         return _clean_blob(dconn.blob(k).get())
 
 def _by_uid(stats):
