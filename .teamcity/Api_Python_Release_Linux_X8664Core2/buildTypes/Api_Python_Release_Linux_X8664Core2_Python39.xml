@@ -3,9 +3,6 @@
   <name>Python 3.9</name>
   <description />
   <settings ref="Api_Python_Release_Linux_X8664Core2_Build">
-    <disabled-settings>
-      <setting-ref ref="RUNNER_56" />
-    </disabled-settings>
     <parameters>
       <param name="python_version" value="3.9" />
     </parameters>
