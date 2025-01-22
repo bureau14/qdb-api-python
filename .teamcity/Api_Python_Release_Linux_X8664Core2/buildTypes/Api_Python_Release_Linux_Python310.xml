@@ -6,7 +6,7 @@
     <parameters>
       <param name="python_version" value="3.10" />
     </parameters>
-    <build-runners>
+    <build-runners order="RUNNER_53, RUNNER_280, RUNNER_93, RUNNER_101, RUNNER_62, Build_documentation, RUNNER_57, RUNNER_144">
       <runner id="Build_documentation" name="Build documentation" type="simpleRunner">
         <parameters>
           <param name="command.executable" value="bash" />
