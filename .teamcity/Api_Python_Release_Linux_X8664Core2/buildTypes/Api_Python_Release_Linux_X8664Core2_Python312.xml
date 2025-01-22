@@ -6,7 +6,17 @@
     <parameters>
       <param name="python_version" value="3.12" />
     </parameters>
-    <build-runners />
+    <build-runners>
+      <runner id="Build_documentation" name="Build documentation" type="simpleRunner">
+        <parameters>
+          <param name="command.executable" value="bash" />
+          <param name="command.parameters" value="scripts/teamcity/30.doc.sh" />
+          <param name="plugin.docker.imageId" value="build:%build.vcs.number%-%python_version%" />
+          <param name="plugin.docker.imagePlatform" value="linux" />
+          <param name="teamcity.step.mode" value="default" />
+        </parameters>
+      </runner>
+    </build-runners>
     <vcs-settings />
     <requirements />
     <build-triggers>
@@ -41,3 +51,4 @@
     <cleanup />
   </settings>
 </build-type>
+
