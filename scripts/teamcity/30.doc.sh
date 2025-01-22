@@ -17,7 +17,7 @@ else
 fi
 
 ${VENV_PYTHON} -m pip install -r dev-requirements.txt
-${VENV_PYTHON} -m pip install --no-deps --force-reinstall dist/quasardb-*.whl
+${VENV_PYTHON} -m pip install --no-deps --force-reinstall dist/quasardb-*manylinux*.whl
 
 
 # To avoid conflicts with `quasardb` directory and `import quasardb`
