@@ -27,7 +27,6 @@ class Module(pdoc.Module):
     def submodules(self):
         return self._submodules
 
-
 module_qdb = Module(quasardb.quasardb, context=context,
                     submodules=[pdoc.Module(quasardb.pool, context=context),
                                 pdoc.Module(quasardb.stats, context=context),
@@ -63,12 +62,12 @@ for mod in modules:
         #
         # So, just to make sure we have "everything", we write each module twice:
         # once with the quasardb. prefix, and once without.
-        write_module("doc/" + module_name + ".html", html)
-        write_module("doc/" + _strip_prefix(module_name, 'quasardb.') + ".html", html)
+        write_module("build/" + module_name + ".html", html)
+        write_module("build/" + _strip_prefix(module_name, 'quasardb.') + ".html", html)
 
         try:
-            os.mkdir("doc/" + _strip_prefix(module_name, 'quasardb.'))
+            os.mkdir("build/" + _strip_prefix(module_name, 'quasardb.'))
         except FileExistsError:
             pass
 
-        write_module("doc/" + _strip_prefix(module_name, 'quasardb.') + "/index.html", html)
+        write_module("build/" + _strip_prefix(module_name, 'quasardb.') + "/index.html", html)
