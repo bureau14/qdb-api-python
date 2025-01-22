@@ -52,6 +52,10 @@ def write_module(filename, html):
     with open(filename, 'w') as f:
         f.write(html)
 
+try:
+    os.mkdir("build/quasardb")
+except FileExistsError:
+    pass
 
 for mod in modules:
     for module_name, html in recursive_htmls(mod):
@@ -61,13 +65,12 @@ for mod in modules:
         # `pool` :/
         #
         # So, just to make sure we have "everything", we write each module twice:
-        # once with the quasardb. prefix, and once without.
-        write_module("build/" + module_name + ".html", html)
-        write_module("build/" + _strip_prefix(module_name, 'quasardb.') + ".html", html)
+        # once in quasardb directory with module_name as file name.
+        # once in quasardb/module_name with index.html file name
 
-        try:
-            os.mkdir("build/" + _strip_prefix(module_name, 'quasardb.'))
-        except FileExistsError:
-            pass
-
-        write_module("build/" + _strip_prefix(module_name, 'quasardb.') + "/index.html", html)
+        if module_name == "quasardb.quasardb":
+            write_module("build/" + _strip_prefix(module_name, "quasardb.") + "/index.html", html)
+        else:
+            os.mkdir("build/quasardb/" + _strip_prefix(module_name, "quasardb."))
+            write_module("build/quasardb/" + _strip_prefix(module_name, "quasardb.") + ".html", html)
+            write_module("build/quasardb/" + _strip_prefix(module_name, "quasardb.") + "/index.html", html)
