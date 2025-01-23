@@ -216,16 +216,14 @@ qdb::reader const & reader::enter()
         tables.emplace_back(qdb_bulk_reader_table_t{
             // because the scope of `table_name` outlives this function, we can just directly
             // use .c_str() without any copies.
-            table_name.c_str(),   //
-            columns,              //
-            column_names_.size(), //
-            ranges,               //
-            ranges_.size()        //
+            table_name.c_str(), //
+            ranges,             //
+            ranges_.size()      //
         });
     }
 
-    qdb::qdb_throw_if_error(
-        *handle_, qdb_bulk_reader_fetch(*handle_, tables.data(), tables.size(), &reader_));
+    qdb::qdb_throw_if_error(*handle_, qdb_bulk_reader_fetch(*handle_, columns, column_names_.size(),
+                                          tables.data(), tables.size(), &reader_));
 
     return *this;
 }
