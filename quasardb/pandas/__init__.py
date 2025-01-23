@@ -205,16 +205,19 @@ def query(cluster: quasardb.Cluster,
     df.set_index(index, inplace=True)
     return df
 
-def stream_dataframe(table : quasardb.Table, *, batch_size : int = 2**16, column_names : list = None, ranges : list = None):
+def stream_dataframes(tables : list[quasardb.Table], *, batch_size : int = 2**16, column_names : list = None, ranges : list = None):
     """
     Read a Pandas Dataframe from a QuasarDB Timeseries table. Returns a generator with dataframes of size `batch_size`, which is useful
     when traversing a large dataset which does not fit into memory.
 
+    Accepts the same parameters as `stream_dataframes`.
+
     Parameters:
     -----------
 
-    table : quasardb.Timeseries
-      QuasarDB Timeseries table object, e.g. qdb_cluster.table('my_table')
+    tables : list[quasardb.Timeseries]
+      QuasarDB tables to stream. These should be actual table objects, e.g. `qdb_cluster.table('my_table')`. All tables read
+      are required to have the exact same schema.
 
     batch_size : int
       The amount of rows to fetch in a single read operation. If unset, uses 2^16 (65536) rows
@@ -254,6 +257,17 @@ def stream_dataframe(table : quasardb.Table, *, batch_size : int = 2**16, column
             df = pd.DataFrame(batch, index=idx)
 
             yield df
+
+
+def stream_dataframe(table : quasardb.Table, **kwargs):
+    """
+    Read a Pandas Dataframe from a QuasarDB Timeseries table. Returns a generator with dataframes of size `batch_size`, which is useful
+    when traversing a large dataset which does not fit into memory.
+
+    This is a convenience function.
+    """
+    kwargs['tables'] = list[table]
+    return stream_dataframes(**kwargs)
 
 
 def read_dataframe(table, **kwargs):
