@@ -130,7 +130,7 @@ tar -czvf dist/doc.tar.gz doc/*]]></param>
     <artifact-dependencies>
       <dependency id="quasardb" sourceBuildTypeId="Quasardb_Artifacts_Release_Linux_AArch64_Composite" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
-        <artifact sourcePath="*-linux-64bit-aarch64-c-api.tar.gz!**/*=&gt;qdb&#xD;&#xA;*-linux-64bit-aarch64-utils.tar.gz!**/*=&gt;qdb&#xD;&#xA;*-linux-64bit-aarch64-server.tar.gz!**/*=&gt;qdb" />
+        <artifact sourcePath="*-linux-64bit-aarch64-c-api.tar.zst!**/*=&gt;qdb&#xD;&#xA;*-linux-64bit-aarch64-utils.tar.zst!**/*=&gt;qdb&#xD;&#xA;*-linux-64bit-aarch64-server.tar.zst!**/*=&gt;qdb" />
       </dependency>
     </artifact-dependencies>
     <dependencies>
@@ -145,4 +145,3 @@ tar -czvf dist/doc.tar.gz doc/*]]></param>
     <cleanup />
   </settings>
 </template>
-

@@ -10,8 +10,8 @@
     </options>
     <parameters>
       <param name="JUNIT_XML_FILE" value="build/test/pytest.xml" />
-      <param name="dependencies.artifact.rules"><![CDATA[*-c-api.zip!**/*.*=>qdb
-*-server.zip!**/*=>qdb]]></param>
+      <param name="dependencies.artifact.rules"><![CDATA[*-c-api.tar.zst!**/*.*=>qdb
+*-server.tar.zst!**/*=>qdb]]></param>
       <param name="env.JUNIT_XML_FILE" value="build/test/pytest.xml" />
       <param name="env.PYTHON_CMD" value="" spec="text label='Python executable' description='Absolutely location to Python executable to use for the build, e.g. c:\Python3.6\python.exe' validationMode='not_empty'" />
       <param name="env.PYTHON_EXECUTABLE" value="" />
@@ -80,7 +80,7 @@ source .env/bin/activate
     <artifact-dependencies>
       <dependency id="ARTIFACT_DEPENDENCY_109" sourceBuildTypeId="Quasardb_Artifacts_Release_Windows_X8664Core2" cleanDestination="true">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
-        <artifact sourcePath="*-windows-64bit-core2-c-api.zip!**/*.*=&gt;qdb&#xA;*-windows-64bit-core2-server.zip!**/*=&gt;qdb&#xA;*-windows-64bit-core2-utils.zip!**/*=&gt;qdb" />
+        <artifact sourcePath="*-windows-64bit-core2-c-api.tar.zst!**/*.*=&gt;qdb&#xA;*-windows-64bit-core2-server.tar.zst!**/*=&gt;qdb&#xA;*-windows-64bit-core2-utils.tar.zst!**/*=&gt;qdb" />
       </dependency>
     </artifact-dependencies>
     <dependencies>
@@ -94,4 +94,3 @@ source .env/bin/activate
     <cleanup />
   </settings>
 </template>
-

@@ -12,7 +12,7 @@
     </disabled-settings>
     <parameters>
       <param name="JUNIT_XML_FILE" value="build/test/pytest.xml" />
-      <param name="archive.ext" value="tar.gz" />
+      <param name="archive.ext" value="tar.zst" />
       <param name="dependencies.artifact.rules"><![CDATA[*-c-api.%archive.ext%!**/*=>qdb
 *-utils.%archive.ext%!**/*=>qdb
 *-server.%archive.ext%!**/*=>qdb]]></param>
@@ -94,7 +94,7 @@ export QDB_TESTS_ENABLED=OFF]]></param>
     <artifact-dependencies>
       <dependency id="ARTIFACT_DEPENDENCY_423" sourceBuildTypeId="Quasardb_Artifacts_Release_MacOS_AArch64_Composite" cleanDestination="true">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
-        <artifact sourcePath="*-darwin-64bit-arm64-c-api.tar.gz!**/*=&gt;qdb&#xD;&#xA;*-darwin-64bit-arm64-utils.tar.gz!**/*=&gt;qdb&#xD;&#xA;*-darwin-64bit-arm64-server.tar.gz!**/*=&gt;qdb" />
+        <artifact sourcePath="*-darwin-64bit-arm64-c-api.tar.zst!**/*=&gt;qdb&#xD;&#xA;*-darwin-64bit-arm64-utils.tar.zst!**/*=&gt;qdb&#xD;&#xA;*-darwin-64bit-arm64-server.tar.zst!**/*=&gt;qdb" />
       </dependency>
     </artifact-dependencies>
     <dependencies>

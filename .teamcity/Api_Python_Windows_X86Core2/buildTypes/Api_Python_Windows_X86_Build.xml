@@ -11,8 +11,8 @@
     <parameters>
       <param name="JUNIT_XML_FILE" value="build/test/pytest.xml" />
       <param name="PYTHON_CMD" value="" spec="text label='Python executable' description='Absolutely location to Python executable to use for the build, e.g. c:\Python3.6\python.exe' validationMode='not_empty'" />
-      <param name="dependencies.artifact.rules"><![CDATA[*-c-api.zip!**/*.*=>qdb
-*-server.zip!**/*=>qdb]]></param>
+      <param name="dependencies.artifact.rules"><![CDATA[*-c-api.tar.zst!**/*.*=>qdb
+*-server.tar.zst!**/*=>qdb]]></param>
       <param name="env.JUNIT_XML_FILE" value="build/test/pytest.xml" />
       <param name="env.PYTHON_CMD" value="" />
       <param name="env.PYTHON_EXECUTABLE" value="" />
@@ -74,7 +74,7 @@
     <artifact-dependencies>
       <dependency id="ARTIFACT_DEPENDENCY_109" sourceBuildTypeId="Quasardb_Artifacts_Release_Windows_X86Haswell" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
-        <artifact sourcePath="*-windows-32bit-c-api.zip!**/*.*=&gt;qdb&#xA;*-windows-32bit-server.zip!**/*=&gt;qdb&#xA;*-windows-32bit-utils.zip!**/*=&gt;qdb" />
+        <artifact sourcePath="*-windows-32bit-c-api.tar.zst!**/*.*=&gt;qdb&#xA;*-windows-32bit-server.tar.zst!**/*=&gt;qdb&#xA;*-windows-32bit-utils.tar.zst!**/*=&gt;qdb" />
       </dependency>
     </artifact-dependencies>
     <dependencies>
@@ -88,4 +88,3 @@
     <cleanup />
   </settings>
 </template>
-
