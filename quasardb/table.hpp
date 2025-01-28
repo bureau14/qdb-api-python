@@ -220,6 +220,21 @@ public:
         throw qdb::alias_not_found_exception{};
     }
 
+public:
+    /**
+     * Ensures that all provided tables have an identical schema.
+     */
+    void ensure_identical_schema();
+
+    /**
+     * Given a connection and a Python object, attempts to coerce into
+     * a table object.
+     *
+     * If the Python object is a string, it interprets it as the table name,
+     * otherwise it assumed the argument is an actual table object.
+     */
+    static qdb::table coerce_table(py::object);
+
 private:
     /**
      * Loads column info / metadata from server and caches it locally.

@@ -17,14 +17,6 @@ namespace detail
 {
     py::dict ret{};
 
-    // typedef struct
-    // {
-    //     qdb_size_t row_count;
-    //     qdb_size_t column_count;
-    //     const qdb_timespec_t * timestamps;
-    //     const qdb_exp_batch_push_column_t * columns;
-    // } qdb_exp_batch_push_table_data_t;
-
     // Convert the timestamp index, which should never contain null values
     // and thus is *not* a masked array.
     auto timestamps = ranges::views::counted(data.timestamps, data.row_count);
@@ -37,20 +29,6 @@ namespace detail
 
     for (qdb_exp_batch_push_column_t const & column : columns)
     {
-        // typedef struct // NOLINT(modernize-use-using)
-        // {
-        //     char const * name;
-        //     qdb_ts_column_type_t data_type;
-        //     union
-        //     {
-        //         const qdb_timespec_t * timestamps;
-        //         const qdb_string_t * strings;
-        //         const qdb_blob_t * blobs;
-        //         const qdb_int_t * ints;
-        //         const double * doubles;
-        //     } data;
-        // } qdb_exp_batch_push_column_t;
-
         py::str column_name{column.name};
 
         qdb::masked_array xs;
@@ -103,10 +81,12 @@ reader_iterator & reader_iterator::operator++()
         // This means this is either the first invocation, or we have
         // previously exhausted all tables in the current "fetch" and
         // should fetch next.
+        py::print("ptr_ == nullptr, invoking qdb_bulk_reader_get_data()");
         qdb_error_t err = qdb_bulk_reader_get_data(reader_, &ptr_, batch_size_);
 
         if (err == qdb_e_iterator_end) [[unlikely]]
         {
+            py::print("err == qdb_e_iterator_end, invoking qdb_bulk_reader_get_data()");
             // We have reached the end -- reset all our internal state, and make us look
             // like the "end" iterator.
             handle_      = nullptr;
@@ -133,6 +113,8 @@ reader_iterator & reader_iterator::operator++()
     {
         assert(ptr_ != nullptr);
 
+        py::print("ptr_ != nullptr, n_ = ", n_, ", table_count_ = ", table_count_);
+
         if (++n_ == table_count_)
         {
             // We have exhausted our tables. What we will do is just "reset" our internal state
@@ -142,6 +124,8 @@ reader_iterator & reader_iterator::operator++()
 
             ptr_ = nullptr;
             n_   = 0;
+
+            py::print("exhausted tables, recursing operator++()");
 
             return this->operator++();
         }

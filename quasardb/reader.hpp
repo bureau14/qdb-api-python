@@ -251,6 +251,16 @@ private:
 
 using reader_ptr = std::unique_ptr<reader>;
 
+static inline reader_ptr make_reader_ptr(handle_ptr handle, //
+    std::vector<std::string> const & table_names,           //
+    std::vector<std::string> const & column_names,          //
+    std::size_t batch_size,                                 //
+    std::vector<py::tuple> const & ranges                   //
+)
+{
+    return std::make_unique<reader>(handle, table_names, column_names, batch_size, ranges);
+}
+
 void register_reader(py::module_ & m);
 
 } // namespace qdb
