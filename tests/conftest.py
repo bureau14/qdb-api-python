@@ -30,9 +30,9 @@ def _qdbd_settings():
     user_key = {}
     cluster_key = ""
 
-    with open('../user_private.key', 'r') as user_key_file:
+    with open("../user_private.key", "r") as user_key_file:
         user_key = json.load(user_key_file)
-    with open('../cluster_public.key', 'r') as cluster_key_file:
+    with open("../cluster_public.key", "r") as cluster_key_file:
         cluster_key = cluster_key_file.read()
     return {
         "uri": {"insecure": "qdb://127.0.0.1:2836", "secure": "qdb://127.0.0.1:2838"},
@@ -41,7 +41,10 @@ def _qdbd_settings():
             "user_private_key": user_key["secret_key"],
             "cluster_public_key": cluster_key,
             "user_private_key_file": "../user_private.key",
-            "cluster_public_key_file": "../cluster_public.key"}}
+            "cluster_public_key_file": "../cluster_public.key",
+        },
+    }
+
 
 @pytest.fixture(scope="module")
 def qdbd_settings():
@@ -253,7 +256,6 @@ def row_count(request):
     yield request.param
 
 
-<<<<<<< HEAD
 @pytest.fixture(
     params=[56, 112, 224, 448, 896],
     ids=[
@@ -273,17 +275,29 @@ def override_row_count(x):
     return pytest.mark.parametrize("row_count", [x], ids=["row_count={}".format(x)])
 
 
+@pytest.fixture(
+    params=[56, 112, 224, 448, 896],
+    ids=[
+        "batch_size=56",
+        "batch_size=112",
+        "batch_size=224",
+        "batch_size=448",
+        "batch_size=896",
+    ],
+)
+def reader_batch_size(request):
+    yield request.param
+
+
 # Makes it easier to "select" a row count.
 def override_row_count(x):
-    return pytest.mark.parametrize('row_count', [x], ids=['row_count={}'.format(x)])
+    return pytest.mark.parametrize("row_count", [x], ids=["row_count={}".format(x)])
 
 
-@pytest.fixture(params=[1, 2, 4, 8, 16],
-                ids=['df_count=1',
-                     'df_count=2',
-                     'df_count=4',
-                     'df_count=8',
-                     'df_count=16'])
+@pytest.fixture(
+    params=[1, 2, 4, 8, 16],
+    ids=["df_count=1", "df_count=2", "df_count=4", "df_count=8", "df_count=16"],
+)
 def df_count(request):
     yield request.param
 

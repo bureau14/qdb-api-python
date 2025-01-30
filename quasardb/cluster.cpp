@@ -1,5 +1,6 @@
 #include "cluster.hpp"
 #include "metrics.hpp"
+#include "table.hpp"
 #include <chrono>
 #include <thread>
 
@@ -96,6 +97,13 @@ void cluster::wait_for_compaction()
 
         std::this_thread::sleep_for(100ms);
     }
+}
+
+qdb::table_ptr cluster::table(const std::string & alias)
+{
+    check_open();
+
+    return qdb::make_table_ptr(_handle, alias);
 }
 
 }; // namespace qdb
