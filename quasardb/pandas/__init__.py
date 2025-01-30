@@ -279,7 +279,7 @@ def stream_dataframe(conn : quasardb.Cluster, table, **kwargs):
     return (clean_df_fn(df) for df in stream_dataframes(conn, **kwargs))
 
 
-def read_dataframe(conn : quasardb.Cluster, table : quasardb.Table | str, **kwargs):
+def read_dataframe(conn : quasardb.Cluster, table, **kwargs):
     """
     Read a Pandas Dataframe from a QuasarDB Timeseries table. Wraps around stream_dataframes(), and
     returns everything as a single dataframe. batch_size is always explicitly set to 0.
