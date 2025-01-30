@@ -35,7 +35,7 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
 
     # The `read_dataframe` function provides a performance-efficient mechanism to read data
     # from an entire table. We can optionally provide the time range we want to read from.
-    df = qdbpd.read_dataframe(t, ranges=ranges)
+    df = qdbpd.read_dataframe(c, t, ranges=ranges)
 
     # bulk-read-end
 
