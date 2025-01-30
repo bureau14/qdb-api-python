@@ -271,8 +271,12 @@ def stream_dataframe(conn : quasardb.Cluster, table : str | quasardb.Table, **kw
     """
     kwargs['tables'] = [table]
 
-    print("stream_dataframe, kwargs: {}".format(kwargs))
-    return stream_dataframes(conn, **kwargs)
+    # For backwards compatibility, we drop the `$table` column returned: this is not strictly
+    # necessary, but it also is somewhat reasonable to drop it when we're reading from a single
+    # table, which is the case here.
+    clean_df_fn = lambda df: df.drop(columns=['$table'])
+
+    return (clean_df_fn(df) for df in stream_dataframes(conn, **kwargs))
 
 
 def read_dataframe(conn : quasardb.Cluster, table : quasardb.Table | str, **kwargs):

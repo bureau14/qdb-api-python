@@ -119,7 +119,7 @@ def test_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
 
     df2 = qdbpd.read_dataframe(qdbd_connection, table)
 
-    _assert_df_equal(df1, df2.drop(columns=['$table']))
+    _assert_df_equal(df1, df2)
 
 @pytest.mark.parametrize('sparsify', conftest.no_sparsify)
 def test_dataframe_can_read_columns(qdbpd_write_fn, df_with_table, qdbd_connection, column_name, table_name):
@@ -131,7 +131,7 @@ def test_dataframe_can_read_columns(qdbpd_write_fn, df_with_table, qdbd_connecti
 
     df2 = qdbpd.read_dataframe(qdbd_connection, table, column_names=[column_name])
 
-    _assert_df_equal(df1, df2.drop(columns=['$table']))
+    _assert_df_equal(df1, df2)
 
 
 def test_dataframe_can_read_ranges(qdbpd_write_fn, qdbd_connection, df_with_table, start_date, row_count):
