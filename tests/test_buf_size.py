@@ -45,22 +45,22 @@ def test_get_cluster_max_in_buf(qdbd_connection):
 def test_client_query_buf_size_error(qdbd_settings, table, many_intervals):
     with conftest.create_qdbd_connection(qdbd_settings) as conn:
         # First insert some data
-        inserter = conn.inserter(
-            batchlib._make_inserter_info(table))
+        inserter = conn.inserter(batchlib._make_inserter_info(table))
 
         # doubles, blobs, strings, integers, timestamps =
         # batchlib._test_with_table(
         batchlib._test_with_table(
-            inserter,
-            table,
-            many_intervals,
-            batchlib._regular_push)
+            inserter, table, many_intervals, batchlib._regular_push
+        )
 
-        res = conn.query("select * from \"" + table.get_name() + "\"")
+        res = conn.query('select * from "' + table.get_name() + '"')
 
         assert len(res) == 10000
 
         conn.options().set_client_max_in_buf_size(1500)
 
-        with pytest.raises(quasardb.InputBufferTooSmallError, match=r'consider increasing the buffer size'):
-            conn.query("select * from \"" + table.get_name() + "\"")
+        with pytest.raises(
+            quasardb.InputBufferTooSmallError,
+            match=r"consider increasing the buffer size",
+        ):
+            conn.query('select * from "' + table.get_name() + '"')

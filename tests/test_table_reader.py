@@ -57,7 +57,7 @@ def test_reader_returns_dicts(qdbpd_write_fn, df_with_table, qdbd_connection):
             # Ensure each key is a numpy array-like
             for k, v in row.items():
 
-                if k == '$timestamp':
+                if k == "$timestamp":
                     # this is the timestamp index, should always be a regular
                     # numpy array
                     assert isinstance(v, np.ndarray)
@@ -66,10 +66,8 @@ def test_reader_returns_dicts(qdbpd_write_fn, df_with_table, qdbd_connection):
 
 
 def test_reader_can_iterate_rows(
-        qdbpd_write_fn,
-        df_with_table,
-        qdbd_connection,
-        row_count):
+    qdbpd_write_fn, df_with_table, qdbd_connection, row_count
+):
     (ctype, dtype, df, table) = df_with_table
 
     assert len(df.index) == row_count
@@ -90,17 +88,15 @@ def test_reader_can_iterate_rows(
             assert seen is False
             seen = True
 
-            assert len(row['$timestamp']) == row_count
+            assert len(row["$timestamp"]) == row_count
 
             for column_name in column_names:
                 assert len(row[column_name]) == row_count
 
 
 def test_reader_can_iterate_batches(
-        qdbpd_write_fn,
-        df_with_table,
-        qdbd_connection,
-        row_count):
+    qdbpd_write_fn, df_with_table, qdbd_connection, row_count
+):
     (ctype, dtype, df, table) = df_with_table
 
     assert len(df.index) == row_count
@@ -123,7 +119,7 @@ def test_reader_can_iterate_batches(
             assert seen < 2
             seen += 1
 
-            assert len(row['$timestamp']) == batch_size
+            assert len(row["$timestamp"]) == batch_size
 
             for column_name in column_names:
                 assert len(row[column_name]) == batch_size

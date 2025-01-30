@@ -5,7 +5,7 @@ import quasardb
 import sys
 import os
 
-sys.path.append(os.path.join(os.path.split(__file__)[0], '..', 'examples/'))
+sys.path.append(os.path.join(os.path.split(__file__)[0], "..", "examples/"))
 
 
 def test_tutorial_python():

@@ -38,8 +38,6 @@ def test_remove_throws_exception_when_called_twice(string_entry, random_string):
         string_entry.remove()
 
 
-
-
 def test_update(string_entry, random_string):
     string_entry.update(random_string)
     got = string_entry.get()

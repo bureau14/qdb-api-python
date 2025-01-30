@@ -4,6 +4,7 @@ import pytest
 import quasardb
 import datetime
 
+
 def test_put(timestamp_entry, random_timestamp):
     timestamp_entry.put(random_timestamp)
 
@@ -20,7 +21,6 @@ def test_update(timestamp_entry, random_timestamp):
     got = timestamp_entry.get()
 
     assert random_timestamp == got
-
 
     new_timestamp = random_timestamp + datetime.timedelta(days=42)
 

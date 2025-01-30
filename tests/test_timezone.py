@@ -4,8 +4,10 @@ import quasardb
 import quasardb.pandas as qdbpd
 import pytest
 
+
 def test_set_timezone(qdbd_connection):
     qdbd_connection.options().set_timezone("Europe/Brussels")
+
 
 def test_get_timezone(qdbd_connection):
     # We use Brussels, because on Windows the behavior is that timezones get "normalized" to
@@ -17,6 +19,7 @@ def test_get_timezone(qdbd_connection):
 
     assert qdbd_connection.options().get_timezone() == "Europe/Brussels"
 
+
 def test_query_timezone(qdbpd_write_fn, df_with_table, qdbd_connection):
     """
     This verifies data inserted (assumed to be UTC) is actually properly adjusted in query results.
@@ -27,8 +30,7 @@ def test_query_timezone(qdbpd_write_fn, df_with_table, qdbd_connection):
     # We always need to infer
     qdbpd_write_fn(df, qdbd_connection, table, infer_types=True)
 
-
-    q = "SELECT * FROM \"{}\"".format(table.get_name())
+    q = 'SELECT * FROM "{}"'.format(table.get_name())
 
     # First select as UTC
     qdbd_connection.options().set_timezone("UTC")

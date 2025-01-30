@@ -8,8 +8,9 @@ import quasardb
 import pprint
 
 classes = inspect.getmembers(quasardb, inspect.isclass)
-exception_classes = (v for (k, v) in classes if k.endswith('Error'))
+exception_classes = (v for (k, v) in classes if k.endswith("Error"))
 exception_tree = inspect.getclasstree(exception_classes)
+
 
 def test_base_is_runtime_error():
     assert isinstance(exception_tree, list)
@@ -26,7 +27,7 @@ def test_base_is_runtime_error():
 
     cur = exception_tree
 
-    def walk_and_check(xs, depth = 0):
+    def walk_and_check(xs, depth=0):
         assert depth <= len(hierarchy)
 
         # Parent/child class
@@ -42,7 +43,11 @@ def test_base_is_runtime_error():
             if depth == len(hierarchy) - 1:
                 return [walk_and_check(x, depth + 1) for x in xs]
 
-            elif isinstance(xs[0], tuple) and isinstance(xs[0][0], type) and str(xs[0][0]) == "<class 'AssertionError'>":
+            elif (
+                isinstance(xs[0], tuple)
+                and isinstance(xs[0][0], type)
+                and str(xs[0][0]) == "<class 'AssertionError'>"
+            ):
                 ## HAXXX -- skip the tree of assertion exceptions, because we don't care about this
                 pass
 
