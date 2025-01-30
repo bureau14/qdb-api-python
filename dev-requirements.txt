@@ -40,4 +40,4 @@ teamcity-messages == 1.29
 setuptools-git == 1.2
 
 # Linting
-black==25.1.0
+black
