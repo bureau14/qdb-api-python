@@ -13,7 +13,10 @@ def test_native_logging_output(blob_entry, random_blob, caplog):
     def found(xs):
         messages = [lr.message for lr in xs]
         modules = [lr.name for lr in xs]
-        return 'quasardb.native' in modules and  'requested clients broker service run' in messages
+        return (
+            "quasardb.native" in modules
+            and "requested clients broker service run" in messages
+        )
 
     max_retries = 30
     for i in range(max_retries):
@@ -31,12 +34,13 @@ def test_native_logging_output(blob_entry, random_blob, caplog):
 
     assert found(caplog.records)
 
+
 @pytest.mark.skip(reason="TODO: Should only be enabled for CMAKE_BUILD_TYPE=Debug")
 def test_invalid_utf8_logs_qdb3361(qdbd_connection, caplog):
     caplog.set_level(logging.DEBUG)
 
     # Generate invalid UTF-8 binary string which we'll use as table name
-    tablename = b'foo\x80abc'
+    tablename = b"foo\x80abc"
 
     # Verify this does, in fact, raise an error in case when it's interpreted
     # as UTF-8.
@@ -57,7 +61,7 @@ def test_invalid_utf8_logs_qdb3361(qdbd_connection, caplog):
     batchcol = [quasardb.BatchColumnInfo(tablename, "the_double", 10)]
     inserter = qdbd_connection.inserter(batchcol)
 
-    inserter.start_row(np.datetime64('2020-01-01', 'ns'))
+    inserter.start_row(np.datetime64("2020-01-01", "ns"))
     inserter.set_double(0, 1.234)
 
     inserter.push()
@@ -71,6 +75,6 @@ def test_invalid_utf8_logs_qdb3361(qdbd_connection, caplog):
     # in the logs.
     seen = False
     for lr in caplog.records:
-        seen = seen or '\x80' in lr.message
+        seen = seen or "\x80" in lr.message
 
     assert seen

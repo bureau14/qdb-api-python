@@ -12,6 +12,7 @@ def test_can_compact_full_and_abort(qdbd_connection):
         qdbd_connection.compact_abort()
         qdbd_connection.wait_for_compaction()
 
+
 def test_can_get_compaction_progress(qdbd_connection):
     try:
         qdbd_connection.compact_full()

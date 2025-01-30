@@ -1,18 +1,21 @@
 import logging
 
-logger = logging.getLogger('quasardb.table_cache')
+logger = logging.getLogger("quasardb.table_cache")
 
 _cache = {}
+
 
 def clear():
     logger.info("Clearing table cache")
     _cache = {}
+
 
 def exists(table_name: str) -> bool:
     """
     Returns true if table already exists in table cache.
     """
     return table_name in _cache
+
 
 def store(table, table_name=None, force_retrieve_metadata=True):
     """
@@ -34,6 +37,7 @@ def store(table, table_name=None, force_retrieve_metadata=True):
     table.retrieve_metadata()
 
     return table
+
 
 def lookup(table_name: str, conn, force_retrieve_metadata=True):
     """

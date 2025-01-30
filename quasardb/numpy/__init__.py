@@ -33,7 +33,7 @@ import time
 import quasardb
 import quasardb.table_cache as table_cache
 
-logger = logging.getLogger('quasardb.numpy')
+logger = logging.getLogger("quasardb.numpy")
 
 
 class NumpyRequired(ImportError):
@@ -41,6 +41,7 @@ class NumpyRequired(ImportError):
     Exception raised when trying to use QuasarDB pandas integration, but
     pandas has not been installed.
     """
+
     pass
 
 
@@ -52,7 +53,7 @@ except ImportError as err:
     logger.exception(err)
     raise NumpyRequired(
         "The numpy library is required to handle numpy arrays formats"
-        ) from err
+    ) from err
 
 
 class IncompatibleDtypeError(TypeError):
@@ -68,13 +69,16 @@ class IncompatibleDtypeError(TypeError):
         super().__init__(self.msg())
 
     def msg(self):
-        return "Data for column '{}' with type '{}' was provided in dtype '{}' but need '{}'.".format(self.cname, self.ctype, self.provided, self.expected)
+        return "Data for column '{}' with type '{}' was provided in dtype '{}' but need '{}'.".format(
+            self.cname, self.ctype, self.provided, self.expected
+        )
 
 
 class IncompatibleDtypeErrors(TypeError):
     """
     Wraps multiple dtype errors
     """
+
     def __init__(self, xs):
         self.xs = xs
         super().__init__(self.msg())
@@ -82,29 +86,33 @@ class IncompatibleDtypeErrors(TypeError):
     def msg(self):
         return "\n".join(x.msg() for x in self.xs)
 
+
 class InvalidDataCardinalityError(ValueError):
     """
     Raised when the provided data arrays doesn't match the table's columns.
     """
+
     def __init__(self, data, cinfos):
         self.data = data
         self.cinfos = cinfos
         super().__init__(self.msg())
 
     def msg(self):
-        return "Provided data array length '{}' exceeds amount of table columns '{}', unable to map data to columns".format(len(self.data), len(self.cinfos))
+        return "Provided data array length '{}' exceeds amount of table columns '{}', unable to map data to columns".format(
+            len(self.data), len(self.cinfos)
+        )
 
 
 # Based on QuasarDB column types, which dtype do we accept?
 # First entry will always be the 'preferred' dtype, other ones
 # those that we can natively convert in native code.
 _ctype_to_dtype = {
-    quasardb.ColumnType.String: [np.dtype('U')],
-    quasardb.ColumnType.Symbol: [np.dtype('U')],
-    quasardb.ColumnType.Int64: [np.dtype('i8'), np.dtype('i4'), np.dtype('i2')],
-    quasardb.ColumnType.Double: [np.dtype('f8'), np.dtype('f4')],
-    quasardb.ColumnType.Blob: [np.dtype('S'), np.dtype('O')],
-    quasardb.ColumnType.Timestamp: [np.dtype('datetime64[ns]')]
+    quasardb.ColumnType.String: [np.dtype("U")],
+    quasardb.ColumnType.Symbol: [np.dtype("U")],
+    quasardb.ColumnType.Int64: [np.dtype("i8"), np.dtype("i4"), np.dtype("i2")],
+    quasardb.ColumnType.Double: [np.dtype("f8"), np.dtype("f4")],
+    quasardb.ColumnType.Blob: [np.dtype("S"), np.dtype("O")],
+    quasardb.ColumnType.Timestamp: [np.dtype("datetime64[ns]")],
 }
 
 
@@ -141,9 +149,12 @@ def _coerce_dtype(dtype, columns):
         # Any columns not provided will have a 'None' dtype.
         dtype_ = [None] * len(columns)
 
-        for (k, dt) in dtype.items():
+        for k, dt in dtype.items():
             if not k in offsets:
-                logger.warn("Forced dtype provided for column '%s' = %s, but that column is not found in the table. Skipping...", k, )
+                logger.warn(
+                    "Forced dtype provided for column '%s' = %s, but that column is not found in the table. Skipping...",
+                    k,
+                )
 
             i = offsets[k]
             dtype_[i] = dt
@@ -151,14 +162,20 @@ def _coerce_dtype(dtype, columns):
         dtype = dtype_
 
     if type(dtype) is not list:
-        raise ValueError("Forced dtype argument provided, but the argument has an incompatible type. Expected: list-like or dict-like, got: {}".format(type(dtype)))
+        raise ValueError(
+            "Forced dtype argument provided, but the argument has an incompatible type. Expected: list-like or dict-like, got: {}".format(
+                type(dtype)
+            )
+        )
 
     if len(dtype) is not len(columns):
-        raise ValueError("Expected exactly one dtype for each column, but %d dtypes were provided for %d columns".format(len(dtype), len(columns)))
+        raise ValueError(
+            "Expected exactly one dtype for each column, but %d dtypes were provided for %d columns".format(
+                len(dtype), len(columns)
+            )
+        )
 
     return dtype
-
-
 
 
 def _add_desired_dtypes(dtype, columns):
@@ -174,7 +191,12 @@ def _add_desired_dtypes(dtype, columns):
         if dtype[i] is None:
             (cname, ctype) = columns[i]
             dtype_ = _best_dtype_for_ctype(ctype)
-            logger.debug("using default dtype '%s' for column '%s' with type %s", dtype_, cname, ctype)
+            logger.debug(
+                "using default dtype '%s' for column '%s' with type %s",
+                dtype_,
+                cname,
+                ctype,
+            )
             dtype[i] = dtype_
 
     return dtype
@@ -196,8 +218,11 @@ def _is_all_masked(xs):
         # built-ins for object arrays
         return all(x is None for x in xs)
 
-
-    logger.debug("{} is not a masked array, not convertible to requested type... ".format(type(xs)))
+    logger.debug(
+        "{} is not a masked array, not convertible to requested type... ".format(
+            type(xs)
+        )
+    )
 
     # This array is *not* a masked array, it's *not* convertible to the type we want,
     # and it's *not* an object array.
@@ -208,7 +233,7 @@ def _is_all_masked(xs):
 
 
 def dtypes_equal(lhs, rhs):
-    if lhs.kind == 'U' or lhs.kind == 'S':
+    if lhs.kind == "U" or lhs.kind == "S":
         # Unicode and string data has variable length encoding, which means their itemsize
         # can be anything.
         #
@@ -236,16 +261,21 @@ def _validate_dtypes(data, columns):
         (cname, ctype, provided_dtype, expected_dtype) = e
         return
 
-    for (data_, (cname, ctype)) in zip(data, columns):
+    for data_, (cname, ctype) in zip(data, columns):
         expected_ = _ctype_to_dtype[ctype]
 
         logger.debug("data_.dtype = %s, expected_ = %s", data_.dtype, expected_)
 
         if _dtype_found(data_.dtype, expected_) == False:
-            errors.append(IncompatibleDtypeError(cname=cname, ctype=ctype, provided=data_.dtype, expected=expected_))
+            errors.append(
+                IncompatibleDtypeError(
+                    cname=cname, ctype=ctype, provided=data_.dtype, expected=expected_
+                )
+            )
 
     if len(errors) > 0:
         raise IncompatibleDtypeErrors(errors)
+
 
 def _coerce_deduplicate(deduplicate, deduplication_mode, columns):
     """
@@ -253,25 +283,37 @@ def _coerce_deduplicate(deduplicate, deduplication_mode, columns):
     """
     cnames = [cname for (cname, ctype) in columns]
 
-    if deduplication_mode not in ['drop', 'upsert']:
-        raise RuntimeError("deduplication_mode should be one of ['drop', 'upsert'], got: {}".format(deduplication_mode))
+    if deduplication_mode not in ["drop", "upsert"]:
+        raise RuntimeError(
+            "deduplication_mode should be one of ['drop', 'upsert'], got: {}".format(
+                deduplication_mode
+            )
+        )
 
     if isinstance(deduplicate, bool):
         return deduplicate
 
     # Special value of $timestamp, hardcoded
-    if isinstance(deduplicate, str) and deduplicate == '$timestamp':
-        deduplicate = ['$timestamp']
-    cnames.append('$timestamp')
+    if isinstance(deduplicate, str) and deduplicate == "$timestamp":
+        deduplicate = ["$timestamp"]
+    cnames.append("$timestamp")
 
     if not isinstance(deduplicate, list):
-        raise TypeError("drop_duplicates should be either a bool or a list, got: " + type(deduplicate))
+        raise TypeError(
+            "drop_duplicates should be either a bool or a list, got: "
+            + type(deduplicate)
+        )
 
     for column_name in deduplicate:
         if not column_name in cnames:
-            raise RuntimeError("Provided deduplication column name '{}' not found in table columns.".format(column_name))
+            raise RuntimeError(
+                "Provided deduplication column name '{}' not found in table columns.".format(
+                    column_name
+                )
+            )
 
     return deduplicate
+
 
 def _clean_nulls(xs, dtype):
     """
@@ -291,22 +333,21 @@ def _clean_nulls(xs, dtype):
 
     assert ma.isMA(xs)
 
-    if xs.dtype is not np.dtype('object'):
+    if xs.dtype is not np.dtype("object"):
         return xs
 
     fill_value = None
     if dtype == np.float64 or dtype == np.float32 or dtype == np.float16:
-        fill_value = float('nan')
+        fill_value = float("nan")
     elif dtype == np.int64 or dtype == np.int32 or dtype == np.int16:
         fill_value = -1
-    elif dtype == np.dtype('datetime64[ns]'):
-        fill_value = np.datetime64('nat')
+    elif dtype == np.dtype("datetime64[ns]"):
+        fill_value = np.datetime64("nat")
 
     mask = xs.mask
     xs_ = xs.filled(fill_value)
 
     return ma.array(xs_, mask=mask)
-
 
 
 def _coerce_data(data, dtype):
@@ -325,7 +366,12 @@ def _coerce_data(data, dtype):
 
             assert ma.isMA(data_)
 
-            logger.debug("data for column with offset %d was provided in dtype '%s', but need '%s': converting data...", i, data_.dtype, dtype_)
+            logger.debug(
+                "data for column with offset %d was provided in dtype '%s', but need '%s': converting data...",
+                i,
+                data_.dtype,
+                dtype_,
+            )
 
             logger.debug("dtype of data[%d] before: %s", i, data_.dtype)
             logger.debug("type of data[%d] after: %s", i, type(data_))
@@ -338,14 +384,20 @@ def _coerce_data(data, dtype):
                 # One 'bug' is that, if everything is masked, the underlying data type can be
                 # pretty much anything.
                 if _is_all_masked(data_):
-                    logger.debug("array completely empty, re-initializing to empty array of '%s'", dtype_)
-                    data[i] = ma.masked_all(ma.size(data_),
-                                            dtype=dtype_)
+                    logger.debug(
+                        "array completely empty, re-initializing to empty array of '%s'",
+                        dtype_,
+                    )
+                    data[i] = ma.masked_all(ma.size(data_), dtype=dtype_)
 
                 # Another 'bug' is that when the input data is objects, we may have null-like values (like pd.NA)
                 # that cannot easily be converted to, say, float.
                 else:
-                    logger.error("An error occured while coercing input data type from dtype '%s' to dtype '%s': ", data_.dtype, dtype_)
+                    logger.error(
+                        "An error occured while coercing input data type from dtype '%s' to dtype '%s': ",
+                        data_.dtype,
+                        dtype_,
+                    )
                     logger.exception(err)
                     raise err
 
@@ -357,6 +409,7 @@ def _coerce_data(data, dtype):
             assert ma.size(data[i]) == ma.size(data_)
 
     return data
+
 
 def _probe_length(xs):
     """
@@ -371,6 +424,7 @@ def _probe_length(xs):
             return x.size
 
     return None
+
 
 def _ensure_list(xs, cinfos):
     """
@@ -422,12 +476,15 @@ def _coerce_retries(retries) -> quasardb.RetryOptions:
     elif isinstance(retries, quasardb.RetryOptions):
         return retries
     else:
-        raise TypeError("retries should either be an integer or quasardb.RetryOptions, got: " + type(retries))
+        raise TypeError(
+            "retries should either be an integer or quasardb.RetryOptions, got: "
+            + type(retries)
+        )
 
 
 def ensure_ma(xs, dtype=None):
     if isinstance(dtype, list):
-        assert(isinstance(xs, list) == True)
+        assert isinstance(xs, list) == True
         return [ensure_ma(xs_, dtype_) for (xs_, dtype_) in zip(xs, dtype)]
 
     # Don't bother if we're already a masked array
@@ -440,7 +497,7 @@ def ensure_ma(xs, dtype=None):
 
     logger.debug("coercing array with dtype: %s", xs.dtype)
 
-    if xs.dtype.kind in ['O', 'U', 'S']:
+    if xs.dtype.kind in ["O", "U", "S"]:
         logger.debug("Data is object-like, masking None values")
 
         mask = xs == None
@@ -450,21 +507,17 @@ def ensure_ma(xs, dtype=None):
         return ma.masked_invalid(xs, copy=False)
 
 
-def read_array(table=None,
-               column=None,
-               ranges=None):
+def read_array(table=None, column=None, ranges=None):
     if table is None:
         raise RuntimeError("A table is required.")
 
     if column is None:
         raise RuntimeError("A column is required.")
 
-    kwargs = {
-        'column': column
-    }
+    kwargs = {"column": column}
 
     if ranges is not None:
-        kwargs['ranges'] = ranges
+        kwargs["ranges"] = ranges
 
     read_with = {
         quasardb.ColumnType.Double: table.double_get_ranges,
@@ -482,12 +535,8 @@ def read_array(table=None,
 
 
 def write_array(
-        data=None,
-        index=None,
-        table=None,
-        column=None,
-        dtype=None,
-        infer_types=True):
+    data=None, index=None, table=None, column=None, dtype=None, infer_types=True
+):
     """
     Write a Numpy array to a single column.
 
@@ -527,9 +576,8 @@ def write_array(
     if index is None:
         raise RuntimeError("An index numpy timestamp array is required.")
 
-
     data = ensure_ma(data, dtype=dtype)
-    ctype =  table.column_type_by_id(column)
+    ctype = table.column_type_by_id(column)
 
     # We try to reuse some of the other functions, which assume array-like
     # shapes for column info and data. It's a bit hackish, but actually works
@@ -564,28 +612,36 @@ def write_array(
         quasardb.ColumnType.Timestamp: table.timestamp_insert,
     }
 
-    logger.info("Writing array (%d rows of dtype %s) to columns %s.%s (type %s)", len(data), data.dtype, table.get_name(), column, ctype)
+    logger.info(
+        "Writing array (%d rows of dtype %s) to columns %s.%s (type %s)",
+        len(data),
+        data.dtype,
+        table.get_name(),
+        column,
+        ctype,
+    )
     write_with[ctype](column, index, data)
 
-def write_arrays(
-        data,
-        cluster,
-        table = None,
-        *,
-        dtype = None,
-        index = None,
-        _async = False,
-        fast = False,
-        truncate = False,
-        deduplicate = False,
-        deduplication_mode = 'drop',
-        infer_types = True,
-        writer = None,
-        write_through = False,
-        retries = 3,
 
-        # We accept additional kwargs that will be passed through the writer.push() methods
-        **kwargs):
+def write_arrays(
+    data,
+    cluster,
+    table=None,
+    *,
+    dtype=None,
+    index=None,
+    _async=False,
+    fast=False,
+    truncate=False,
+    deduplicate=False,
+    deduplication_mode="drop",
+    infer_types=True,
+    writer=None,
+    write_through=False,
+    retries=3,
+    # We accept additional kwargs that will be passed through the writer.push() methods
+    **kwargs,
+):
     """
     Write multiple aligned numpy arrays to a table.
 
@@ -691,22 +747,23 @@ def write_arrays(
 
     if table:
         logger.debug("table explicitly provided, assuming single-table write")
-        return write_arrays([(table, data)],
-                            cluster,
-                            table=None,
-                            dtype=dtype,
-                            index=index,
-                            _async=_async,
-                            fast=fast,
-                            truncate=truncate,
-                            deduplicate=deduplicate,
-                            deduplication_mode=deduplication_mode,
-                            infer_types=infer_types,
-                            write_through=write_through,
-                            writer=writer,
-                            retries=retries,
-                            **kwargs)
-
+        return write_arrays(
+            [(table, data)],
+            cluster,
+            table=None,
+            dtype=dtype,
+            index=index,
+            _async=_async,
+            fast=fast,
+            truncate=truncate,
+            deduplicate=deduplicate,
+            deduplication_mode=deduplication_mode,
+            infer_types=infer_types,
+            write_through=write_through,
+            writer=writer,
+            retries=retries,
+            **kwargs,
+        )
 
     ret = []
 
@@ -718,7 +775,7 @@ def write_arrays(
 
     push_data = quasardb.WriterData()
 
-    for (table, data_) in data:
+    for table, data_ in data:
         # Acquire reference to table if string is provided
         if isinstance(table, str):
             table = table_cache.lookup(table, cluster)
@@ -729,10 +786,9 @@ def write_arrays(
         assert type(dtype) is list
         assert len(dtype) is len(cinfos)
 
-
-        if index is None and isinstance(data_, dict) and '$timestamp' in data_:
-            index_ = data_.pop('$timestamp')
-            assert '$timestamp' not in data_
+        if index is None and isinstance(data_, dict) and "$timestamp" in data_:
+            index_ = data_.pop("$timestamp")
+            assert "$timestamp" not in data_
         elif index is not None:
             index_ = index
         else:
@@ -750,7 +806,6 @@ def write_arrays(
 
         data_ = ensure_ma(data_, dtype=dtype)
         data_ = _coerce_data(data_, dtype)
-
 
         # Just some additional friendly information about incorrect dtypes, we'd
         # prefer to have this information thrown from Python instead of native
@@ -778,37 +833,36 @@ def write_arrays(
     # The initial use case was that so we can add additional parameters for test mocks, e.g. `mock_failures` so that
     # we can validate the retry functionality.
     push_kwargs = kwargs
-    push_kwargs['deduplicate'] = deduplicate
-    push_kwargs['deduplication_mode'] = deduplication_mode
-    push_kwargs['write_through'] = write_through
-    push_kwargs['retries'] = retries
+    push_kwargs["deduplicate"] = deduplicate
+    push_kwargs["deduplication_mode"] = deduplication_mode
+    push_kwargs["write_through"] = write_through
+    push_kwargs["retries"] = retries
 
     logger.debug("pushing %d rows", n_rows)
     start = time.time()
 
     if fast is True:
-        push_kwargs['push_mode'] = quasardb.WriterPushMode.Fast
+        push_kwargs["push_mode"] = quasardb.WriterPushMode.Fast
     elif truncate is True:
-        push_kwargs['push_mode'] = quasardb.WriterPushMode.Truncate
+        push_kwargs["push_mode"] = quasardb.WriterPushMode.Truncate
     elif isinstance(truncate, tuple):
-        push_kwargs['push_mode'] = quasardb.WriterPushMode.Truncate
-        push_kwargs['range'] = truncate
+        push_kwargs["push_mode"] = quasardb.WriterPushMode.Truncate
+        push_kwargs["range"] = truncate
     elif _async is True:
-        push_kwargs['push_mode'] = quasardb.WriterPushMode.Async
+        push_kwargs["push_mode"] = quasardb.WriterPushMode.Async
     else:
-        push_kwargs['push_mode'] = quasardb.WriterPushMode.Transactional
+        push_kwargs["push_mode"] = quasardb.WriterPushMode.Transactional
 
     writer.push(push_data, **push_kwargs)
 
-    logger.debug("pushed %d rows in %s seconds",
-                n_rows, (time.time() - start))
+    logger.debug("pushed %d rows in %s seconds", n_rows, (time.time() - start))
 
     return ret
 
 
 def _xform_query_results(xs, index, dict):
     if len(xs) == 0:
-        return (np.array([], np.dtype('datetime64[ns]')), np.array([]))
+        return (np.array([], np.dtype("datetime64[ns]")), np.array([]))
 
     n = None
     for x in xs:
@@ -822,8 +876,8 @@ def _xform_query_results(xs, index, dict):
     if index is None:
         # Generate a range, put it in the front of the result list,
         # recurse and tell the function to use that index.
-        xs_ = [('$index', np.arange(n))] + xs
-        return _xform_query_results(xs_, '$index', dict)
+        xs_ = [("$index", np.arange(n))] + xs
+        return _xform_query_results(xs_, "$index", dict)
 
     if isinstance(index, str):
         for i in range(len(xs)):
@@ -833,10 +887,18 @@ def _xform_query_results(xs, index, dict):
                 # recurse with that offset
                 return _xform_query_results(xs, i, dict)
 
-        raise KeyError("Unable to resolve index column: column not found in results: {}".format(index))
+        raise KeyError(
+            "Unable to resolve index column: column not found in results: {}".format(
+                index
+            )
+        )
 
     if not isinstance(index, int):
-        raise TypeError("Unable to resolve index column: unrecognized type {}: {}".format(type(index), index))
+        raise TypeError(
+            "Unable to resolve index column: unrecognized type {}: {}".format(
+                type(index), index
+            )
+        )
 
     idx = xs[index][1]
     del xs[index]
@@ -845,7 +907,9 @@ def _xform_query_results(xs, index, dict):
     # masked items: we cannot not have an index for a certain row.
     if ma.isMA(idx):
         if ma.count_masked(idx) > 0:
-            raise ValueError("Invalid index: null values detected. An index is never allowed to have null values.")
+            raise ValueError(
+                "Invalid index: null values detected. An index is never allowed to have null values."
+            )
 
         assert isinstance(idx.data, np.ndarray)
         idx = idx.data
@@ -860,10 +924,7 @@ def _xform_query_results(xs, index, dict):
     return (idx, xs_)
 
 
-def query(cluster,
-          query,
-          index=None,
-          dict=False):
+def query(cluster, query, index=None, dict=False):
     """
     Execute a query and return the results as numpy arrays. The shape of the return value
     is always:

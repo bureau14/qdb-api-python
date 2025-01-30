@@ -90,7 +90,7 @@ def test_remove_if(blob_entry, random_blob):
     assert random_blob == got
 
     with pytest.raises(quasardb.Error):
-        blob_entry.remove_if(random_blob + b'a')
+        blob_entry.remove_if(random_blob + b"a")
 
     got = blob_entry.get()
     assert random_blob == got

@@ -11,6 +11,7 @@ import quasardb.pandas as qdbpd
 
 logger = logging.getLogger("test-user-properties")
 
+
 def test_properties_disabled_by_default(qdbd_connection, random_identifier):
     """
     Validates that properties are disabled by defalt by getting a non-existing key and
@@ -19,6 +20,7 @@ def test_properties_disabled_by_default(qdbd_connection, random_identifier):
 
     with pytest.raises(quasardb.Error):
         qdbd_connection.properties().get(random_identifier)
+
 
 def test_properties_get_none_when_not_found(qdbd_connection, random_identifier):
     qdbd_connection.options().enable_user_properties()
@@ -32,7 +34,9 @@ def test_properties_put(qdbd_connection, random_identifier, random_string):
     assert qdbd_connection.properties().get(random_identifier) == random_string
 
 
-def test_properties_put_twice_raises_error(qdbd_connection, random_identifier, random_string):
+def test_properties_put_twice_raises_error(
+    qdbd_connection, random_identifier, random_string
+):
     qdbd_connection.options().enable_user_properties()
 
     qdbd_connection.properties().put(random_identifier, random_string)
@@ -107,10 +111,18 @@ def _has_user_property_in_log_file(log_path, key, value):
 #  - no null values / sparse data in table
 #  - single data type
 #  - no different ariations of row types
-@conftest.override_sparsify('none')
-@conftest.override_cdtypes(np.dtype('unicode'))
+@conftest.override_sparsify("none")
+@conftest.override_cdtypes(np.dtype("unicode"))
 @conftest.override_row_count(224)
-def test_properties_in_log(qdbpd_write_fn, qdbd_connection, df_with_table, table_name, column_name, random_identifier, random_string):
+def test_properties_in_log(
+    qdbpd_write_fn,
+    qdbd_connection,
+    df_with_table,
+    table_name,
+    column_name,
+    random_identifier,
+    random_string,
+):
     """
     This test is a bit more involved, it will try to ensure that the user properties metadata is actually
     logged in the qdbd logs.
@@ -132,8 +144,8 @@ def test_properties_in_log(qdbpd_write_fn, qdbd_connection, df_with_table, table
 
     # a faulty query will emit a log entry that will contain the user properties
     try:
-        qdbpd.query(qdbd_connection, "PUT BLOB a 'a'");
-        qdbpd.query(qdbd_connection, "PUT BLOB a 'a'");
+        qdbpd.query(qdbd_connection, "PUT BLOB a 'a'")
+        qdbpd.query(qdbd_connection, "PUT BLOB a 'a'")
     except:
         pass
 

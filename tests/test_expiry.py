@@ -56,8 +56,14 @@ def test_expires_from_now(blob_entry, random_blob, timedelta):
     # these testcases may run in debug. This will be enough however to check that
     # the interval has properly been converted and the time zone is
     # correct.
-    future_exp_lower_bound = datetime.datetime.now(tz=datetime.timezone.utc) + timedelta - datetime.timedelta(seconds=30)
-    future_exp_higher_bound = future_exp_lower_bound + timedelta + datetime.timedelta(seconds=30)
+    future_exp_lower_bound = (
+        datetime.datetime.now(tz=datetime.timezone.utc)
+        + timedelta
+        - datetime.timedelta(seconds=30)
+    )
+    future_exp_higher_bound = (
+        future_exp_lower_bound + timedelta + datetime.timedelta(seconds=30)
+    )
 
     exp = blob_entry.get_expiry_time()
     assert isinstance(exp, datetime.datetime)
