@@ -3,6 +3,7 @@ import numpy.ma as ma
 
 import quasardb.numpy as qdbnp
 
+
 def assert_ma_equal(lhs, rhs):
     """
     A bit hacky way to compare two masked arrays for equality, as the default
@@ -17,11 +18,12 @@ def assert_ma_equal(lhs, rhs):
     lhs_ = lhs.torecords()
     rhs_ = rhs.torecords()
 
-    for ((lval, lmask), (rval, rmask)) in zip(lhs_, rhs_):
+    for (lval, lmask), (rval, rmask) in zip(lhs_, rhs_):
         assert lmask == rmask
 
         if not lmask:
             assert lval == rval
+
 
 def assert_arrays_equal(lhs, rhs):
     """
@@ -34,7 +36,6 @@ def assert_arrays_equal(lhs, rhs):
         rhs = qdbnp.ensure_ma(rhs)
 
     assert_ma_equal(lhs, rhs)
-
 
 
 def assert_indexed_arrays_equal(lhs, rhs):

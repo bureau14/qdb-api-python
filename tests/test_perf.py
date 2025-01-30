@@ -57,12 +57,11 @@ def test_perf_flamechart_to_file(qdbd_connection, entry_name, random_string):
     qdbd_connection.perf().enable()
     qdbd_connection.blob(entry_name).put(random_string)
 
-    filename='test_perf.out'
+    filename = "test_perf.out"
     xs = qdbd_connection.perf().get(flame=True, outfile=filename)
 
     x = "\n".join(xs)
     x = x + "\n"
 
-
-    with open(filename, 'r') as fp:
+    with open(filename, "r") as fp:
         assert x == fp.read()

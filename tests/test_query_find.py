@@ -11,13 +11,11 @@ def test_types_tag(qdbd_connection, blob_entry, random_blob, tag_name):
 
     assert len(res) == 1
 
-    res = qdbd_connection.find(
-        "find(tag='" + tag_name + "' AND type=blob)").run()
+    res = qdbd_connection.find("find(tag='" + tag_name + "' AND type=blob)").run()
 
     assert len(res) == 1
 
-    res = qdbd_connection.find(
-        "find(tag='" + tag_name + "' AND type=integer)").run()
+    res = qdbd_connection.find("find(tag='" + tag_name + "' AND type=integer)").run()
 
     assert len(res) == 0
 
@@ -33,10 +31,7 @@ def test_types_tags(qdbd_connection, blob_entry, random_blob, tag_names):
     assert len(res) == 1
 
     res = qdbd_connection.find(
-        "find(tag='" +
-        tag_names[0] +
-        "' AND tag='" +
-        tag_names[1] +
-        "')").run()
+        "find(tag='" + tag_names[0] + "' AND tag='" + tag_names[1] + "')"
+    ).run()
 
     assert len(res) == 1

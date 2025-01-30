@@ -35,7 +35,8 @@
 .. moduleauthor: quasardb SAS. All rights reserved
 """
 
-def generic_error_msg(msg, e = None):
+
+def generic_error_msg(msg, e=None):
     msg_str = "\n".join(msg)
 
     if e is None:
@@ -45,7 +46,9 @@ def generic_error_msg(msg, e = None):
 {}
 
 **************************************************************************
-""".format(msg_str, type(e), str(e))
+""".format(
+            msg_str, type(e), str(e)
+        )
     else:
         return """
 **************************************************************************
@@ -60,7 +63,10 @@ Original exception:
   Message: {}
 
 **************************************************************************
-""".format(msg_str, type(e), str(e))
+""".format(
+            msg_str, type(e), str(e)
+        )
+
 
 def link_error_msg(e):
     msg = [
@@ -70,9 +76,11 @@ def link_error_msg(e):
         "",
         "Please ensure you do not have multiple versions of libqdb_api installed.",
         "If you believe this to be a bug, please reach out to QuasarDB at",
-        "support@quasar.ai, and include the underlying error message:"]
+        "support@quasar.ai, and include the underlying error message:",
+    ]
 
     return generic_error_msg(msg, e)
+
 
 def glibc_error_msg(e):
     msg = [
@@ -85,9 +93,11 @@ def glibc_error_msg(e):
         "platform tag as defined in PEP 599. ",
         "",
         "If you believe this to be a bug, please reach out to QuasarDB at",
-        "support@quasar.ai, and include the underlying error message:"]
+        "support@quasar.ai, and include the underlying error message:",
+    ]
 
     return generic_error_msg(msg, e)
+
 
 def unknown_error_msg():
     msg = [
@@ -99,9 +109,12 @@ def unknown_error_msg():
         " - the current working directory already contains a 'quasardb' subdirectory.",
         "",
         "If you believe this to be a bug, please reach out to QuasarDB at",
-        "support@quasar.ai"]
+        "support@quasar.ai",
+    ]
 
     return generic_error_msg(msg)
+
+
 try:
     from quasardb.quasardb import *
 except BaseException as e:
@@ -114,10 +127,11 @@ except BaseException as e:
     else:
         from quasardb import *
 
-if not 'quasardb' in locals():
+if not "quasardb" in locals():
     print(unknown_error_msg())
     raise ImportError()
 
 
 from .extensions import extend_module
+
 extend_module(quasardb)
