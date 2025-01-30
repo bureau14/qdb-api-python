@@ -264,7 +264,7 @@ def stream_dataframes(conn : quasardb.Cluster, tables : list, *, batch_size : in
             yield df
 
 
-def stream_dataframe(conn : quasardb.Cluster, table : str | quasardb.Table, **kwargs):
+def stream_dataframe(conn : quasardb.Cluster, table, **kwargs):
     """
     Read a single table and return a stream of dataframes. This is a convenience function that wraps around
     `stream_dataframes`.
