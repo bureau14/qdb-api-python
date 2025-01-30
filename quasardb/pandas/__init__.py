@@ -205,7 +205,7 @@ def query(cluster: quasardb.Cluster,
     df.set_index(index, inplace=True)
     return df
 
-def stream_dataframes(conn : quasardb.Cluster, tables : list[str | quasardb.Table], *, batch_size : int = 2**16, column_names : list = None, ranges : list = None):
+def stream_dataframes(conn : quasardb.Cluster, tables : list, *, batch_size : int = 2**16, column_names : list = None, ranges : list = None):
     """
     Read a Pandas Dataframe from a QuasarDB Timeseries table. Returns a generator with dataframes of size `batch_size`, which is useful
     when traversing a large dataset which does not fit into memory.
