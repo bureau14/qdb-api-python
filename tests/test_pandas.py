@@ -117,7 +117,7 @@ def test_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
     (_, _, df1, table) = df_with_table
     qdbpd_write_fn(df1, qdbd_connection, table)
 
-    df2 = qdbpd.read_dataframe(table)
+    df2 = qdbpd.read_dataframe(qdbd_connection, table)
 
     _assert_df_equal(df1, df2)
 
@@ -129,7 +129,7 @@ def test_dataframe_can_read_columns(qdbpd_write_fn, df_with_table, qdbd_connecti
 
     qdbpd_write_fn(df1, qdbd_connection, table, infer_types=False, dtype=dtype)
 
-    df2 = qdbpd.read_dataframe(table, column_names=[column_name])
+    df2 = qdbpd.read_dataframe(qdbd_connection, table, column_names=[column_name])
 
     _assert_df_equal(df1, df2)
 
@@ -145,10 +145,10 @@ def test_dataframe_can_read_ranges(qdbpd_write_fn, qdbd_connection, df_with_tabl
     range_0_25 = (start_date, offset_25)
     range_25_75 = (offset_25, offset_75)
 
-    df2 = qdbpd.read_dataframe(table)
-    df3 = qdbpd.read_dataframe(table, ranges=[range_0_25])
-    df4 = qdbpd.read_dataframe(table, ranges=[range_25_75])
-    df5 = qdbpd.read_dataframe(table, ranges=[range_0_25, range_25_75])
+    df2 = qdbpd.read_dataframe(qdbd_connection, table)
+    df3 = qdbpd.read_dataframe(qdbd_connection, table, ranges=[range_0_25])
+    df4 = qdbpd.read_dataframe(qdbd_connection, table, ranges=[range_25_75])
+    df5 = qdbpd.read_dataframe(qdbd_connection, table, ranges=[range_0_25, range_25_75])
 
     assert df2.shape[0] == row_count
     assert df3.shape[0] == row_count / 4
@@ -160,27 +160,48 @@ def test_write_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
 
     # We always need to infer
     qdbpd_write_fn(df, qdbd_connection, table, infer_types=True)
-    res = qdbpd.read_dataframe(table)
+    res = qdbpd.read_dataframe(qdbd_connection, table)
 
     _assert_df_equal(df, res)
 
-def test_multiple_dataframe(qdbpd_writes_fn, dfs_with_tables, qdbd_connection):
+def test_multiple_dataframe(qdbpd_writes_fn, dfs_with_tables, qdbd_connection, reader_batch_size):
+    """
+    Tests both writing and reader from multiple tables.
+    """
 
-    dfs = []
+    payload = []
+    input_dfs = []
+    tables = []
 
     for (_, _, df, table) in dfs_with_tables:
-        dfs.append((table.get_name(), df))
+        # Fill the dataframe with the table name, as this is what's returned by the bulk reader
+        # as well
+        payload.append((table, df))
+        df["$table"] = table.get_name()
+        input_dfs.append(df)
+        tables.append(table)
 
-    qdbpd_writes_fn(dfs, qdbd_connection, infer_types=True, fast=True)
 
-    for (_, _, df, table) in dfs_with_tables:
-        res = qdbpd.read_dataframe(table)
-        _assert_df_equal(df, res)
+    qdbpd_writes_fn(payload, qdbd_connection, infer_types=True, fast=True)
+
+    xs = list(qdbpd.stream_dataframes(qdbd_connection, tables, batch_size=reader_batch_size))
+
+    # Ensure batch sizes are what we expect
+    for x in xs:
+        assert len(x.index) > 0
+        assert len(x.index) <= reader_batch_size
+
+    # Concatenate all results into a single dataframe and compare
+    df1 = pd.concat(input_dfs)
+    df2 = pd.concat(xs)
+
+    _assert_df_equal(df1, df2)
+
 
 # Pandas is a retard when it comes to null values, so make sure to just only
 # generate "full" arrays when we don't infer / convert array types.
 @pytest.mark.parametrize('sparsify', conftest.no_sparsify)
-def test_write_dataframe_no_infer(qdbpd_write_fn, df_with_table, qdbd_connection):
+def test_write_dataframe_no_infer(qdbpd_write_fn, df_with_table, qdbd_connection, reader_batch_size):
     (ctype, dtype, df, table) = df_with_table
 
     # We always need to infer
@@ -190,7 +211,7 @@ def test_write_dataframe_no_infer(qdbpd_write_fn, df_with_table, qdbd_connection
             qdbpd_write_fn(df, qdbd_connection, table, infer_types=False)
     else:
         qdbpd_write_fn(df, qdbd_connection, table, infer_types=False)
-        res = qdbpd.read_dataframe(table)
+        res = qdbpd.read_dataframe(qdbd_connection, table)
 
         _assert_df_equal(df, res)
 
@@ -226,7 +247,7 @@ def test_write_unindexed_dataframe(qdbpd_write_fn, df_with_table, df_count,
     assert "dataframe index is unsorted, resorting dataframe based on index" in msgs
 
     # We expect to receive sorted data
-    df_read = qdbpd.read_dataframe(table)
+    df_read = qdbpd.read_dataframe(qdbd_connection, table)
 
     _assert_df_equal(df_sorted, df_read)
 
@@ -237,7 +258,7 @@ def test_write_dataframe_push_fast(qdbpd_write_fn, qdbd_connection, df_with_tabl
     # Ensures that we can do a full-circle write and read of a dataframe
     qdbpd_write_fn(df1, qdbd_connection, table, fast=True)
 
-    df2 = qdbpd.read_dataframe(table)
+    df2 = qdbpd.read_dataframe(qdbd_connection, table)
 
     _assert_df_equal(df1, df2)
 
@@ -248,7 +269,7 @@ def test_write_dataframe_push_truncate(qdbpd_write_fn, qdbd_connection, df_with_
     qdbpd_write_fn(df1, qdbd_connection, table, truncate=True)
     qdbpd_write_fn(df1, qdbd_connection, table, truncate=True)
 
-    df2 = qdbpd.read_dataframe(table)
+    df2 = qdbpd.read_dataframe(qdbd_connection, table)
 
     _assert_df_equal(df1, df2)
 
@@ -267,7 +288,7 @@ def test_write_dataframe_deduplicate(qdbpd_write_fn, qdbd_connection, df_with_ta
     qdbpd_write_fn(df1, qdbd_connection, table, deduplicate=False, deduplication_mode='drop')
     qdbpd_write_fn(df1, qdbd_connection, table, deduplicate=deduplicate, deduplication_mode='drop')
 
-    df2 = qdbpd.read_dataframe(table)
+    df2 = qdbpd.read_dataframe(qdbd_connection, table)
 
     _assert_df_equal(df1, df2)
 
@@ -278,7 +299,7 @@ def test_write_dataframe_create_table(qdbpd_write_fn, qdbd_connection, gen_df, t
     table = qdbd_connection.ts(table_name)
     qdbpd_write_fn(df1, qdbd_connection, table, create=True)
 
-    df2 = qdbpd.read_dataframe(table)
+    df2 = qdbpd.read_dataframe(qdbd_connection, table)
 
     _assert_df_equal(df1, df2)
 
@@ -296,7 +317,7 @@ def test_write_dataframe_create_table_with_shard_size(qdbpd_write_fn, qdbd_conne
                    create=True,
                    shard_size=timedelta(weeks=4))
 
-    df2 = qdbpd.read_dataframe(table)
+    df2 = qdbpd.read_dataframe(qdbd_connection, table)
 
     _assert_df_equal(df1, df2)
 
@@ -381,7 +402,7 @@ def test_regression_sc11057(qdbd_connection, table_name):
 
     qdbpd.write_dataframe(df_, qdbd_connection, '{}_out'.format(table_name), create=True, infer_types=True)
 
-    result = qdbpd.read_dataframe(qdbd_connection.table('{}_out'.format(table_name)))
+    result = qdbpd.read_dataframe(qdbd_connection, qdbd_connection.table('{}_out'.format(table_name)))
 
     _assert_df_equal(df_, result)
 
@@ -421,7 +442,7 @@ def test_regression_sc11337(qdbpd_write_fn, df_with_table, qdbd_connection, colu
 
     qdbpd_write_fn(df1, qdbd_connection, table.get_name(), fast=True, infer_types=True)
 
-    df2 = qdbpd.read_dataframe(table, column_names=[column_name])
+    df2 = qdbpd.read_dataframe(qdbd_connection, table, column_names=[column_name])
 
     _assert_df_equal(df1, df2)
 
@@ -430,7 +451,7 @@ def test_write_through_flag(qdbpd_write_fn, df_with_table, qdbd_connection):
 
     qdbpd_write_fn(df, qdbd_connection, table, write_through=True)
 
-    df2 = qdbpd.read_dataframe(table)
+    df2 = qdbpd.read_dataframe(qdbd_connection, table)
 
     _assert_df_equal(df, df2)
 
