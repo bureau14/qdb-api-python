@@ -76,61 +76,36 @@ namespace detail
 
 reader_iterator & reader_iterator::operator++()
 {
-    if (ptr_ == nullptr)
+    if (ptr_ != nullptr)
     {
-        // This means this is either the first invocation, or we have
-        // previously exhausted all tables in the current "fetch" and
-        // should fetch next.
-        qdb_error_t err = qdb_bulk_reader_get_data(reader_, &ptr_, batch_size_);
+        qdb_release(*handle_, ptr_);
+        ptr_ = nullptr;
+    }
 
-        if (err == qdb_e_iterator_end) [[unlikely]]
-        {
-            // We have reached the end -- reset all our internal state, and make us look
-            // like the "end" iterator.
-            handle_      = nullptr;
-            reader_      = nullptr;
-            batch_size_  = 0;
-            table_count_ = 0;
-            ptr_         = nullptr;
-            n_           = 0;
-        }
-        else
-        {
-            qdb::qdb_throw_if_error(*handle_, err);
+    qdb_error_t err = qdb_bulk_reader_get_data(reader_, &ptr_, batch_size_);
 
-            // I like assertions
-            assert(handle_ != nullptr);
-            assert(reader_ != nullptr);
-            assert(table_count_ != 0);
-            assert(ptr_ != nullptr);
-
-            n_ = 0;
-        }
+    if (err == qdb_e_iterator_end) [[unlikely]]
+    {
+        // We have reached the end -- reset all our internal state, and make us look
+        // like the "end" iterator.
+        handle_      = nullptr;
+        reader_      = nullptr;
+        batch_size_  = 0;
+        table_count_ = 0;
+        ptr_         = nullptr;
+        n_           = 0;
     }
     else
     {
+        qdb::qdb_throw_if_error(*handle_, err);
+
+        // I like assertions
+        assert(handle_ != nullptr);
+        assert(reader_ != nullptr);
+        assert(table_count_ != 0);
         assert(ptr_ != nullptr);
+    } // if (err == qdb_e_iterator_end)
 
-        if (++n_ == table_count_)
-        {
-            // We have exhausted our tables. What we will do is just "reset" our internal state
-            // to how it would be after the initial constructor, and recurse into this function,
-            // which should then just follow the regular flow above
-            qdb_release(*handle_, ptr_);
-
-            ptr_ = nullptr;
-            n_   = 0;
-
-            py::print("exhausted tables, recursing operator++()");
-
-            return this->operator++();
-        }
-
-        // At this point, we *must* have a valid state
-        assert(ptr_ != nullptr);
-        assert(n_ < table_count_);
-
-    } // if (ptr_ == nullptr)
     return *this;
 };
 

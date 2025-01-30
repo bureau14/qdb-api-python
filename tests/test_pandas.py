@@ -164,23 +164,44 @@ def test_write_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
 
     _assert_df_equal(df, res)
 
-def test_multiple_dataframe(qdbpd_writes_fn, dfs_with_tables, qdbd_connection):
+def test_multiple_dataframe(qdbpd_writes_fn, dfs_with_tables, qdbd_connection, reader_batch_size):
+    """
+    Tests both writing and reader from multiple tables.
+    """
 
-    dfs = []
+    payload = []
+    input_dfs = []
+    tables = []
 
     for (_, _, df, table) in dfs_with_tables:
-        dfs.append((table.get_name(), df))
+        # Fill the dataframe with the table name, as this is what's returned by the bulk reader
+        # as well
+        payload.append((table, df))
+        df["$table"] = table.get_name()
+        input_dfs.append(df)
+        tables.append(table)
 
-    qdbpd_writes_fn(dfs, qdbd_connection, infer_types=True, fast=True)
 
-    for (_, _, df, table) in dfs_with_tables:
-        res = qdbpd.read_dataframe(qdbd_connection, table)
-        _assert_df_equal(df, res)
+    qdbpd_writes_fn(payload, qdbd_connection, infer_types=True, fast=True)
+
+    xs = list(qdbpd.stream_dataframes(qdbd_connection, tables, batch_size=reader_batch_size))
+
+    # Ensure batch sizes are what we expect
+    for x in xs:
+        assert len(x.index) > 0
+        assert len(x.index) <= reader_batch_size
+
+    # Concatenate all results into a single dataframe and compare
+    df1 = pd.concat(input_dfs)
+    df2 = pd.concat(xs)
+
+    _assert_df_equal(df1, df2)
+
 
 # Pandas is a retard when it comes to null values, so make sure to just only
 # generate "full" arrays when we don't infer / convert array types.
 @pytest.mark.parametrize('sparsify', conftest.no_sparsify)
-def test_write_dataframe_no_infer(qdbpd_write_fn, df_with_table, qdbd_connection):
+def test_write_dataframe_no_infer(qdbpd_write_fn, df_with_table, qdbd_connection, reader_batch_size):
     (ctype, dtype, df, table) = df_with_table
 
     # We always need to infer
