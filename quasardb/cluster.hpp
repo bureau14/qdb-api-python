@@ -45,7 +45,7 @@
 #include "query.hpp"
 #include "reader.hpp"
 #include "string.hpp"
-#include "table.hpp"
+#include "table_fwd.hpp"
 #include "tag.hpp"
 #include "timestamp.hpp"
 #include "utils.hpp"
@@ -235,12 +235,7 @@ public:
         return qdb::timestamp_entry{_handle, alias};
     }
 
-    qdb::table table(const std::string & alias)
-    {
-        check_open();
-
-        return qdb::table{_handle, alias};
-    }
+    qdb::table_ptr table(const std::string & alias);
 
     // the reader_ptr is non-copyable
     qdb::reader_ptr reader(                            //
@@ -251,7 +246,7 @@ public:
     {
         check_open();
 
-        return std::make_unique<qdb::reader>(_handle, table_names, column_names, batch_size, ranges);
+        return make_reader_ptr(_handle, table_names, column_names, batch_size, ranges);
     }
 
     // the batch_inserter_ptr is non-copyable
@@ -516,11 +511,11 @@ static inline void register_cluster(Module & m)
         "Represents a connection to the QuasarDB cluster. ") //
         .def(py::init<const std::string &, const std::string &, const std::string &,
                  const std::string &, const std::string &, const std::string &,
-             std::chrono::milliseconds, bool, bool, std::size_t>(),                     //
+                 std::chrono::milliseconds, bool, bool, std::size_t>(),                 //
             py::arg("uri"),                                                             //
-            py::arg("user_name")               = std::string{},                         //
-            py::arg("user_private_key")        = std::string{},                         //
-            py::arg("cluster_public_key")      = std::string{},                         //
+            py::arg("user_name")          = std::string{},                              //
+            py::arg("user_private_key")   = std::string{},                              //
+            py::arg("cluster_public_key") = std::string{},                              //
             py::kw_only(),                                                              //
             py::arg("user_security_file")      = std::string{},                         //
             py::arg("cluster_public_key_file") = std::string{},                         //

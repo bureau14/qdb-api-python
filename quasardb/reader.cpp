@@ -17,14 +17,6 @@ namespace detail
 {
     py::dict ret{};
 
-    // typedef struct
-    // {
-    //     qdb_size_t row_count;
-    //     qdb_size_t column_count;
-    //     const qdb_timespec_t * timestamps;
-    //     const qdb_exp_batch_push_column_t * columns;
-    // } qdb_exp_batch_push_table_data_t;
-
     // Convert the timestamp index, which should never contain null values
     // and thus is *not* a masked array.
     auto timestamps = ranges::views::counted(data.timestamps, data.row_count);
@@ -37,20 +29,6 @@ namespace detail
 
     for (qdb_exp_batch_push_column_t const & column : columns)
     {
-        // typedef struct // NOLINT(modernize-use-using)
-        // {
-        //     char const * name;
-        //     qdb_ts_column_type_t data_type;
-        //     union
-        //     {
-        //         const qdb_timespec_t * timestamps;
-        //         const qdb_string_t * strings;
-        //         const qdb_blob_t * blobs;
-        //         const qdb_int_t * ints;
-        //         const double * doubles;
-        //     } data;
-        // } qdb_exp_batch_push_column_t;
-
         py::str column_name{column.name};
 
         qdb::masked_array xs;
@@ -98,59 +76,36 @@ namespace detail
 
 reader_iterator & reader_iterator::operator++()
 {
-    if (ptr_ == nullptr)
+    if (ptr_ != nullptr)
     {
-        // This means this is either the first invocation, or we have
-        // previously exhausted all tables in the current "fetch" and
-        // should fetch next.
-        qdb_error_t err = qdb_bulk_reader_get_data(reader_, &ptr_, batch_size_);
+        qdb_release(*handle_, ptr_);
+        ptr_ = nullptr;
+    }
 
-        if (err == qdb_e_iterator_end) [[unlikely]]
-        {
-            // We have reached the end -- reset all our internal state, and make us look
-            // like the "end" iterator.
-            handle_      = nullptr;
-            reader_      = nullptr;
-            batch_size_  = 0;
-            table_count_ = 0;
-            ptr_         = nullptr;
-            n_           = 0;
-        }
-        else
-        {
-            qdb::qdb_throw_if_error(*handle_, err);
+    qdb_error_t err = qdb_bulk_reader_get_data(reader_, &ptr_, batch_size_);
 
-            // I like assertions
-            assert(handle_ != nullptr);
-            assert(reader_ != nullptr);
-            assert(table_count_ != 0);
-            assert(ptr_ != nullptr);
-
-            n_ = 0;
-        }
+    if (err == qdb_e_iterator_end) [[unlikely]]
+    {
+        // We have reached the end -- reset all our internal state, and make us look
+        // like the "end" iterator.
+        handle_      = nullptr;
+        reader_      = nullptr;
+        batch_size_  = 0;
+        table_count_ = 0;
+        ptr_         = nullptr;
+        n_           = 0;
     }
     else
     {
+        qdb::qdb_throw_if_error(*handle_, err);
+
+        // I like assertions
+        assert(handle_ != nullptr);
+        assert(reader_ != nullptr);
+        assert(table_count_ != 0);
         assert(ptr_ != nullptr);
+    } // if (err == qdb_e_iterator_end)
 
-        if (++n_ == table_count_)
-        {
-            // We have exhausted our tables. What we will do is just "reset" our internal state
-            // to how it would be after the initial constructor, and recurse into this function,
-            // which should then just follow the regular flow above
-            qdb_release(*handle_, ptr_);
-
-            ptr_ = nullptr;
-            n_   = 0;
-
-            return this->operator++();
-        }
-
-        // At this point, we *must* have a valid state
-        assert(ptr_ != nullptr);
-        assert(n_ < table_count_);
-
-    } // if (ptr_ == nullptr)
     return *this;
 };
 
@@ -216,16 +171,14 @@ qdb::reader const & reader::enter()
         tables.emplace_back(qdb_bulk_reader_table_t{
             // because the scope of `table_name` outlives this function, we can just directly
             // use .c_str() without any copies.
-            table_name.c_str(),   //
-            columns,              //
-            column_names_.size(), //
-            ranges,               //
-            ranges_.size()        //
+            table_name.c_str(), //
+            ranges,             //
+            ranges_.size()      //
         });
     }
 
-    qdb::qdb_throw_if_error(
-        *handle_, qdb_bulk_reader_fetch(*handle_, tables.data(), tables.size(), &reader_));
+    qdb::qdb_throw_if_error(*handle_, qdb_bulk_reader_fetch(*handle_, columns, column_names_.size(),
+                                          tables.data(), tables.size(), &reader_));
 
     return *this;
 }

@@ -254,4 +254,13 @@ std::pair<pybind11::array, masked_array> table::timestamp_get_ranges(
     return ret;
 }
 
+qdb::reader_ptr table::reader(                     //
+    std::vector<std::string> const & column_names, //
+    std::size_t batch_size,                        //
+    std::vector<py::tuple> const & ranges) const
+{
+    std::vector<std::string> table_names{get_name()};
+    return std::make_unique<qdb::reader>(_handle, table_names, column_names, batch_size, ranges);
+};
+
 }; // namespace qdb

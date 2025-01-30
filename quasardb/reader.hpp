@@ -33,6 +33,7 @@
 #include "handle.hpp"
 #include "logger.hpp"
 #include "object_tracker.hpp"
+#include "reader_fwd.hpp"
 #include <qdb/ts.h>
 #include <unordered_map>
 #include <vector>
@@ -80,10 +81,8 @@ public:
         : handle_{handle}
         , reader_{reader}
         , batch_size_{batch_size}
-        , table_count_{table_count}
 
         , ptr_{nullptr}
-        , n_{0}
     {
         // Always immediately try to fetch the first batch.
         this->operator++();
@@ -115,11 +114,10 @@ public:
         // the data itself. This saves a bazillion comparisons, and for the purpose
         // of iterators, we really only care whether the current iterator is at the
         // end.
-        return (handle_ == rhs.handle_              //
-                && reader_ == rhs.reader_           //
-                && batch_size_ == rhs.batch_size_   //
-                && table_count_ == rhs.table_count_ //
-                && ptr_ == rhs.ptr_ && n_ == rhs.n_);
+        return (handle_ == rhs.handle_            //
+                && reader_ == rhs.reader_         //
+                && batch_size_ == rhs.batch_size_ //
+                && ptr_ == rhs.ptr_);
     }
 
     reader_iterator & operator++();
@@ -127,9 +125,8 @@ public:
     py::dict operator*()
     {
         assert(ptr_ != nullptr);
-        assert(n_ < table_count_);
 
-        return reader_data::convert(ptr_[n_]);
+        return reader_data::convert(*ptr_);
     }
 
 private:
@@ -249,7 +246,15 @@ private:
     std::vector<py::tuple> ranges_;
 };
 
-using reader_ptr = std::unique_ptr<reader>;
+static inline reader_ptr make_reader_ptr(handle_ptr handle, //
+    std::vector<std::string> const & table_names,           //
+    std::vector<std::string> const & column_names,          //
+    std::size_t batch_size,                                 //
+    std::vector<py::tuple> const & ranges                   //
+)
+{
+    return std::make_unique<reader>(handle, table_names, column_names, batch_size, ranges);
+}
 
 void register_reader(py::module_ & m);
 
