@@ -23,20 +23,24 @@ def test_string_get_ranges(table, intervals):
     column_name = tslib._string_col_name(table)
 
     inserted_string_data = tslib._generate_string_ts(start_time, 25)
-    table.string_insert(column_name,
-                        inserted_string_data[0],
-                        inserted_string_data[1])
+    table.string_insert(column_name, inserted_string_data[0], inserted_string_data[1])
 
-    results = table.string_get_ranges(column_name, [(
-        start_time, start_time + np.timedelta64(10, 's'))])
+    results = table.string_get_ranges(
+        column_name, [(start_time, start_time + np.timedelta64(10, "s"))]
+    )
 
     tslib._check_ts_results(results, inserted_string_data, 10)
 
-    results = table.string_get_ranges(column_name,
-                                      [(start_time,
-                                        start_time + np.timedelta64(10, 's')),
-                                       (start_time + np.timedelta64(10, 's'),
-                                          start_time + np.timedelta64(20, 's'))])
+    results = table.string_get_ranges(
+        column_name,
+        [
+            (start_time, start_time + np.timedelta64(10, "s")),
+            (
+                start_time + np.timedelta64(10, "s"),
+                start_time + np.timedelta64(20, "s"),
+            ),
+        ],
+    )
 
     tslib._check_ts_results(results, inserted_string_data, 20)
 
@@ -45,9 +49,10 @@ def test_string_get_ranges(table, intervals):
     tslib._check_ts_results(results, inserted_string_data, 25)
 
     # empty result
-    out_of_time = start_time + np.timedelta64(10, 'h')
+    out_of_time = start_time + np.timedelta64(10, "h")
     results = table.string_get_ranges(
-        column_name, [(out_of_time, out_of_time + np.timedelta64(10, 's'))])
+        column_name, [(out_of_time, out_of_time + np.timedelta64(10, "s"))]
+    )
     assert len(results) == 2
     assert len(results[0]) == 0
     assert len(results[1]) == 0
@@ -55,23 +60,21 @@ def test_string_get_ranges(table, intervals):
     # error: column doesn't exist
     with pytest.raises(quasardb.Error):
         table.string_get_ranges(
-            "lolilol", [(start_time, start_time + np.timedelta64(10, 's'))])
+            "lolilol", [(start_time, start_time + np.timedelta64(10, "s"))]
+        )
 
     with pytest.raises(quasardb.Error):
-        table.string_insert(
-            "lolilol",
-            inserted_string_data[0],
-            inserted_string_data[1])
+        table.string_insert("lolilol", inserted_string_data[0], inserted_string_data[1])
 
     with pytest.raises(quasardb.IncompatibleTypeError):
         table.int64_get_ranges(
-            column_name, [(start_time, start_time + np.timedelta64(10, 's'))])
+            column_name, [(start_time, start_time + np.timedelta64(10, "s"))]
+        )
 
     with pytest.raises(quasardb.IncompatibleTypeError):
         table.int64_insert(
-            column_name,
-            inserted_string_data[0],
-            inserted_string_data[1])
+            column_name, inserted_string_data[0], inserted_string_data[1]
+        )
 
 
 def test_string_erase_ranges(table, intervals):
@@ -79,25 +82,26 @@ def test_string_erase_ranges(table, intervals):
     column_name = tslib._string_col_name(table)
 
     inserted_string_data = tslib._generate_string_ts(start_time, 1000)
-    table.string_insert(
-        column_name,
-        inserted_string_data[0],
-        inserted_string_data[1])
+    table.string_insert(column_name, inserted_string_data[0], inserted_string_data[1])
 
-    results = table.string_get_ranges(column_name, [(
-        start_time, start_time + np.timedelta64(10, 's'))])
+    results = table.string_get_ranges(
+        column_name, [(start_time, start_time + np.timedelta64(10, "s"))]
+    )
 
-    erased_count = table.erase_ranges(column_name, [(
-        start_time, start_time + np.timedelta64(10, 's'))])
+    erased_count = table.erase_ranges(
+        column_name, [(start_time, start_time + np.timedelta64(10, "s"))]
+    )
 
     assert erased_count == len(results[0])
 
-    erased_count = table.erase_ranges(column_name, [(
-        start_time, start_time + np.timedelta64(10, 's'))])
+    erased_count = table.erase_ranges(
+        column_name, [(start_time, start_time + np.timedelta64(10, "s"))]
+    )
 
     assert erased_count == 0
 
-    results = table.string_get_ranges(column_name, [(
-        start_time, start_time + np.timedelta64(10, 's'))])
+    results = table.string_get_ranges(
+        column_name, [(start_time, start_time + np.timedelta64(10, "s"))]
+    )
 
     assert len(results[0]) == 0

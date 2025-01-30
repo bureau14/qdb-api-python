@@ -4,10 +4,12 @@ import threading
 import functools
 import weakref
 
-logger = logging.getLogger('quasardb.pool')
+logger = logging.getLogger("quasardb.pool")
+
 
 def _create_conn(**kwargs):
     return quasardb.Cluster(**kwargs)
+
 
 class SessionWrapper(object):
     def __init__(self, pool, conn):
@@ -44,6 +46,7 @@ class SessionWrapper(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._pool.release(self._conn)
+
 
 class Pool(object):
     """
@@ -135,6 +138,7 @@ class Pool(object):
         logger.info("Putting connection back onto pool")
         return self._do_release(conn)
 
+
 class SingletonPool(Pool):
     """
     Implementation of our connection pool that maintains just a single connection
@@ -190,6 +194,7 @@ class SingletonPool(Pool):
 
 __instance = None
 
+
 def initialize(*args, **kwargs):
     """
     Initialize a new global SingletonPool. Forwards all arguments to the constructor of
@@ -215,6 +220,7 @@ def initialize(*args, **kwargs):
     global __instance
     __instance = SingletonPool(*args, **kwargs)
 
+
 def instance() -> SingletonPool:
     """
     Singleton accessor. Instance must have been initialized using initialize()
@@ -226,8 +232,11 @@ def instance() -> SingletonPool:
 
     """
     global __instance
-    assert __instance is not None, "Global connection pool uninitialized: please initialize by calling the initialize() function."
+    assert (
+        __instance is not None
+    ), "Global connection pool uninitialized: please initialize by calling the initialize() function."
     return __instance
+
 
 def _inject_conn_arg(conn, arg, args, kwargs):
     """
@@ -250,6 +259,7 @@ def _inject_conn_arg(conn, arg, args, kwargs):
         kwargs[arg] = conn
 
     return (args, kwargs)
+
 
 def with_conn(_fn=None, *, arg=0):
     """
@@ -278,6 +288,7 @@ def with_conn(_fn=None, *, arg=0):
        conn.query(...)
     ```
     """
+
     def inner(fn):
         def wrapper(*args, **kwargs):
             pool = instance()

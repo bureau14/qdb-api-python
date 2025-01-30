@@ -1,5 +1,6 @@
 # pylint: disable=C0103,C0111,C0302,W0212
 
+
 def test_empty_prefix(qdbd_connection):
 
     res = qdbd_connection.prefix_get("testazeazeaze", 10)

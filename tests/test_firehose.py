@@ -49,13 +49,13 @@ def test_subscribe_single_table(qdbd_connection, table, many_intervals):
     # 4. Insert new data
     # 5. Repeat step 3 again
 
-    inserter = qdbd_connection.inserter(
-        batchlib._make_inserter_info(table))
+    inserter = qdbd_connection.inserter(batchlib._make_inserter_info(table))
 
     xs = table.subscribe(qdbd_connection)
 
     doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
-        inserter, table, many_intervals, batchlib._regular_push)
+        inserter, table, many_intervals, batchlib._regular_push
+    )
 
     time.sleep(4)
 
@@ -66,12 +66,12 @@ def test_subscribe_single_table(qdbd_connection, table, many_intervals):
     offset = 0
     while offset < n:
         row = next(xs)
-        assert row['the_double'] == doubles[offset]
-        assert row['the_blob'] == blobs[offset]
-        assert row['the_string'] == strings[offset]
-        assert row['the_int64'] == integers[offset]
-        assert row['the_ts'] == timestamps[offset]
-        assert row['the_symbol'] == symbols[offset]
+        assert row["the_double"] == doubles[offset]
+        assert row["the_blob"] == blobs[offset]
+        assert row["the_string"] == strings[offset]
+        assert row["the_int64"] == integers[offset]
+        assert row["the_ts"] == timestamps[offset]
+        assert row["the_symbol"] == symbols[offset]
         offset = offset + 1
 
     def next_row():
@@ -86,22 +86,23 @@ def test_subscribe_single_table(qdbd_connection, table, many_intervals):
     # with different intervals
     many_intervals_ = list()
     for x in many_intervals:
-        many_intervals_.append(x + np.timedelta64(365, 'D'))
+        many_intervals_.append(x + np.timedelta64(365, "D"))
 
     doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
-        inserter, table, many_intervals_, batchlib._regular_push)
+        inserter, table, many_intervals_, batchlib._regular_push
+    )
 
     # Note that we only reset `offset`; since we just inserted exactly double
     # the data, `n` is still 10000 which is perfect!
     offset = 0
     while offset < n:
         row = next(xs)
-        assert row['the_double'] == doubles[offset]
-        assert row['the_blob'] == blobs[offset]
-        assert row['the_string'] == strings[offset]
-        assert row['the_int64'] == integers[offset]
-        assert row['the_ts'] == timestamps[offset]
-        assert row['the_symbol'] == symbols[offset]
+        assert row["the_double"] == doubles[offset]
+        assert row["the_blob"] == blobs[offset]
+        assert row["the_string"] == strings[offset]
+        assert row["the_int64"] == integers[offset]
+        assert row["the_ts"] == timestamps[offset]
+        assert row["the_symbol"] == symbols[offset]
         offset = offset + 1
 
     # Ensure that acquiring the next row times out after 3 seconds, which ensures

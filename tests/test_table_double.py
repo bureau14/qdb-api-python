@@ -23,29 +23,32 @@ def test_double_get_ranges(table, intervals):
     column_name = tslib._double_col_name(table)
 
     inserted_double_data = tslib._generate_double_ts(start_time, 1000)
-    table.double_insert(column_name,
-                        inserted_double_data[0],
-                        inserted_double_data[1])
+    table.double_insert(column_name, inserted_double_data[0], inserted_double_data[1])
 
-    results = table.double_get_ranges(column_name, [(
-        start_time, start_time + np.timedelta64(10, 's'))])
+    results = table.double_get_ranges(
+        column_name, [(start_time, start_time + np.timedelta64(10, "s"))]
+    )
 
     tslib._check_ts_results(results, inserted_double_data, 10)
 
     results = table.double_get_ranges(
         column_name,
         [
-            (start_time,
-             start_time + np.timedelta64(10, 's')),
-            (start_time + np.timedelta64(10, 's'),
-             start_time + np.timedelta64(20, 's'))])
+            (start_time, start_time + np.timedelta64(10, "s")),
+            (
+                start_time + np.timedelta64(10, "s"),
+                start_time + np.timedelta64(20, "s"),
+            ),
+        ],
+    )
 
     tslib._check_ts_results(results, inserted_double_data, 20)
 
     # empty result
-    out_of_time = start_time + np.timedelta64(10, 'h')
+    out_of_time = start_time + np.timedelta64(10, "h")
     results = table.double_get_ranges(
-        column_name, [(out_of_time, out_of_time + np.timedelta64(10, 's'))])
+        column_name, [(out_of_time, out_of_time + np.timedelta64(10, "s"))]
+    )
     assert len(results) == 2
     assert len(results[0]) == 0
     assert len(results[1]) == 0
@@ -53,23 +56,19 @@ def test_double_get_ranges(table, intervals):
     # error: column doesn't exist
     with pytest.raises(quasardb.Error):
         table.double_get_ranges(
-            "lolilol", [(start_time, start_time + np.timedelta64(10, 's'))])
+            "lolilol", [(start_time, start_time + np.timedelta64(10, "s"))]
+        )
 
     with pytest.raises(quasardb.Error):
-        table.double_insert(
-            "lolilol",
-            inserted_double_data[0],
-            inserted_double_data[1])
+        table.double_insert("lolilol", inserted_double_data[0], inserted_double_data[1])
 
     with pytest.raises(quasardb.IncompatibleTypeError):
         table.blob_get_ranges(
-            column_name, [(start_time, start_time + np.timedelta64(10, 's'))])
+            column_name, [(start_time, start_time + np.timedelta64(10, "s"))]
+        )
 
     with pytest.raises(quasardb.IncompatibleTypeError):
-        table.blob_insert(
-            column_name,
-            inserted_double_data[0],
-            inserted_double_data[1])
+        table.blob_insert(column_name, inserted_double_data[0], inserted_double_data[1])
 
 
 def test_double_erase_ranges(table, intervals):
@@ -77,25 +76,26 @@ def test_double_erase_ranges(table, intervals):
     column_name = tslib._double_col_name(table)
 
     inserted_double_data = tslib._generate_double_ts(start_time, 1000)
-    table.double_insert(
-        column_name,
-        inserted_double_data[0],
-        inserted_double_data[1])
+    table.double_insert(column_name, inserted_double_data[0], inserted_double_data[1])
 
-    results = table.double_get_ranges(column_name, [(
-        start_time, start_time + np.timedelta64(10, 's'))])
+    results = table.double_get_ranges(
+        column_name, [(start_time, start_time + np.timedelta64(10, "s"))]
+    )
 
-    erased_count = table.erase_ranges(column_name, [(
-        start_time, start_time + np.timedelta64(10, 's'))])
+    erased_count = table.erase_ranges(
+        column_name, [(start_time, start_time + np.timedelta64(10, "s"))]
+    )
 
     assert erased_count == len(results[0])
 
-    erased_count = table.erase_ranges(column_name, [(
-        start_time, start_time + np.timedelta64(10, 's'))])
+    erased_count = table.erase_ranges(
+        column_name, [(start_time, start_time + np.timedelta64(10, "s"))]
+    )
 
     assert erased_count == 0
 
-    results = table.double_get_ranges(column_name, [(
-        start_time, start_time + np.timedelta64(10, 's'))])
+    results = table.double_get_ranges(
+        column_name, [(start_time, start_time + np.timedelta64(10, "s"))]
+    )
 
     assert len(results[0]) == 0

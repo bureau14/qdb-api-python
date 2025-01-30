@@ -3,22 +3,21 @@ import quasardb
 
 
 def test_node_wrong_leading_qdb_in_uri(qdbd_connection, qdbd_settings):
-    with pytest.raises(quasardb.Error, match=r'The (handle|argument) is invalid'):
+    with pytest.raises(quasardb.Error, match=r"The (handle|argument) is invalid"):
         # With check in connect, node() throws.
-        direct_conn = qdbd_connection.node(
-            qdbd_settings.get("uri").get("insecure"))
+        direct_conn = qdbd_connection.node(qdbd_settings.get("uri").get("insecure"))
         # Without it, C API should return an error in prefix_get.
         direct_conn.prefix_get("$qdb", 10)
 
 
-def test_node_connect_throws_connection_error_when_no_cluster_public_key(
-        qdbd_settings):
+def test_node_connect_throws_connection_error_when_no_cluster_public_key(qdbd_settings):
     with pytest.raises(quasardb.Error):
         quasardb.Node(
             uri=qdbd_settings.get("uri").get("secure").replace("qdb://", ""),
             user_name=qdbd_settings.get("security").get("user_name"),
             user_private_key=qdbd_settings.get("security").get("user_private_key"),
-            enable_encryption=True)
+            enable_encryption=True,
+        )
 
 
 def test_node_connect_throws_connection_error_when_no_user_name(qdbd_settings):
@@ -27,17 +26,18 @@ def test_node_connect_throws_connection_error_when_no_user_name(qdbd_settings):
             uri=qdbd_settings.get("uri").get("secure").replace("qdb://", ""),
             user_private_key=qdbd_settings.get("security").get("user_private_key"),
             cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"),
-            enable_encryption=True)
+            enable_encryption=True,
+        )
 
 
-def test_node_connect_throws_connection_error_when_no_user_private_key(
-        qdbd_settings):
+def test_node_connect_throws_connection_error_when_no_user_private_key(qdbd_settings):
     with pytest.raises(quasardb.Error):
         quasardb.Node(
             uri=qdbd_settings.get("uri").get("secure").replace("qdb://", ""),
             user_name=qdbd_settings.get("security").get("user_name"),
             cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"),
-            enable_encryption=True)
+            enable_encryption=True,
+        )
 
 
 def test_node_connect_ok_to_secure_cluster(qdbd_settings):
@@ -46,70 +46,90 @@ def test_node_connect_ok_to_secure_cluster(qdbd_settings):
         user_name=qdbd_settings.get("security").get("user_name"),
         user_private_key=qdbd_settings.get("security").get("user_private_key"),
         cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"),
-        enable_encryption=True)
+        enable_encryption=True,
+    )
 
 
 def test_node_connect_throws_connection_error_when_no_cluster_public_key_file(
-        qdbd_settings):
+    qdbd_settings,
+):
     with pytest.raises(quasardb.Error):
         quasardb.Node(
             uri=qdbd_settings.get("uri").get("secure").replace("qdb://", ""),
-            user_security_file=qdbd_settings.get("security").get("user_private_key_file"),
-            enable_encryption=True)
+            user_security_file=qdbd_settings.get("security").get(
+                "user_private_key_file"
+            ),
+            enable_encryption=True,
+        )
 
 
-def test_node_connect_throws_connection_error_when_no_user_security_file(
-        qdbd_settings):
+def test_node_connect_throws_connection_error_when_no_user_security_file(qdbd_settings):
     with pytest.raises(quasardb.Error):
         quasardb.Node(
             uri=qdbd_settings.get("uri").get("secure").replace("qdb://", ""),
-            cluster_public_key_file=qdbd_settings.get("security").get("cluster_public_key_file"),
-            enable_encryption=True)
+            cluster_public_key_file=qdbd_settings.get("security").get(
+                "cluster_public_key_file"
+            ),
+            enable_encryption=True,
+        )
 
 
-def test_node_connect_throws_connection_error_when_mix_security_1(
-        qdbd_settings):
-    with pytest.raises(quasardb.Error):
-        quasardb.Node(
-            uri=qdbd_settings.get("uri").get("secure").replace("qdb://", ""),
-            user_name=qdbd_settings.get("security").get("user_name"),
-            user_private_key=qdbd_settings.get("security").get("user_private_key"),
-            cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"),
-            cluster_public_key_file=qdbd_settings.get("security").get("cluster_public_key_file"),
-            enable_encryption=True)
-
-
-def test_node_connect_throws_connection_error_when_mix_security_2(
-        qdbd_settings):
-    with pytest.raises(quasardb.Error):
-        quasardb.Node(
-            uri=qdbd_settings.get("uri").get("secure").replace("qdb://", ""),
-            user_name=qdbd_settings.get("security").get("user_name"),
-            user_private_key=qdbd_settings.get("security").get("user_private_key"),
-            user_security_file=qdbd_settings.get("security").get("user_private_key_file"),
-            cluster_public_key_file=qdbd_settings.get("security").get("cluster_public_key_file"),
-            enable_encryption=True)
-
-
-def test_node_connect_throws_connection_error_when_mix_security_full(
-        qdbd_settings):
+def test_node_connect_throws_connection_error_when_mix_security_1(qdbd_settings):
     with pytest.raises(quasardb.Error):
         quasardb.Node(
             uri=qdbd_settings.get("uri").get("secure").replace("qdb://", ""),
             user_name=qdbd_settings.get("security").get("user_name"),
             user_private_key=qdbd_settings.get("security").get("user_private_key"),
             cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"),
-            user_security_file=qdbd_settings.get("security").get("user_private_key_file"),
-            cluster_public_key_file=qdbd_settings.get("security").get("cluster_public_key_file"),
-            enable_encryption=True)
+            cluster_public_key_file=qdbd_settings.get("security").get(
+                "cluster_public_key_file"
+            ),
+            enable_encryption=True,
+        )
+
+
+def test_node_connect_throws_connection_error_when_mix_security_2(qdbd_settings):
+    with pytest.raises(quasardb.Error):
+        quasardb.Node(
+            uri=qdbd_settings.get("uri").get("secure").replace("qdb://", ""),
+            user_name=qdbd_settings.get("security").get("user_name"),
+            user_private_key=qdbd_settings.get("security").get("user_private_key"),
+            user_security_file=qdbd_settings.get("security").get(
+                "user_private_key_file"
+            ),
+            cluster_public_key_file=qdbd_settings.get("security").get(
+                "cluster_public_key_file"
+            ),
+            enable_encryption=True,
+        )
+
+
+def test_node_connect_throws_connection_error_when_mix_security_full(qdbd_settings):
+    with pytest.raises(quasardb.Error):
+        quasardb.Node(
+            uri=qdbd_settings.get("uri").get("secure").replace("qdb://", ""),
+            user_name=qdbd_settings.get("security").get("user_name"),
+            user_private_key=qdbd_settings.get("security").get("user_private_key"),
+            cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"),
+            user_security_file=qdbd_settings.get("security").get(
+                "user_private_key_file"
+            ),
+            cluster_public_key_file=qdbd_settings.get("security").get(
+                "cluster_public_key_file"
+            ),
+            enable_encryption=True,
+        )
 
 
 def test_node_connect_ok_to_secure_cluster_with_file(qdbd_settings):
     quasardb.Node(
         uri=qdbd_settings.get("uri").get("secure").replace("qdb://", ""),
         user_security_file=qdbd_settings.get("security").get("user_private_key_file"),
-        cluster_public_key_file=qdbd_settings.get("security").get("cluster_public_key_file"),
-        enable_encryption=True)
+        cluster_public_key_file=qdbd_settings.get("security").get(
+            "cluster_public_key_file"
+        ),
+        enable_encryption=True,
+    )
 
 
 def test_node_empty_prefix(qdbd_direct_connection):

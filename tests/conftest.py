@@ -276,25 +276,6 @@ def override_row_count(x):
 
 
 @pytest.fixture(
-    params=[56, 112, 224, 448, 896],
-    ids=[
-        "batch_size=56",
-        "batch_size=112",
-        "batch_size=224",
-        "batch_size=448",
-        "batch_size=896",
-    ],
-)
-def reader_batch_size(request):
-    yield request.param
-
-
-# Makes it easier to "select" a row count.
-def override_row_count(x):
-    return pytest.mark.parametrize("row_count", [x], ids=["row_count={}".format(x)])
-
-
-@pytest.fixture(
     params=[1, 2, 4, 8, 16],
     ids=["df_count=1", "df_count=2", "df_count=4", "df_count=8", "df_count=16"],
 )
