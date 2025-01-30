@@ -242,7 +242,7 @@ def stream_dataframes(conn : quasardb.Cluster, tables : list, *, batch_size : in
     elif not isinstance(batch_size, int):
         raise TypeError("batch_size should be an integer, but got: {} with value {}".format(type(batch_size), str(batch_size)))
 
-    kwargs = {}
+    kwargs = {'batch_size': batch_size}
 
     if column_names:
         kwargs['column_names'] = column_names
