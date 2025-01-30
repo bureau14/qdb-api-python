@@ -32,7 +32,8 @@
 
 #include "entry.hpp"
 #include "masked_array.hpp"
-#include "reader.hpp"
+#include "reader_fwd.hpp"
+#include "table_fwd.hpp"
 #include "detail/ts_column.hpp"
 
 namespace qdb
@@ -160,11 +161,7 @@ public:
     qdb::reader_ptr reader(                            //
         std::vector<std::string> const & column_names, //
         std::size_t batch_size,                        //
-        std::vector<py::tuple> const & ranges) const   //
-    {
-        std::vector<std::string> table_names{get_name()};
-        return std::make_unique<qdb::reader>(_handle, table_names, column_names, batch_size, ranges);
-    };
+        std::vector<py::tuple> const & ranges) const;
 
     /**
      * Returns true if this table has a TTL assigned.
@@ -306,6 +303,11 @@ private:
     mutable std::optional<std::chrono::milliseconds> _ttl;
     mutable std::optional<std::chrono::milliseconds> _shard_size;
 };
+
+static inline table_ptr make_table_ptr(handle_ptr handle, std::string table_name)
+{
+    return std::make_unique<table>(handle, table_name);
+}
 
 template <typename Module>
 static inline void register_table(Module & m)

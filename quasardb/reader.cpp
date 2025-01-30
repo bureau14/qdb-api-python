@@ -81,12 +81,10 @@ reader_iterator & reader_iterator::operator++()
         // This means this is either the first invocation, or we have
         // previously exhausted all tables in the current "fetch" and
         // should fetch next.
-        py::print("ptr_ == nullptr, invoking qdb_bulk_reader_get_data()");
         qdb_error_t err = qdb_bulk_reader_get_data(reader_, &ptr_, batch_size_);
 
         if (err == qdb_e_iterator_end) [[unlikely]]
         {
-            py::print("err == qdb_e_iterator_end, invoking qdb_bulk_reader_get_data()");
             // We have reached the end -- reset all our internal state, and make us look
             // like the "end" iterator.
             handle_      = nullptr;
@@ -112,8 +110,6 @@ reader_iterator & reader_iterator::operator++()
     else
     {
         assert(ptr_ != nullptr);
-
-        py::print("ptr_ != nullptr, n_ = ", n_, ", table_count_ = ", table_count_);
 
         if (++n_ == table_count_)
         {

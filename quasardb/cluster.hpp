@@ -45,7 +45,7 @@
 #include "query.hpp"
 #include "reader.hpp"
 #include "string.hpp"
-#include "table.hpp"
+#include "table_fwd.hpp"
 #include "tag.hpp"
 #include "timestamp.hpp"
 #include "utils.hpp"
@@ -235,12 +235,7 @@ public:
         return qdb::timestamp_entry{_handle, alias};
     }
 
-    qdb::table table(const std::string & alias)
-    {
-        check_open();
-
-        return qdb::table{_handle, alias};
-    }
+    qdb::table_ptr table(const std::string & alias);
 
     // the reader_ptr is non-copyable
     qdb::reader_ptr reader(                            //

@@ -33,6 +33,7 @@
 #include "handle.hpp"
 #include "logger.hpp"
 #include "object_tracker.hpp"
+#include "reader_fwd.hpp"
 #include <qdb/ts.h>
 #include <unordered_map>
 #include <vector>
@@ -248,8 +249,6 @@ private:
     std::size_t batch_size_;
     std::vector<py::tuple> ranges_;
 };
-
-using reader_ptr = std::unique_ptr<reader>;
 
 static inline reader_ptr make_reader_ptr(handle_ptr handle, //
     std::vector<std::string> const & table_names,           //
