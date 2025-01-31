@@ -4,6 +4,7 @@ import quasardb.pandas as qdbpd
 
 import pandas as pd
 import numpy as np
+
 # import-end
 
 with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
@@ -11,14 +12,12 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
     # batch-insert-start
 
     # Prepare the entire DataFrame which we wish to store
-    data = {'open': [3.40, 3.50],
-            'close': [3.50, 3.55],
-            'volume': [10000, 7500]}
-    timestamps = np.array([np.datetime64('2019-02-01'),
-                           np.datetime64('2019-02-02')],
-                          dtype='datetime64[ns]')
-    df = pd.DataFrame(data=data,
-                      index=timestamps)
+    data = {"open": [3.40, 3.50], "close": [3.50, 3.55], "volume": [10000, 7500]}
+    timestamps = np.array(
+        [np.datetime64("2019-02-01"), np.datetime64("2019-02-02")],
+        dtype="datetime64[ns]",
+    )
+    df = pd.DataFrame(data=data, index=timestamps)
 
     # By providing the create=True parameter, we explicitly tell the Pandas connector to
     # create a new table based on the schema
@@ -27,10 +26,9 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
 
     # batch-insert-end
 
-
     # bulk-read-start
 
-    ranges = [(np.datetime64('2019-02-01', 'ns'), np.datetime64('2019-02-02', 'ns'))]
+    ranges = [(np.datetime64("2019-02-01", "ns"), np.datetime64("2019-02-02", "ns"))]
     t = c.table("stocks")
 
     # The `read_dataframe` function provides a performance-efficient mechanism to read data
@@ -46,7 +44,10 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
     #
     # Seperately, we generate a numpy array of timestamps. Since our three columns share
     # the same timestamps, we can reuse this as the index for all our Series.
-    timestamps = np.array([np.datetime64('2019-02-01'), np.datetime64('2019-02-02')], dtype='datetime64[ns]')
+    timestamps = np.array(
+        [np.datetime64("2019-02-01"), np.datetime64("2019-02-02")],
+        dtype="datetime64[ns]",
+    )
 
     opens = pd.Series(data=[3.40, 3.50], index=timestamps, dtype=np.float64)
     closes = pd.Series(data=[3.50, 3.55], index=timestamps, dtype=np.float64)
@@ -66,7 +67,9 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
     # time (exclusive).
     #
     # In this example, we just use a single interval.
-    intervals = np.array([(np.datetime64('2019-02-01', 'ns'), np.datetime64('2019-02-02', 'ns'))])
+    intervals = np.array(
+        [(np.datetime64("2019-02-01", "ns"), np.datetime64("2019-02-02", "ns"))]
+    )
 
     # We can then use the read_series function to read column by column. The objects
     # returned are regular pd.Series objects.

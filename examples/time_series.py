@@ -36,6 +36,7 @@ import datetime
 import quasardb  # pylint: disable=C0413,E0401
 import numpy as np
 
+
 def main(quasardb_uri, ts_name):
 
     print("Connecting to: ", quasardb_uri)
@@ -50,9 +51,13 @@ def main(quasardb_uri, ts_name):
     # if the time series already exist it will throw an exception
     # the function returns objects enabling direct insertion to the columns
     # here an array of one
-    ts.create([quasardb.ColumnInfo(quasardb.ColumnType.Double, "close"),
-        quasardb.ColumnInfo(quasardb.ColumnType.Int64, "volume"),
-        quasardb.ColumnInfo(quasardb.ColumnType.Timestamp, "value_date")])
+    ts.create(
+        [
+            quasardb.ColumnInfo(quasardb.ColumnType.Double, "close"),
+            quasardb.ColumnInfo(quasardb.ColumnType.Int64, "volume"),
+            quasardb.ColumnInfo(quasardb.ColumnType.Timestamp, "value_date"),
+        ]
+    )
 
     # once you have a column, you can directly insert data into it
     # here we use the high level Python API which isn't the fastest
@@ -61,11 +66,19 @@ def main(quasardb_uri, ts_name):
     # it's also possible to insert into multiple columns at once in a line by
     # line fashion with the bulk insert API
 
-    dates = np.arange(np.datetime64('2017-01-01'), np.datetime64('2017-01-04')).astype('datetime64[ns]')
+    dates = np.arange(np.datetime64("2017-01-01"), np.datetime64("2017-01-04")).astype(
+        "datetime64[ns]"
+    )
 
     ts.double_insert("close", dates, np.arange(1.0, 4.0))
     ts.int64_insert("volume", dates, np.arange(1, 4))
-    ts.timestamp_insert("value_date", dates, np.arange(np.datetime64('2017-01-02'), np.datetime64('2017-01-05')).astype('datetime64[ns]'))
+    ts.timestamp_insert(
+        "value_date",
+        dates,
+        np.arange(np.datetime64("2017-01-02"), np.datetime64("2017-01-05")).astype(
+            "datetime64[ns]"
+        ),
+    )
 
     # note that intervals are left inclusive, right exclusive
     year_2017 = (np.datetime64("2017-01-01", "ns"), np.datetime64("2018-01-01", "ns"))
@@ -91,6 +104,7 @@ def main(quasardb_uri, ts_name):
     # this is how we remove the time series
     # note that if it doesn't exist it will throw an exception
     ts.remove()
+
 
 if __name__ == "__main__":
 

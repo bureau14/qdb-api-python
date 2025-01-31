@@ -36,6 +36,7 @@ import datetime
 import quasardb  # pylint: disable=C0413,E0401
 import numpy as np
 
+
 def main(quasardb_uri, blob_name):
     print("Connecting to: ", quasardb_uri)
     c = quasardb.Cluster(uri=quasardb_uri)
@@ -44,7 +45,7 @@ def main(quasardb_uri, blob_name):
     b = c.blob(blob_name)
 
     # add data to the blob (which may, or may not exist)
-    b.update('content')
+    b.update("content")
 
     # print the content
     print("content:", b.get())
@@ -62,6 +63,7 @@ def main(quasardb_uri, blob_name):
     print("expiry =", b.get_expiry_time())
 
     b.remove()
+
 
 if __name__ == "__main__":
 

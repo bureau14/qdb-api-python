@@ -35,6 +35,7 @@ import numpy as np
 
 import quasardb  # pylint: disable=C0413,E0401
 
+
 def seed_ts(c, name):
     ts = c.ts(name)
     try:
@@ -42,17 +43,24 @@ def seed_ts(c, name):
     except:
         pass
 
-    ts.create([quasardb.ColumnInfo(quasardb.ColumnType.Int64, "bid"),
-                      quasardb.ColumnInfo(quasardb.ColumnType.Int64, "last")])
+    ts.create(
+        [
+            quasardb.ColumnInfo(quasardb.ColumnType.Int64, "bid"),
+            quasardb.ColumnInfo(quasardb.ColumnType.Int64, "last"),
+        ]
+    )
 
     # Generate 20 random data points
-    date = np.arange(np.datetime64('2018-01-01'), np.datetime64('2018-01-21')).astype('datetime64[ns]')
+    date = np.arange(np.datetime64("2018-01-01"), np.datetime64("2018-01-21")).astype(
+        "datetime64[ns]"
+    )
     values = np.random.random_integers(0, 100, len(date))
 
     ts.int64_insert("bid", date, np.random.random_integers(0, 100, len(date)))
     ts.int64_insert("last", date, np.random.random_integers(0, 100, len(date)))
 
     return ts
+
 
 def main(uri):
 
@@ -69,13 +77,16 @@ def main(uri):
     ts1.attach_tag("nasdaq")
     ts2.attach_tag("nasdaq")
 
-    q = c.query("select sum(bid), count(bid) from find(tag='nasdaq') in range(2018, 2019)")
+    q = c.query(
+        "select sum(bid), count(bid) from find(tag='nasdaq') in range(2018, 2019)"
+    )
     res = q.run()
 
     for k, table_result in res.tables.items():
         print("table:", k)
         for col in table_result:
             print(col.name, ":", col.data)
+
 
 if __name__ == "__main__":
 
