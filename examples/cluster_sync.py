@@ -34,6 +34,7 @@ import numpy as np
 
 import quasardb  # pylint: disable=C0413,E0401
 
+
 def main(uri_src, uri_dst, ts_name):
 
     print("Connecting to: ", uri_src)
@@ -50,19 +51,26 @@ def main(uri_src, uri_dst, ts_name):
         pass
 
     # create the time series on the destination cluster.
-    ts_dst.create([quasardb.ColumnInfo(quasardb.ColumnType.Int64, "bid"),
-                   quasardb.ColumnInfo(quasardb.ColumnType.Int64, "last")])
+    ts_dst.create(
+        [
+            quasardb.ColumnInfo(quasardb.ColumnType.Int64, "bid"),
+            quasardb.ColumnInfo(quasardb.ColumnType.Int64, "last"),
+        ]
+    )
 
     # Note that we are loading all data points of this entire column in
     # memory here. A more scalable solution would split the ranges into
     # smaller ranges, or use the streaming bulk reader and bulk inserter.
-    everything = [(np.datetime64('1970-01-01', 'ns'), np.datetime64('2035-01-01', 'ns'))]
+    everything = [
+        (np.datetime64("1970-01-01", "ns"), np.datetime64("2035-01-01", "ns"))
+    ]
 
     data = ts_src.int64_get_ranges("bid", everything)
     ts_dst.int64_insert("bid", data[0], data[1])
 
     data = ts_src.int64_get_ranges("last", everything)
     ts_dst.int64_insert("last", data[0], data[1])
+
 
 if __name__ == "__main__":
 

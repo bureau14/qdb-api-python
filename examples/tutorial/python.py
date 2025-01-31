@@ -2,10 +2,13 @@
 import json
 import quasardb
 import numpy as np
+
 # import-end
+
 
 def do_something_async_with(x):
     pass
+
 
 def test_pool():
     # pool-connect-start
@@ -28,24 +31,27 @@ def test_pool():
 
     # pool-connect-end
 
+
 # connect-start
 with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
-# connect-end
+    # connect-end
     def secure_connect():
         user_key = {}
         cluster_key = ""
 
-        with open('user_private.key', 'r') as user_key_file:
+        with open("user_private.key", "r") as user_key_file:
             user_key = json.load(user_key_file)
-        with open('cluster_public.key', 'r') as cluster_key_file:
+        with open("cluster_public.key", "r") as cluster_key_file:
             cluster_key = cluster_key_file.read()
 
         # secure-connect-start
-        with quasardb.Cluster(uri='qdb://127.0.0.1:2836',
-                              user_name=user_key['username'],
-                              user_private_key=user_key['secret_key'],
-                              cluster_public_key=cluster_key) as scs:
-        # secure-connect-end
+        with quasardb.Cluster(
+            uri="qdb://127.0.0.1:2836",
+            user_name=user_key["username"],
+            user_private_key=user_key["secret_key"],
+            cluster_public_key=cluster_key,
+        ) as scs:
+            # secure-connect-end
             pass
 
     # create-table-start
@@ -54,9 +60,11 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
     t = c.table("stocks")
 
     # Initialize our column definitions
-    cols = [quasardb.ColumnInfo(quasardb.ColumnType.Double, "open"),
-            quasardb.ColumnInfo(quasardb.ColumnType.Double, "close"),
-            quasardb.ColumnInfo(quasardb.ColumnType.Int64, "volume")]
+    cols = [
+        quasardb.ColumnInfo(quasardb.ColumnType.Double, "open"),
+        quasardb.ColumnInfo(quasardb.ColumnType.Double, "close"),
+        quasardb.ColumnInfo(quasardb.ColumnType.Int64, "volume"),
+    ]
 
     # Now create the table with the default shard size
     t.create(cols)
@@ -73,13 +81,14 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
 
     # We need to tell the batch inserter which columns we plan to insert. Note
     # how we give it a hint that we expect to insert 2 rows for each of these columns.
-    batch_columns = [quasardb.BatchColumnInfo("stocks", "open", 2),
-                     quasardb.BatchColumnInfo("stocks", "close", 2),
-                     quasardb.BatchColumnInfo("stocks", "volume", 2)]
+    batch_columns = [
+        quasardb.BatchColumnInfo("stocks", "open", 2),
+        quasardb.BatchColumnInfo("stocks", "close", 2),
+        quasardb.BatchColumnInfo("stocks", "volume", 2),
+    ]
 
     # Now that we know which columns we want to insert, we initialize our batch inserter.
     inserter = c.inserter(batch_columns)
-
 
     # Insert the first row: to start a new row, we must provide it with a mandatory
     # timestamp that all values for this row will share. QuasarDB will use this timestamp
@@ -87,7 +96,7 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
     #
     # QuasarDB only supports nanosecond timestamps, so we must specifically convert our
     # dates to nanosecond precision.
-    inserter.start_row(np.datetime64('2019-02-01', 'ns'))
+    inserter.start_row(np.datetime64("2019-02-01", "ns"))
 
     # We now set the values for our columns by their relative offsets: column 0 below
     # refers to the first column we provide in the batch_columns variable above.
@@ -97,7 +106,7 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
 
     # We tell the batch inserter to start a new row before we can set the values for the
     # next row.
-    inserter.start_row(np.datetime64('2019-02-02', 'ns'))
+    inserter.start_row(np.datetime64("2019-02-02", "ns"))
 
     inserter.set_double(0, 3.50)
     inserter.set_double(1, 3.55)
@@ -108,12 +117,13 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
 
     # batch-insert-end
 
-
     # bulk-read-start
 
     # We can initialize a bulk reader based directly from our table. The reader needs to open
     # and close to acquire / release the appropriate resources.
-    with t.reader(ranges=[(np.datetime64('2019-02-01', 'ns'), np.datetime64('2019-02-02', 'ns'))]) as reader:
+    with t.reader(
+        ranges=[(np.datetime64("2019-02-01", "ns"), np.datetime64("2019-02-02", "ns"))]
+    ) as reader:
 
         # The bulk reader is exposed as a regular Python iterator, streaming batches of data.
         for batch in reader:
@@ -137,7 +147,10 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
 
     # Seperately, we generate a numpy array of timestamps. Since our three columns share
     # the same timestamps, we can reuse this array for all of them, but this is not required.
-    timestamps = np.array([np.datetime64('2019-02-01'), np.datetime64('2019-02-02')], dtype='datetime64[ns]')
+    timestamps = np.array(
+        [np.datetime64("2019-02-01"), np.datetime64("2019-02-02")],
+        dtype="datetime64[ns]",
+    )
 
     # When inserting, we provide the value arrays en timestamp arrays separately.
     t.double_insert("open", timestamps, opens)
@@ -153,7 +166,9 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
     # time (exclusive).
     #
     # In this example, we just use a single interval.
-    intervals = np.array([(np.datetime64('2019-02-01', 'ns'), np.datetime64('2019-02-02', 'ns'))])
+    intervals = np.array(
+        [(np.datetime64("2019-02-01", "ns"), np.datetime64("2019-02-02", "ns"))]
+    )
 
     # As with insertion, our API works with native numpy arrays and returns the results as such.
     (timestamps1, opens) = t.double_get_ranges("open", intervals)
@@ -175,9 +190,8 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
     for row in result:
         print("row: ", row)
 
-
     # Since we only expect one row, we also access it like this:
-    aggregate_result = result[0]['SUM(volume)']
+    aggregate_result = result[0]["SUM(volume)"]
     print("sum(volume): ", aggregate_result)
 
     # query-end
