@@ -42,6 +42,7 @@ import pandas as pd
 
 import quasardb  # pylint: disable=C0413,E0401
 
+
 def create_ts(q, name, columns):
 
     ts = q.ts(name)
@@ -56,17 +57,28 @@ def create_ts(q, name, columns):
 
     return ts
 
+
 def display_pts(start_time, end_time, points_count):
     elapsed = end_time - start_time
-    pts_sec = points_count /elapsed
+    pts_sec = points_count / elapsed
 
-    print("...loaded {} points in {}s ({} points/sec)".format(points_count, elapsed, pts_sec))
+    print(
+        "...loaded {} points in {}s ({} points/sec)".format(
+            points_count, elapsed, pts_sec
+        )
+    )
+
 
 def main(quasardb_uri, ts_name, csv_file):
 
     print("Loading CSV: ", csv_file)
     start_time = time.time()
-    series = pd.read_csv(csv_file, header=0, parse_dates = {'Timestamp' : ['Date', 'Time']}, index_col = 'Timestamp')
+    series = pd.read_csv(
+        csv_file,
+        header=0,
+        parse_dates={"Timestamp": ["Date", "Time"]},
+        index_col="Timestamp",
+    )
 
     display_pts(start_time, time.time(), series.size)
 
@@ -77,9 +89,14 @@ def main(quasardb_uri, ts_name, csv_file):
 
     # insert the columns
     for i in range(0, len(series.columns)):
-        ts.double_insert(series.columns[i], series.index.values, np.squeeze(series.values[:,i:i+1]))
+        ts.double_insert(
+            series.columns[i],
+            series.index.values,
+            np.squeeze(series.values[:, i : i + 1]),
+        )
 
     display_pts(start_time, time.time(), series.size)
+
 
 if __name__ == "__main__":
 
