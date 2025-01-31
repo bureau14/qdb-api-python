@@ -42,29 +42,32 @@ import quasardb  # pylint: disable=C0413,E0401
 COLUMN1_NAME = "value"
 COLUMN2_NAME = "location"
 
-cities = ["Tokyo",
-          "New-York",
-          "Sao Paulo",
-          "Seoul",
-          "Mexico",
-          "Osaka",
-          "Manila",
-          "Mumbai",
-          "Delhi",
-          "Jakarta",
-          "Lagos",
-          "Kolkata",
-          "Cairo",
-          "Los Angeles",
-          "Buenos Aires",
-          "Rio de Janeiro",
-          "Moscow",
-          "Shanghai",
-          "Karachi",
-          "Paris"]
+cities = [
+    "Tokyo",
+    "New-York",
+    "Sao Paulo",
+    "Seoul",
+    "Mexico",
+    "Osaka",
+    "Manila",
+    "Mumbai",
+    "Delhi",
+    "Jakarta",
+    "Lagos",
+    "Kolkata",
+    "Cairo",
+    "Los Angeles",
+    "Buenos Aires",
+    "Rio de Janeiro",
+    "Moscow",
+    "Shanghai",
+    "Karachi",
+    "Paris",
+]
+
 
 def time_execution(str, f, *args):
-    print("     - ", str, end='')
+    print("     - ", str, end="")
 
     start_time = time.time()
     res = f(*args)
@@ -74,8 +77,10 @@ def time_execution(str, f, *args):
 
     return res
 
+
 def gen_ts_name():
     return "test.{}.{}.{}".format(gethostname(), os.getpid(), random.randint(0, 100000))
+
 
 def create_ts(q, name):
     ts = q.ts(name)
@@ -86,31 +91,59 @@ def create_ts(q, name):
     except quasardb.Error:
         pass
 
-    ts.create([quasardb.ColumnInfo(quasardb.ColumnType.Double, COLUMN1_NAME), quasardb.ColumnInfo(quasardb.ColumnType.Blob, COLUMN2_NAME)])
+    ts.create(
+        [
+            quasardb.ColumnInfo(quasardb.ColumnType.Double, COLUMN1_NAME),
+            quasardb.ColumnInfo(quasardb.ColumnType.Blob, COLUMN2_NAME),
+        ]
+    )
 
     return ts
 
+
 def generate_points(points_count):
-    dates = np.arange(np.datetime64('2017-01-01'), np.datetime64('2017-01-01') + np.timedelta64(points_count, 'm')).astype('datetime64[ns]')
+    dates = np.arange(
+        np.datetime64("2017-01-01"),
+        np.datetime64("2017-01-01") + np.timedelta64(points_count, "m"),
+    ).astype("datetime64[ns]")
     values = np.random.uniform(-10.0, 40.0, len(dates))
 
     return (dates, values)
+
 
 def generate_cities(dates, values):
     res = []
 
     for i in range(0, len(values)):
-      res.append(random.choice(cities))
+        res.append(random.choice(cities))
 
     return np.array(res)
 
+
 def insert(q, ts_name, points_count):
-    ts = time_execution("Creating a time series of name {}".format(ts_name), create_ts, q, ts_name)
-    (dates, values) = time_execution("Generating {:,} points".format(points_count), generate_points, points_count)
+    ts = time_execution(
+        "Creating a time series of name {}".format(ts_name), create_ts, q, ts_name
+    )
+    (dates, values) = time_execution(
+        "Generating {:,} points".format(points_count), generate_points, points_count
+    )
     cities = generate_cities(dates, values)
 
-    time_execution("Inserting {:,} temperature points into {}".format(points_count, ts_name), ts.double_insert, COLUMN1_NAME, dates, values)
-    time_execution("Inserting {:,} locations into {}".format(points_count, ts_name), ts.blob_insert, COLUMN2_NAME, dates, cities)
+    time_execution(
+        "Inserting {:,} temperature points into {}".format(points_count, ts_name),
+        ts.double_insert,
+        COLUMN1_NAME,
+        dates,
+        values,
+    )
+    time_execution(
+        "Inserting {:,} locations into {}".format(points_count, ts_name),
+        ts.blob_insert,
+        COLUMN2_NAME,
+        dates,
+        cities,
+    )
+
 
 def main(quasardb_uri, ts_name, points_count):
 
@@ -119,6 +152,7 @@ def main(quasardb_uri, ts_name, points_count):
 
     print(" *** Inserting {:,} into {}".format(points_count, quasardb_uri))
     insert(q, ts_name, points_count)
+
 
 if __name__ == "__main__":
 

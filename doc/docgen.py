@@ -8,6 +8,7 @@ import quasardb.pandas as qdbpd
 
 context = pdoc.Context()
 
+
 # This is a hack: pydoc has a lot of issues with importing submodules properly. It's
 # related to pybind11 generating invalid docstrings, and we would get import errors
 # and whatnot. E.g. the quasardb.Blob() has a `expiry=datetime.datetime()` mention
@@ -27,30 +28,40 @@ class Module(pdoc.Module):
     def submodules(self):
         return self._submodules
 
-module_qdb = Module(quasardb.quasardb, context=context,
-                    submodules=[pdoc.Module(quasardb.pool, context=context),
-                                pdoc.Module(quasardb.stats, context=context),
-                                pdoc.Module(quasardb.numpy, context=context),
-                                pdoc.Module(quasardb.pandas, context=context)])
+
+module_qdb = Module(
+    quasardb.quasardb,
+    context=context,
+    submodules=[
+        pdoc.Module(quasardb.pool, context=context),
+        pdoc.Module(quasardb.stats, context=context),
+        pdoc.Module(quasardb.numpy, context=context),
+        pdoc.Module(quasardb.pandas, context=context),
+    ],
+)
 
 modules = [module_qdb]
 
 pdoc.link_inheritance(context)
+
 
 def recursive_htmls(mod):
     yield mod.name, mod.html()
     for submod in mod.submodules():
         yield from recursive_htmls(submod)
 
+
 def _strip_prefix(s, p):
     if s.startswith(p):
-        return s[len(p):]
+        return s[len(p) :]
     else:
         return s
 
+
 def write_module(filename, html):
-    with open(filename, 'w') as f:
+    with open(filename, "w") as f:
         f.write(html)
+
 
 try:
     os.mkdir("build/quasardb")
@@ -69,8 +80,18 @@ for mod in modules:
         # once in quasardb/module_name with index.html file name
 
         if module_name == "quasardb.quasardb":
-            write_module("build/" + _strip_prefix(module_name, "quasardb.") + "/index.html", html)
+            write_module(
+                "build/" + _strip_prefix(module_name, "quasardb.") + "/index.html", html
+            )
         else:
             os.mkdir("build/quasardb/" + _strip_prefix(module_name, "quasardb."))
-            write_module("build/quasardb/" + _strip_prefix(module_name, "quasardb.") + ".html", html)
-            write_module("build/quasardb/" + _strip_prefix(module_name, "quasardb.") + "/index.html", html)
+            write_module(
+                "build/quasardb/" + _strip_prefix(module_name, "quasardb.") + ".html",
+                html,
+            )
+            write_module(
+                "build/quasardb/"
+                + _strip_prefix(module_name, "quasardb.")
+                + "/index.html",
+                html,
+            )
