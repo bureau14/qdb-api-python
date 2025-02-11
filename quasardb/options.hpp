@@ -156,6 +156,20 @@ public:
         return shard_count;
     }
 
+    void set_connection_per_address_soft_limit(std::size_t max_count)
+    {
+        qdb::qdb_throw_if_error(*_handle, qdb_option_set_connection_per_address_soft_limit(
+                                              *_handle, static_cast<qdb_size_t>(max_count)));
+    }
+
+    qdb_size_t get_connection_per_address_soft_limit()
+    {
+        qdb_size_t max_count{0};
+        qdb::qdb_throw_if_error(
+            *_handle, qdb_option_get_connection_per_address_soft_limit(*_handle, &max_count));
+        return max_count;
+    }
+
     void set_max_cardinality(qdb_uint_t cardinality)
     {
         qdb::qdb_throw_if_error(*_handle, qdb_option_set_max_cardinality(*_handle, cardinality));
@@ -273,8 +287,16 @@ static inline void register_options(Module & m)
         .def("set_user_credentials", &qdb::options::set_user_credentials)                 //
         .def("set_client_max_in_buf_size", &qdb::options::set_client_max_in_buf_size)     //
         .def("get_client_max_in_buf_size", &qdb::options::get_client_max_in_buf_size)     //
-        .def("set_client_max_batch_load", &qdb::options::set_client_max_batch_load)       //
-        .def("get_client_max_batch_load", &qdb::options::get_client_max_batch_load)       //
+        .def("set_client_max_batch_load", &qdb::options::set_client_max_batch_load,       //
+            "Adjust the number of shards per thread used for the batch writer.")          //
+        .def("get_client_max_batch_load", &qdb::options::get_client_max_batch_load,       //
+            "Get the number of shards per thread used for the batch writer.")             //
+        .def("set_connection_per_address_soft_limit",                                     //
+            &qdb::options::set_connection_per_address_soft_limit,                         //
+            "Adjust the maximum number of connections per qdbd node")                     //
+        .def("get_connection_per_address_soft_limit",                                     //
+            &qdb::options::get_connection_per_address_soft_limit,                         //
+            "Get the maximum number of connections per qdbd node")                        //
         .def("get_cluster_max_in_buf_size", &qdb::options::get_cluster_max_in_buf_size)   //
         .def("get_client_max_parallelism", &qdb::options::get_client_max_parallelism)     //
         .def("set_query_max_length", &qdb::options::set_query_max_length,                 //
