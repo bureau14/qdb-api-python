@@ -73,11 +73,10 @@ def test_set_connection_per_address_soft_limit(qdbd_connection):
     # 42 and this whole test would become useless
     assert old != 42
 
-    try:
-        qdbd_connection.options().set_connection_per_address_soft_limit(42)
-        assert qdbd_connection.options().get_connection_per_address_soft_limit() == 42
-    finally:
-        qdbd_connection.options().set_connection_per_address_soft_limit(old)
+    print("old: ", old)
+
+    qdbd_connection.options().set_connection_per_address_soft_limit(42)
+    assert qdbd_connection.options().get_connection_per_address_soft_limit() == 42
 
 
 def test_compression_none(qdbd_connection):
