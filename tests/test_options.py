@@ -61,6 +61,25 @@ def test_set_client_max_batch_load(qdbd_connection):
         qdbd_connection.options().set_client_max_batch_load(old)
 
 
+def test_get_connection_per_address_soft_limit(qdbd_connection):
+    assert qdbd_connection.options().get_connection_per_address_soft_limit() >= 0
+
+
+def test_set_connection_per_address_soft_limit(qdbd_connection):
+    # Make sure to remember the default value, as the connection may be reused
+    old = qdbd_connection.options().get_connection_per_address_soft_limit()
+
+    # Just to make sure there isn't the coincidence that the default has been changed to
+    # 42 and this whole test would become useless
+    assert old != 42
+
+    try:
+        qdbd_connection.options().set_connection_per_address_soft_limit(42)
+        assert qdbd_connection.options().get_connection_per_address_soft_limit() == 42
+    finally:
+        qdbd_connection.options().set_connection_per_address_soft_limit(old)
+
+
 def test_compression_none(qdbd_connection):
     qdbd_connection.options().set_compression(quasardb.Options.Compression.Disabled)
 
