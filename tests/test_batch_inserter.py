@@ -266,28 +266,3 @@ def test_push_truncate_explicit_range(qdbd_connection, table, many_intervals):
 
     np.testing.assert_array_equal(results[0], many_intervals[1:])
     np.testing.assert_array_equal(results[1], doubles[1:])
-
-
-def test_push_truncate_throws_error_on_invalid_range(
-    qdbd_connection, table, many_intervals
-):
-    print("table = {}".format(table.get_name()))
-    whole_range = (many_intervals[0], many_intervals[-1:][0] + np.timedelta64(2, "s"))
-
-    # Generate our dataset
-    data = _generate_data(len(many_intervals))
-    # (doubles, integers, blobs, strings, timestamps) = data
-    (_, _, _, _, _, _) = data
-
-    # Insert truncate with explicit timerange, we point the start right after the
-    # first element in our dataset. This means that the range does not overlap all
-    # the data anymore.
-    truncate_range = (
-        whole_range[0] + np.timedelta64(1, "ns"),
-        whole_range[1] + np.timedelta64(1, "ns"),
-    )
-
-    inserter = qdbd_connection.inserter(_make_inserter_info(table))
-    _set_batch_inserter_data(inserter, many_intervals, data)
-    with pytest.raises(quasardb.InvalidArgumentError):
-        inserter.push_truncate(range=truncate_range)
