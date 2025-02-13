@@ -1,4 +1,5 @@
 #include "properties.hpp"
+#include "version.hpp"
 #include <qdb/properties.h>
 #include "detail/qdb_resource.hpp"
 
@@ -36,6 +37,10 @@ void properties::remove(std::string const & key)
 void properties::clear()
 {
     qdb::qdb_throw_if_error(*handle_, qdb_user_properties_remove_all(*handle_));
+
+    // Make sure to still always set the default properties
+    put("api", "python");
+    put("api_version", qdb::api_version);
 }
 
 }; // namespace qdb
