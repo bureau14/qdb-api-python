@@ -261,9 +261,8 @@ static inline void register_options(Module & m)
     py::class_<qdb::options> o(m, "Options"); //
 
     // None is reserved keyword in Python
-    py::enum_<qdb_compression_t>{o, "Compression", py::arithmetic(), "Compression type"} //
-        .value("Disabled", qdb_comp_none)                                                //
-        .value("Fast", qdb_comp_fast)                                                    //
+    py::enum_<qdb_compression_t>{o, "Compression", py::arithmetic(), "Compression mode"} //
+        .value("None", qdb_comp_none)                                                    //
         .value("Best", qdb_comp_best)                                                    //
         .value("Balanced", qdb_comp_balanced);                                           //
 
