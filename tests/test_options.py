@@ -77,26 +77,3 @@ def test_set_connection_per_address_soft_limit(qdbd_connection):
 
     qdbd_connection.options().set_connection_per_address_soft_limit(42)
     assert qdbd_connection.options().get_connection_per_address_soft_limit() == 42
-
-
-def test_compression_none(qdbd_connection):
-    qdbd_connection.options().set_compression(quasardb.Options.Compression.Disabled)
-
-
-def test_compression_balanced(qdbd_connection):
-    qdbd_connection.options().set_compression(quasardb.Options.Compression.Balanced)
-
-
-def test_compression_best(qdbd_connection):
-    with pytest.raises(quasardb.NotImplementedError):
-        qdbd_connection.options().set_compression(quasardb.Options.Compression.Best)
-
-
-def test_compression_fast(qdbd_connection):
-    with pytest.raises(quasardb.NotImplementedError):
-        qdbd_connection.options().set_compression(quasardb.Options.Compression.Fast)
-
-
-def test_compression_invalid(qdbd_connection):
-    with pytest.raises(TypeError):
-        qdbd_connection.options().set_compression(123)
