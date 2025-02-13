@@ -637,7 +637,7 @@ def write_arrays(
     deduplication_mode="drop",
     infer_types=True,
     writer=None,
-    write_through=False,
+    write_through=True,
     retries=3,
     # We accept additional kwargs that will be passed through the writer.push() methods
     **kwargs,
