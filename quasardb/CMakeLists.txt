@@ -365,6 +365,7 @@ set(QDB_FILES
   traits.hpp
   utils.cpp
   utils.hpp
+  version.hpp
   writer.hpp
   detail/invoke.hpp
   detail/retry.hpp

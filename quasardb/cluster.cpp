@@ -44,6 +44,9 @@ cluster::cluster(const std::string & uri,
         options().set_encryption(qdb_crypt_aegis_256);
     }
 
+    // Sets the default properties
+    properties().clear();
+
     // HACKS(leon): we need to ensure there is always one callback active
     //              for qdb. Callbacks can be lost when the last active session
     //              gets closed. As such, the most pragmatic place to 'check'
