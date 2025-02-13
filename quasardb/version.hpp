@@ -35,6 +35,9 @@
 namespace qdb
 {
 
-constexpr std::string api_version = QDB_PY_VERSION;
+static inline constexpr std::string api_version()
+{
+    return QDB_PY_VERSION;
+}
 
 } // namespace qdb

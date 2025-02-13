@@ -40,7 +40,7 @@ void properties::clear()
 
     // Make sure to still always set the default properties
     put("api", "python");
-    put("api_version", qdb::api_version);
+    put("api_version", qdb::api_version());
 }
 
 }; // namespace qdb
