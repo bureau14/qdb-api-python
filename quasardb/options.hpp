@@ -280,7 +280,6 @@ static inline void register_options(Module & m)
         .def("set_stabilization_max_wait", &qdb::options::set_stabilization_max_wait)     //
         .def("get_stabilization_max_wait", &qdb::options::get_stabilization_max_wait)     //
         .def("set_max_cardinality", &qdb::options::set_max_cardinality)                   //
-        .def("set_compression", &qdb::options::set_compression)                           //
         .def("set_encryption", &qdb::options::set_encryption)                             //
         .def("set_cluster_public_key", &qdb::options::set_cluster_public_key)             //
         .def("set_user_credentials", &qdb::options::set_user_credentials)                 //
