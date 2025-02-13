@@ -492,11 +492,8 @@ struct batch_truncate_ranges
 
             auto range_ = staged_table.time_range();
 
-            py::print("1 before");
-            py::tuple x = convert::value<qdb_ts_range_t, py::tuple>(range_);
-            py::print("2 middle");
+            py::tuple x      = convert::value<qdb_ts_range_t, py::tuple>(range_);
             kwargs[kw_range] = x;
-            py::print("3 after");
         }
 
         return kwargs;
