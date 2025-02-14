@@ -96,3 +96,50 @@ This tells you the currently installed version of the Python module, and the Qua
 ## Getting started
 
 For instructions on how to use this Python module to interact with a QuasarDB cluster, please read our [tutorial](https://doc.quasardb.net/master/user-guide/api/python.html), you can also find the [python reference](https://doc.quasardb.net/master/pydoc/quasardb.quasardb.html).
+
+## How to build
+
+Prerequisite
+* ninja
+* g++ or clang++ that supports C++20
+
+
+Extract Quasar C API to qdb/
+```
+mkdir qdb
+cd qdb
+cp <c-api.zst> .
+tar xf <c-api.zst>
+cd ..
+```
+
+Set up a virtual environment
+```
+python3 -m venv .env
+source .env/bin/activate
+python3 -m pip install -r dev-requirements.txt
+```
+
+Export environment variables
+```
+export QDB_TESTS_ENABLED=ON
+export CMAKE_GENERATOR="Ninja"
+export CMAKE_C_COMPILER=<path_to_gcc_or_clang>
+export CMKAE_CXX_COMPILER=<path_to_g++_or_clang++>
+export CMAKE_BUILD_TYPE="Release"
+```
+
+Build a wheel package
+```
+python3 -m build -w
+```
+
+Install Quasar Python API
+```
+python3 -m pip install ./dist/<python_whl>
+```
+
+Run tests
+```
+python3 -m pytest ./<test_file> -s
+```
