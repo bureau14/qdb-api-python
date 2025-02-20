@@ -262,13 +262,13 @@ static inline void register_options(Module & m)
 
     // None is reserved keyword in Python
     py::enum_<qdb_compression_t>{o, "Compression", py::arithmetic(), "Compression mode"} //
-        .value("None", qdb_comp_none)                                                    //
+        .value("Disabled", qdb_comp_none)                                                //
         .value("Best", qdb_comp_best)                                                    //
         .value("Balanced", qdb_comp_balanced);                                           //
 
-    py::enum_<qdb_encryption_t>{o, "Encryption", py::arithmetic(), "Encryption type"} //
-        .value("Disabled", qdb_crypt_none)                                            //
-        .value("AES256GCM", qdb_crypt_aes_gcm_256);                                   //
+    py::enum_<qdb_encryption_t>{o, "Encryption", py::arithmetic(), "Encryption type"}    //
+        .value("Disabled", qdb_crypt_none)                                               //
+        .value("AES256GCM", qdb_crypt_aes_gcm_256);                                      //
 
     o.def(py::init<qdb::handle_ptr>())                                                    //
         .def("set_timeout", &qdb::options::set_timeout)                                   //
