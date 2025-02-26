@@ -57,12 +57,6 @@
           <option name="take-successful-builds-only" value="true" />
         </options>
       </depend-on>
-      <depend-on sourceBuildTypeId="Api_Python_Debug_Linux_X8664Core2_Python37">
-        <options>
-          <option name="take-started-build-with-same-revisions" value="true" />
-          <option name="take-successful-builds-only" value="true" />
-        </options>
-      </depend-on>
       <depend-on sourceBuildTypeId="Api_Python_Debug_Linux_X8664Core2_Python38">
         <options>
           <option name="take-started-build-with-same-revisions" value="true" />
@@ -91,3 +85,4 @@
     <cleanup />
   </settings>
 </build-type>
+
