@@ -18,6 +18,7 @@ fi
 
 ${VENV_PYTHON} -m pip install -r dev-requirements.txt
 ${VENV_PYTHON} -m pip install --no-deps --force-reinstall dist/quasardb-*manylinux*.whl
+${VENV_PYTHON} -m pip install --upgrade pydoc3
 
 
 # To avoid conflicts with `quasardb` directory and `import quasardb`
