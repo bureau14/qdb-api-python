@@ -142,7 +142,7 @@ else
 fi
 
 
-${VENV_PYTHON} -m pip install -r dev-requirements.txt
+${VENV_PYTHON} -m pip install --upgrade -r dev-requirements.txt
 
 export QDB_TESTS_ENABLED=ON
 ${VENV_PYTHON} -m build -w
