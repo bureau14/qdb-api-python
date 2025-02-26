@@ -21,7 +21,7 @@ pandas >= 2.1.2; python_version > '3.9'
 build
 cmake
 ninja
-setuptools
+setuptools >= 61
 wheel
 
 pytest
