@@ -31,10 +31,6 @@
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="*" />
       </dependency>
-      <dependency id="python37" sourceBuildTypeId="Api_Python_Debug_Linux_X8664Core2_Python37" cleanDestination="false">
-        <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
-        <artifact sourcePath="*" />
-      </dependency>
       <dependency id="python38" sourceBuildTypeId="Api_Python_Debug_Linux_X8664Core2_Python38" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="*" />
