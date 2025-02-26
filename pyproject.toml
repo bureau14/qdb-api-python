@@ -11,7 +11,7 @@ extend-exclude = '''
 
 [build-system]
 requires = [
-    "setuptools>=47",
+    "setuptools>=61",
     "wheel",
     "ninja",
     "cmake>=3.9.4",
