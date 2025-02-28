@@ -36,5 +36,6 @@ namespace qdb
 {
 
 static std::string const api_version{QDB_PY_VERSION};
+static std::string const git_hash{QDB_GIT_HASH};
 
 } // namespace qdb
