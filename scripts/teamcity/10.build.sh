@@ -4,6 +4,7 @@ SCRIPT_DIR="$(cd "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 
 source ${SCRIPT_DIR}/00.common.sh
 
+git config --global --add safe.directory '*'
 
 # No more errors should occur after here
 set -e -u -x

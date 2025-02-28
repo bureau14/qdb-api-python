@@ -93,6 +93,24 @@ endif()
 
 ###
 #
+# Discover qdb-api-python git commit hash we use as version
+#
+###
+find_package(Git)
+
+if(GIT_FOUND)
+  execute_process(
+    COMMAND ${GIT_EXECUTABLE} log -1 "--format=format:%H"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE QDB_GIT_HASH)
+else()
+  message(FATAL_ERROR "Git not installed, can't find git commit hash")
+endif()
+
+
+
+###
+#
 # High-level compiler/OS-independent cmake options
 #
 ###
@@ -409,7 +427,7 @@ pybind11_add_module(
   ${QDB_FILES}
   ${QDB_TEST_FILES})
 
-target_compile_definitions(quasardb PUBLIC QDB_PY_VERSION="${QDB_PY_VERSION}")
+target_compile_definitions(quasardb PUBLIC QDB_PY_VERSION="${QDB_PY_VERSION}" QDB_GIT_HASH="${QDB_GIT_HASH}")
 if(QDB_LINK_STATIC_LIB)
   add_definitions(-DQDB_API_STATIC_LINK=1)
 
