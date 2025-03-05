@@ -10,12 +10,6 @@
     <vcs-settings />
     <requirements />
     <build-triggers />
-    <artifact-dependencies>
-      <dependency id="ARTIFACT_DEPENDENCY_65" sourceBuildTypeId="Quasardb_Artifacts_Release_Linux_X8664Core2_Composite" cleanDestination="false">
-        <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
-        <artifact sourcePath="*-linux-64bit-core2-c-api.tar.gz!**/*=&gt;qdb&#xD;&#xA;*-linux-64bit-core2-utils.tar.gz!**/*=&gt;qdb&#xD;&#xA;*-linux-64bit-core2-server.tar.gz!**/*=&gt;qdb" />
-      </dependency>
-    </artifact-dependencies>
     <cleanup />
   </settings>
 </build-type>
