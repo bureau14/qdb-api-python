@@ -3,7 +3,7 @@
   <name>Build</name>
   <settings>
     <options>
-      <option name="artifactRules" value="dist/quasardb*.egg&#xA;dist/quasardb*.whl" />
+      <option name="artifactRules" value="dist/quasardb*.egg&#xA;dist/quasardb*.whl&#xA;insecure/log =&gt; logs/insecure&#xA;secure/log =&gt; logs/secure" />
       <option name="executionTimeoutMin" value="120" />
       <option name="showDependenciesChanges" value="true" />
     </options>
@@ -117,3 +117,4 @@ export QDB_TESTS_ENABLED=OFF]]></param>
     <cleanup />
   </settings>
 </template>
+
