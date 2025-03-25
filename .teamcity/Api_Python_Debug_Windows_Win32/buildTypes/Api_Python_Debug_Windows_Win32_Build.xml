@@ -3,7 +3,7 @@
   <name>Build</name>
   <settings>
     <options>
-      <option name="artifactRules" value="dist/quasardb*.egg&#xA;dist/quasardb*.whl" />
+      <option name="artifactRules" value="dist/quasardb*.egg&#xA;dist/quasardb*.whl&#xA;insecure/log =&gt; logs/insecure&#xA;secure/log =&gt; logs/secure" />
       <option name="cleanBuild" value="true" />
       <option name="executionTimeoutMin" value="60" />
       <option name="showDependenciesChanges" value="true" />
@@ -88,3 +88,4 @@
     <cleanup />
   </settings>
 </template>
+
