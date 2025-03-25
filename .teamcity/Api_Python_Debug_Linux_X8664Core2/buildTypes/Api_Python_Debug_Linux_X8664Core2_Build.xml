@@ -3,7 +3,7 @@
   <name>Build</name>
   <settings>
     <options>
-      <option name="artifactRules" value="dist/quasardb-*.manylinux*.whl&#xA;dist/quasardb*.egg&#xA;dist/quasardb*.tar.gz&#xA;dist/doc.tar.gz" />
+      <option name="artifactRules" value="dist/quasardb-*.manylinux*.whl&#xA;dist/quasardb*.egg&#xA;dist/quasardb*.tar.gz&#xA;dist/doc.tar.gz&#xA;insecure/log =&gt; logs/insecure&#xA;secure/log =&gt; logs/secure" />
       <option name="cleanBuild" value="true" />
       <option name="executionTimeoutMin" value="120" />
       <option name="showDependenciesChanges" value="true" />
@@ -144,3 +144,4 @@ tar -czvf dist/doc.tar.gz doc/*]]></param>
     <cleanup />
   </settings>
 </template>
+
