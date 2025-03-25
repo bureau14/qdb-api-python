@@ -3,10 +3,13 @@
   <name>Python 3.10</name>
   <description />
   <settings ref="Api_Python_Release_Linux_X8664Core2_Build">
+    <options>
+      <option name="artifactRules" value="dist/quasardb-*.manylinux*.whl&#xA;dist/quasardb*.egg&#xA;dist/quasardb*.tar.gz&#xA;dist/doc.tar.gz&#xA;insecure/log =&gt; logs/insecure&#xA;secure/log =&gt; logs/secure" />
+    </options>
     <parameters>
       <param name="python_version" value="3.10" />
     </parameters>
-    <build-runners order="RUNNER_53, RUNNER_280, RUNNER_93, RUNNER_101, RUNNER_62, Build_documentation, RUNNER_57, RUNNER_144" />
+    <build-runners order="RUNNER_53, RUNNER_280, RUNNER_93, RUNNER_101, RUNNER_62, RUNNER_56, RUNNER_57, RUNNER_144" />
     <vcs-settings />
     <requirements />
     <build-triggers />
