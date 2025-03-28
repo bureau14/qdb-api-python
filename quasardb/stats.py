@@ -50,7 +50,7 @@ def of_node(dconn):
     """
 
     start = datetime.now()
-    raw = {k: _get_stat(dconn, k) for k in dconn.prefix_get(stats_prefix, 1000)}
+    raw = {k: _get_stat(dconn, k) for k in dconn.prefix_get(stats_prefix, 10000)}
 
     ret = {"by_uid": _by_uid(raw), "cumulative": _cumulative(raw)}
 
