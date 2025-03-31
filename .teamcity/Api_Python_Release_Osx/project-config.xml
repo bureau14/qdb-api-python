@@ -3,7 +3,6 @@
   <name>macOS</name>
   <parameters>
     <param name="env.CMAKE_CXX_COMPILER" value="%system.clang17.clang++.path%" spec="text display='normal' description='Passed as -DCMAKE_CXX_COMPILER' readOnly='true' label='C++ compiler' validationMode='not_empty'" />
-    <param name="env.CMAKE_C_COMPILER" value="%system.clang17.clang.path%" spec="text display='normal' description='Passed as -DCMAKE_CXX_COMPILER' readOnly='true' label='C++ compiler' validationMode='not_empty'" />
   </parameters>
   <cleanup />
 </project>
