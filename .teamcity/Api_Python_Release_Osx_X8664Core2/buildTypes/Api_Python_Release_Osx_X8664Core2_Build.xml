@@ -75,6 +75,7 @@ export QDB_TESTS_ENABLED=OFF]]></param>
       <equals id="RQ_10" name="teamcity.agent.jvm.os.name" value="Mac OS X" />
       <exists id="RQ_13" name="system.ninja.version" />
       <equals id="RQ_6" name="teamcity.agent.jvm.os.arch" value="%os_arch%" />
+      <ver-no-less-than id="RQ_86" name="system.appleclang.version" value="16.0.0" />
     </requirements>
     <build-triggers />
     <build-extensions>
