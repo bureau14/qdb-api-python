@@ -39,6 +39,8 @@
 #include "retry.hpp"
 #include <variant>
 #include <vector>
+#include <cctype>
+#include <algorithm>
 
 namespace qdb::detail
 {
@@ -479,6 +481,23 @@ struct batch_push_mode
         default:
             return "invalid";
         };
+    }
+    static qdb_exp_batch_push_mode_t from_string(std::string push_mode)
+    {
+	std::transform(push_mode.begin(), push_mode.end(), push_mode.begin(),
+		       [](unsigned char c){ return std::tolower(c); });
+
+	if (push_mode == "transactional") {
+	    return qdb_exp_batch_push_transactional;
+	} else if (push_mode == "fast") {
+	    return qdb_exp_batch_push_fast;
+	} else if (push_mode == "async") {
+	    return qdb_exp_batch_push_async;
+	} else if (push_mode == "truncate") {
+	    return qdb_exp_batch_push_truncate;
+	} else {
+	    throw qdb::invalid_argument_exception{"Invalid push mode"};
+	}
     }
 };
 

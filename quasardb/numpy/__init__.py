@@ -29,6 +29,7 @@
 
 import logging
 import time
+import warnings
 
 import quasardb
 import quasardb.table_cache as table_cache
@@ -630,6 +631,8 @@ def write_arrays(
     *,
     dtype=None,
     index=None,
+    # Set the default mode instead of None after 'fast', '_async' and 'truncate' deprecation
+    push_mode=None,
     _async=False,
     fast=False,
     truncate=False,
@@ -705,13 +708,27 @@ def write_arrays(
       Defaults to True. For production use cases where you want to avoid implicit conversions,
       we recommend setting this to False.
 
+    push_mode: optional str or quasardb.WriterPushMode
+      The mode used for inserting data. Can be either a string or a `WriterPushMode` enumeration item.
+      Available options:
+      * `'truncate'`: Truncate (also referred to as upsert) the data in-place. Will detect time range
+        to truncate from the time range inside the dataframe.
+      * `'async'`: Uses asynchronous insertion API where commits are buffered server-side and
+        acknowledged before they are written to disk. If you insert to the same table from
+        multiple processes, setting this to True may improve performance.
+      * `'fast'`: Whether to use 'fast push'. If you incrementally add small batches of data to table,
+        you may see better performance if you set this to True.
+      * `'transactional'`: Ensures full transactional consistency.
+
     truncate: optional bool
+      **DEPRECATED** – Use `push_mode="truncate"` instead.
       Truncate (also referred to as upsert) the data in-place. Will detect time range to truncate
       from the time range inside the dataframe.
 
       Defaults to False.
 
     _async: optional bool
+      **DEPRECATED** – Use `push_mode="async"` instead.
       If true, uses asynchronous insertion API where commits are buffered server-side and
       acknowledged before they are written to disk. If you insert to the same table from
       multiple processes, setting this to True may improve performance.
@@ -719,6 +736,7 @@ def write_arrays(
       Defaults to False.
 
     fast: optional bool
+      **DEPRECATED** – Use `push_mode="fast"` instead.
       Whether to use 'fast push'. If you incrementally add small batches of data to table,
       you may see better performance if you set this to True.
 
@@ -747,6 +765,7 @@ def write_arrays(
 
     if table:
         logger.debug("table explicitly provided, assuming single-table write")
+        kwargs["deprecation_stacklevel"] = 3
         return write_arrays(
             [(table, data)],
             cluster,
@@ -762,9 +781,11 @@ def write_arrays(
             write_through=write_through,
             writer=writer,
             retries=retries,
+            push_mode=push_mode,
             **kwargs,
         )
 
+    deprecation_stacklevel = kwargs.pop("deprecation_stacklevel", 2)
     ret = []
 
     # Create batch column info from dataframe
@@ -838,20 +859,67 @@ def write_arrays(
     push_kwargs["write_through"] = write_through
     push_kwargs["retries"] = retries
 
+    def deprecation_warning(kwarg, mode):
+        warnings.warn(
+            f"The argument '{kwarg}' is deprecated and will be removed in a future version. "
+            f"Please use push_mode='{mode}' instead.",
+            DeprecationWarning,
+            stacklevel=deprecation_stacklevel + 1,
+        )
+
+    if push_mode:
+        if isinstance(push_mode, str):
+            push_kwargs["push_mode"] = quasardb.WriterPushMode.from_string(push_mode)
+        elif isinstance(push_mode, quasardb.WriterPushMode):
+            push_kwargs["push_mode"] = push_mode
+        else:
+            raise quasardb.quasardb.InvalidArgumentError(
+                f"Invalid 'push_mode' type, "
+                f"expected: {str} or {quasardb.WriterPushMode}, got: {type(push_mode)}"
+            )
+        if push_kwargs["push_mode"] == quasardb.WriterPushMode.Truncate and isinstance(
+            truncate, tuple
+        ):
+            push_kwargs["range"] = truncate
+    else:
+        if sum(1 for it in [fast, truncate, _async] if it) > 1:
+            raise quasardb.quasardb.InvalidArgumentError(
+                "The arguments 'fast', '_async', and 'truncate' are mutually exclusive. Please set only one."
+            )
+
+        if fast is True:
+            deprecation_warning("fast", "fast")
+            push_kwargs["push_mode"] = quasardb.WriterPushMode.Fast
+
+        elif truncate is True:
+            deprecation_warning("truncate", "truncate")
+            push_kwargs["push_mode"] = quasardb.WriterPushMode.Truncate
+
+        elif isinstance(truncate, tuple):
+            warnings.warn(
+                "Using 'truncate' as a tuple to define the push mode is deprecated."
+                "Please explicitly set push_mode='truncate'.",
+                DeprecationWarning,
+                stacklevel=deprecation_stacklevel,
+            )
+            push_kwargs["range"] = truncate
+            push_kwargs["push_mode"] = quasardb.WriterPushMode.Truncate
+
+        elif _async is True:
+            deprecation_warning("_async", "async")
+            push_kwargs["push_mode"] = quasardb.WriterPushMode.Async
+
+        else:
+            warnings.warn(
+                "Using the default push mode will be deprecated. "
+                "Please explicitly set push_mode='transactional'.",
+                DeprecationWarning,
+                stacklevel=deprecation_stacklevel,
+            )
+            push_kwargs["push_mode"] = quasardb.WriterPushMode.Transactional
+
     logger.debug("pushing %d rows", n_rows)
     start = time.time()
-
-    if fast is True:
-        push_kwargs["push_mode"] = quasardb.WriterPushMode.Fast
-    elif truncate is True:
-        push_kwargs["push_mode"] = quasardb.WriterPushMode.Truncate
-    elif isinstance(truncate, tuple):
-        push_kwargs["push_mode"] = quasardb.WriterPushMode.Truncate
-        push_kwargs["range"] = truncate
-    elif _async is True:
-        push_kwargs["push_mode"] = quasardb.WriterPushMode.Async
-    else:
-        push_kwargs["push_mode"] = quasardb.WriterPushMode.Transactional
 
     writer.push(push_data, **push_kwargs)
 
