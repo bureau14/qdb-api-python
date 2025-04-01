@@ -84,7 +84,7 @@ export QDB_TESTS_ENABLED=OFF]]></param>
       <ver-no-less-than id="RQ_26" name="system.cmake.version" value="2.8" />
       <equals id="RQ_46" name="teamcity.agent.jvm.os.name" value="Mac OS X" />
       <equals id="RQ_47" name="teamcity.agent.jvm.os.arch" value="x86_64" />
-      <ver-more-than id="RQ_8" name="system.appleclang.version" value="16" />
+      <ver-more-than id="RQ_8" name="system.appleclang.version" value="15" />
     </requirements>
     <build-extensions>
       <extension id="BUILD_EXT_3" type="xml-report-plugin">
