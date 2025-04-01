@@ -10,7 +10,7 @@
       <param name="python_executable" value="%system.python311.path%" />
     </parameters>
     <requirements>
-      <ver-more-than id="RQ_8" name="system.appleclang.version" value="16.0.0" />
+      <ver-more-than id="RQ_8" name="system.appleclang.version" value="16" />
     </requirements>
   </settings>
 </build-type>
