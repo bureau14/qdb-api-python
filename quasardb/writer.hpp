@@ -328,8 +328,7 @@ static void register_writer(py::module_ & m)
         .value("Transactional", qdb_exp_batch_push_transactional)                            //
         .value("Fast", qdb_exp_batch_push_fast)                                              //
         .value("Truncate", qdb_exp_batch_push_truncate)                                      //
-        .value("Async", qdb_exp_batch_push_async)                                            //
-        .def_static("from_string", &detail::batch_push_mode::from_string);                   //
+        .value("Async", qdb_exp_batch_push_async);                                           //
 
     // And the actual pinned writer
     auto writer_c = py::class_<qdb::writer>{m, "Writer"};

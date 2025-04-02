@@ -483,6 +483,31 @@ def _coerce_retries(retries) -> quasardb.RetryOptions:
         )
 
 
+def _kwarg_deprecation_warning(old_kwarg, new_kwargs, new_values, stacklevel):
+    new_declaration = ", ".join(
+        f"{new_kwarg}={new_value}"
+        for new_kwarg, new_value in zip(new_kwargs, new_values)
+    )
+    warnings.warn(
+        f"The argument '{old_kwarg}' is deprecated and will be removed in a future version. "
+        f"Please use '{new_declaration}' instead.",
+        DeprecationWarning,
+        stacklevel=stacklevel + 1,
+    )
+
+
+def _check_correct_type(var, var_name, target_type, raise_error=True, allow_none=True):
+    if allow_none and var is None:
+        return True
+    if not isinstance(var, target_type):
+        if raise_error:
+            raise quasardb.quasardb.InvalidArgumentError(
+                f"Invalid '{var_name}' type, expected: {target_type}, got: {type(var)}"
+            )
+        return False
+    return True
+
+
 def ensure_ma(xs, dtype=None):
     if isinstance(dtype, list):
         assert isinstance(xs, list) == True
@@ -631,11 +656,11 @@ def write_arrays(
     *,
     dtype=None,
     index=None,
-    # Set the default mode instead of None after 'fast', '_async' and 'truncate' deprecation
     push_mode=None,
     _async=False,
     fast=False,
     truncate=False,
+    truncate_range=None,
     deduplicate=False,
     deduplication_mode="drop",
     infer_types=True,
@@ -708,17 +733,19 @@ def write_arrays(
       Defaults to True. For production use cases where you want to avoid implicit conversions,
       we recommend setting this to False.
 
-    push_mode: optional str or quasardb.WriterPushMode
+    push_mode: optional quasardb.WriterPushMode
       The mode used for inserting data. Can be either a string or a `WriterPushMode` enumeration item.
       Available options:
-      * `'truncate'`: Truncate (also referred to as upsert) the data in-place. Will detect time range
+      * `Truncate`: Truncate (also referred to as upsert) the data in-place. Will detect time range
         to truncate from the time range inside the dataframe.
-      * `'async'`: Uses asynchronous insertion API where commits are buffered server-side and
+      * `Async`: Uses asynchronous insertion API where commits are buffered server-side and
         acknowledged before they are written to disk. If you insert to the same table from
         multiple processes, setting this to True may improve performance.
-      * `'fast'`: Whether to use 'fast push'. If you incrementally add small batches of data to table,
+      * `Fast`: Whether to use 'fast push'. If you incrementally add small batches of data to table,
         you may see better performance if you set this to True.
-      * `'transactional'`: Ensures full transactional consistency.
+      * `Transactional`: Ensures full transactional consistency.
+
+      Defaults to `Transactional`.
 
     truncate: optional bool
       **DEPRECATED** – Use `push_mode="truncate"` instead.
@@ -726,6 +753,9 @@ def write_arrays(
       from the time range inside the dataframe.
 
       Defaults to False.
+
+    truncate_range: optional tuple
+      Time range to truncate from the time range inside the dataframe.
 
     _async: optional bool
       **DEPRECATED** – Use `push_mode="async"` instead.
@@ -765,35 +795,53 @@ def write_arrays(
 
     if table:
         logger.debug("table explicitly provided, assuming single-table write")
-        kwargs["deprecation_stacklevel"] = 3
-        return write_arrays(
-            [(table, data)],
-            cluster,
-            table=None,
-            dtype=dtype,
-            index=index,
-            _async=_async,
-            fast=fast,
-            truncate=truncate,
-            deduplicate=deduplicate,
-            deduplication_mode=deduplication_mode,
-            infer_types=infer_types,
-            write_through=write_through,
-            writer=writer,
-            retries=retries,
-            push_mode=push_mode,
-            **kwargs,
+        data = [(table, data)]
+        table = None
+
+    _check_correct_type(push_mode, "push_mode", target_type=quasardb.WriterPushMode)
+
+    if isinstance(truncate, tuple):
+        # Especial case, truncate might be a tuple indicating the range.
+        truncate = False
+        truncate_range = truncate
+        push_mode = quasardb.WriterPushMode.Truncate
+        _kwarg_deprecation_warning(
+            "truncate", ["push_mode", "truncate_range"], [push_mode, "<RANGE>"], 2
         )
 
-    deprecation_stacklevel = kwargs.pop("deprecation_stacklevel", 2)
-    ret = []
+    deprecated_kwargs = {
+        "fast": quasardb.WriterPushMode.Fast,
+        "truncate": quasardb.WriterPushMode.Truncate,
+        "_async": quasardb.WriterPushMode.Async,
+    }
+    selected_push_mode, selected_kwarg = None, None
+
+    for kwarg, mode in deprecated_kwargs.items():
+        kwarg_value = locals()[kwarg]
+        _check_correct_type(kwarg_value, kwarg, target_type=bool, allow_none=False)
+
+        if kwarg_value:
+            if push_mode and push_mode != mode:
+                raise quasardb.quasardb.InvalidArgumentError(
+                    f"Found '{kwarg}=True' in kwargs, but push_mode={push_mode} is already set"
+                )
+            if selected_push_mode:
+                raise quasardb.quasardb.InvalidArgumentError(
+                    f"Found '{kwarg}=True' in kwargs, but '{selected_kwarg}' is already set. "
+                    "Please set only one, or use 'push_mode' instead"
+                )
+            selected_push_mode, selected_kwarg = mode, kwarg
+            _kwarg_deprecation_warning(kwarg, ["push_mode"], [mode], 2)
+
+    if not push_mode:
+        push_mode = selected_push_mode or quasardb.WriterPushMode.Transactional
 
     # Create batch column info from dataframe
     if writer is None:
         writer = cluster.writer()
 
+    ret = []
     n_rows = 0
-
     push_data = quasardb.WriterData()
 
     for table, data_ in data:
@@ -858,65 +906,9 @@ def write_arrays(
     push_kwargs["deduplication_mode"] = deduplication_mode
     push_kwargs["write_through"] = write_through
     push_kwargs["retries"] = retries
-
-    def deprecation_warning(kwarg, mode):
-        warnings.warn(
-            f"The argument '{kwarg}' is deprecated and will be removed in a future version. "
-            f"Please use push_mode='{mode}' instead.",
-            DeprecationWarning,
-            stacklevel=deprecation_stacklevel + 1,
-        )
-
-    if push_mode:
-        if isinstance(push_mode, str):
-            push_kwargs["push_mode"] = quasardb.WriterPushMode.from_string(push_mode)
-        elif isinstance(push_mode, quasardb.WriterPushMode):
-            push_kwargs["push_mode"] = push_mode
-        else:
-            raise quasardb.quasardb.InvalidArgumentError(
-                f"Invalid 'push_mode' type, "
-                f"expected: {str} or {quasardb.WriterPushMode}, got: {type(push_mode)}"
-            )
-        if push_kwargs["push_mode"] == quasardb.WriterPushMode.Truncate and isinstance(
-            truncate, tuple
-        ):
-            push_kwargs["range"] = truncate
-    else:
-        if sum(1 for it in [fast, truncate, _async] if it) > 1:
-            raise quasardb.quasardb.InvalidArgumentError(
-                "The arguments 'fast', '_async', and 'truncate' are mutually exclusive. Please set only one."
-            )
-
-        if fast is True:
-            deprecation_warning("fast", "fast")
-            push_kwargs["push_mode"] = quasardb.WriterPushMode.Fast
-
-        elif truncate is True:
-            deprecation_warning("truncate", "truncate")
-            push_kwargs["push_mode"] = quasardb.WriterPushMode.Truncate
-
-        elif isinstance(truncate, tuple):
-            warnings.warn(
-                "Using 'truncate' as a tuple to define the push mode is deprecated."
-                "Please explicitly set push_mode='truncate'.",
-                DeprecationWarning,
-                stacklevel=deprecation_stacklevel,
-            )
-            push_kwargs["range"] = truncate
-            push_kwargs["push_mode"] = quasardb.WriterPushMode.Truncate
-
-        elif _async is True:
-            deprecation_warning("_async", "async")
-            push_kwargs["push_mode"] = quasardb.WriterPushMode.Async
-
-        else:
-            warnings.warn(
-                "Using the default push mode will be deprecated. "
-                "Please explicitly set push_mode='transactional'.",
-                DeprecationWarning,
-                stacklevel=deprecation_stacklevel,
-            )
-            push_kwargs["push_mode"] = quasardb.WriterPushMode.Transactional
+    push_kwargs["push_mode"] = push_mode
+    if truncate_range:
+        push_kwargs["range"] = truncate_range
 
     logger.debug("pushing %d rows", n_rows)
     start = time.time()
