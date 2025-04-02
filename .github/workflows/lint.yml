@@ -26,7 +26,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r cloud/github_actions/requirements.txt
+          pip install -r scripts/github_actions/requirements.txt
 
       - name: Run black
         id: run_black
