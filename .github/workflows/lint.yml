@@ -1,0 +1,42 @@
+name: Lint
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '**.py'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - '**.py'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Setup Python version
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          pip install -r cloud/github_actions/requirements.txt
+
+      - name: Run black
+        id: run_black
+        run: |
+          black --check --verbose .
+
+      # - name: Run post-lint actions
+      #   if: ${{ !cancelled() }}
+      #   env:
+      #     SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      #     SLACK_BOT_CHANNEL: ${{ vars.SLACK_BOT_CHANNEL }}
+      #   run: |
+      #     python scripts/github_actions/post_lint.py ${{ steps.run_black.outcome }}
