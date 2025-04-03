@@ -124,7 +124,7 @@ def test_properties_in_log(
     # XXX(leon): do we even need to write this at all? It doesn't appear that the test
     # even relies on this data being present?
     (_, _, df, table) = df_with_table
-    qdbpd_write_fn(df, qdbd_connection, table, fast=True)
+    qdbpd_write_fn(df, qdbd_connection, table, push_mode=quasardb.WriterPushMode.Fast)
 
     qdbd_connection.properties().clear()
     qdbd_connection.properties().put(random_identifier, random_string)

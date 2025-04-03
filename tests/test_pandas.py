@@ -211,7 +211,12 @@ def test_multiple_dataframe(
         input_dfs.append(df)
         tables.append(table)
 
-    qdbpd_writes_fn(payload, qdbd_connection, infer_types=True, fast=True)
+    qdbpd_writes_fn(
+        payload,
+        qdbd_connection,
+        infer_types=True,
+        push_mode=quasardb.WriterPushMode.Fast,
+    )
 
     xs = list(
         qdbpd.stream_dataframes(qdbd_connection, tables, batch_size=reader_batch_size)
@@ -293,7 +298,7 @@ def test_write_dataframe_push_fast(qdbpd_write_fn, qdbd_connection, df_with_tabl
     (_, _, df1, table) = df_with_table
 
     # Ensures that we can do a full-circle write and read of a dataframe
-    qdbpd_write_fn(df1, qdbd_connection, table, fast=True)
+    qdbpd_write_fn(df1, qdbd_connection, table, push_mode=quasardb.WriterPushMode.Fast)
 
     df2 = qdbpd.read_dataframe(qdbd_connection, table)
 
@@ -304,8 +309,12 @@ def test_write_dataframe_push_truncate(qdbpd_write_fn, qdbd_connection, df_with_
     (_, _, df1, table) = df_with_table
 
     # Ensures that we can do a full-circle write and read of a dataframe
-    qdbpd_write_fn(df1, qdbd_connection, table, truncate=True)
-    qdbpd_write_fn(df1, qdbd_connection, table, truncate=True)
+    qdbpd_write_fn(
+        df1, qdbd_connection, table, push_mode=quasardb.WriterPushMode.Truncate
+    )
+    qdbpd_write_fn(
+        df1, qdbd_connection, table, push_mode=quasardb.WriterPushMode.Truncate
+    )
 
     df2 = qdbpd.read_dataframe(qdbd_connection, table)
 
@@ -523,7 +532,13 @@ def test_regression_sc11337(
 
     df1[column_name][4] = pd.NA
 
-    qdbpd_write_fn(df1, qdbd_connection, table.get_name(), fast=True, infer_types=True)
+    qdbpd_write_fn(
+        df1,
+        qdbd_connection,
+        table.get_name(),
+        push_mode=quasardb.WriterPushMode.Fast,
+        infer_types=True,
+    )
 
     df2 = qdbpd.read_dataframe(qdbd_connection, table, column_names=[column_name])
 

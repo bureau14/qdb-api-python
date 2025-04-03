@@ -802,6 +802,7 @@ def write_arrays(
         table = None
 
     _type_check(push_mode, "push_mode", target_type=quasardb.WriterPushMode)
+    deprecation_stacklevel = kwargs.pop("deprecation_stacklevel", 2)
 
     if isinstance(truncate, tuple):
         # Especial case, truncate might be a tuple indicating the range.
@@ -810,7 +811,7 @@ def write_arrays(
             truncate,
             ["push_mode", "truncate_range"],
             [quasardb.WriterPushMode.Truncate, truncate],
-            2,
+            deprecation_stacklevel,
         )
         truncate_range = truncate_range or truncate
         truncate = True
@@ -835,7 +836,9 @@ def write_arrays(
                 )
             push_mode = mode
             if deprecated:
-                _kwarg_deprecation_warning(kwarg, kwarg_value, ["push_mode"], [mode], 2)
+                _kwarg_deprecation_warning(
+                    kwarg, kwarg_value, ["push_mode"], [mode], deprecation_stacklevel
+                )
 
     if not push_mode:
         push_mode = quasardb.WriterPushMode.Transactional
