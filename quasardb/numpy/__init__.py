@@ -802,7 +802,7 @@ def write_arrays(
         table = None
 
     _type_check(push_mode, "push_mode", target_type=quasardb.WriterPushMode)
-    deprecation_stacklevel = kwargs.pop("deprecation_stacklevel", 2)
+    deprecation_stacklevel = kwargs.pop("deprecation_stacklevel", 1) + 1
 
     if isinstance(truncate, tuple):
         # Especial case, truncate might be a tuple indicating the range.
