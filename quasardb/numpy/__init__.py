@@ -792,7 +792,7 @@ def write_arrays(
             #
             # This ensures that the user can call the same function multiple times without
             # side-effects.
-            data_  = data_.copy()
+            data_ = data_.copy()
             index_ = data_.pop("$timestamp")
             assert "$timestamp" not in data_
         elif index is not None:
