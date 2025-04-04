@@ -89,7 +89,7 @@ def test_arrays_read_write_native_dtypes(array_with_index_and_table, qdbd_connec
         index=index,
         dtype=dtype,
         infer_types=False,
-        truncate=True,
+        push_mode=quasardb.WriterPushMode.Truncate,
     )
 
     res = qdbnp.read_array(table, col)
@@ -133,7 +133,7 @@ def test_arrays_read_write_data_as_dict(array_with_index_and_table, qdbd_connect
         index=index,
         dtype=dtype,
         infer_types=False,
-        truncate=True,
+        push_mode=quasardb.WriterPushMode.Truncate,
     )
 
     res = qdbnp.read_array(table, col)
