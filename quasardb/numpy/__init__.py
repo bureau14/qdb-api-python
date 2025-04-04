@@ -863,6 +863,12 @@ def write_arrays(
         assert len(dtype) is len(cinfos)
 
         if index is None and isinstance(data_, dict) and "$timestamp" in data_:
+            # Create shallow copy of `data_` so that we don't modify the reference, i.e.
+            # delete keys.
+            #
+            # This ensures that the user can call the same function multiple times without
+            # side-effects.
+            data_ = data_.copy()
             index_ = data_.pop("$timestamp")
             assert "$timestamp" not in data_
         elif index is not None:
