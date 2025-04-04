@@ -419,6 +419,7 @@ def write_dataframes(dfs, cluster, *, create=False, shard_size=None, **kwargs):
 
         data_by_table.append((table, data))
 
+    kwargs["deprecation_stacklevel"] = kwargs.get("deprecation_stacklevel", 1) + 1
     return qdbnp.write_arrays(data_by_table, cluster, table=None, index=None, **kwargs)
 
 
@@ -427,6 +428,7 @@ def write_dataframe(df, cluster, table, **kwargs):
     Store a single dataframe into a table. Takes the same arguments as `write_dataframes`, except only
     a single df/table combination.
     """
+    kwargs["deprecation_stacklevel"] = kwargs.get("deprecation_stacklevel", 1) + 1
     write_dataframes([(table, df)], cluster, **kwargs)
 
 
@@ -438,6 +440,7 @@ def write_pinned_dataframe(*args, **kwargs):
         "write_pinned_dataframe is deprecated and will be removed in a future release."
     )
     logger.warn("Please use write_dataframe directly instead")
+    kwargs["deprecation_stacklevel"] = 2
     return write_dataframe(*args, **kwargs)
 
 
