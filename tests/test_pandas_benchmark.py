@@ -123,7 +123,11 @@ def test_benchmark_dataframe_query(
     # Ensures that we can do a full-circle write and read of a dataframe
     df = pandaslib.gen_df(np.datetime64("2017-01-01"), row_count, unit="s")
     qdbpd.write_pinned_dataframe(
-        df, qdbd_connection, table, fast=True, infer_types=False
+        df,
+        qdbd_connection,
+        table,
+        push_mode=quasardb.WriterPushMode.Fast,
+        infer_types=False,
     )
 
     q = 'SELECT "{}" FROM "{}"'.format(column_name, table.get_name())
