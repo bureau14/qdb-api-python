@@ -141,6 +141,60 @@ def test_arrays_read_write_data_as_dict(array_with_index_and_table, qdbd_connect
     assert_indexed_arrays_equal((index, data), res)
 
 
+@conftest.override_cdtypes("native")
+def test_provide_index_as_dict(array_with_index_and_table, qdbd_connection):
+    """
+    For convenience, we allow the `$timestamp` index also to provided as a dict
+    key.
+    """
+    (ctype, dtype, data, index, table) = array_with_index_and_table
+
+    col = table.column_id_by_index(0)
+    dict_ = {"$timestamp": index, col: data}
+
+    qdbnp.write_arrays(
+        dict_,
+        qdbd_connection,
+        table,
+        dtype=dtype,
+        infer_types=False,
+        truncate=True,
+    )
+
+    res = qdbnp.read_array(table, col)
+
+    assert_indexed_arrays_equal((index, data), res)
+
+
+@conftest.override_cdtypes("native")
+def test_provide_index_as_dict_has_no_side_effects_sc16279(
+    array_with_index_and_table, qdbd_connection
+):
+    """
+    In earlier versions of the API, we `pop`'ed the $timestamp from the provided dict without making a
+    shallow copy of the dict. This would cause re-invocations of the same function (e.g. in case of an
+    error) to not work, as the original dict had been modified.
+
+    The test below has been confirmed to trigger the original bug described in QDB-16279, and was fixed
+    afterwards.
+    """
+    (ctype, dtype, data, index, table) = array_with_index_and_table
+
+    col = table.column_id_by_index(0)
+
+    dict_ = {"$timestamp": index, col: data}
+    qdbnp.write_arrays(
+        dict_,
+        qdbd_connection,
+        table,
+        dtype=dtype,
+        infer_types=False,
+        truncate=True,
+    )
+
+    assert "$timestamp" in dict_
+
+
 ######
 #
 # Arrays tests
