@@ -141,6 +141,30 @@ def test_arrays_read_write_data_as_dict(array_with_index_and_table, qdbd_connect
     assert_indexed_arrays_equal((index, data), res)
 
 
+@conftest.override_cdtypes("native")
+def test_provide_index_as_dict(array_with_index_and_table, qdbd_connection):
+    """
+    * qdbnp.write_arrays()
+    * => pinned writer
+    * => no conversion
+    """
+    (ctype, dtype, data, index, table) = array_with_index_and_table
+
+    col = table.column_id_by_index(0)
+    qdbnp.write_arrays(
+        {"$timestamp": index, col: data},
+        qdbd_connection,
+        table,
+        dtype=dtype,
+        infer_types=False,
+        truncate=True,
+    )
+
+    res = qdbnp.read_array(table, col)
+
+    assert_indexed_arrays_equal((index, data), res)
+
+
 ######
 #
 # Arrays tests
