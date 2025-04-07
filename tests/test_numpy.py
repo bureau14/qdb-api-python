@@ -144,15 +144,16 @@ def test_arrays_read_write_data_as_dict(array_with_index_and_table, qdbd_connect
 @conftest.override_cdtypes("native")
 def test_provide_index_as_dict(array_with_index_and_table, qdbd_connection):
     """
-    * qdbnp.write_arrays()
-    * => pinned writer
-    * => no conversion
+    For convenience, we allow the `$timestamp` index also to provided as a dict
+    key.
     """
     (ctype, dtype, data, index, table) = array_with_index_and_table
 
     col = table.column_id_by_index(0)
+    dict_ = {"$timestamp": index, col: data}
+
     qdbnp.write_arrays(
-        {"$timestamp": index, col: data},
+        dict_,
         qdbd_connection,
         table,
         dtype=dtype,
