@@ -151,7 +151,7 @@ ${VENV_PYTHON} -m pip install --no-deps --force-reinstall dist/quasardb-*.whl
 
 echo "Invoking pytest"
 
-TEST_OPTS="--teamcity"
+TEST_OPTS="$@"
 if [[ ! -z ${JUNIT_XML_FILE-} ]]
 then
     TEST_OPTS+=" --junitxml=${JUNIT_XML_FILE}"
