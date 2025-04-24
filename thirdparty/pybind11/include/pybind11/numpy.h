@@ -261,7 +261,7 @@ struct npy_api {
         /**
          * End modification
          */
-
+        
         // `npy_common.h` defines the integer aliases. In order, it checks:
         // NPY_BITSOF_LONG, NPY_BITSOF_LONGLONG, NPY_BITSOF_INT, NPY_BITSOF_SHORT, NPY_BITSOF_CHAR
         // and assigns the alias to the first matching size, so we should check in this order.
@@ -343,7 +343,7 @@ struct npy_api {
     /**
      * End modification
      */
-
+  
 private:
     enum functions {
         API_PyArray_GetNDArrayCFeatureVersion = 211,
@@ -374,9 +374,10 @@ private:
          */
 
         API_PyDatetimeArrType = 215,
-    /**
-     * End modification
-     */
+        
+        /**
+         * End modification
+         */        
 
 #ifdef PYBIND11_NUMPY_1_ONLY
         API_PyArray_GetArrayParamsFromObject = 278,
@@ -419,17 +420,6 @@ private:
         DECL_NPY_API(PyArray_GetArrayParamsFromObject);
 #endif
         DECL_NPY_API(PyArray_SetBaseObject);
-
-        /**
-         * Begin modification by Leon Mergen, 2019-02-20, for PyDatetimeScalarObject
-         * support.
-         */
-
-        DECL_NPY_API(PyDatetimeArrType);
-
-        /**
-         * End modification
-         */
 
 #undef DECL_NPY_API
         return api;
@@ -953,7 +943,11 @@ public:
 
     template <typename T>
     array(ShapeContainer shape, StridesContainer strides, const T *ptr, handle base = handle())
-        : array(pybind11::dtype::of<T>(), std::move(shape), std::move(strides), ptr, base) {}
+        : array(pybind11::dtype::of<T>(),
+                std::move(shape),
+                std::move(strides),
+                reinterpret_cast<const void *>(ptr),
+                base) {}
 
     template <typename T>
     array(ShapeContainer shape, const T *ptr, handle base = handle())
@@ -2038,7 +2032,7 @@ private:
         // Pointers to values the function was called with; the vectorized ones set here will start
         // out as array_t<T> pointers, but they will be changed them to T pointers before we make
         // call the wrapped function.  Non-vectorized pointers are left as-is.
-        std::array<void *, N> params{{&args...}};
+        std::array<void *, N> params{{reinterpret_cast<void *>(&args)...}};
 
         // The array of `buffer_info`s of vectorized arguments:
         std::array<buffer_info, NVectorized> buffers{
