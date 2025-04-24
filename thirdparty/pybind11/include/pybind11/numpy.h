@@ -421,6 +421,17 @@ private:
 #endif
         DECL_NPY_API(PyArray_SetBaseObject);
 
+        /**
+         * Begin modification by Leon Mergen, 2019-02-20, for PyDatetimeScalarObject
+         * support.
+         */
+
+        DECL_NPY_API(PyDatetimeArrType);
+
+        /**
+         * End modification
+         */
+        
 #undef DECL_NPY_API
         return api;
     }
