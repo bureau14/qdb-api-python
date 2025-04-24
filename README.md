@@ -65,12 +65,16 @@ The QuasarDB Python API builds on top of [pybind11](https://github.com/pybind/py
 | `tests/`      | Test suite based on pytest.                                                                                                                                                |
 | `thirdparty/` | Vendored c++ libraries                                                                                                                                                     |
 
-
 ## Prepare for running tests
 
 Prerequisite
 * c++ compiler that supports C++20
 * cmake
+
+The instructions below have been verified to work on:
+* Linux (RHEL, Fedora, Ubuntu, Debian and Arch Linux);
+* macOS 15.4.1 (amd64 and aarch64);
+* Windows WSL.
 
 ### QuasarDB tarball extraction
 
