@@ -165,7 +165,7 @@ This process is not as optimal as before, as it doesn't use incremental developm
 All arguments passed to this `20.test.sh` script are passed directly to pytest. For example, to enable verbose output and test a single file, you can use this:
 
 ```
-$ bash scripts/teamcity/20.test.sh -s test_stats.sh
+$ bash scripts/teamcity/20.test.sh -s test_stats.py
 
 <.. snip a lot ..>
 
