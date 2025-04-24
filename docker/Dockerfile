@@ -4,9 +4,6 @@ ARG PLATFORM="${POLICY}_${ARCH}"
 
 FROM quay.io/pypa/$PLATFORM
 
-ARG GCC_TOOLSET_VERSION="12"
-ENV PATH="/opt/rh/devtoolset-$GCC_TOOLSET_VERSION/root/usr/bin:$PATH"
-
 ARG PYTHON_VERSION
 
 ADD set-python-version.sh /set-python-version.sh
