@@ -1,11 +1,13 @@
 import re
+from time import sleep
+
 import quasardb
 import logging
 from datetime import datetime
 
 logger = logging.getLogger("quasardb.stats")
 
-
+MAX_KEYS=4*1024*1024 # 4 million max keys
 stats_prefix = "$qdb.statistics."
 user_pattern = re.compile(r"\$qdb.statistics.(.*).uid_([0-9]+)$")
 total_pattern = re.compile(r"\$qdb.statistics.(.*)$")
@@ -50,7 +52,7 @@ def of_node(dconn):
     """
 
     start = datetime.now()
-    raw = {k: _get_stat(dconn, k) for k in dconn.prefix_get(stats_prefix, 10000)}
+    raw = {k: _get_stat(dconn, k) for k in _get_all_keys(dconn)}
 
     ret = {"by_uid": _by_uid(raw), "cumulative": _cumulative(raw)}
 
@@ -147,6 +149,29 @@ def stat_type(stat_id):
     return _stat_type(stat_id)
 
 
+def _get_all_keys(dconn, n=1024):
+    """
+    Returns all keys from a single node.
+
+    Parameters:
+    dconn: quasardb.Node
+      Direct node connection to the node we wish to connect to.
+
+    n: int
+      Number of keys to retrieve.
+    """
+    xs = dconn.prefix_get(stats_prefix, n)
+    increase_rate = 8
+    # keep getting keys while number of results exceeds the given "n"
+    while len(xs) >= n:
+        n = n * increase_rate
+        if n >= MAX_KEYS:
+            raise Exception(f"ERROR: Cannot fetch more than {MAX_KEYS} keys.")
+        xs = dconn.prefix_get(stats_prefix, n)
+
+    return xs
+
+
 def _calculate_delta_stat(stat_id, prev, cur):
     logger.info(
         "calculating delta for stat_id = {}, prev = {}. cur = {}".format(
@@ -239,7 +264,10 @@ def _cumulative(stats):
         matches = total_pattern.match(k)
         if is_cumulative_stat(k) and matches:
             metric = matches.groups()[0]
+            if metric.split('.')[-1] not in ["type", "unit"]:
+                metric += ".value"
+            metric_name, metric_att = metric.rsplit('.', 1)
             if not metric.startswith("serialized"):
-                xs[metric] = v
+                xs[metric_name] = {**xs.get(metric_name, {}), metric_att:v}
 
     return xs
