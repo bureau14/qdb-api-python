@@ -7,10 +7,6 @@
       <option name="executionTimeoutMin" value="120" />
       <option name="showDependenciesChanges" value="true" />
     </options>
-    <disabled-settings>
-      <setting-ref ref="BUILD_EXT_3" />
-      <setting-ref ref="RUNNER_141" />
-    </disabled-settings>
     <parameters>
       <param name="JUNIT_XML_FILE" value="build/test/pytest.xml" />
       <param name="archive.ext" value="tar.zst" />
@@ -24,14 +20,6 @@
       <runner id="RUNNER_321" name="" type="_placeholder_">
         <parameters>
           <param name="teamcity.step.mode" value="default" />
-        </parameters>
-      </runner>
-      <runner id="RUNNER_141" name="Choose Python version" type="simpleRunner">
-        <parameters>
-          <param name="script.content"><![CDATA[sudo port select --set python python36
-python --version 2>&1 | grep 'Python 3\.' >/dev/null || (echo "Wrong Python version ($(python --version 2>&1))" && false)]]></param>
-          <param name="teamcity.step.mode" value="default" />
-          <param name="use.custom.script" value="true" />
         </parameters>
       </runner>
       <runner id="RUNNER_102" name="Start services" type="simpleRunner">
@@ -87,13 +75,6 @@ export QDB_TESTS_ENABLED=OFF]]></param>
     </requirements>
     <build-triggers />
     <build-extensions>
-      <extension id="BUILD_EXT_3" type="xml-report-plugin">
-        <parameters>
-          <param name="xmlReportParsing.reportDirs" value="%JUNIT_XML_FILE%" />
-          <param name="xmlReportParsing.reportType" value="junit" />
-          <param name="xmlReportParsing.verboseOutput" value="true" />
-        </parameters>
-      </extension>
       <extension id="perfmon" type="perfmon">
         <parameters>
           <param name="teamcity.perfmon.feature.enabled" value="true" />
@@ -117,4 +98,3 @@ export QDB_TESTS_ENABLED=OFF]]></param>
     <cleanup />
   </settings>
 </template>
-

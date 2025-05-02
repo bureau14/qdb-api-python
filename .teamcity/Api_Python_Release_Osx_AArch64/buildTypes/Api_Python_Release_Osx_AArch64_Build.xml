@@ -7,9 +7,6 @@
       <option name="executionTimeoutMin" value="120" />
       <option name="showDependenciesChanges" value="true" />
     </options>
-    <disabled-settings>
-      <setting-ref ref="BUILD_EXT_3" />
-    </disabled-settings>
     <parameters>
       <param name="JUNIT_XML_FILE" value="build/test/pytest.xml" />
       <param name="archive.ext" value="tar.zst" />
@@ -77,14 +74,6 @@ export QDB_TESTS_ENABLED=OFF]]></param>
       <equals id="RQ_6" name="teamcity.agent.jvm.os.arch" value="%os_arch%" />
     </requirements>
     <build-triggers />
-    <build-extensions>
-      <extension id="BUILD_EXT_3" type="xml-report-plugin">
-        <parameters>
-          <param name="xmlReportParsing.reportDirs" value="%JUNIT_XML_FILE%" />
-          <param name="xmlReportParsing.reportType" value="junit" />
-          <param name="xmlReportParsing.verboseOutput" value="true" />
-        </parameters>
-      </extension>
       <extension id="perfmon" type="perfmon">
         <parameters>
           <param name="teamcity.perfmon.feature.enabled" value="true" />
@@ -108,4 +97,3 @@ export QDB_TESTS_ENABLED=OFF]]></param>
     <cleanup />
   </settings>
 </template>
-
