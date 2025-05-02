@@ -153,7 +153,7 @@ fi
 ${VENV_PYTHON} -m pip install --upgrade -r dev-requirements.txt
 
 export QDB_TESTS_ENABLED=ON
-${VENV_PYTHON} setup.py bdist_wheel
+${VENV_PYTHON} -m build -w
 
 ${VENV_PYTHON} -m pip install --no-deps --force-reinstall dist/quasardb-*.whl
 
