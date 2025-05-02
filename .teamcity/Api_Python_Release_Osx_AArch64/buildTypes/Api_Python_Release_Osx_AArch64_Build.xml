@@ -74,6 +74,7 @@ export QDB_TESTS_ENABLED=OFF]]></param>
       <equals id="RQ_6" name="teamcity.agent.jvm.os.arch" value="%os_arch%" />
     </requirements>
     <build-triggers />
+    <build-extensions>
       <extension id="perfmon" type="perfmon">
         <parameters>
           <param name="teamcity.perfmon.feature.enabled" value="true" />
