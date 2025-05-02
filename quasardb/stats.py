@@ -52,7 +52,7 @@ def of_node(dconn):
     """
 
     start = datetime.now()
-    raw = {k: _get_stat(dconn, k) for k in _get_all_keys(dconn)}
+    raw = {k: _get_stat(dconn, k) for k in _index_keys(dconn, _get_all_keys(dconn))}
 
     ret = {"by_uid": _by_uid(raw), "cumulative": _cumulative(raw)}
 
@@ -115,6 +115,17 @@ def _get_all_keys(dconn, n=1024):
         xs = dconn.prefix_get(stats_prefix, n)
 
     return xs
+
+def _index_keys(dconn, ks):
+    """
+    Takes all statistics keys that are retrieved, and "indexes" them in such a way
+    that we end up with a dict of all statistic keys, their type and their unit.
+    """
+
+    for k in ks:
+        print(f"k: {k}")
+
+    return ks
 
 
 def _calculate_delta_stat(stat_id, prev_stat, curr_stat):
