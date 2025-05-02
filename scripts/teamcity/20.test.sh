@@ -129,20 +129,26 @@ fi
 
 if [[ -d "build/" ]]
 then
-    echo "Removing build/"
-    rm -rf build/
+    echo "Warning: build/ directory already exists, assuming incremental compilation, reusing build artifacts"
 fi
 
-# Now use a virtualenv to run the tests
+# Now use a virtualenv to run the tests. If the virtualenv already exists, we reuse it
+# to avoid frequent rebuilds.
 
-${PYTHON} -m venv --clear ${SCRIPT_DIR}/../../.env/
+if [[ -d "${SCRIPT_DIR}/../../.env/" ]]
+then
+    echo "virtualenv already exists, skip creating new venv"
+else
+    echo "Creating new virtualenv"
+    ${PYTHON} -m venv --clear ${SCRIPT_DIR}/../../.env/
+fi
+
 if [[ "$(uname)" == MINGW* ]]
 then
     VENV_PYTHON="${SCRIPT_DIR}/../../.env/Scripts/python.exe"
 else
     VENV_PYTHON="${SCRIPT_DIR}/../../.env/bin/python"
 fi
-
 
 ${VENV_PYTHON} -m pip install --upgrade -r dev-requirements.txt
 
