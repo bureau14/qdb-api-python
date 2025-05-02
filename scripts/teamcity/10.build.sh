@@ -9,8 +9,10 @@ git config --global --add safe.directory '*'
 # No more errors should occur after here
 set -e -u -x
 
-# Now use a virtualenv to run the tests
 PYTHON="${PYTHON_CMD:-python3}"
+
+# Now use a virtualenv to run the tests. If the virtualenv already exists, we remove
+# it to ensure a clean install.
 ${PYTHON} -m venv --clear ${SCRIPT_DIR}/../../.env/
 if [[ "$(uname)" == MINGW* ]]
 then
