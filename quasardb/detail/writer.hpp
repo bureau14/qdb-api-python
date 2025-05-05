@@ -189,7 +189,8 @@ public:
     void prepare_batch(qdb_exp_batch_push_mode_t mode,
         detail::deduplicate_options const & deduplicate_options,
         qdb_ts_range_t * ranges,
-        qdb_exp_batch_push_table_t & batch);
+        qdb_exp_batch_push_table_t & batch,
+        qdb_exp_batch_creation_mode_t creation);
 
     static inline void _set_deduplication_mode(
         enum detail::deduplication_mode_t mode, bool columns, qdb_exp_batch_push_table_t & out)
@@ -485,6 +486,22 @@ struct batch_push_mode
 struct batch_options
 {
     static qdb_exp_batch_options_t from_kwargs(py::kwargs const & kwargs);
+};
+
+struct batch_creation_mode
+{
+    static constexpr char const * kw_creation_mode = "creation_mode";
+    static constexpr qdb_exp_batch_creation_mode_t default_creation_mode = qdb_exp_batch_dont_create;
+
+    /**
+     * Ensures all options are always explicitly set, according to the defaults above.
+     */
+    static py::kwargs ensure(py::kwargs kwargs);
+
+    /**
+     * Returns the push mode, throws error if push mode is not set.
+     */
+    static qdb_exp_batch_creation_mode_t from_kwargs(py::kwargs const & kwargs);
 };
 
 struct batch_truncate_ranges
