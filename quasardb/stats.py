@@ -11,9 +11,11 @@ logger = logging.getLogger("quasardb.stats")
 
 MAX_KEYS = 4 * 1024 * 1024  # 4 million max keys
 stats_prefix = "$qdb.statistics."
+
+# Compile these regexes once for speed
 user_pattern = re.compile(r"\$qdb.statistics.(.*).uid_([0-9]+)$")
 total_pattern = re.compile(r"\$qdb.statistics.(.*)$")
-
+user_clean_pattern = re.compile(r"\.uid_\d+")
 
 def is_user_stat(s):
     return user_pattern.match(s) is not None
@@ -57,7 +59,7 @@ def of_node(dconn):
 
     ks = _get_all_keys(dconn)
     idx = _index_keys(dconn, ks)
-    raw = {k: _get_stat(dconn, k) for k in ks}
+    raw = {k: _get_stat_value(dconn, k) for k in ks}
 
     ret = {"by_uid": _by_uid(raw, idx), "cumulative": _cumulative(raw, idx)}
 
@@ -230,25 +232,27 @@ def _index_keys(dconn, ks):
 
     ret = defaultdict(lambda: {'value': None, 'type': None, 'unit': None})
 
+
     for k in ks:
-        if "uid_" in k:
-            # Per-uid key, skipping these as described above
-            continue
+        # Remove any 'uid_[0-9]+' part from the string
+        k_ = user_clean_pattern.sub("", k)
 
-        parts = k.rsplit(".", 1)
+        matches = total_pattern.match(k_)
 
-        if parts[1] == 'type':
-            stat_id = parts[0]
+        parts = matches.groups()[0].rsplit(".", 1)
+        metric_id = parts[0]
 
-            if ret[stat_id]['type'] == None:
+        if len(parts) > 1 and parts[1] == 'type':
+            if ret[metric_id]['type'] == None:
                 # We haven't seen this particular statistic yet
-                ret[stat_id]['type'] = _lookup_type(dconn, k)
-        elif parts[1] == 'unit':
-            stat_id = parts[0]
-
-            if ret[stat_id]['unit'] == None:
+                ret[metric_id]['type'] = _lookup_type(dconn, k)
+        elif len(parts) > 1 and parts[1] == 'unit':
+            if ret[metric_id]['unit'] == None:
                 # We haven't seen this particular statistic yet
-                ret[stat_id]['unit'] = _lookup_unit(dconn, k)
+                ret[metric_id]['unit'] = _lookup_unit(dconn, k)
+        else:
+            # It's a value, we look those up later
+            pass
 
     return ret
 
@@ -317,9 +321,12 @@ def _clean_blob(x):
     # remove trailing zero-terminator
     return "".join(c for c in x_ if ord(c) != 0)
 
-def _get_stat(dconn, k):
+def _get_stat_value(dconn, k):
     # Ugly, but works: try to retrieve as integer, if not an int, retrieve as
     # blob
+    #
+    # XXX(leon): we could use the index we built to get a much stronger hint
+    #            on what the type is.
     try:
         return dconn.integer(k).get()
 
@@ -338,6 +345,18 @@ def _by_uid(stats, idx):
         matches = user_pattern.match(k)
         if is_user_stat(k) and matches:
             (metric, uid_str) = matches.groups()
+
+            if metric.split(".")[-1] in ["type", "unit"]:
+                # We already indexed the type and unit in our idx, this is not interesting
+                continue
+
+            if metric.startswith("serialized"):
+                # Internal stuff we don't care about nor cannot do anything with
+                continue
+
+            if not metric in idx:
+                raise Exception(f"Metric not in internal index: {metric}")
+
             uid = int(uid_str)
             if uid not in xs:
                 xs[uid] = {}
@@ -355,10 +374,22 @@ def _cumulative(stats, idx):
         matches = total_pattern.match(k)
         if is_cumulative_stat(k) and matches:
             metric = matches.groups()[0]
-            if metric.split(".")[-1] not in ["type", "unit"]:
-                metric += ".value"
-            metric_name, metric_att = metric.rsplit(".", 1)
-            if not metric.startswith("serialized"):
-                xs[metric_name] = {**xs.get(metric_name, {}), metric_att: v}
+
+            if metric.split(".")[-1] in ["type", "unit"]:
+                # We already indexed the type and unit in our idx, this is not interesting
+                continue
+
+            if metric.startswith("serialized"):
+                # Internal stuff we don't care about nor cannot do anything with
+                continue
+
+            if not metric in idx:
+                raise Exception(f"Metric not in internal index: {metric}")
+
+            x = idx[metric].copy()
+            x["value"] = v
+            xs[metric] = x
 
     return xs
+
+# async_pipelines.buffer.total_bytes
