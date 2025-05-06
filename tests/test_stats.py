@@ -20,16 +20,37 @@ def _write_data(conn, table):
     )
 
 
-def _ensure_stats(conn, table):
-    global _has_stats
+def _has_stats(conn):
+    xs = qdbst.by_node(conn)
 
+    # As we always use a secure connection, we will wait for by-uid statistics to appear.
+    #
+    # We also don't expect a cluster to be running, so just ensure we have exactly 1 node.
+    ks = list(xs.keys())
+    assert len(ks) == 1
+
+    node_id = ks[0]
+    node_stats = xs[node_id]
+
+    assert 'by_uid' in node_stats
+    uid_stats = node_stats['by_uid']
+
+    # The actual check happens here: we expect at least 1 per-uid statistic
+    return len(uid_stats.keys()) > 0
+
+def _ensure_stats(conn, table):
     # This function is merely here to generate some activity on the cluster,
     # so that we're guaranteed to have some statistics
-    if _has_stats is False:
+
+    max_polls = 10
+    n = 0
+
+    while _has_stats(conn) is False:
         _write_data(conn, table)
-        # Statistics refresh interval is 5 seconds.
-        sleep(6)
-        _has_stats = True
+        sleep(1)
+
+        n = n + 1
+        assert n <= max_polls
 
 
 # A fairly conservative set of user-specific stats we always expect after doing our
@@ -81,6 +102,7 @@ def _validate_node_stats(stats):
 
 def test_stats_by_node(qdbd_secure_connection, secure_table):
     _ensure_stats(qdbd_secure_connection, secure_table)
+
     xs = qdbst.by_node(qdbd_secure_connection)
 
     assert len(xs) == 1
@@ -91,7 +113,7 @@ def test_stats_by_node(qdbd_secure_connection, secure_table):
 
 def test_stats_of_node(qdbd_settings, qdbd_secure_connection, secure_table):
     # First seed the table
-    # _ensure_stats(qdbd_secure_connection, secure_table)
+    _ensure_stats(qdbd_secure_connection, secure_table)
 
     # Now establish direct connection
     conn = quasardb.Node(
@@ -106,8 +128,11 @@ def test_stats_of_node(qdbd_settings, qdbd_secure_connection, secure_table):
 
 
 def test_stats_regex():
+    _ensure_stats(qdbd_secure_connection, secure_table)
+
     # This is mostly to test a regression, where user-stats for users with multi-digit ids
     # were not picked up.
+
     user_stats = [
         "$qdb.statistics.foo.uid_1",
         "$qdb.statistics.foo.uid_21",
