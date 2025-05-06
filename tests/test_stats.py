@@ -129,8 +129,6 @@ def test_stats_of_node(qdbd_settings, qdbd_secure_connection, secure_table):
 
 
 def test_stats_regex():
-    _ensure_stats(qdbd_secure_connection, secure_table)
-
     # This is mostly to test a regression, where user-stats for users with multi-digit ids
     # were not picked up.
 
