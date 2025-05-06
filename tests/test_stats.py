@@ -79,6 +79,25 @@ _expected_cumulative_stats = [
 ]
 
 
+def _validate_stats_dict(xs):
+    """
+    Validates a dict with keys / stat tuples association.
+    """
+    for k, x in xs.items():
+        print("k: ", k, ", x: ", x)
+
+        # Each statistic is a dict of type/unit/value
+        assert isinstance(x, dict)
+        assert "value" in x
+        assert "type" in x
+        assert "unit" in x
+
+        # Everything that's not a NONE unit (i.e. not a label) should be an int
+        if x["unit"] != qdbst.Unit.NONE:
+
+            assert isinstance(x['value'], int)
+
+
 def _validate_node_stats(stats):
     assert "by_uid" in stats
     assert "cumulative" in stats
@@ -90,15 +109,14 @@ def _validate_node_stats(stats):
         for expected in _expected_user_stats:
             assert expected in xs
 
-        for _, v in xs.items():
-            # As far as I know, per-user statistics should *always* be
-            # integers
-            assert isinstance(v, int)
+        _validate_stats_dict(xs)
 
     # Test cumulative stats
     xs = stats["cumulative"]
     for expected in _expected_cumulative_stats:
         assert expected in xs
+
+        _validate_stats_dict(xs)
 
 
 def test_stats_by_node(qdbd_secure_connection, secure_table):

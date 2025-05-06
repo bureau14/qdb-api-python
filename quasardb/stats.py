@@ -315,12 +315,17 @@ def _by_uid(stats, idx):
             if not metric in idx:
                 raise Exception(f"Metric not in internal index: {metric}")
 
+            # Parse user id
             uid = int(uid_str)
+
+            # Prepare our metric dict
+            x = idx[metric].copy()
+            x["value"] = v
+
             if uid not in xs:
                 xs[uid] = {}
 
-            if not metric.startswith("serialized"):
-                xs[uid][metric] = v
+            xs[uid][metric] = x
 
     return xs
 
