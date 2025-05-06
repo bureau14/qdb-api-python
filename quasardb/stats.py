@@ -256,6 +256,10 @@ def calculate_delta(prev, cur):
 
 
 def _clean_blob(x):
+    """
+    Utility function that decodes a blob as an UTF-8 string, as the direct node C API
+    does not yet support 'string' types and as such all statistics are stored as blobs.
+    """
     x_ = x.decode("utf-8", "replace")
 
     # remove trailing zero-terminator
