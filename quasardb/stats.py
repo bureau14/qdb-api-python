@@ -17,6 +17,7 @@ user_pattern = re.compile(r"\$qdb.statistics.(.*).uid_([0-9]+)$")
 total_pattern = re.compile(r"\$qdb.statistics.(.*)$")
 user_clean_pattern = re.compile(r"\.uid_\d+")
 
+
 def is_user_stat(s):
     return user_pattern.match(s) is not None
 
@@ -123,10 +124,12 @@ def _get_all_keys(dconn, n=1024):
 
     return xs
 
+
 class Type(Enum):
     ACCUMULATOR = 1
     GAUGE = 2
     LABEL = 3
+
 
 class Unit(Enum):
     NONE = 0
@@ -136,28 +139,30 @@ class Unit(Enum):
     BYTES = 32
 
     # Time/duration units
-    EPOCH = 64,
+    EPOCH = (64,)
     NANOSECONDS = 65
     MICROSECONDS = 66
     MILLISECONDS = 67
     SECONDS = 68
 
 
+_type_string_to_enum = {
+    "accumulator": Type.ACCUMULATOR,
+    "gauge": Type.GAUGE,
+    "label": Type.LABEL,
+}
 
-_type_string_to_enum = {'accumulator': Type.ACCUMULATOR,
-                        'gauge': Type.GAUGE,
-                        'label': Type.LABEL,
-                        }
+_unit_string_to_enum = {
+    "none": Unit.NONE,
+    "count": Unit.COUNT,
+    "bytes": Unit.BYTES,
+    "epoch": Unit.EPOCH,
+    "nanoseconds": Unit.NANOSECONDS,
+    "microseconds": Unit.MICROSECONDS,
+    "milliseconds": Unit.MILLISECONDS,
+    "seconds": Unit.SECONDS,
+}
 
-_unit_string_to_enum = {'none': Unit.NONE,
-                        'count': Unit.COUNT,
-                        'bytes': Unit.BYTES,
-                        'epoch': Unit.EPOCH,
-                        'nanoseconds': Unit.NANOSECONDS,
-                        'microseconds': Unit.MICROSECONDS,
-                        'milliseconds': Unit.MILLISECONDS,
-                        'seconds': Unit.SECONDS,
-                        }
 
 def _lookup_enum(dconn, k, m):
     """
@@ -176,11 +181,12 @@ def _lookup_enum(dconn, k, m):
 
     return m[x]
 
+
 def _lookup_type(dconn, k):
     """
     Looks up and parses/validates the metric type.
     """
-    assert k.endswith('.type')
+    assert k.endswith(".type")
 
     return _lookup_enum(dconn, k, _type_string_to_enum)
 
@@ -189,7 +195,7 @@ def _lookup_unit(dconn, k):
     """
     Looks up and parses/validates the metric type.
     """
-    assert k.endswith('.unit')
+    assert k.endswith(".unit")
 
     return _lookup_enum(dconn, k, _unit_string_to_enum)
 
@@ -230,8 +236,7 @@ def _index_keys(dconn, ks):
     # In which case we'll store `requests.out_bytes` as the statistic type, and look up the type
     # and unit for those metrics and add a placeholder value.
 
-    ret = defaultdict(lambda: {'value': None, 'type': None, 'unit': None})
-
+    ret = defaultdict(lambda: {"value": None, "type": None, "unit": None})
 
     for k in ks:
         # Remove any 'uid_[0-9]+' part from the string
@@ -242,14 +247,14 @@ def _index_keys(dconn, ks):
         parts = matches.groups()[0].rsplit(".", 1)
         metric_id = parts[0]
 
-        if len(parts) > 1 and parts[1] == 'type':
-            if ret[metric_id]['type'] == None:
+        if len(parts) > 1 and parts[1] == "type":
+            if ret[metric_id]["type"] == None:
                 # We haven't seen this particular statistic yet
-                ret[metric_id]['type'] = _lookup_type(dconn, k)
-        elif len(parts) > 1 and parts[1] == 'unit':
-            if ret[metric_id]['unit'] == None:
+                ret[metric_id]["type"] = _lookup_type(dconn, k)
+        elif len(parts) > 1 and parts[1] == "unit":
+            if ret[metric_id]["unit"] == None:
                 # We haven't seen this particular statistic yet
-                ret[metric_id]['unit'] = _lookup_unit(dconn, k)
+                ret[metric_id]["unit"] = _lookup_unit(dconn, k)
         else:
             # It's a value, we look those up later
             pass
@@ -321,6 +326,7 @@ def _clean_blob(x):
     # remove trailing zero-terminator
     return "".join(c for c in x_ if ord(c) != 0)
 
+
 def _get_stat_value(dconn, k):
     # Ugly, but works: try to retrieve as integer, if not an int, retrieve as
     # blob
@@ -391,5 +397,6 @@ def _cumulative(stats, idx):
             xs[metric] = x
 
     return xs
+
 
 # async_pipelines.buffer.total_bytes

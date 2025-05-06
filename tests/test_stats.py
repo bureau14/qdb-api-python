@@ -32,11 +32,12 @@ def _has_stats(conn):
     node_id = ks[0]
     node_stats = xs[node_id]
 
-    assert 'by_uid' in node_stats
-    uid_stats = node_stats['by_uid']
+    assert "by_uid" in node_stats
+    uid_stats = node_stats["by_uid"]
 
     # The actual check happens here: we expect at least 1 per-uid statistic
     return len(uid_stats.keys()) > 0
+
 
 def _ensure_stats(conn, table):
     # This function is merely here to generate some activity on the cluster,
