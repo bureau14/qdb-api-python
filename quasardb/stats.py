@@ -104,7 +104,8 @@ def stat_type(stat_id):
         "The 'stat_type' method is deprecated and will be removed in a future release."
         "The stat type and unit are now part of the return value of invocations to the 'of_node' and 'by_node' methods.",
         DeprecationWarning,
-        stacklevel=2)
+        stacklevel=2,
+    )
 
     return None
 
