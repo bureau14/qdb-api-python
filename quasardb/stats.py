@@ -54,21 +54,24 @@ def of_node(dconn):
     """
 
     start = datetime.now()
-    raw = {k: _get_stat(dconn, k) for k in _index_keys(dconn, _get_all_keys(dconn))}
 
-    ret = {"by_uid": _by_uid(raw), "cumulative": _cumulative(raw)}
+    ks = _get_all_keys(dconn)
+    idx = _index_keys(dconn, ks)
+    raw = {k: _get_stat(dconn, k) for k in ks}
+
+    ret = {"by_uid": _by_uid(raw, idx), "cumulative": _cumulative(raw, idx)}
 
     check_duration = datetime.now() - start
 
     ret["cumulative"]["check.online"] = {
         "value": 1,
-        "type": "accumulator",
-        "unit": "unit",
+        "type": Type.ACCUMULATOR,
+        "unit": Unit.NONE,
     }
     ret["cumulative"]["check.duration_ms"] = {
         "value": int(check_duration.total_seconds() * 1000),
-        "type": "accumulator",
-        "unit": "milliseconds",
+        "type": Type.ACCUMULATOR,
+        "unit": Unit.MILLISECONDS,
     }
 
     return ret
@@ -195,10 +198,59 @@ def _index_keys(dconn, ks):
     that we end up with a dict of all statistic keys, their type and their unit.
     """
 
-    for k in ks:
-        print(f"k: {k}")
+    ###
+    # The keys generally look like this, for example:
+    #
+    # $qdb.statistics.requests.out_bytes
+    # $qdb.statistics.requests.out_bytes.type
+    # $qdb.statistics.requests.out_bytes.uid_1
+    # $qdb.statistics.requests.out_bytes.uid_1.type
+    # $qdb.statistics.requests.out_bytes.uid_1.unit
+    # $qdb.statistics.requests.out_bytes.unit
+    #
+    # For this purpose, we simply get rid of the "uid" part, as the per-uid metrics are guaranteed
+    # to be of the exact same type as all the others. So after trimming those, the keys will look
+    # like this:
+    #
+    # $qdb.statistics.requests.out_bytes
+    # $qdb.statistics.requests.out_bytes.type
+    # $qdb.statistics.requests.out_bytes
+    # $qdb.statistics.requests.out_bytes.type
+    # $qdb.statistics.requests.out_bytes.unit
+    # $qdb.statistics.requests.out_bytes.unit
+    #
+    # And after deduplication like this:
+    #
+    # $qdb.statistics.requests.out_bytes
+    # $qdb.statistics.requests.out_bytes.type
+    # $qdb.statistics.requests.out_bytes.unit
+    #
+    # In which case we'll store `requests.out_bytes` as the statistic type, and look up the type
+    # and unit for those metrics and add a placeholder value.
 
-    return ks
+    ret = defaultdict(lambda: {'value': None, 'type': None, 'unit': None})
+
+    for k in ks:
+        if "uid_" in k:
+            # Per-uid key, skipping these as described above
+            continue
+
+        parts = k.rsplit(".", 1)
+
+        if parts[1] == 'type':
+            stat_id = parts[0]
+
+            if ret[stat_id]['type'] == None:
+                # We haven't seen this particular statistic yet
+                ret[stat_id]['type'] = _lookup_type(dconn, k)
+        elif parts[1] == 'unit':
+            stat_id = parts[0]
+
+            if ret[stat_id]['unit'] == None:
+                # We haven't seen this particular statistic yet
+                ret[stat_id]['unit'] = _lookup_unit(dconn, k)
+
+    return ret
 
 
 def _calculate_delta_stat(stat_id, prev_stat, curr_stat):
@@ -265,7 +317,6 @@ def _clean_blob(x):
     # remove trailing zero-terminator
     return "".join(c for c in x_ if ord(c) != 0)
 
-
 def _get_stat(dconn, k):
     # Ugly, but works: try to retrieve as integer, if not an int, retrieve as
     # blob
@@ -281,7 +332,7 @@ def _get_stat(dconn, k):
         return _clean_blob(dconn.blob(k).get())
 
 
-def _by_uid(stats):
+def _by_uid(stats, idx):
     xs = {}
     for k, v in stats.items():
         matches = user_pattern.match(k)
@@ -297,7 +348,7 @@ def _by_uid(stats):
     return xs
 
 
-def _cumulative(stats):
+def _cumulative(stats, idx):
     xs = {}
 
     for k, v in stats.items():
