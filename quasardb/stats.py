@@ -174,9 +174,6 @@ def _lookup_enum(dconn, k, m):
     x = _clean_blob(x)
 
     if x not in m:
-        print("x: ", x)
-        print("type(x): ", type(x))
-        print("k: ", k)
         raise Exception(f"Unrecognized unit/type {x} from key {k}")
 
     return m[x]
