@@ -98,7 +98,15 @@ def stat_type(stat_id):
 
     This is useful for determining which value should be reported in a dashboard.
     """
-    raise Exception("Deprecated Method.")
+    import warnings
+
+    warnings.warn(
+        "The 'stat_type' method is deprecated and will be removed in a future release."
+        "The stat type and unit are now part of the return value of invocations to the 'of_node' and 'by_node' methods.",
+        DeprecationWarning,
+        stacklevel=2)
+
+    return None
 
 
 def _get_all_keys(dconn, n=1024):

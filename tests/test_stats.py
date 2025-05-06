@@ -153,3 +153,7 @@ def test_stats_regex():
     for s in total_stats:
         assert qdbst.is_user_stat(s) is False
         assert qdbst.is_cumulative_stat(s) is True
+
+def test_stat_type_is_deprecated():
+    with pytest.deprecated_call():
+        qdbst.stat_type("foobar")
