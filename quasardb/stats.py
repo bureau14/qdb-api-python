@@ -3,7 +3,9 @@ from time import sleep
 
 import quasardb
 import logging
+from collections import defaultdict
 from datetime import datetime
+from enum import Enum
 
 logger = logging.getLogger("quasardb.stats")
 
@@ -115,6 +117,77 @@ def _get_all_keys(dconn, n=1024):
         xs = dconn.prefix_get(stats_prefix, n)
 
     return xs
+
+class Type(Enum):
+    ACCUMULATOR = 1
+    GAUGE = 2
+    LABEL = 3
+
+class Unit(Enum):
+    NONE = 0
+    COUNT = 1
+
+    # Size units
+    BYTES = 32
+
+    # Time/duration units
+    EPOCH = 64,
+    NANOSECONDS = 65
+    MICROSECONDS = 66
+    MILLISECONDS = 67
+    SECONDS = 68
+
+
+
+_type_string_to_enum = {'accumulator': Type.ACCUMULATOR,
+                        'gauge': Type.GAUGE,
+                        'label': Type.LABEL,
+                        }
+
+_unit_string_to_enum = {'none': Unit.NONE,
+                        'count': Unit.COUNT,
+                        'bytes': Unit.BYTES,
+                        'epoch': Unit.EPOCH,
+                        'nanoseconds': Unit.NANOSECONDS,
+                        'microseconds': Unit.MICROSECONDS,
+                        'milliseconds': Unit.MILLISECONDS,
+                        'seconds': Unit.SECONDS,
+                        }
+
+def _lookup_enum(dconn, k, m):
+    """
+    Utility function to avoid code duplication: automatically looks up a key's value
+    from QuasarDB and looks it up in provided dict.
+    """
+
+    x = dconn.blob(k).get()
+    x = _clean_blob(x)
+
+    if x not in m:
+        print("x: ", x)
+        print("type(x): ", type(x))
+        print("k: ", k)
+        raise Exception(f"Unrecognized unit/type {x} from key {k}")
+
+    return m[x]
+
+def _lookup_type(dconn, k):
+    """
+    Looks up and parses/validates the metric type.
+    """
+    assert k.endswith('.type')
+
+    return _lookup_enum(dconn, k, _type_string_to_enum)
+
+
+def _lookup_unit(dconn, k):
+    """
+    Looks up and parses/validates the metric type.
+    """
+    assert k.endswith('.unit')
+
+    return _lookup_enum(dconn, k, _unit_string_to_enum)
+
 
 def _index_keys(dconn, ks):
     """
