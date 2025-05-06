@@ -262,60 +262,6 @@ def _index_keys(dconn, ks):
     return ret
 
 
-def _calculate_delta_stat(stat_id, prev_stat, curr_stat):
-    logger.info(
-        "calculating delta for stat_id = {}, prev = {}. cur = {}".format(
-            stat_id, str(prev_stat["value"]), str(prev_stat["value"])
-        )
-    )
-    if curr_stat["type"] in ["counter", "accumulator"]:
-        return {**curr_stat, "value": curr_stat["value"] - prev_stat["value"]}
-    elif curr_stat["type"] == "gauge":
-        return {**curr_stat}
-    else:
-        return None
-
-
-def _calculate_delta_stats(prev_stats, cur_stats):
-    """
-    Args:
-        prev_stats: previous dictionary of cumulative stats
-        cur_stats: current dictionary of cumulative stats
-
-    Returns:
-        a new dictionary with same structure and updated values
-    """
-    ret = {}
-    for stat_id in cur_stats.keys():
-        try:
-            prev_stat = prev_stats[stat_id]
-            cur_stat = cur_stats[stat_id]
-
-            stat_content = _calculate_delta_stat(stat_id, prev_stat, cur_stat)
-            if stat_content is not None:
-                ret[stat_id] = stat_content
-
-        except KeyError:
-            # Stat likely was not present yet in prev_stats
-            pass
-
-    return ret
-
-
-def calculate_delta(prev, cur):
-    """
-    Calculates the 'delta' between two successive statistic measurements.
-    """
-    ret = {}
-    for node_id in cur.keys():
-        ret[node_id] = {"by_uid": {}, "cumulative": {}}
-        ret[node_id]["cumulative"] = _calculate_delta_stats(
-            prev[node_id]["cumulative"], cur[node_id]["cumulative"]
-        )
-
-    return ret
-
-
 def _clean_blob(x):
     """
     Utility function that decodes a blob as an UTF-8 string, as the direct node C API
