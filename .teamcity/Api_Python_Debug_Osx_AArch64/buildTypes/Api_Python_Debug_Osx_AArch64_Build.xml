@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<template xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2021.1/project-config.xsd">
+<template xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2025.3/project-config.xsd">
   <name>Build</name>
   <settings>
     <options>
@@ -32,12 +32,9 @@
       </runner>
       <runner id="RUNNER_48" name="Test" type="simpleRunner">
         <parameters>
-          <param name="script.content"><![CDATA[export QDB_TESTS_ENABLED=ON
-%python_executable% -m pip install --user -r dev-requirements.txt
-%python_executable% setup.py test --addopts "--junitxml=%JUNIT_XML_FILE%"
-export QDB_TESTS_ENABLED=OFF]]></param>
+          <param name="command.executable" value="bash" />
+          <param name="command.parameters" value="scripts/teamcity/20.test.sh" />
           <param name="teamcity.step.mode" value="default" />
-          <param name="use.custom.script" value="true" />
         </parameters>
       </runner>
       <runner id="RUNNER_143" name="Stop services" type="simpleRunner">
@@ -73,7 +70,6 @@ export QDB_TESTS_ENABLED=OFF]]></param>
       <equals id="RQ_46" name="teamcity.agent.jvm.os.name" value="Mac OS X" />
       <equals id="RQ_47" name="teamcity.agent.jvm.os.arch" value="%os_arch%" />
     </requirements>
-    <build-triggers />
     <build-extensions>
       <extension id="perfmon" type="perfmon">
         <parameters>
@@ -95,6 +91,6 @@ export QDB_TESTS_ENABLED=OFF]]></param>
         </options>
       </depend-on>
     </dependencies>
-    <cleanup />
   </settings>
 </template>
+

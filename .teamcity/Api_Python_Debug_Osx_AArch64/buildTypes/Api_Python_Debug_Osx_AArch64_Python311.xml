@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<build-type xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2021.1/project-config.xsd">
+<build-type xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2025.3/project-config.xsd">
   <name>Python 3.11</name>
   <description>End of life: 2027-10</description>
   <settings ref="Api_Python_Debug_Osx_AArch64_Build">
@@ -9,9 +9,6 @@
     <parameters>
       <param name="python_executable" value="%system.python311.path%" />
     </parameters>
-    <build-runners />
-    <vcs-settings />
-    <build-triggers />
-    <cleanup />
   </settings>
 </build-type>
+
