@@ -32,12 +32,9 @@
       </runner>
       <runner id="RUNNER_48" name="Test" type="simpleRunner">
         <parameters>
-          <param name="script.content"><![CDATA[export QDB_TESTS_ENABLED=ON
-%python_executable% -m pip install --user -r dev-requirements.txt
-%python_executable% setup.py test --addopts "--junitxml=%JUNIT_XML_FILE%"
-export QDB_TESTS_ENABLED=OFF]]></param>
+          <param name="command.executable" value="bash" />
+          <param name="command.parameters" value="scripts/teamcity/20.test.sh" />
           <param name="teamcity.step.mode" value="default" />
-          <param name="use.custom.script" value="true" />
         </parameters>
       </runner>
       <runner id="RUNNER_143" name="Stop services" type="simpleRunner">
@@ -96,3 +93,4 @@ export QDB_TESTS_ENABLED=OFF]]></param>
     </dependencies>
   </settings>
 </template>
+
