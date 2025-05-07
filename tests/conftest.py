@@ -43,7 +43,7 @@ def _qdbd_settings():
             "cluster_public_key": cluster_key,
             "user_private_key_file": "../user_private.key",
             "cluster_public_key_file": "../cluster_public.key",
-            "enable_encryption": os.environ.get("QDB_ENCRYPT_TRAFFIC", "0") == "1",
+            "enable_encryption": os.environ.get("QDB_ENCRYPT_TRAFFIC", "0") != "0",
         },
     }
 
