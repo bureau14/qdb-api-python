@@ -16,7 +16,7 @@ def test_node_connect_throws_connection_error_when_no_cluster_public_key(qdbd_se
             uri=qdbd_settings.get("uri").get("secure").replace("qdb://", ""),
             user_name=qdbd_settings.get("security").get("user_name"),
             user_private_key=qdbd_settings.get("security").get("user_private_key"),
-            enable_encryption=True,
+            enable_encryption=qdbd_settings.get("security").get("enable_encryption"),
         )
 
 
@@ -26,7 +26,7 @@ def test_node_connect_throws_connection_error_when_no_user_name(qdbd_settings):
             uri=qdbd_settings.get("uri").get("secure").replace("qdb://", ""),
             user_private_key=qdbd_settings.get("security").get("user_private_key"),
             cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"),
-            enable_encryption=True,
+            enable_encryption=qdbd_settings.get("security").get("enable_encryption"),
         )
 
 
@@ -36,7 +36,7 @@ def test_node_connect_throws_connection_error_when_no_user_private_key(qdbd_sett
             uri=qdbd_settings.get("uri").get("secure").replace("qdb://", ""),
             user_name=qdbd_settings.get("security").get("user_name"),
             cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"),
-            enable_encryption=True,
+            enable_encryption=qdbd_settings.get("security").get("enable_encryption"),
         )
 
 
@@ -46,7 +46,7 @@ def test_node_connect_ok_to_secure_cluster(qdbd_settings):
         user_name=qdbd_settings.get("security").get("user_name"),
         user_private_key=qdbd_settings.get("security").get("user_private_key"),
         cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"),
-        enable_encryption=True,
+        enable_encryption=qdbd_settings.get("security").get("enable_encryption"),
     )
 
 
@@ -59,7 +59,7 @@ def test_node_connect_throws_connection_error_when_no_cluster_public_key_file(
             user_security_file=qdbd_settings.get("security").get(
                 "user_private_key_file"
             ),
-            enable_encryption=True,
+            enable_encryption=qdbd_settings.get("security").get("enable_encryption"),
         )
 
 
@@ -70,7 +70,7 @@ def test_node_connect_throws_connection_error_when_no_user_security_file(qdbd_se
             cluster_public_key_file=qdbd_settings.get("security").get(
                 "cluster_public_key_file"
             ),
-            enable_encryption=True,
+            enable_encryption=qdbd_settings.get("security").get("enable_encryption"),
         )
 
 
@@ -84,7 +84,7 @@ def test_node_connect_throws_connection_error_when_mix_security_1(qdbd_settings)
             cluster_public_key_file=qdbd_settings.get("security").get(
                 "cluster_public_key_file"
             ),
-            enable_encryption=True,
+            enable_encryption=qdbd_settings.get("security").get("enable_encryption"),
         )
 
 
@@ -100,7 +100,7 @@ def test_node_connect_throws_connection_error_when_mix_security_2(qdbd_settings)
             cluster_public_key_file=qdbd_settings.get("security").get(
                 "cluster_public_key_file"
             ),
-            enable_encryption=True,
+            enable_encryption=qdbd_settings.get("security").get("enable_encryption"),
         )
 
 
@@ -117,7 +117,7 @@ def test_node_connect_throws_connection_error_when_mix_security_full(qdbd_settin
             cluster_public_key_file=qdbd_settings.get("security").get(
                 "cluster_public_key_file"
             ),
-            enable_encryption=True,
+            enable_encryption=qdbd_settings.get("security").get("enable_encryption"),
         )
 
 
@@ -128,7 +128,7 @@ def test_node_connect_ok_to_secure_cluster_with_file(qdbd_settings):
         cluster_public_key_file=qdbd_settings.get("security").get(
             "cluster_public_key_file"
         ),
-        enable_encryption=True,
+        enable_encryption=qdbd_settings.get("security").get("enable_encryption"),
     )
 
 

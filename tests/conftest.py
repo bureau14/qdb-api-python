@@ -1,4 +1,5 @@
 # pylint: disable=C0103,C0111,C0302,W0212
+import os
 import json
 import random
 import string
@@ -42,6 +43,7 @@ def _qdbd_settings():
             "cluster_public_key": cluster_key,
             "user_private_key_file": "../user_private.key",
             "cluster_public_key_file": "../cluster_public.key",
+            "enable_encryption": os.environ.get("QDB_ENCRYPT_TRAFFIC", "0") != "0",
         },
     }
 
@@ -74,7 +76,7 @@ def qdbd_secure_connection(qdbd_settings):
         user_name=qdbd_settings.get("security").get("user_name"),
         user_private_key=qdbd_settings.get("security").get("user_private_key"),
         cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"),
-        enable_encryption=True,
+        enable_encryption=qdbd_settings.get("security").get("enable_encryption"),
     )
 
     conn.purge_all(datetime.timedelta(minutes=1))
@@ -94,7 +96,7 @@ def qdbd_direct_connection(request):
             user_name=settings.get("security").get("user_name"),
             user_private_key=settings.get("security").get("user_private_key"),
             cluster_public_key=settings.get("security").get("cluster_public_key"),
-            enable_encryption=True,
+            enable_encryption=settings.get("security").get("enable_encryption"),
         )
 
 
