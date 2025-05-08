@@ -95,7 +95,7 @@ def _validate_stats_dict(xs):
         # Everything that's not a NONE unit (i.e. not a label) should be an int
         if x["unit"] != qdbst.Unit.NONE:
 
-            assert isinstance(x['value'], int)
+            assert isinstance(x["value"], int)
 
 
 def _validate_node_stats(stats):
