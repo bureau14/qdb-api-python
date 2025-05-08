@@ -148,7 +148,7 @@ class Unit(Enum):
     BYTES = 32
 
     # Time/duration units
-    EPOCH = (64,)
+    EPOCH = 64
     NANOSECONDS = 65
     MICROSECONDS = 66
     MILLISECONDS = 67
