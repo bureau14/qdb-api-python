@@ -102,7 +102,6 @@ reader_iterator & reader_iterator::operator++()
         // I like assertions
         assert(handle_ != nullptr);
         assert(reader_ != nullptr);
-        assert(table_count_ != 0);
         assert(ptr_ != nullptr);
     } // if (err == qdb_e_iterator_end)
 

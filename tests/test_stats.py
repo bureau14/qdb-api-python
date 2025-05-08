@@ -140,7 +140,7 @@ def test_stats_of_node(qdbd_settings, qdbd_secure_connection, secure_table):
         user_name=qdbd_settings.get("security").get("user_name"),
         user_private_key=qdbd_settings.get("security").get("user_private_key"),
         cluster_public_key=qdbd_settings.get("security").get("cluster_public_key"),
-        enable_encryption=True,
+        enable_encryption=qdbd_settings.get("security").get("enable_encryption"),
     )
 
     qdbst.of_node(conn)
