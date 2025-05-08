@@ -1,5 +1,4 @@
 import re
-from time import sleep
 
 import quasardb
 import logging
