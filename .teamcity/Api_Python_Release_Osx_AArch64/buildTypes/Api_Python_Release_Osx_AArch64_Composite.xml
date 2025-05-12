@@ -13,10 +13,6 @@
     <requirements />
     <build-triggers />
     <artifact-dependencies>
-      <dependency id="python38" sourceBuildTypeId="Api_Python_Release_Osx_AArch64_Python38" cleanDestination="false">
-        <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
-        <artifact sourcePath="**" />
-      </dependency>
       <dependency id="python39" sourceBuildTypeId="Api_Python_Release_Osx_AArch64_Python39" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="**" />
@@ -39,12 +35,6 @@
       </dependency>
     </artifact-dependencies>
     <dependencies>
-      <depend-on sourceBuildTypeId="Api_Python_Release_Osx_AArch64_Python38">
-        <options>
-          <option name="take-started-build-with-same-revisions" value="true" />
-          <option name="take-successful-builds-only" value="true" />
-        </options>
-      </depend-on>
       <depend-on sourceBuildTypeId="Api_Python_Release_Osx_AArch64_Python39">
         <options>
           <option name="take-started-build-with-same-revisions" value="true" />
