@@ -68,6 +68,7 @@ except ImportError as err:
         "dateparser required!"
     ) from err
 
+general_select_pattern = re.compile(r'(?i)^\s*SELECT\b')
 table_pattern = re.compile(r"(?i)\bFROM\s+([`\"\[]?\w+[`\"\]]?)")
 range_pattern = re.compile(r"(?i)\bIN\s+RANGE\s*\(([^,]+),\s*([^,]+)\)")
 
@@ -228,6 +229,11 @@ def query(
     blobs: bool = False,
     numpy: bool = False,
 ):
+    if not re.match(general_select_pattern, query):
+        raise NotImplementedError(
+            "Only SELECT queries are supported. Please refer to the documentation for more information."
+        )
+
     conn_kwargs = {
         "uri": uri,
         "user_name": user_name,
