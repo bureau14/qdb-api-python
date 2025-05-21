@@ -31,6 +31,7 @@ packages = [
     package_name,
     "quasardb.pandas",
     "quasardb.numpy",
+    "quasardb.dask",
     "quasardb.extensions",
 ]
 
@@ -205,6 +206,7 @@ setup(
     extras_require={
         "pandas": ["pandas"],
         "test": ["pytest"],
+        "dask": ["dask[dataframe]", "dask[delayed]", "pandas", "dateparser"],
     },
     packages=packages,
     package_data={package_name: package_modules},
