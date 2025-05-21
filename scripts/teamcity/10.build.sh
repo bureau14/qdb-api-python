@@ -33,9 +33,7 @@ function relabel_wheel {
     fi
 }
 
-DIST_DIR=dist
-
-rm -r -f build/ ${DIST_DIR}/
+rm -r -f build/ dist/
 
 if [[ "$OSTYPE" == "darwin"* && $PYTHON == "python3.9"* ]]; then
     ${VENV_PYTHON} -m pip install --upgrade setuptools==63.0.0b1 wheel
@@ -50,6 +48,16 @@ export QDB_TESTS_ENABLED=OFF
 
 ${VENV_PYTHON} -m build -w
 
-for whl in ${DIST_DIR}/*.whl; do
+
+# # Build the stubs and rebuild the api
+cd dist
+${VENV_PYTHON} -m pip install *.whl
+pybind11-stubgen quasardb -o ../ # stubgen (from mypy) is not that good
+cd ../
+
+${VENV_PYTHON} -m build -w
+
+## Rename the build
+for whl in dist/*.whl; do
     relabel_wheel "$whl"
 done

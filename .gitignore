@@ -127,6 +127,9 @@ venv
 # mypy
 .mypy_cache/
 
+# Stubs
+*.pyi
+
 # Visual Studio Code
 .vscode/*
 !.vscode/settings.json
