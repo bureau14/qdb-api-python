@@ -49,14 +49,14 @@ def _assert_df_equal(lhs, rhs):
         _assert_series_equal(lhs[col], rhs[col])
 
 
-def _prepare_query_test(qdbpd_write_fn, df_with_table, qdbd_connection, columns: str = "*", use_tag: bool=False, query_range: tuple[pd.Timestamp, pd.Timestamp]=None, group_by: str=None):
+def _prepare_query_test(qdbpd_write_fn, df_with_table, qdbd_connection, columns: str = "*", query_range: tuple[pd.Timestamp, pd.Timestamp]=None, group_by: str=None, attach_tag: bool=False):
     (_, _, df, table) = df_with_table
 
     qdbpd_write_fn(df, qdbd_connection, table, write_through=True)
     table_name = table.get_name()
     q = "SELECT {} ".format(columns)
 
-    if use_tag:
+    if attach_tag:
         table.attach_tag("dask_tag")
         q += "FROM find(tag='dask_tag')"
     else:
@@ -70,53 +70,48 @@ def _prepare_query_test(qdbpd_write_fn, df_with_table, qdbd_connection, columns:
 
     return (df, table, q)
 
+
+def _get_subrange(df: pd.DataFrame, percent_of_original_df:int=0.1) -> tuple[pd.Timestamp, pd.Timestamp]:
+    """
+    Returns a random subrange of the DataFrame. The size of the subrange is 
+    """
+    query_range = ()
+    if percent_of_original_df != 1:
+        start_str = df.index[0].to_pydatetime().strftime("%Y-%m-%dT%H:%M:%S.%f")
+        end_row = int((len(df)-1) * percent_of_original_df)
+        end_str = df.index[end_row].to_pydatetime().strftime("%Y-%m-%dT%H:%M:%S.%f")
+        query_range = (start_str, end_str)
+    return query_range
+
 ### Query tests, we care about results of dask matching those of pandas
 
-@pytest.mark.parametrize("frequency", ["H"], ids=["frequency=H"], indirect=True)
-def test_dask_df_select_star_equals_pandas_df(qdbpd_write_fn, df_with_table, qdbd_connection, qdbd_settings):
-    df, table, query = _prepare_query_test(qdbpd_write_fn, df_with_table, qdbd_connection, "*")
+@pytest.mark.parametrize("frequency", ["h"], ids=["frequency=H"], indirect=True)
+@pytest.mark.parametrize("query_range_percentile", [1, 0.5, 0.25, 0.1], ids=["query_range_percentile=1", "query_range_percentile=0.5", "query_range_percentile=0.25", "query_range_percentile=0.1"])
+@pytest.mark.parametrize("query_options", [{"index": None}, {"index": "$timestamp"}], ids=["index=None", "index=$timestamp"])
+def test_dask_df_select_star_equals_pandas_df(qdbpd_write_fn, df_with_table, qdbd_connection, qdbd_settings, query_options, query_range_percentile):
+    _, _, df, _ = df_with_table
+    query_range = _get_subrange(df, query_range_percentile)
+    _, _, query = _prepare_query_test(qdbpd_write_fn, df_with_table, qdbd_connection, "*", query_range)
 
-    pandas_df = qdbpd.query(qdbd_connection, query)
-    dask_df = qdbdsk.query(query, qdbd_settings.get("uri").get("insecure")).compute()
+    pandas_df = qdbpd.query(qdbd_connection, query, **query_options)
+    dask_df = qdbdsk.query(query, qdbd_settings.get("uri").get("insecure"), **query_options).compute()
 
-    dask_df = dask_df.reset_index(drop=True)
+    if query_options.get("index") is None:
+        dask_df = dask_df.reset_index(drop=True)
 
     _assert_df_equal(pandas_df, dask_df)
 
-@pytest.mark.parametrize("frequency", ["H"], ids=["frequency=H"], indirect=True)
-@pytest.mark.parametrize("query_range_percentile", [1, 0.5, 0.25, 0.1])
-def test_dask_df_select_star_in_range(qdbpd_write_fn, df_with_table, qdbd_connection, qdbd_settings, query_range_percentile):
+
+@pytest.mark.parametrize("frequency", ["h"], ids=["frequency=H"], indirect=True)
+@pytest.mark.parametrize("query_range_percentile", [1, 0.5, 0.25, 0.1], ids=["query_range_percentile=1", "query_range_percentile=0.5", "query_range_percentile=0.25", "query_range_percentile=0.1"])
+@pytest.mark.parametrize("use_alias", [False, True], ids=["use_alias=False", "use_alias=True"])
+def test_dask_df_select_columns_equals_pandas_df(qdbpd_write_fn, df_with_table, qdbd_connection, qdbd_settings, use_alias, query_range_percentile):
     _, _, df, _ = df_with_table
 
-    start_str = df.index[0].to_pydatetime().strftime("%Y-%m-%dT%H:%M:%S.%f")
-    end_row = int((len(df)-1) * query_range_percentile)
-    end_str = (df.index[end_row].to_pydatetime() + pd.Timedelta(microseconds=1)).strftime("%Y-%m-%dT%H:%M:%S.%f")
+    columns = ", ".join([f"{col} as {col}_alias" if use_alias else f"{col}" for col in df.columns])
 
-    df, _, query = _prepare_query_test(qdbpd_write_fn, df_with_table, qdbd_connection, "*", query_range=(start_str, end_str))
-
-    pandas_df = qdbpd.query(qdbd_connection, query)
-    dask_df = qdbdsk.query(query, qdbd_settings.get("uri").get("insecure")).compute()
-    dask_df = dask_df.reset_index(drop=True)
-
-    _assert_df_equal(pandas_df, dask_df)
-
-@pytest.mark.parametrize("frequency", ["H"], ids=["frequency=H"], indirect=True)
-def test_dask_df_select_columns_equals_pandas_df(qdbpd_write_fn, df_with_table, qdbd_connection, qdbd_settings):
-    _, _, df, _ = df_with_table
-    columns = ", ".join([f"{col}" for col in df.columns])
-    df, _, query = _prepare_query_test(qdbpd_write_fn, df_with_table, qdbd_connection, columns)
-
-    pandas_df = qdbpd.query(qdbd_connection, query)
-    dask_df = qdbdsk.query(query, qdbd_settings.get("uri").get("insecure")).compute()
-    dask_df = dask_df.reset_index(drop=True)
-
-    _assert_df_equal(pandas_df, dask_df)
-
-def test_dask_df_select_columns_with_alias_equals_pandas_df(qdbpd_write_fn, df_with_table, qdbd_connection, qdbd_settings):
-    _, _, df, _ = df_with_table
-    columns = ", ".join([f"{col} as alias_{col}" for col in df.columns])
-    df, _, query = _prepare_query_test(qdbpd_write_fn, df_with_table, qdbd_connection, columns)
-
+    query_range = _get_subrange(df, query_range_percentile)
+    _, _, query = _prepare_query_test(qdbpd_write_fn, df_with_table, qdbd_connection, columns, query_range)
     pandas_df = qdbpd.query(qdbd_connection, query)
     dask_df = qdbdsk.query(query, qdbd_settings.get("uri").get("insecure")).compute()
     dask_df = dask_df.reset_index(drop=True)
@@ -124,7 +119,7 @@ def test_dask_df_select_columns_with_alias_equals_pandas_df(qdbpd_write_fn, df_w
     _assert_df_equal(pandas_df, dask_df)
 
 
-@pytest.mark.parametrize("frequency", ["H"], ids=["frequency=H"], indirect=True)
+@pytest.mark.parametrize("frequency", ["h"], ids=["frequency=H"], indirect=True)
 @pytest.mark.parametrize("group_by", ["1h", "1d"])
 def test_dask_df_select_agg_group_by_time_equals_pandas_df(qdbpd_write_fn, df_with_table, qdbd_connection, qdbd_settings, group_by):
     _, _, df, _ = df_with_table
@@ -138,12 +133,10 @@ def test_dask_df_select_agg_group_by_time_equals_pandas_df(qdbpd_write_fn, df_wi
     _assert_df_equal(pandas_df, dask_df)
 
 
-@pytest.mark.parametrize("frequency", ["H"], ids=["frequency=H"], indirect=True)
+@pytest.mark.parametrize("frequency", ["h"], ids=["frequency=H"], indirect=True)
 @pytest.mark.skip(reason="Not implemented yet")
 def test_dask_df_select_find_tag_equals_pandas_df(qdbpd_write_fn, df_with_table, qdbd_connection, qdbd_settings):
-    _, _, df, _ = df_with_table
-
-    df, _, query = _prepare_query_test(qdbpd_write_fn, df_with_table, qdbd_connection, "*", use_tag=True)
+    _, _, query = _prepare_query_test(qdbpd_write_fn, df_with_table, qdbd_connection, "*", attach_tag=True)
 
     pandas_df = qdbpd.query(qdbd_connection, query)
     dask_df = qdbdsk.query(query, qdbd_settings.get("uri").get("insecure")).compute()

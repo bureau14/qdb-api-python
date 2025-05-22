@@ -110,29 +110,28 @@ def _extract_range_from_query(conn, query: str, table_name: str) -> tuple:
     # if we can't do it we will query first() and last() from the table
     query_range = tuple()
     if match:
-        if len(match.group()) == 2:
-            start_str = match.group(1)
-            end_str = match.group(2)
-            logger.debug("Extracted strings: (%s, %s)", start_str, end_str)
-            parser_settings = {
-                "PREFER_DAY_OF_MONTH": "first",
-                "PREFER_MONTH_OF_YEAR": "first",
-            }
-            start_date = dateparser.parse(start_str, settings=parser_settings)
-            end_date = dateparser.parse(end_str, settings=parser_settings)
-            query_range = (start_date, end_date)
-            logger.debug("Parsed datetime: %s", query_range)
-            return query_range
+        start_str = match.group(1)
+        end_str = match.group(2)
+        logger.debug("Extracted strings: (%s, %s)", start_str, end_str)
+        parser_settings = {
+            "PREFER_DAY_OF_MONTH": "first",
+            "PREFER_MONTH_OF_YEAR": "first",
+        }
+        start_date = dateparser.parse(start_str, settings=parser_settings)
+        end_date = dateparser.parse(end_str, settings=parser_settings)
+        query_range = (start_date, end_date)
+        logger.debug("Parsed datetime: %s", query_range)
+    else:
+        logger.debug(
+            "No range found in query, querying table for first and last timestamp"
+        )
+        range_query = f"SELECT first($timestamp), last($timestamp) FROM {table_name}"
+        df = qdbpd.query(conn, range_query)
+        if not df.empty:
+            df.loc[0, "last($timestamp)"] += datetime.timedelta(microseconds=1)
+            query_range += tuple(df.iloc[0])
+            logger.debug("Extracted range from table: %s", query_range)
 
-    logger.debug(
-        "No range found in query, querying table for first and last timestamp"
-    )
-    range_query = f"SELECT first($timestamp), last($timestamp) FROM {table_name}"
-    df = qdbpd.query(conn, range_query)
-    if not df.empty:
-        df.iloc[0]["last($timestamp)"] += datetime.timedelta(microseconds=1)
-        query_range += tuple(df.iloc[0])
-        logger.debug("Extracted range from table: %s", query_range)
     return query_range
 
 
@@ -168,48 +167,31 @@ def _create_subrange_query(
     return new_query
 
 
-def _split_by_timedelta(
-    query_range: tuple[datetime.datetime, datetime.datetime], delta: datetime.timedelta
-) -> tuple[datetime.datetime, datetime.datetime]:
+def _get_subqueries(conn, query: str, table_name: str) -> list[str]:
+    # TODO: all of this should be moved to c++ side
+    shard_size = conn.table(table_name.replace("\"", "")).get_shard_size()
+    start, end = _extract_range_from_query(conn, query, table_name)
+    ranges_to_query = conn.split_query_range(start, end, shard_size)
+
+    subqueries = []
+    for rng in ranges_to_query:
+        subqueries.append(_create_subrange_query(query, rng))
+    return subqueries
+
+
+def _get_meta(conn, query: str, query_kwargs: dict) -> pd.DataFrame:
     """
-    Splits passed range into smaller ranges of size of delta.
+    Returns empty dataframe with the expected schema of the query result.
     """
+    np_res = conn.validate_query(query)
+    col_dtypes = {}
+    for id, column in enumerate(np_res):
+        col_dtypes[column[0]] = pd.Series(dtype=column[1].dtype)
 
-    ranges = []
-
-    if len(query_range) != 2:
-        return ranges
-
-    start = query_range[0]
-    end = query_range[1]
-    current_start = start
-
-    while current_start < end:
-        current_end = min(current_start + delta, end)
-        ranges.append((current_start, current_end))
-        current_start = current_end
-
-    return ranges
-
-
-def _get_meta(conn, query: str) -> pd.DataFrame:
-    """
-    Meta is an empty dataframe with the expected schema of the query result.
-    Extract df schema from the first row of the query result.
-    """
-    # XXX:igor we can use different approaches to get the meta
-    # 1. get the meta from the first row
-    #   this will require us to modify passed query, we have to add a limit 1 (check for existing limit, check for offset)
-    #   does this put a lot of pressure on the db?
-    #   this approach provides the most accurate meta
-    # 2. get the meta from the table schema
-    #   we will have to add $timestamp and $table for "select *" queries
-    #   with more complicated queries we can run into different edge cases
-    #       we will have to extract actual col names and aliases
-    #       get types for col names and assign them to the aliases
-    #   will be less accurate
-    query += " LIMIT 1"
-    return qdbpd.query(conn, query).iloc[:0]
+    df = pd.DataFrame(col_dtypes)
+    if query_kwargs["index"]:
+        df.set_index(query_kwargs["index"], inplace=True)
+    return df
 
 
 def query(
@@ -256,27 +238,17 @@ def query(
 
     table_name = _extract_table_name_from_query(query)
     with quasardb.Cluster(**conn_kwargs) as conn:
-        meta = _get_meta(conn, query)
-        shard_size = conn.table(table_name.replace("\"", "")).get_shard_size()
-        query_range = _extract_range_from_query(conn, query, table_name)
-        # XXX:igor this will work good for tables with a lot of data in all buckets
-        # for small tables we end up with a lot of small queries
-        #
-        # dd.read_sql_query function estimates data size from X first rows,
-        # then splits the data so it fits into "bytes_per_chunk" parameter
-        # (i think) it uses limit and offset to do this
-        ranges_to_query = _split_by_timedelta(query_range, shard_size)
+        meta = _get_meta(conn, query, query_kwargs)
+        subqueries = _get_subqueries(conn, query, table_name)
 
-    if len(ranges_to_query) == 0:
-        logging.warning("No ranges to query, returning empty dataframe")
+    if len(subqueries) == 0:
+        logging.warning("No subqueries, returning empty dataframe")
         return meta
 
-    logger.debug("Assembling subqueries for %d ranges", len(ranges_to_query))
     parts = []
-    for rng in ranges_to_query:
-        sub_query = _create_subrange_query(query, rng)
+    for subquery in subqueries:
         parts.append(
-            delayed(_read_dataframe)(sub_query, meta, conn_kwargs, query_kwargs)
+            delayed(_read_dataframe)(subquery, meta, conn_kwargs, query_kwargs)
         )
     logger.debug("Assembled %d subqueries", len(parts))
 
