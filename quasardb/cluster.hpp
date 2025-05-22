@@ -61,6 +61,10 @@
 #include <chrono>
 #include <iostream>
 
+// for validate_query mock
+#include <regex>
+
+
 namespace qdb
 {
 
@@ -495,6 +499,47 @@ public:
 
         return results;
     }
+
+    py::object validate_query(const std::string & query_string)
+    {
+        check_open();
+
+        std::string query = query_string;
+        const std::string limit_string = "LIMIT 1";
+        query += " " + limit_string;
+
+        // std::regex limit_pattern(R"(\bLIMIT\s+\d+)", std::regex_constants::icase);
+        // if (std::regex_search(query, limit_pattern)) {
+        //     query = std::regex_replace(query, limit_pattern, limit_string);
+        // } else {
+        //     query += " " + limit_string;
+        // }
+                    
+        // TODO:
+        // should return dict of column names and dtypes
+        // currently returns numpy masked arrays
+        return py::cast(qdb::numpy_query(_handle, query));
+    }
+
+    py::object split_query_range(std::chrono::system_clock::time_point start, std::chrono::system_clock::time_point end, std::chrono::milliseconds delta)
+    {
+        // TODO:
+        // for now this accepts time ranges and delta size
+        // it should accept query string and do extraction and splitting
+        // 
+        std::vector<std::pair<std::chrono::system_clock::time_point, std::chrono::system_clock::time_point>> ranges;
+
+        for (auto current_start = start; current_start < end; ) {
+            auto current_end = current_start + delta;
+            if (current_end > end) {
+                current_end = end;
+            }
+            ranges.emplace_back(current_start, current_end);
+            current_start = current_end;
+        }
+        return py::cast(ranges);
+    }
+
 
 private:
     std::string _uri;
