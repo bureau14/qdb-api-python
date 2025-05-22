@@ -763,11 +763,14 @@ def deduplicate(request, column_name):
 def deduplication_mode(request):
     return request.param
 
+@pytest.fixture(params=["S"], ids=["frequency=S"])
+def frequency(request):
+    yield request.param
 
 @pytest.fixture
-def gen_index(start_date, row_count):
+def gen_index(start_date, row_count, frequency):
     return pd.Index(
-        pd.date_range(start_date, periods=row_count, freq="S"), name="$timestamp"
+        pd.date_range(start_date, periods=row_count, freq=frequency), name="$timestamp"
     )
 
 
