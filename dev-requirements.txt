@@ -37,3 +37,7 @@ setuptools-git == 1.2
 
 # Linting
 black
+
+# Stubs
+mypy
+pybind11-stubgen

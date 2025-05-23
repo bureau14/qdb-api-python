@@ -5,19 +5,17 @@
 # pylint: disable=C0103,C0111,C0326,W0201,line-too-long
 
 
+import glob
 import os
-import re
-import sys
 import platform
 import subprocess
-import glob
+import sys
 
+from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext
-from setuptools import setup, Extension
 from setuptools.command.install import install
 
 # NOTE: Import distutils after setuptools.
-from pkg_resources import get_build_platform
 from wheel.bdist_wheel import bdist_wheel as old_bdist_wheel
 
 qdb_version = "3.15.0.dev0"
@@ -29,6 +27,7 @@ package_modules = glob.glob(os.path.join("quasardb", "lib*"))
 package_name = "quasardb"
 packages = [
     package_name,
+    "quasardb.quasardb",  # stubs
     "quasardb.pandas",
     "quasardb.numpy",
     "quasardb.extensions",
