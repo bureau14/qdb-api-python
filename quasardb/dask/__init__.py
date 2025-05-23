@@ -65,7 +65,7 @@ try:
 except ImportError as err:
     logger.exception(err)
     raise DaskRequired(
-        "dateparser required!"
+        "Dateparser library is required to use QuasarDB dask integration."
     ) from err
 
 general_select_pattern = re.compile(r'(?i)^\s*SELECT\b')
@@ -168,7 +168,8 @@ def _create_subrange_query(
 
 
 def _get_subqueries(conn, query: str, table_name: str) -> list[str]:
-    # TODO: all of this should be moved to c++ side
+    # XXX: igor
+    # this will be moved to c++ functions in the future
     shard_size = conn.table(table_name.replace("\"", "")).get_shard_size()
     start, end = _extract_range_from_query(conn, query, table_name)
     ranges_to_query = conn.split_query_range(start, end, shard_size)
