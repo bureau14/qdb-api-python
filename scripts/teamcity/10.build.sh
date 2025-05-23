@@ -48,16 +48,6 @@ export QDB_TESTS_ENABLED=OFF
 
 ${VENV_PYTHON} -m build -w
 
-
-# # Build the stubs and rebuild the api
-cd dist
-${VENV_PYTHON} -m pip install *.whl
-pybind11-stubgen quasardb -o ../ # stubgen (from mypy) is not that good
-cd ../
-
-${VENV_PYTHON} -m build -w
-
-## Rename the build
 for whl in dist/*.whl; do
     relabel_wheel "$whl"
 done

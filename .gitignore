@@ -127,9 +127,6 @@ venv
 # mypy
 .mypy_cache/
 
-# Stubs
-*.pyi
-
 # Visual Studio Code
 .vscode/*
 !.vscode/settings.json
@@ -140,6 +137,9 @@ venv
 
 # PyCharm
 .idea
+
+# MacOS
+.DS_Store
 
 # Test specific
 cluster_private.key
