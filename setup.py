@@ -206,7 +206,7 @@ setup(
     extras_require={
         "pandas": ["pandas"],
         "test": ["pytest"],
-        "dask": ["dask[dataframe]", "dask[delayed]", "pandas", "dateparser"],
+        "dask": ["qdb-dask-integration"],
     },
     packages=packages,
     package_data={package_name: package_modules},
