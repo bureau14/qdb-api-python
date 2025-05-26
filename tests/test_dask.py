@@ -227,22 +227,6 @@ def test_dask_df_select_agg_group_by_time_equals_pandas_df(
     _assert_df_equal(pandas_df, dask_df)
 
 
-@pytest.mark.parametrize("frequency", ["h"], ids=["frequency=H"], indirect=True)
-@pytest.mark.skip(reason="Not implemented yet")
-def test_dask_df_select_find_tag_equals_pandas_df(
-    df_with_table, qdbd_connection, qdbd_settings
-):
-    _, _, query = _prepare_query_test(
-        df_with_table, qdbd_connection, "*", attach_tag=True
-    )
-
-    pandas_df = qdbpd.query(qdbd_connection, query)
-    dask_df = qdbdsk.query(query, qdbd_settings.get("uri").get("insecure")).compute()
-    dask_df = dask_df.reset_index(drop=True)
-
-    _assert_df_equal(pandas_df, dask_df)
-
-
 @pytest.mark.parametrize(
     "query",
     [

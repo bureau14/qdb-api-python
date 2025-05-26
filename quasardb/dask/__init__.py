@@ -89,7 +89,8 @@ def _read_dataframe(
 
 
 def _extract_table_name_from_query(query: str) -> str:
-    # XXX:igor for now this works for queries using only one table
+    # XXX:igor for now this works for queries using one table
+    # tags and multiple tables are not supported yet
 
     logger.debug('Extracting table name from query: "%s"', query)
     match = re.search(table_pattern, query)
