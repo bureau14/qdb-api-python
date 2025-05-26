@@ -56,8 +56,10 @@ except ImportError as err:
         "The dask library is required to use QuasarDB dask integration."
     ) from err
 
+
 class DateParserRequired(ImportError):
     pass
+
 
 try:
     import dateparser
@@ -68,7 +70,7 @@ except ImportError as err:
         "Dateparser library is required to use QuasarDB dask integration."
     ) from err
 
-general_select_pattern = re.compile(r'(?i)^\s*SELECT\b')
+general_select_pattern = re.compile(r"(?i)^\s*SELECT\b")
 table_pattern = re.compile(r"(?i)\bFROM\s+([`\"\[]?\w+[`\"\]]?)")
 range_pattern = re.compile(r"(?i)\bIN\s+RANGE\s*\(([^,]+),\s*([^,]+)\)")
 
@@ -170,7 +172,7 @@ def _create_subrange_query(
 def _get_subqueries(conn, query: str, table_name: str) -> list[str]:
     # XXX: igor
     # this will be moved to c++ functions in the future
-    shard_size = conn.table(table_name.replace("\"", "")).get_shard_size()
+    shard_size = conn.table(table_name.replace('"', "")).get_shard_size()
     start, end = _extract_range_from_query(conn, query, table_name)
     ranges_to_query = conn.split_query_range(start, end, shard_size)
 
@@ -235,7 +237,6 @@ def query(
         "blobs": blobs,
         "numpy": numpy,
     }
-
 
     table_name = _extract_table_name_from_query(query)
     with quasardb.Cluster(**conn_kwargs) as conn:
