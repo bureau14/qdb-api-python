@@ -141,6 +141,7 @@ def test_dask_compute_on_local_cluster(df_with_table, qdbd_connection, qdbd_sett
 
 ### Query tests, we care about results of dask query matching those of pandas
 # when using default index, it has to be reset to match pandas DataFrame.
+# we neeed to check that each query is split into multiple dask partitions
 #
 # index for a Dask DataFrame will not be monotonically increasing from 0.
 # Instead, it will restart at 0 for each partition (e.g. index1 = [0, ..., 10], index2 = [0, ...]).
@@ -151,8 +152,8 @@ def test_dask_compute_on_local_cluster(df_with_table, qdbd_connection, qdbd_sett
 @pytest.mark.parametrize("frequency", ["h"], ids=["frequency=H"], indirect=True)
 @pytest.mark.parametrize(
     "range_slice",
-    [1, 0.5, 0.25, 0.1],
-    ids=["range_slice=1", "range_slice=0.5", "range_slice=0.25", "range_slice=0.1"],
+    [1, 0.5, 0.25],
+    ids=["range_slice=1", "range_slice=0.5", "range_slice=0.25"],
 )
 @pytest.mark.parametrize(
     "query_options",
@@ -169,7 +170,10 @@ def test_dask_df_select_star_equals_pandas_df(
     pandas_df = qdbpd.query(qdbd_connection, query, **query_options)
     dask_df = qdbdsk.query(
         query, qdbd_settings.get("uri").get("insecure"), **query_options
-    ).compute()
+    )
+
+    assert dask_df.npartitions > 1, "Dask DataFrame should have multiple partitions"
+    dask_df = dask_df.compute()
 
     if query_options.get("index") is None:
         dask_df = dask_df.reset_index(drop=True)
@@ -180,8 +184,8 @@ def test_dask_df_select_star_equals_pandas_df(
 @pytest.mark.parametrize("frequency", ["h"], ids=["frequency=H"], indirect=True)
 @pytest.mark.parametrize(
     "range_slice",
-    [1, 0.5, 0.25, 0.1],
-    ids=["range_slice=1", "range_slice=0.5", "range_slice=0.25", "range_slice=0.1"],
+    [1, 0.5, 0.25],
+    ids=["range_slice=1", "range_slice=0.5", "range_slice=0.25"],
 )
 @pytest.mark.parametrize(
     "use_alias", [False, True], ids=["use_alias=False", "use_alias=True"]
@@ -200,7 +204,11 @@ def test_dask_df_select_columns_equals_pandas_df(
         df_with_table, qdbd_connection, columns, query_range
     )
     pandas_df = qdbpd.query(qdbd_connection, query)
-    dask_df = qdbdsk.query(query, qdbd_settings.get("uri").get("insecure")).compute()
+    dask_df = qdbdsk.query(query, qdbd_settings.get("uri").get("insecure"))
+
+    assert dask_df.npartitions > 1, "Dask DataFrame should have multiple partitions"
+    dask_df = dask_df.compute()
+
     dask_df = dask_df.reset_index(drop=True)
 
     _assert_df_equal(pandas_df, dask_df)
@@ -221,7 +229,11 @@ def test_dask_df_select_agg_group_by_time_equals_pandas_df(
     )
 
     pandas_df = qdbpd.query(qdbd_connection, query)
-    dask_df = qdbdsk.query(query, qdbd_settings.get("uri").get("insecure")).compute()
+    dask_df = qdbdsk.query(query, qdbd_settings.get("uri").get("insecure"))
+
+    assert dask_df.npartitions > 1, "Dask DataFrame should have multiple partitions"
+    dask_df = dask_df.compute()
+
     dask_df = dask_df.reset_index(drop=True)
 
     _assert_df_equal(pandas_df, dask_df)

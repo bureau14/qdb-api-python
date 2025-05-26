@@ -171,7 +171,6 @@ def _create_subrange_query(
 
 
 def _get_subqueries(conn, query: str, table_name: str) -> list[str]:
-    # XXX: igor
     # this will be moved to c++ functions in the future
     shard_size = conn.table(table_name.replace('"', "")).get_shard_size()
     start, end = _extract_range_from_query(conn, query, table_name)
