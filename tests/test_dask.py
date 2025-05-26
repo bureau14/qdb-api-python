@@ -21,19 +21,12 @@ def _prepare_query_test(
     columns: str = "*",
     query_range: tuple[pd.Timestamp, pd.Timestamp] = None,
     group_by: str = None,
-    attach_tag: bool = False,
 ):
     (_, _, df, table) = df_with_table
 
     qdbpd.write_dataframe(df, qdbd_connection, table, write_through=True)
     table_name = table.get_name()
-    q = "SELECT {} ".format(columns)
-
-    if attach_tag:
-        table.attach_tag("dask_tag")
-        q += "FROM find(tag='dask_tag')"
-    else:
-        q += 'FROM "{}"'.format(table_name)
+    q = 'SELECT {} FROM "{}"'.format(columns, table_name)
 
     if query_range:
         q += " IN RANGE({}, {})".format(query_range[0], query_range[1])
@@ -119,7 +112,7 @@ def test_dask_query_parallelized(df_with_table, qdbd_connection, qdbd_settings):
 
     # value of npartitions determines number of delayed tasks
     # delayed tasks can be executed in parallel
-    # query range is split by shard size
+    # currently tasks are created for each shard
     expected_number_of_partitions = math.ceil(
         (end - start).total_seconds() / shard_size.total_seconds()
     )
