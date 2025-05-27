@@ -17,12 +17,12 @@ def _prepare_query_test(
 
 
 @pytest.mark.parametrize("frequency", ["h"], ids=["frequency=H"], indirect=True)
-def test_can_query_from_dask_module(
-    df_with_table, qdbd_connection, qdbd_settings
-):
+def test_can_query_from_dask_module(df_with_table, qdbd_connection, qdbd_settings):
     _, table = _prepare_query_test(df_with_table, qdbd_connection)
-    query = f"SELECT * FROM \"{table.get_name()}\""
+    query = f'SELECT * FROM "{table.get_name()}"'
 
     ddf = qdbdsk.query(query, cluster_uri=qdbd_settings.get("uri").get("insecure"))
-    assert ddf.npartitions > 1 # we want to ensure that the query is distributed for this test
+    assert (
+        ddf.npartitions > 1
+    )  # we want to ensure that the query is distributed for this test
     ddf.compute()
