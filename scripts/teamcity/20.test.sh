@@ -156,6 +156,7 @@ export QDB_TESTS_ENABLED=ON
 ${VENV_PYTHON} -m build -w
 
 ${VENV_PYTHON} -m pip install --no-deps --force-reinstall dist/quasardb-*.whl
+${VENV_PYTHON} -m pip install --no-deps --force-reinstall qdb/qdb_dask_connector*.whl
 
 echo "Invoking pytest"
 

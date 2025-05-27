@@ -20,7 +20,9 @@ def _prepare_query_test(
 def test_can_query_from_dask_module(
     df_with_table, qdbd_connection, qdbd_settings
 ):
-    df, table = _prepare_query_test(df_with_table, qdbd_connection)
-    query = f"SELECT * FROM {table.get_name()}"
+    _, table = _prepare_query_test(df_with_table, qdbd_connection)
+    query = f"SELECT * FROM \"{table.get_name()}\""
 
-    qdbdsk.query(query, cluster_uri=qdbd_settings.get("uri").get("insecure")).compute()
+    ddf = qdbdsk.query(query, cluster_uri=qdbd_settings.get("uri").get("insecure"))
+    assert ddf.npartitions > 1 # we want to ensure that the query is distributed for this test
+    ddf.compute()
