@@ -191,7 +191,10 @@ void register_cluster(py::module_ & m)
         .def("compact_progress", &qdb::cluster::compact_progress)                          //
         .def("compact_abort", &qdb::cluster::compact_abort)                                //
         .def("wait_for_compaction", &qdb::cluster::wait_for_compaction)                    //
-        .def("endpoints", &qdb::cluster::endpoints);                                       //
+        .def("endpoints", &qdb::cluster::endpoints)                                        //
+        .def("validate_query", &qdb::cluster::validate_query)                              //
+        .def("split_query_range", &qdb::cluster::split_query_range);                       //
+
 }
 
 }; // namespace qdb
