@@ -31,7 +31,7 @@ packages = [
     "quasardb.numpy",
     "quasardb.extensions",
     "quasardb.quasardb",  # stubs
-    "quasardb.quasardb.metrics", # stubs
+    "quasardb.quasardb.metrics",  # stubs
 ]
 
 

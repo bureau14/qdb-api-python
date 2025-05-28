@@ -250,7 +250,7 @@ class direct_instantiation_exception : public exception
 {
 public:
     direct_instantiation_exception() noexcept
-        : exception(qdb_e_internal_local, // TODO: check this code
+        : exception(qdb_e_internal_local, // TODO: check this error code
             std::string("Direct instantiation is not allowed"))
     {}
 
