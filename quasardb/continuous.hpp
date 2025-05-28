@@ -93,17 +93,19 @@ static inline void register_continuous(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::query_continuous, std::shared_ptr<qdb::query_continuous>>{m, "QueryContinuous"} //
-        .def(py::init<qdb::handle_ptr,
-            const py::object &>())                                   //
-        .def("run", &qdb::query_continuous::run)                     //
-        .def("results", &qdb::query_continuous::results)             //
-        .def("probe_results", &qdb::query_continuous::probe_results) //
-        .def("stop", &qdb::query_continuous::stop)                   //
+    py::class_<qdb::query_continuous, std::shared_ptr<qdb::query_continuous>>{m, "QueryContinuous"}
+        .def(py::init([](py::args, py::kwargs) {
+	    throw qdb::direct_instantiation_exception{"conn.query_continuous_full(...)"};
+	    return nullptr;
+        }))
+        .def("run", &qdb::query_continuous::run)
+        .def("results", &qdb::query_continuous::results)
+        .def("probe_results", &qdb::query_continuous::probe_results)
+        .def("stop", &qdb::query_continuous::stop)
 
         // required interface to use query_continuous as an iterator
-        .def("__iter__", [](const std::shared_ptr<qdb::query_continuous> & cont) { return cont; }) //
-        .def("__next__", &qdb::query_continuous::results);                                         //
+        .def("__iter__", [](const std::shared_ptr<qdb::query_continuous> & cont) { return cont; })
+        .def("__next__", &qdb::query_continuous::results);
 }
 
 } // namespace qdb

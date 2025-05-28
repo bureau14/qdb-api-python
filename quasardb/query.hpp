@@ -82,9 +82,12 @@ static inline void register_query(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::find_query>{m, "FindQuery"}                //
-        .def(py::init<qdb::handle_ptr, const std::string &>()) //
-        .def("run", &qdb::find_query::run);                    //
+    py::class_<qdb::find_query>{m, "FindQuery"}
+        .def(py::init([](py::args, py::kwargs) {
+	    throw qdb::direct_instantiation_exception{};
+	    return nullptr;
+        }))
+        .def("run", &qdb::find_query::run);
 
     m.def("dict_query", &qdb::dict_query);
 }

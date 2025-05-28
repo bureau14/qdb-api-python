@@ -21,6 +21,8 @@ else
     VENV_PYTHON="${SCRIPT_DIR}/../../.env/bin/python"
 fi
 
+${VENV_PYTHON} --version
+
 function relabel_wheel {
     wheel="$1"
 

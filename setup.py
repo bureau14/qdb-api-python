@@ -27,10 +27,11 @@ package_modules = glob.glob(os.path.join("quasardb", "lib*"))
 package_name = "quasardb"
 packages = [
     package_name,
-    "quasardb.quasardb",  # stubs
     "quasardb.pandas",
     "quasardb.numpy",
     "quasardb.extensions",
+    "quasardb.quasardb",  # stubs
+    "quasardb.quasardb.metrics", # stubs
 ]
 
 

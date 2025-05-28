@@ -67,14 +67,14 @@ static inline void register_batch_column(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::batch_column_info>{m, "BatchColumnInfo"}                                 //
-        .def(py::init<const std::string &, const std::string &, qdb_size_t>(),               //
-            py::arg("ts_name"),                                                              //
-            py::arg("col_name"),                                                             //
-            py::arg("size_hint") = 0)                                                        //
-        .def_readwrite("timeseries", &qdb::batch_column_info::timeseries)                    //
-        .def_readwrite("column", &qdb::batch_column_info::column)                            //
-        .def_readwrite("elements_count_hint", &qdb::batch_column_info::elements_count_hint); //
+    py::class_<qdb::batch_column_info>{m, "BatchColumnInfo"}
+        .def(py::init<const std::string &, const std::string &, qdb_size_t>(),
+            py::arg("ts_name"),
+            py::arg("col_name"),
+            py::arg("size_hint") = 0)
+        .def_readwrite("timeseries", &qdb::batch_column_info::timeseries)
+        .def_readwrite("column", &qdb::batch_column_info::column)
+        .def_readwrite("elements_count_hint", &qdb::batch_column_info::elements_count_hint);
 }
 
 } // namespace qdb
