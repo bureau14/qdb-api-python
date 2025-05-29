@@ -326,11 +326,14 @@ static inline void register_perf(Module & m)
     namespace py = pybind11;
 
     py::class_<qdb::perf>(m, "Perf")
-        .def(py::init<qdb::handle_ptr>())                                               //
-        .def("get", &qdb::perf::get, py::arg("flame") = false, py::arg("outfile") = "") //
-        .def("clear", &qdb::perf::clear_all_profiles)                                   //
-        .def("enable", &qdb::perf::enable_client_tracking)                              //
-        .def("disable", &qdb::perf::disable_client_tracking);                           //
+        .def(py::init([](py::args, py::kwargs) {
+	    throw qdb::direct_instantiation_exception{"conn.perf(...)"};
+	    return nullptr;
+        }))
+        .def("get", &qdb::perf::get, py::arg("flame") = false, py::arg("outfile") = "")
+        .def("clear", &qdb::perf::clear_all_profiles)
+        .def("enable", &qdb::perf::enable_client_tracking)
+        .def("disable", &qdb::perf::disable_client_tracking);
 }
 
 } // namespace qdb

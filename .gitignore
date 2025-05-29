@@ -138,6 +138,9 @@ venv
 # PyCharm
 .idea
 
+# MacOS
+.DS_Store
+
 # Test specific
 cluster_private.key
 cluster_public.key

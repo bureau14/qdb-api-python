@@ -75,13 +75,16 @@ static inline void register_double(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::double_entry, qdb::expirable_entry>(m, "Double")  //
-        .def(py::init<qdb::handle_ptr, std::string>())                //
-        .def("get", &qdb::double_entry::get)                          //
-        .def("put", &qdb::double_entry::put, py::arg("double"))       //
-        .def("update", &qdb::double_entry::update, py::arg("double")) //
-        .def("add", &qdb::double_entry::add, py::arg("addend"))       //
-        ;                                                             //
+    py::class_<qdb::double_entry, qdb::expirable_entry>(m, "Double")
+        .def(py::init([](py::args, py::kwargs) {
+	    throw qdb::direct_instantiation_exception{"conn.double(...)"};
+	    return nullptr;
+        }))
+        .def("get", &qdb::double_entry::get)
+        .def("put", &qdb::double_entry::put, py::arg("double"))
+        .def("update", &qdb::double_entry::update, py::arg("double"))
+        .def("add", &qdb::double_entry::add, py::arg("addend"))
+        ;
 }
 
 } // namespace qdb

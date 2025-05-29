@@ -115,15 +115,15 @@ static inline void register_node(Module & m)
     py::class_<qdb::node>(m, "Node")
         .def(py::init<std::string const &, std::string const &, std::string const &, std::string const &,
              std::string const &, std::string const &, bool>(),
-            py::arg("uri"),                                      //
-            py::arg("user_name")               = std::string{},  //
-            py::arg("user_private_key")        = std::string{},  //
-            py::arg("cluster_public_key")      = std::string{},  //
-            py::kw_only(),                                       //             
-            py::arg("user_security_file")      = std::string{},  //
-            py::arg("cluster_public_key_file") = std::string{},  //
-            py::arg("enable_encryption")       = false           //
-             ) //
+            py::arg("uri"),
+            py::arg("user_name")               = std::string{},
+            py::arg("user_private_key")        = std::string{},
+            py::arg("cluster_public_key")      = std::string{},
+            py::kw_only(),
+            py::arg("user_security_file")      = std::string{},
+            py::arg("cluster_public_key_file") = std::string{},
+            py::arg("enable_encryption")       = false
+             )
         .def("prefix_get", &qdb::node::prefix_get)
         .def("blob", &qdb::node::blob)
         .def("integer", &qdb::node::integer);

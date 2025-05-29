@@ -305,9 +305,9 @@ public:
 // behavior
 using writer_ptr = std::unique_ptr<writer>;
 
-template <                                            //
-    qdb::concepts::writer_push_strategy PushStrategy, //
-    qdb::concepts::sleep_strategy SleepStrategy>      //
+template <
+    qdb::concepts::writer_push_strategy PushStrategy,
+    qdb::concepts::sleep_strategy SleepStrategy>
 static void register_writer(py::module_ & m)
 {
     using PS = PushStrategy;
@@ -324,28 +324,31 @@ static void register_writer(py::module_ & m)
 
     // Different push modes, makes it easy to convert to<>from native types, as we accept the push
     // mode as a kwarg.
-    py::enum_<qdb_exp_batch_push_mode_t>{m, "WriterPushMode", py::arithmetic(), "Push Mode"} //
-        .value("Transactional", qdb_exp_batch_push_transactional)                            //
-        .value("Fast", qdb_exp_batch_push_fast)                                              //
-        .value("Truncate", qdb_exp_batch_push_truncate)                                      //
-        .value("Async", qdb_exp_batch_push_async);                                           //
+    py::enum_<qdb_exp_batch_push_mode_t>{m, "WriterPushMode", py::arithmetic(), "Push Mode"}
+        .value("Transactional", qdb_exp_batch_push_transactional)
+        .value("Fast", qdb_exp_batch_push_fast)
+        .value("Truncate", qdb_exp_batch_push_truncate)
+        .value("Async", qdb_exp_batch_push_async);
 
     // And the actual pinned writer
     auto writer_c = py::class_<qdb::writer>{m, "Writer"};
 
     // basic interface
-    writer_c.def(py::init<qdb::handle_ptr>()); //
+    writer_c.def(py::init([](py::args, py::kwargs) {
+	throw qdb::direct_instantiation_exception{"conn.writer(...)"};
+	return nullptr;
+    }));
 
     writer_c.def_readwrite("_legacy_state", &qdb::writer::legacy_state_);
 
     // push functions
     writer_c
-        .def("push", &qdb::writer::push<PS, SS>, "Regular batch push") //
+        .def("push", &qdb::writer::push<PS, SS>, "Regular batch push")
         .def("push_async", &qdb::writer::push_async<PS, SS>,
-            "Asynchronous batch push that buffers data inside the QuasarDB daemon") //
+            "Asynchronous batch push that buffers data inside the QuasarDB daemon")
         .def("push_fast", &qdb::writer::push_fast<PS, SS>,
             "Fast, in-place batch push that is efficient when doing lots of small, incremental "
-            "pushes.") //
+            "pushes.")
         .def("push_truncate", &qdb::writer::push_truncate<PS, SS>,
             "Before inserting data, truncates any existing data. This is useful when you want your "
             "insertions to be idempotent, e.g. in "
