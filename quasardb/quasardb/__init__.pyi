@@ -1,5 +1,6 @@
 import datetime
 
+from . import metrics
 from ._batch_column import BatchColumnInfo
 from ._batch_inserter import TimeSeriesBatch
 from ._blob import Blob

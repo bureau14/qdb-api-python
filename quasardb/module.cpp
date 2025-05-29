@@ -58,7 +58,6 @@ PYBIND11_MODULE(quasardb, m)
     auto py_datetime = py::module_::import("datetime");
     auto py_utc = py_datetime.attr("timezone").attr("utc");
     m.attr("never_expires") = py_datetime.attr("datetime").attr("fromtimestamp")(0, py_utc);
-    // m.attr("never_expires") = std::chrono::system_clock::time_point{};
 
     qdb::register_errors(m);
     qdb::register_options(m);
