@@ -1,4 +1,4 @@
-name: Lint
+name: Format check
 
 on:
   push:
@@ -6,11 +6,13 @@ on:
       - master
     paths:
       - '**.py'
+      - '**.pyi'
   pull_request:
     branches:
       - master
     paths:
       - '**.py'
+      - '**.pyi'
 
 jobs:
   lint:
@@ -28,15 +30,30 @@ jobs:
         run: |
           pip install -r scripts/github_actions/requirements.txt
 
-      - name: Run black
-        id: run_black
+      - name: Run black on Python files
         run: |
           black --check --verbose .
 
-      # - name: Run post-lint actions
-      #   if: ${{ !cancelled() }}
-      #   env:
-      #     SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      #     SLACK_BOT_CHANNEL: ${{ vars.SLACK_BOT_CHANNEL }}
-      #   run: |
-      #     python scripts/github_actions/post_lint.py ${{ steps.run_black.outcome }}
+      - name: Run black on stub files
+        run: |
+          black --include '\.pyi$' --check --verbose .
+
+  typing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Setup Python version
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          pip install -r scripts/github_actions/requirements.txt
+          pip install -r dev-requirements.txt
+
+      - name: Run mypy
+        run: |
+          mypy --check quasardb
