@@ -64,9 +64,9 @@ bash scripts/tests/setup/stop-services.sh
 ```
 ````
 
-## Function and Inline Comment Guidelines for qdb-api-python
+## Function and Inline Comment Guidelines
 
-When documenting functions or writing inline comments in the `qdb-api-python` C++ and Python codebases, adhere strictly to these standards to ensure clarity, maintainability, and readability, optimized especially for LLM consumption.
+When documenting functions or writing inline comments in the C++ and Python codebases in this repository, adhere strictly to these standards to ensure clarity, maintainability, and readability, optimized especially for LLM consumption.
 
 ### General Guidelines (C++ and Python)
 
