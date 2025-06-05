@@ -5,10 +5,12 @@ This Agents.md file provides comprehensive guidance for OpenAI Codex and other A
 
 ## Project Structure for OpenAI Codex Navigation
 
+This is the QuasarDB Python API library that integrates with the QuasarDB C API using pybind11.
+
 - `/doc`: Utility script for building the pydoc documentation.
 - `/quasardb`: QuasarDB Python API source code. Contains both C++ and Python source code.
 - `/qdb`: QuasarDB dependencies, including header files, libraries, and utilities. Do not modify.
-  - `include/qdb/`: C API headers defining types and functions used by CGO.
+  - `include/qdb/`: C API headers defining types and functions used by pybind11.
 - `/scripts`: Utility scripts.
   - `/tests/setup/`: Git submodule with scripts for managing the QuasarDB daemon lifecycle. Do **not** modify these scripts; updating the submodule is permitted.
   - `/teamcity/`: TeamCity CI/CD automation scripts.
@@ -19,6 +21,43 @@ This Agents.md file provides comprehensive guidance for OpenAI Codex and other A
 - `/tests`: Integration tests using pytest; includes additional C++ tests activated by `QDB_TESTS_ENABLED=1`.
 - `/thirdparty`: Vendored third-party C++ dependencies.
 
+This project uses `direnv` to manage environment variables essential for running tests and compilation.
+
+When generating any shell commands, **always prefix each command explicitly with**:
+
+```bash
+direnv exec . <command>
+```
+
+For example, to run `python3 --version`, use:
+
+```bash
+direnv exec . python3 --version
+```
+
+**Always** include the `direnv exec .` prefix on **every** generated shell command. Omitting it can lead to compilation failures due to missing environment variables.
+
+### Resolving direnv Permission Errors:
+
+If executing commands prefixed with `direnv exec` . results in the following error:
+
+```bash
+direnv: error /path/to/project/.envrc is blocked. Run `direnv allow` to approve its content
+```
+
+This indicates the .envrc file has not yet been explicitly trusted.
+Immediately run the following command to resolve this issue:
+
+```bash
+direnv allow .
+```
+
+After running this, retry the original command:
+
+```bash
+direnv exec . <original command>
+```
+
 ## Testing Requirements for OpenAI Codex
 
 ### Test Setup
@@ -26,7 +65,7 @@ This Agents.md file provides comprehensive guidance for OpenAI Codex and other A
 Launch the test clusters from the project root:
 
 ```bash
-bash scripts/tests/setup/start-services.sh
+direnv exec . bash scripts/tests/setup/start-services.sh
 ```
 
 ### Running Tests
@@ -34,7 +73,7 @@ bash scripts/tests/setup/start-services.sh
 The project's test suite is executed via the TeamCity script:
 
 ```bash
-bash scripts/teamcity/20.test.sh
+direnv exec . bash scripts/teamcity/20.test.sh
 ```
 
 Tests leverage `pytest` internally, passing through additional arguments as needed.
@@ -44,13 +83,13 @@ Because the full test suite can take approximately 10 minutes, it is strongly re
 To run a single test module, for example `tests/test_stats.py`, execute:
 
 ```bash
-bash scripts/teamcity/20.test.sh test_stats.py
+direnv exec . bash scripts/teamcity/20.test.sh test_stats.py
 ```
 
 For early termination upon first test failure, append the `-x` option:
 
 ```bash
-bash scripts/teamcity/20.test.sh -x test_stats.py
+direnv exec . bash scripts/teamcity/20.test.sh -x test_stats.py
 ```
 
 This approach allows OpenAI Codex to rapidly iterate and confirm correctness without waiting for the full test suite.
@@ -60,7 +99,7 @@ This approach allows OpenAI Codex to rapidly iterate and confirm correctness wit
 Stop the test clusters from the project root:
 
 ```bash
-bash scripts/tests/setup/stop-services.sh
+direnv exec . bash scripts/tests/setup/stop-services.sh
 ```
 ````
 
