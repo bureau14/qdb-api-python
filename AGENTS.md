@@ -63,3 +63,129 @@ Stop the test clusters from the project root:
 bash scripts/tests/setup/stop-services.sh
 ```
 ````
+
+## Function and Inline Comment Guidelines for qdb-api-python
+
+When documenting functions or writing inline comments in the `qdb-api-python` C++ and Python codebases, adhere strictly to these standards to ensure clarity, maintainability, and readability, optimized especially for LLM consumption.
+
+### General Guidelines (C++ and Python)
+
+- Write concise, informative comments emphasizing **why** and **how** rather than repeating **what** the code already expresses.
+- Clearly document design decisions, key assumptions, and performance implications rather than trivial or self-explanatory information.
+- Optimize comments for maximum clarity and readability by both humans and LLMs.
+- Never use emojis or informal expressions.
+
+### C++ Comment Guidelines
+
+#### Function Comments
+
+Use Doxygen-style block comments placed immediately above function definitions:
+
+```cpp
+/**
+ * Brief summary clearly stating the purpose of the function.
+ *
+ * Additional context (if necessary), describing key behavior, details, and intended use.
+ *
+ * Decision rationale:
+ * - Briefly explain important design or implementation choices.
+ *
+ * Key assumptions:
+ * - Specify preconditions or invariants the function depends upon.
+ *
+ * Performance trade-offs:
+ * - Clearly outline performance costs versus benefits.
+ *
+ * Example usage:
+ * // auto batch_size = config.get_batch_size();
+ */
+constexpr inline std::size_t get_batch_size() const noexcept
+{
+    return batch_size_;
+}
+```
+
+#### Inline Comments
+
+Within code blocks, use concise inline comments to clarify subtle or critical behavior:
+
+```cpp
+if (err == qdb_e_iterator_end) [[unlikely]]
+{
+    // Iterator reached end; reset internal state to resemble an "end" iterator.
+    handle_      = nullptr;
+    reader_      = nullptr;
+    batch_size_  = 0;
+    table_count_ = 0;
+    ptr_         = nullptr;
+    n_           = 0;
+}
+```
+
+### Python Comment Guidelines
+
+#### Function Comments
+
+Follow NumPy-style docstrings clearly documenting parameters, return values, and behavior:
+
+```python
+def query(cluster: quasardb.Cluster, query, index=None, blobs=False, numpy=True):
+    """
+    Execute a query and return results as a dictionary of DataFrames keyed by table names.
+
+    Parameters
+    ----------
+    cluster : quasardb.Cluster
+        Active connection to the QuasarDB cluster.
+
+    query : str
+        The query string to execute.
+
+    blobs : bool or list, optional
+        Determines how QuasarDB blob columns are returned:
+        - If True, all blob columns are returned as bytearrays.
+        - If a list, specifies specific columns to return as bytearrays.
+        - Defaults to False, meaning blobs are returned as UTF-8 strings.
+
+    numpy : bool, optional
+        Indicates whether results leverage NumPy arrays internally. Defaults to True.
+
+    Decision rationale:
+    - Returning data as DataFrames for user-friendly consumption while internally leveraging NumPy for efficiency.
+
+    Key assumptions:
+    - Provided cluster connection is active and valid.
+
+    Performance trade-offs:
+    - Converting between NumPy arrays and DataFrames introduces slight overhead but provides significant convenience.
+
+    Example usage:
+    # results = query(cluster, "SELECT * FROM timeseries")
+    # df = results["timeseries"]
+    """
+```
+
+#### Inline Comments
+
+Document key steps, critical behaviors, or notable conditions clearly within code blocks:
+
+```python
+if not df.index.is_monotonic_increasing:
+    logger.warn(
+        "Dataframe index is unsorted; sorting and reindexing dataframe."
+    )
+    df = df.sort_index().reindex()
+
+# Delegate further processing to qdbnp.write_arrays using numpy arrays directly.
+# Pandas DataFrames may implicitly cast sparse integer arrays to floats, causing issues.
+data = _extract_columns(df, cinfos)
+data["$timestamp"] = df.index.to_numpy(copy=False, dtype="datetime64[ns]")
+```
+
+### Summary of Commenting Principles
+
+- **Clarity and context**: Comments must add value beyond the code itself.
+- **Structured reasoning**: Clearly document rationale, assumptions, and trade-offs.
+- **Inline examples**: Provide concise usage examples prefixed by comment markers to enhance comprehension.
+
+By adhering strictly to these guidelines, comments across the `qdb-api-python` codebase will consistently deliver clarity and insight, optimized for readability by both human and LLM readers.
