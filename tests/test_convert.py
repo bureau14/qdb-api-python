@@ -44,7 +44,7 @@ def _test_array_recode(array_with_index_and_table):
         # XXX(leon): we don't yet support native qdb -> np.ndarray with dtype `null-terminated binary` (S). I don't think we
         #            should ever do this, but we do need it for input. That's why we can't test this right now, because we
         #            can't do it full circle.
-        return True
+        return
 
     (idx2, xs2) = m.test_array_recode(ctype, dtype, (idx1, xs1))
     assert_indexed_arrays_equal((idx1, xs1), (idx2, xs2))
@@ -52,9 +52,9 @@ def _test_array_recode(array_with_index_and_table):
 
 @conftest.override_sparsify("partial")
 def test_array_recode_sparsify_partial(array_with_index_and_table):
-    return _test_array_recode(array_with_index_and_table)
+    _test_array_recode(array_with_index_and_table)
 
 
 @conftest.override_sparsify("none")
 def test_array_recode_sparsify_none(array_with_index_and_table):
-    return _test_array_recode(array_with_index_and_table)
+    _test_array_recode(array_with_index_and_table)
