@@ -52,9 +52,9 @@ def _test_array_recode(array_with_index_and_table):
 
 @conftest.override_sparsify("partial")
 def test_array_recode_sparsify_partial(array_with_index_and_table):
-    return _test_array_recode(array_with_index_and_table)
+    _test_array_recode(array_with_index_and_table)
 
 
 @conftest.override_sparsify("none")
 def test_array_recode_sparsify_none(array_with_index_and_table):
-    return _test_array_recode(array_with_index_and_table)
+    _test_array_recode(array_with_index_and_table)
