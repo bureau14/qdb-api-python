@@ -206,29 +206,16 @@ void register_reader(py::module_ & m)
 
     // basic interface
     reader_c
-        .def(py::init<                                                                         //
-                 qdb::handle_ptr,                                                              //
-                 std::vector<std::string> const &,                                             //
-                 std::vector<std::string> const &,                                             //
-                 std::size_t,                                                                  //
-                 std::vector<py::tuple> const &>(),                                            //
-            py::arg("conn"),                                                                   //
-            py::arg("table_names"),                                                            //
-            py::kw_only(),                                                                     //
-            py::arg("column_names") = std::vector<std::string>{},                              //
-            py::arg("batch_size")   = std::size_t{1 << 16},                                    //
-            py::arg("ranges")       = std::vector<py::tuple>{}                                 //
-            )                                                                                  //
-                                                                                               //
-        .def("get_batch_size", &qdb::reader::get_batch_size)                                   //
-                                                                                               //
-        .def("__enter__", &qdb::reader::enter)                                                 //
-        .def("__exit__", &qdb::reader::exit)                                                   //
-        .def(                                                                                  //
-            "__iter__", [](qdb::reader & r) { return py::make_iterator(r.begin(), r.end()); }, //
+        .def(py::init([](py::args, py::kwargs) {
+	    throw qdb::direct_instantiation_exception{"conn.reader(...)"};
+	    return nullptr;
+        }))
+        .def("get_batch_size", &qdb::reader::get_batch_size)
+        .def("__enter__", &qdb::reader::enter)
+        .def("__exit__", &qdb::reader::exit)
+        .def(
+            "__iter__", [](qdb::reader & r) { return py::make_iterator(r.begin(), r.end()); },
             py::keep_alive<0, 1>());
-
-    //
 }
 
 } // namespace qdb

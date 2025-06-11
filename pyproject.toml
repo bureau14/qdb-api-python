@@ -24,3 +24,6 @@ addopts = ["-s", "-x"]
 xfail_strict = true
 filterwarnings = []
 testpaths = ["tests"]
+
+# [tool.mypy]
+# python_version = "3.9"

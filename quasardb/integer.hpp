@@ -76,13 +76,16 @@ static inline void register_integer(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::integer_entry, qdb::expirable_entry>(m, "Integer")  //
-        .def(py::init<qdb::handle_ptr, std::string>())                  //
-        .def("get", &qdb::integer_entry::get)                           //
-        .def("put", &qdb::integer_entry::put, py::arg("integer"))       //
-        .def("update", &qdb::integer_entry::update, py::arg("integer")) //
-        .def("add", &qdb::integer_entry::add, py::arg("addend"))        //
-        ;                                                               //
+    py::class_<qdb::integer_entry, qdb::expirable_entry>(m, "Integer")
+        .def(py::init([](py::args, py::kwargs) {
+	    throw qdb::direct_instantiation_exception{"conn.integer(...)"};
+	    return nullptr;
+        }))
+        .def("get", &qdb::integer_entry::get)
+        .def("put", &qdb::integer_entry::put, py::arg("integer"))
+        .def("update", &qdb::integer_entry::update, py::arg("integer"))
+        .def("add", &qdb::integer_entry::add, py::arg("addend"))
+        ;
 }
 
 } // namespace qdb

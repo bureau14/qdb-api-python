@@ -143,18 +143,21 @@ static inline void register_string(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::string_entry, qdb::expirable_entry>(m, "String") //
-        .def(py::init<qdb::handle_ptr, std::string>())               //
-        .def("get", &qdb::string_entry::get)                         //
-        .def("put", &qdb::string_entry::put, py::arg("data"))        //
+    py::class_<qdb::string_entry, qdb::expirable_entry>(m, "String")
+        .def(py::init([](py::args, py::kwargs) {
+	    throw qdb::direct_instantiation_exception{"conn.string(...)"};
+	    return nullptr;
+        }))
+        .def("get", &qdb::string_entry::get)
+        .def("put", &qdb::string_entry::put, py::arg("data"))
         .def("update", &qdb::string_entry::update, py::arg("data"),
-            py::arg("expiry") = std::chrono::system_clock::time_point{})       //
-        .def("remove_if", &qdb::string_entry::remove_if, py::arg("comparand")) //
-        .def("get_and_remove", &qdb::string_entry::get_and_remove)             //
-        .def("get_and_update", &qdb::string_entry::get_and_update,             //
-            py::arg("data"))                                                   //
-        .def("compare_and_swap", &qdb::string_entry::compare_and_swap,         //
-            py::arg("new_content"), py::arg("comparand"));                     //
+            py::arg("expiry") = std::chrono::system_clock::time_point{})
+        .def("remove_if", &qdb::string_entry::remove_if, py::arg("comparand"))
+        .def("get_and_remove", &qdb::string_entry::get_and_remove)
+        .def("get_and_update", &qdb::string_entry::get_and_update,
+            py::arg("data"))
+        .def("compare_and_swap", &qdb::string_entry::compare_and_swap,
+            py::arg("new_content"), py::arg("comparand"));
 }
 
 } // namespace qdb

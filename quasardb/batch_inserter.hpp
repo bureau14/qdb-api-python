@@ -225,18 +225,21 @@ static inline void register_batch_inserter(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::batch_inserter>{m, "TimeSeriesBatch"}                         //
-        .def(py::init<qdb::handle_ptr, const std::vector<batch_column_info> &>()) //
+    py::class_<qdb::batch_inserter>{m, "TimeSeriesBatch"}
+	.def(py::init([](py::args, py::kwargs) {
+	    throw qdb::direct_instantiation_exception{"conn.ts_batch(...)"};
+	    return nullptr;
+        }))
         .def("start_row", &qdb::batch_inserter::start_row,
-            "Calling this function marks the beginning of processing a new row.") //
-        .def("set_blob", &qdb::batch_inserter::set_blob)                          //
-        .def("set_string", &qdb::batch_inserter::set_string)                      //
-        .def("set_double", &qdb::batch_inserter::set_double)                      //
-        .def("set_int64", &qdb::batch_inserter::set_int64)                        //
-        .def("set_timestamp", &qdb::batch_inserter::set_timestamp)                //
-        .def("push", &qdb::batch_inserter::push, "Regular batch push")            //
+            "Calling this function marks the beginning of processing a new row.")
+        .def("set_blob", &qdb::batch_inserter::set_blob)
+        .def("set_string", &qdb::batch_inserter::set_string)
+        .def("set_double", &qdb::batch_inserter::set_double)
+        .def("set_int64", &qdb::batch_inserter::set_int64)
+        .def("set_timestamp", &qdb::batch_inserter::set_timestamp)
+        .def("push", &qdb::batch_inserter::push, "Regular batch push")
         .def("push_async", &qdb::batch_inserter::push_async,
-            "Asynchronous batch push that buffers data inside the QuasarDB daemon") //
+            "Asynchronous batch push that buffers data inside the QuasarDB daemon")
         .def("push_fast", &qdb::batch_inserter::push_fast,
             "Fast, in-place batch push that is efficient when doing lots of small, incremental pushes.")
         .def("push_truncate", &qdb::batch_inserter::push_truncate,

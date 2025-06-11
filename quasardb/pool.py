@@ -118,6 +118,9 @@ class Pool(object):
             logger.debug("closing connection {}".format(conn))
             conn.close()
 
+    def _do_connect(self):
+        raise NotImplementedError
+
     def connect(self) -> quasardb.Cluster:
         """
         Acquire a new connection from the pool. Returned connection must either
@@ -130,6 +133,9 @@ class Pool(object):
         """
         logger.info("Acquiring connection from pool")
         return self._do_connect()
+
+    def _do_release(self):
+        raise NotImplementedError
 
     def release(self, conn: quasardb.Cluster):
         """

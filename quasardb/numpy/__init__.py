@@ -30,6 +30,8 @@
 import logging
 import time
 import warnings
+from typing import Dict, List, Optional, Tuple, Union
+from numpy.typing import DTypeLike
 
 import quasardb
 import quasardb.table_cache as table_cache
@@ -62,14 +64,14 @@ class IncompatibleDtypeError(TypeError):
     Exception raised when a provided dtype is not the expected dtype.
     """
 
-    def __init__(self, cname=None, ctype=None, expected=None, provided=None):
+    def __init__(self, cname=None, ctype=None, expected=None, provided=None) -> None:
         self.cname = cname
         self.ctype = ctype
         self.expected = expected
         self.provided = provided
         super().__init__(self.msg())
 
-    def msg(self):
+    def msg(self) -> str:
         return "Data for column '{}' with type '{}' was provided in dtype '{}' but need '{}'.".format(
             self.cname, self.ctype, self.provided, self.expected
         )
@@ -80,11 +82,11 @@ class IncompatibleDtypeErrors(TypeError):
     Wraps multiple dtype errors
     """
 
-    def __init__(self, xs):
+    def __init__(self, xs) -> None:
         self.xs = xs
         super().__init__(self.msg())
 
-    def msg(self):
+    def msg(self) -> str:
         return "\n".join(x.msg() for x in self.xs)
 
 
@@ -93,12 +95,12 @@ class InvalidDataCardinalityError(ValueError):
     Raised when the provided data arrays doesn't match the table's columns.
     """
 
-    def __init__(self, data, cinfos):
+    def __init__(self, data, cinfos) -> None:
         self.data = data
         self.cinfos = cinfos
         super().__init__(self.msg())
 
-    def msg(self):
+    def msg(self) -> str:
         return "Provided data array length '{}' exceeds amount of table columns '{}', unable to map data to columns".format(
             len(self.data), len(self.cinfos)
         )
@@ -117,7 +119,7 @@ _ctype_to_dtype = {
 }
 
 
-def _best_dtype_for_ctype(ctype: quasardb.quasardb.ColumnType):
+def _best_dtype_for_ctype(ctype: quasardb.ColumnType):
     """
     Returns the 'best' DType for a certain column type. For example, for blobs, even
     though we accept py::bytes, prefer bytestrings (as they are faster to read in c++).
@@ -129,7 +131,10 @@ def _best_dtype_for_ctype(ctype: quasardb.quasardb.ColumnType):
     return possible_dtypes[0]
 
 
-def _coerce_dtype(dtype, columns):
+def _coerce_dtype(
+    dtype: Union[DTypeLike, Dict[str, DTypeLike], List[DTypeLike]],
+    columns: List[Tuple[str, quasardb.ColumnInfo]],
+) -> List[DTypeLike]:
     if dtype is None:
         dtype = [None] * len(columns)
 
@@ -137,11 +142,10 @@ def _coerce_dtype(dtype, columns):
         dtype = [dtype]
 
     if type(dtype) is dict:
-
         # Conveniently look up column index by label
         offsets = {}
         for i in range(len(columns)):
-            (cname, ctype) = columns[i]
+            (cname, _) = columns[i]
             offsets[cname] = i
 
         # Now convert the provided dtype dict to a list that matches
@@ -152,7 +156,7 @@ def _coerce_dtype(dtype, columns):
 
         for k, dt in dtype.items():
             if not k in offsets:
-                logger.warn(
+                logger.warning(
                     "Forced dtype provided for column '%s' = %s, but that column is not found in the table. Skipping...",
                     k,
                 )
@@ -179,7 +183,9 @@ def _coerce_dtype(dtype, columns):
     return dtype
 
 
-def _add_desired_dtypes(dtype, columns):
+def _add_desired_dtypes(
+    dtype: List[DTypeLike], columns: List[Tuple[str, quasardb.ColumnInfo]]
+) -> List[DTypeLike]:
     """
     When infer_types=True, this function sets the 'desired' dtype for each of the columns.
     `dtype` is expected to be the output of `_coerce_dtype`, that is, a list-like with an
