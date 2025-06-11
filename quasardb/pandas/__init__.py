@@ -201,22 +201,22 @@ def query(
     blobs, numpy
         DEPRECATED – no longer used.  Supplying a non-default value raises a
         DeprecationWarning and the argument is ignored.
-     """
+    """
     # ------------------------------------------------------------------ deprecations
-     if blobs is not False:
-         warnings.warn(
-             "`blobs` is deprecated and will be removed in a future version; "
-             "the argument is ignored.",
-             DeprecationWarning,
-             stacklevel=2,
-         )
-     if numpy is not True:
-         warnings.warn(
-             "`numpy` is deprecated and will be removed in a future version; "
-             "the argument is ignored.",
-             DeprecationWarning,
-             stacklevel=2,
-         )
+    if blobs is not False:
+        warnings.warn(
+            "`blobs` is deprecated and will be removed in a future version; "
+            "the argument is ignored.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    if numpy is not True:
+        warnings.warn(
+            "`numpy` is deprecated and will be removed in a future version; "
+            "the argument is ignored.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
     # ------------------------------------------------------------------------------
 
     logger.debug("querying and returning as DataFrame: %s", query)
