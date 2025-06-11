@@ -175,7 +175,13 @@ def write_series(series, table, col_name, infer_types=True, dtype=None):
     )
 
 
-def query(cluster: quasardb.Cluster, query, index=None, blobs=False, numpy=True):
+def query(
+    cluster: quasardb.Cluster,
+    query: str,
+    index: str | None = None,
+    blobs: bool = False,
+    numpy: bool = True,
+):
     """
     Execute a query and return the results as DataFrames. Returns a dict of
     tablename / DataFrame pairs.
@@ -199,11 +205,12 @@ def query(cluster: quasardb.Cluster, query, index=None, blobs=False, numpy=True)
 
     """
     logger.debug("querying and returning as DataFrame: %s", query)
-    (index, m) = qdbnp.query(cluster, query, index=index, dict=True)
-    df = pd.DataFrame(m)
+    index_vals, m = qdbnp.query(cluster, query, index=index, dict=True)
 
-    df.set_index(index, inplace=True)
-    return df
+    index_name = "$index" if index is None else index
+    index_obj = pd.Index(index_vals, name=index_name)
+
+    return pd.DataFrame(m, index=index_obj)
 
 
 def stream_dataframes(
