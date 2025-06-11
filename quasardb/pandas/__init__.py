@@ -28,6 +28,7 @@
 #
 
 import logging
+import warnings
 from datetime import datetime
 from functools import partial
 
@@ -175,35 +176,56 @@ def write_series(series, table, col_name, infer_types=True, dtype=None):
     )
 
 
-def query(cluster: quasardb.Cluster, query, index=None, blobs=False, numpy=True):
+def query(
+    cluster: quasardb.Cluster,
+    query: str,
+    index: str = None,
+    blobs: bool = False,
+    numpy: bool = True,
+):
     """
-    Execute a query and return the results as DataFrames. Returns a dict of
-    tablename / DataFrame pairs.
+    Execute *query* and return the result as a pandas DataFrame.
 
-    Parameters:
-    -----------
-
+    Parameters
+    ----------
     cluster : quasardb.Cluster
-      Active connection to the QuasarDB cluster
+        Active connection to the QuasarDB cluster.
 
     query : str
-      The query to execute.
+        The query to execute.
 
-    blobs : bool or list
-      Determines which QuasarDB blob-columns should be returned as bytearrays; otherwise
-      they are returned as UTF-8 strings.
+    index : str | None, default None
+        Column to use as index.  When None a synthetic index is created and
+        named “$index”.
 
-      True means every blob column should be returned as byte-array, or a list will
-      specify which specific columns. Defaults to false, meaning all blobs are returned
-      as strings.
-
+    blobs, numpy
+        DEPRECATED – no longer used.  Supplying a non-default value raises a
+        DeprecationWarning and the argument is ignored.
     """
-    logger.debug("querying and returning as DataFrame: %s", query)
-    (index, m) = qdbnp.query(cluster, query, index=index, dict=True)
-    df = pd.DataFrame(m)
+    # ------------------------------------------------------------------ deprecations
+    if blobs is not False:
+        warnings.warn(
+            "`blobs` is deprecated and will be removed in a future version; "
+            "the argument is ignored.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    if numpy is not True:
+        warnings.warn(
+            "`numpy` is deprecated and will be removed in a future version; "
+            "the argument is ignored.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    # ------------------------------------------------------------------------------
 
-    df.set_index(index, inplace=True)
-    return df
+    logger.debug("querying and returning as DataFrame: %s", query)
+    index_vals, m = qdbnp.query(cluster, query, index=index, dict=True)
+
+    index_name = "$index" if index is None else index
+    index_obj = pd.Index(index_vals, name=index_name)
+
+    return pd.DataFrame(m, index=index_obj)
 
 
 def stream_dataframes(
