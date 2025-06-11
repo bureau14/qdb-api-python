@@ -179,7 +179,7 @@ def write_series(series, table, col_name, infer_types=True, dtype=None):
 def query(
     cluster: quasardb.Cluster,
     query: str,
-    index: str | None = None,
+    index: str = None,
     blobs: bool = False,
     numpy: bool = True,
 ):
