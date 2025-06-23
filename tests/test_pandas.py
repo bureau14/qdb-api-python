@@ -669,8 +669,9 @@ def test_retries(
 
 def test_read_dataframe_empty_table_sc16881(qdbd_connection, table_name):
     """
-    If results of qdbpd.read_dataframe are empty it would raise ValueError on pd.concat().
-    It should return an empty DataFrame instead.
+    Ensures qdbpd.read_dataframe returns an empty DataFrame when the table exists but contains no data.
+
+    Previously this raised ValueError due to pd.concat() on an empty result set.
     """
     table = qdbd_connection.ts(table_name)
 
