@@ -344,10 +344,13 @@ def read_dataframe(conn: quasardb.Cluster, table, **kwargs):
         )
         kwargs["batch_size"] = 2**16
 
-    # Note that this is *lazy*, dfs is a generator, not a list -- as such, dataframes will be
-    # fetched on-demand, which means that an error could occur in the middle of processing
-    # dataframes.
-    dfs = stream_dataframe(conn, table, **kwargs)
+    # stream_dataframe is *lazy* - is a generator, not a list.
+    # if result of stream_dataframe is empty this could result in ValueError on pd.concat()
+    # we need to evaluate the generator first, and then concatenate if result set is not empty.
+    dfs = list(stream_dataframe(conn, table, **kwargs))
+
+    if len(dfs) == 0:
+        return pd.DataFrame()
 
     return pd.concat(dfs)
 
