@@ -665,3 +665,22 @@ def test_retries(
             )
 
         assert seen == True
+
+
+def test_read_dataframe_empty_table_sc16881(qdbd_connection, table_name):
+    """
+    Ensures qdbpd.read_dataframe returns an empty DataFrame when the table exists but contains no data.
+
+    Previously this raised ValueError due to pd.concat() on an empty result set.
+    """
+    table = qdbd_connection.ts(table_name)
+
+    table_config = [
+        quasardb.ColumnInfo(quasardb.ColumnType.Double, "d"),
+    ]
+
+    table.create(table_config)
+
+    df = qdbpd.read_dataframe(qdbd_connection, table)
+
+    assert df.empty
