@@ -349,7 +349,17 @@ def read_dataframe(conn: quasardb.Cluster, table, **kwargs):
     # dataframes.
     dfs = stream_dataframe(conn, table, **kwargs)
 
-    return pd.concat(dfs)
+    # if result of stream_dataframe is empty this could result in ValueError on pd.concat()
+    # as stream_dataframe is a generator there is no easy way to check for this condition without evaluation
+    # the most simple way is to catch the ValueError and return an empty DataFrame
+    try:
+        return pd.concat(dfs, copy=False)
+    except ValueError as e:
+        logger.error(
+            "Error while concatenating dataframes. This can happen if result set is empty. Returning empty dataframe. Error: %s",
+            e,
+        )
+        return pd.DataFrame()
 
 
 def _extract_columns(df, cinfos):
