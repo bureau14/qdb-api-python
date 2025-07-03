@@ -133,18 +133,21 @@ static inline void register_blob(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::blob_entry, qdb::expirable_entry>(m, "Blob") //
-        .def(py::init<qdb::handle_ptr, std::string>())           //
-        .def("get", &qdb::blob_entry::get)                       //
-        .def("put", &qdb::blob_entry::put, py::arg("data"))      //
+    py::class_<qdb::blob_entry, qdb::expirable_entry>(m, "Blob")
+        .def(py::init([](py::args, py::kwargs) {
+	    throw qdb::direct_instantiation_exception{"conn.blob(...)"};
+	    return nullptr;
+        }))
+        .def("get", &qdb::blob_entry::get)
+        .def("put", &qdb::blob_entry::put, py::arg("data"))
         .def("update", &qdb::blob_entry::update, py::arg("data"),
-            py::arg("expiry") = std::chrono::system_clock::time_point{})     //
-        .def("remove_if", &qdb::blob_entry::remove_if, py::arg("comparand")) //
-        .def("get_and_remove", &qdb::blob_entry::get_and_remove)             //
-        .def("get_and_update", &qdb::blob_entry::get_and_update,             //
-            py::arg("data"))                                                 //
-        .def("compare_and_swap", &qdb::blob_entry::compare_and_swap,         //
-            py::arg("new_content"), py::arg("comparand"));                   //
+            py::arg("expiry") = std::chrono::system_clock::time_point{})
+        .def("remove_if", &qdb::blob_entry::remove_if, py::arg("comparand"))
+        .def("get_and_remove", &qdb::blob_entry::get_and_remove)
+        .def("get_and_update", &qdb::blob_entry::get_and_update,
+            py::arg("data"))
+        .def("compare_and_swap", &qdb::blob_entry::compare_and_swap,
+            py::arg("new_content"), py::arg("comparand"));
 }
 
 } // namespace qdb

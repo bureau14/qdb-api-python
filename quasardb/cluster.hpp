@@ -333,11 +333,12 @@ public:
     }
 
 public:
-    qdb::find_query find(const std::string & query_string)
+    std::vector<std::string> find(const std::string & query_string)
     {
         check_open();
 
-        return qdb::find_query{_handle, query_string};
+	auto o = std::make_shared<qdb::find_query>(_handle, query_string);
+	return o->run();
     }
 
     py::object query(const std::string & query_string, const py::object & blobs)

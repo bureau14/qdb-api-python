@@ -85,13 +85,16 @@ static inline void register_timestamp(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::timestamp_entry, qdb::expirable_entry>(m, "Timestamp")  //
-        .def(py::init<qdb::handle_ptr, std::string>())                      //
-        .def("get", &qdb::timestamp_entry::get)                             //
-        .def("put", &qdb::timestamp_entry::put, py::arg("timestamp"))       //
-        .def("update", &qdb::timestamp_entry::update, py::arg("timestamp")) //
-        .def("add", &qdb::timestamp_entry::add, py::arg("addend"))          //
-        ;                                                                   //
+    py::class_<qdb::timestamp_entry, qdb::expirable_entry>(m, "Timestamp")
+        .def(py::init([](py::args, py::kwargs) {
+	    throw qdb::direct_instantiation_exception{"conn.timestamp(...)"};
+	    return nullptr;
+        }))
+        .def("get", &qdb::timestamp_entry::get)
+        .def("put", &qdb::timestamp_entry::put, py::arg("timestamp"))
+        .def("update", &qdb::timestamp_entry::update, py::arg("timestamp"))
+        .def("add", &qdb::timestamp_entry::add, py::arg("addend"))
+        ;
 }
 
 } // namespace qdb

@@ -36,7 +36,10 @@
 """
 
 
-def generic_error_msg(msg, e=None):
+from typing import List, Optional
+
+
+def generic_error_msg(msg: List[str], e: Optional[BaseException] = None) -> str:
     msg_str = "\n".join(msg)
 
     if e is None:
@@ -47,7 +50,7 @@ def generic_error_msg(msg, e=None):
 
 **************************************************************************
 """.format(
-            msg_str, type(e), str(e)
+            msg_str
         )
     else:
         return """
@@ -68,7 +71,7 @@ Original exception:
         )
 
 
-def link_error_msg(e):
+def link_error_msg(e: BaseException) -> str:
     msg = [
         "QuasarDB was unable to find all expected symbols in the compiled library.",
         "This is usually caused by running an incorrect version of the QuasarDB C",
@@ -82,7 +85,7 @@ def link_error_msg(e):
     return generic_error_msg(msg, e)
 
 
-def glibc_error_msg(e):
+def glibc_error_msg(e: BaseException) -> str:
     msg = [
         "QuasarDB was unable to find the expected GLIBC version on this machine.",
         "This is usually caused by compiling the Python API on a different machine "
@@ -99,7 +102,7 @@ def glibc_error_msg(e):
     return generic_error_msg(msg, e)
 
 
-def unknown_error_msg():
+def unknown_error_msg() -> str:
     msg = [
         "Unable to import quasardb module: unknown error. ",
         "",

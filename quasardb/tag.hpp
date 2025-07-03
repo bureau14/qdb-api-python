@@ -68,10 +68,13 @@ static inline void register_tag(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::tag, qdb::entry>(m, "Tag")         //
-        .def(py::init<qdb::handle_ptr, std::string>()) //
-        .def("get_entries", &qdb::tag::get_entries)    //
-        .def("count", &qdb::tag::count);               //
+    py::class_<qdb::tag, qdb::entry>(m, "Tag")
+        .def(py::init([](py::args, py::kwargs) {
+	    throw qdb::direct_instantiation_exception{"conn.tag(...)"};
+	    return nullptr;
+        }))
+        .def("get_entries", &qdb::tag::get_entries)
+        .def("count", &qdb::tag::count);
 }
 
 } // namespace qdb
