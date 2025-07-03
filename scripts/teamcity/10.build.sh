@@ -21,6 +21,8 @@ else
     VENV_PYTHON="${SCRIPT_DIR}/../../.env/bin/python"
 fi
 
+${VENV_PYTHON} --version
+
 function relabel_wheel {
     wheel="$1"
 
@@ -33,9 +35,7 @@ function relabel_wheel {
     fi
 }
 
-DIST_DIR=dist
-
-rm -r -f build/ ${DIST_DIR}/
+rm -r -f build/ dist/
 
 if [[ "$OSTYPE" == "darwin"* && $PYTHON == "python3.9"* ]]; then
     ${VENV_PYTHON} -m pip install --upgrade setuptools==63.0.0b1 wheel
@@ -50,6 +50,6 @@ export QDB_TESTS_ENABLED=OFF
 
 ${VENV_PYTHON} -m build -w
 
-for whl in ${DIST_DIR}/*.whl; do
+for whl in dist/*.whl; do
     relabel_wheel "$whl"
 done

@@ -203,20 +203,20 @@ static inline void register_ts_column(Module & m)
 {
     namespace py = pybind11;
 
-    py::class_<column_info>{m, "ColumnInfo"}                                             //
-        .def(py::init<qdb_ts_column_type_t, const std::string &>())                      //
-        .def(py::init<qdb_ts_column_type_t, const std::string &, const std::string &>()) //
+    py::class_<column_info>{m, "ColumnInfo"}
+        .def(py::init<qdb_ts_column_type_t, const std::string &>())
+        .def(py::init<qdb_ts_column_type_t, const std::string &, const std::string &>())
         .def("__repr__", &column_info::repr)
-        .def_readwrite("type", &column_info::type)          //
-        .def_readwrite("name", &column_info::name)          //
-        .def_readwrite("symtable", &column_info::symtable); //
+        .def_readwrite("type", &column_info::type)
+        .def_readwrite("name", &column_info::name)
+        .def_readwrite("symtable", &column_info::symtable);
 
-    py::class_<indexed_column_info>{m, "IndexedColumnInfo"}                     //
-        .def(py::init<qdb_ts_column_type_t, qdb_size_t>())                      //
-        .def(py::init<qdb_ts_column_type_t, qdb_size_t, const std::string &>()) //
-        .def_readonly("type", &indexed_column_info::type)                       //
-        .def_readonly("index", &indexed_column_info::index)                     //
-        .def_readonly("symtable", &indexed_column_info::symtable);              //
+    py::class_<indexed_column_info>{m, "IndexedColumnInfo"}
+        .def(py::init<qdb_ts_column_type_t, qdb_size_t>())
+        .def(py::init<qdb_ts_column_type_t, qdb_size_t, const std::string &>())
+        .def_readonly("type", &indexed_column_info::type)
+        .def_readonly("index", &indexed_column_info::index)
+        .def_readonly("symtable", &indexed_column_info::symtable);
 }
 
 } // namespace detail

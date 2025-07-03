@@ -73,9 +73,12 @@ private:
 
 static inline void register_properties(py::module_ & m)
 {
-    py::class_<qdb::properties> p(m, "Properties"); //
+    py::class_<qdb::properties> p(m, "Properties");
 
-    p.def(py::init<qdb::handle_ptr>()) //
+    p.def(py::init([](py::args, py::kwargs) {
+	    throw qdb::direct_instantiation_exception{"conn.properties(...)"};
+	    return nullptr;
+        }))
         .def("get", &qdb::properties::get)
         .def("put", &qdb::properties::put)
         .def("remove", &qdb::properties::remove)

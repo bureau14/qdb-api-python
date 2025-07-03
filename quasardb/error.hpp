@@ -246,6 +246,21 @@ public:
     {}
 };
 
+class direct_instantiation_exception : public exception
+{
+public:
+    direct_instantiation_exception() noexcept
+        : exception(qdb_e_internal_local, // TODO: check this error code
+            std::string("Direct instantiation is not allowed"))
+    {}
+
+    direct_instantiation_exception(std::string const & correct_instantiation) noexcept
+        : exception(qdb_e_internal_local,
+	    std::string("Direct instantiation is not allowed, use '")
+		        + correct_instantiation + std::string("' instead."))
+    {}
+};
+
 namespace detail
 {
 
@@ -388,6 +403,7 @@ static inline void register_errors(Module & m)
     py::register_exception<qdb::try_again_exception>(m, "TryAgainError", base_class);
     py::register_exception<qdb::async_pipeline_full_exception>(m, "AsyncPipelineFullError", base_class);
     py::register_exception<qdb::out_of_bounds_exception>(m, "OutOfBoundsError", base_class);
+    py::register_exception<qdb::direct_instantiation_exception>(m, "DirectInstantiationError", base_class);
 }
 
 } // namespace qdb
