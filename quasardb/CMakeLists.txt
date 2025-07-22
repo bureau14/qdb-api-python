@@ -12,6 +12,16 @@ option(QDB_TESTS_ENABLED "Build quasardb test suite?" OFF)
 
 set(PACKAGE_NAME quasardb)
 
+if(APPLE)
+    # Robustly get the SDK path using xcrun.
+    execute_process(
+        COMMAND xcrun --sdk macosx --show-sdk-path
+        OUTPUT_VARIABLE SDK_PATH
+        COMMAND_ERROR_IS_FATAL ANY
+    )
+    string(STRIP "${SDK_PATH}" CMAKE_OSX_SYSROOT)
+endif()
+
 if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "arm"
         OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64"
         OR "${CMAKE_SYSTEM_PROCESSOR}" MATCHES "cortex"
