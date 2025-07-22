@@ -153,9 +153,9 @@ class WheelRetagger(old_bdist_wheel):
         # Cf. https://stackoverflow.com/questions/45150304/how-to-force-a-python-wheel-to-be-platform-specific-when-building-it # noqa
         py, abi, plat = old_bdist_wheel.get_tag(self)
 
-        if platform.system() == "Darwin" and os.getenv('MACOSX_DEPLOYMENT_TARGET'):
-            target = os.environ['MACOSX_DEPLOYMENT_TARGET']
-            plat = "macosx_{}_{}".format(target.replace(".", "_"), platform.machine())
+        if platform.system() == "Darwin" and platform.machine() == "arm64":
+            # We don't do universal builds, which arm64 insists on.
+            plat = "macosx_{}_{}".format("11_0", platform.machine())
 
         return (py, abi, plat)
 
