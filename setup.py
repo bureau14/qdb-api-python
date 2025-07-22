@@ -65,7 +65,7 @@ class CMakeBuild(build_ext):
         # Paths can be different depending on XCode version installed:
         # /Library/Developer/CommandLineTools/SDKs/MacOSX11.sdk
         # /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX11.sdk
-        sdk = '10.14'
+        sdk = '10.15'
         out = subprocess.check_output(
             ['xcrun', '--sdk', 'macosx' + sdk, '--show-sdk-path'])
         print(out.decode().strip())
@@ -179,7 +179,7 @@ class WheelRetagger(old_bdist_wheel):
 class InstallCommand(install):
     def run(self):
         if platform.system() == "Darwin":
-            os.environ.setdefault("MACOSX_DEPLOYMENT_TARGET", "10.14")
+            os.environ.setdefault("MACOSX_DEPLOYMENT_TARGET", "10.15")
 
         # run this after trying to build with cargo (as otherwise this leaves
         # venv in a bad state: https://github.com/benfred/py-spy/issues/69)

@@ -35,7 +35,7 @@ DIST_DIR=dist
 
 PLATFORM=''
 if [[ "$OSTYPE" == "darwin"* ]] ; then
-    PLATFORM='-p macosx-10.14-x86_64'
+    PLATFORM='-p macosx-10.15-x86_64'
 fi
 
 rm -r -f build/ ${DIST_DIR}/
