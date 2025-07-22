@@ -58,19 +58,6 @@ class CMakeBuild(build_ext):
         for ext in self.extensions:
             self.build_extension(ext)
 
-    def find_osx_sysroot(self):
-        # Override sysroot, because otherwise bdist (setuptools) will set it to the latest SDK.
-        # Cf. https://github.com/pypa/setuptools/blob/eb75ea6eb827acf1be6c350850b350de7b500efd/setuptools/_distutils/unixccompiler.py#L326-L350 # noqa
-
-        # Paths can be different depending on XCode version installed:
-        # /Library/Developer/CommandLineTools/SDKs/MacOSX11.sdk
-        # /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX11.sdk
-        sdk = '10.15'
-        out = subprocess.check_output(
-            ['xcrun', '--sdk', 'macosx' + sdk, '--show-sdk-path'])
-        print(out.decode().strip())
-        return out.decode().strip()
-
     def build_extension(self, ext):
         self.do_build_extension(ext)
 
@@ -86,9 +73,6 @@ class CMakeBuild(build_ext):
             '-DPYTHON_EXECUTABLE=' + sys.executable,
             '-DQDB_PY_VERSION=' + qdb_version
         ]
-
-        if platform.system() == "Darwin":
-            cmake_args += ['-DCMAKE_OSX_SYSROOT:PATH=' + self.find_osx_sysroot()]
 
         # If certain environment variables are set, we pass them along
         # to cmake. This allows for greater flexibility for an end-user
