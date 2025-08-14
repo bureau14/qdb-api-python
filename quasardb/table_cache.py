@@ -1,11 +1,15 @@
 import logging
+from typing import Optional
+
+from quasardb.quasardb import Cluster, Table
 
 logger = logging.getLogger("quasardb.table_cache")
 
-_cache = {}
+_cache: dict[str, Table] = {}
 
 
-def clear():
+def clear() -> None:
+    global _cache
     logger.info("Clearing table cache")
     _cache = {}
 
@@ -17,7 +21,7 @@ def exists(table_name: str) -> bool:
     return table_name in _cache
 
 
-def store(table, table_name=None, force_retrieve_metadata=True):
+def store(table: Table, table_name: Optional[str] = None) -> Table:
     """
     Stores a table into the cache. Ensures metadata is retrieved. This is useful if you want
     to retrieve all table metadata at the beginning of a process, to avoid doing expensive
@@ -29,7 +33,7 @@ def store(table, table_name=None, force_retrieve_metadata=True):
         table_name = table.get_name()
 
     if exists(table_name):
-        logger.warn("Table already in cache, overwriting: %s", table_name)
+        logger.warning("Table already in cache, overwriting: %s", table_name)
 
     logger.debug("Caching table %s", table_name)
     _cache[table_name] = table
@@ -39,7 +43,7 @@ def store(table, table_name=None, force_retrieve_metadata=True):
     return table
 
 
-def lookup(table_name: str, conn, force_retrieve_metadata=True):
+def lookup(table_name: str, conn: Cluster) -> Table:
     """
     Retrieves table from _cache if already exists. If it does not exist,
     looks up the table from `conn` and puts it in the cache.
@@ -53,4 +57,4 @@ def lookup(table_name: str, conn, force_retrieve_metadata=True):
     logger.debug("table %s not yet found, looking up", table_name)
     table = conn.table(table_name)
 
-    return store(table, table_name, force_retrieve_metadata=force_retrieve_metadata)
+    return store(table, table_name)

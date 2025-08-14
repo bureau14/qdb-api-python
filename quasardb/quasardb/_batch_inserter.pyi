@@ -1,3 +1,5 @@
+from typing import Any
+
 class TimeSeriesBatch:
     def push(self) -> None:
         """
@@ -14,7 +16,7 @@ class TimeSeriesBatch:
         Fast, in-place batch push that is efficient when doing lots of small, incremental pushes.
         """
 
-    def push_truncate(self, **kwargs) -> None:
+    def push_truncate(self, **kwargs: Any) -> None:
         """
         Before inserting data, truncates any existing data. This is useful when you want your insertions to be idempotent, e.g. in case of a retry.
         """
@@ -23,8 +25,8 @@ class TimeSeriesBatch:
     def set_double(self, index: int, double: float) -> None: ...
     def set_int64(self, index: int, int64: int) -> None: ...
     def set_string(self, index: int, string: str) -> None: ...
-    def set_timestamp(self, index: int, timestamp: object) -> None: ...
-    def start_row(self, ts: object) -> None:
+    def set_timestamp(self, index: int, timestamp: Any) -> None: ...
+    def start_row(self, ts: Any) -> None:
         """
         Calling this function marks the beginning of processing a new row.
         """

@@ -1,10 +1,12 @@
-import re
-
-import quasardb
 import logging
+import re
 from collections import defaultdict
 from datetime import datetime
 from enum import Enum
+from typing import Any, TypeVar, Union
+
+import quasardb
+from quasardb.quasardb import Cluster, Node
 
 logger = logging.getLogger("quasardb.stats")
 
@@ -17,11 +19,11 @@ total_pattern = re.compile(r"\$qdb.statistics.(.*)$")
 user_clean_pattern = re.compile(r"\.uid_\d+")
 
 
-def is_user_stat(s):
+def is_user_stat(s: str) -> bool:
     return user_pattern.match(s) is not None
 
 
-def is_cumulative_stat(s):
+def is_cumulative_stat(s: str) -> bool:
     # NOTE(leon): It's quite difficult to express in Python that you don't want any
     # regex to _end_ with uid_[0-9]+, because Python's regex engine doesn't support
     # variable width look-behind.
@@ -34,7 +36,7 @@ def is_cumulative_stat(s):
     return user_pattern.match(s) is None
 
 
-def by_node(conn):
+def by_node(conn: Cluster) -> dict[str, dict[str, Any]]:
     """
     Returns statistic grouped by node URI.
 
@@ -45,7 +47,7 @@ def by_node(conn):
     return {x: of_node(conn.node(x)) for x in conn.endpoints()}
 
 
-def of_node(dconn):
+def of_node(dconn: Node) -> dict[str, Any]:
     """
     Returns statistic for a single node.
 
@@ -61,7 +63,10 @@ def of_node(dconn):
     idx = _index_keys(dconn, ks)
     raw = {k: _get_stat_value(dconn, k) for k in ks}
 
-    ret = {"by_uid": _by_uid(raw, idx), "cumulative": _cumulative(raw, idx)}
+    ret: dict[str, Any] = {
+        "by_uid": _by_uid(raw, idx),
+        "cumulative": _cumulative(raw, idx),
+    }
 
     check_duration = datetime.now() - start
 
@@ -87,7 +92,7 @@ async_pipeline_count_pattern = re.compile(
 )
 
 
-def stat_type(stat_id):
+def stat_type(stat_id: str) -> None:
     """
     Returns the statistic type by a stat id. Returns one of:
 
@@ -109,7 +114,7 @@ def stat_type(stat_id):
     return None
 
 
-def _get_all_keys(dconn, n=1024):
+def _get_all_keys(dconn: Node, n: int = 1024) -> list[str]:
     """
     Returns all keys from a single node.
 
@@ -171,15 +176,17 @@ _unit_string_to_enum = {
     "seconds": Unit.SECONDS,
 }
 
+T = TypeVar("T", Type, Unit)
 
-def _lookup_enum(dconn, k, m):
+
+def _lookup_enum(dconn: Node, k: str, m: dict[str, T]) -> T:
     """
     Utility function to avoid code duplication: automatically looks up a key's value
     from QuasarDB and looks it up in provided dict.
     """
 
-    x = dconn.blob(k).get()
-    x = _clean_blob(x)
+    _x = dconn.blob(k).get()
+    x = _clean_blob(_x)
 
     if x not in m:
         raise Exception(f"Unrecognized unit/type {x} from key {k}")
@@ -187,7 +194,7 @@ def _lookup_enum(dconn, k, m):
     return m[x]
 
 
-def _lookup_type(dconn, k):
+def _lookup_type(dconn: Node, k: str) -> Type:
     """
     Looks up and parses/validates the metric type.
     """
@@ -196,7 +203,7 @@ def _lookup_type(dconn, k):
     return _lookup_enum(dconn, k, _type_string_to_enum)
 
 
-def _lookup_unit(dconn, k):
+def _lookup_unit(dconn: Node, k: str) -> Unit:
     """
     Looks up and parses/validates the metric type.
     """
@@ -205,7 +212,7 @@ def _lookup_unit(dconn, k):
     return _lookup_enum(dconn, k, _unit_string_to_enum)
 
 
-def _index_keys(dconn, ks):
+def _index_keys(dconn: Node, ks: list[str]) -> defaultdict[str, dict[str, Any]]:
     """
     Takes all statistics keys that are retrieved, and "indexes" them in such a way
     that we end up with a dict of all statistic keys, their type and their unit.
@@ -241,13 +248,17 @@ def _index_keys(dconn, ks):
     # In which case we'll store `requests.out_bytes` as the statistic type, and look up the type
     # and unit for those metrics and add a placeholder value.
 
-    ret = defaultdict(lambda: {"value": None, "type": None, "unit": None})
+    ret: defaultdict[str, dict[str, Any]] = defaultdict(
+        lambda: {"value": None, "type": None, "unit": None}
+    )
 
     for k in ks:
         # Remove any 'uid_[0-9]+' part from the string
         k_ = user_clean_pattern.sub("", k)
 
         matches = total_pattern.match(k_)
+        if matches is None:
+            continue
 
         parts = matches.groups()[0].rsplit(".", 1)
         metric_id = parts[0]
@@ -267,7 +278,7 @@ def _index_keys(dconn, ks):
     return ret
 
 
-def _clean_blob(x):
+def _clean_blob(x: bytes) -> str:
     """
     Utility function that decodes a blob as an UTF-8 string, as the direct node C API
     does not yet support 'string' types and as such all statistics are stored as blobs.
@@ -278,7 +289,7 @@ def _clean_blob(x):
     return "".join(c for c in x_ if ord(c) != 0)
 
 
-def _get_stat_value(dconn, k):
+def _get_stat_value(dconn: Node, k: str) -> Union[int, str]:
     # Ugly, but works: try to retrieve as integer, if not an int, retrieve as
     # blob
     #
@@ -288,16 +299,19 @@ def _get_stat_value(dconn, k):
         return dconn.integer(k).get()
 
     # Older versions of qdb api returned 'alias not found'
-    except quasardb.quasardb.AliasNotFoundError:
+    except quasardb.AliasNotFoundError:
         return _clean_blob(dconn.blob(k).get())
 
     # Since ~ 3.14.2, it returns 'Incompatible Type'
-    except quasardb.quasardb.IncompatibleTypeError:
+    except quasardb.IncompatibleTypeError:
         return _clean_blob(dconn.blob(k).get())
 
 
-def _by_uid(stats, idx):
-    xs = {}
+def _by_uid(
+    stats: dict[str, Union[int, str]], idx: defaultdict[str, dict[str, Any]]
+) -> dict[int, dict[str, dict[str, Any]]]:
+    xs: dict[int, dict[str, dict[str, Any]]] = {}
+
     for k, v in stats.items():
         matches = user_pattern.match(k)
         if is_user_stat(k) and matches:
@@ -329,8 +343,10 @@ def _by_uid(stats, idx):
     return xs
 
 
-def _cumulative(stats, idx):
-    xs = {}
+def _cumulative(
+    stats: dict[str, Union[int, str]], idx: defaultdict[str, dict[str, Any]]
+) -> dict[str, dict[str, Any]]:
+    xs: dict[str, dict[str, Any]] = {}
 
     for k, v in stats.items():
         matches = total_pattern.match(k)
