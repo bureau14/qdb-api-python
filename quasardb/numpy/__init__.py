@@ -586,7 +586,7 @@ def read_array(
     if column is None:
         raise RuntimeError("A column is required.")
 
-    kwargs = {"column": column}
+    kwargs: dict[str, Any] = {"column": column}
 
     if ranges is not None:
         kwargs["ranges"] = ranges

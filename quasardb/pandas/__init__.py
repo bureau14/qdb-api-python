@@ -30,14 +30,13 @@ from __future__ import annotations
 
 import logging
 import warnings
-from datetime import datetime, timedelta
-from functools import partial
+from datetime import timedelta
 from typing import Any, Iterator, Optional, Union
 
 import quasardb
 import quasardb.numpy as qdbnp
 import quasardb.table_cache as table_cache
-from quasardb.quasardb import Table
+from quasardb.quasardb import Table, Writer
 
 logger = logging.getLogger("quasardb.pandas")
 
@@ -90,7 +89,7 @@ _dtype_map: dict[Any, quasardb.ColumnType] = {
 def read_series(
     table: Table,
     col_name: str,
-    ranges: Optional[list[tuple[np.datetime64, ...]]] = None,
+    ranges: Optional[list[tuple[np.datetime64, np.datetime64]]] = None,
 ) -> Series:
     """
     Read a Pandas Timeseries from a single column.
@@ -246,7 +245,7 @@ def stream_dataframes(
     *,
     batch_size: Optional[int] = 2**16,
     column_names: Optional[list[str]] = None,
-    ranges: Optional[list[tuple[np.datetime64, ...]]] = None,
+    ranges: Optional[list[tuple[np.datetime64, np.datetime64]]] = None,
 ) -> Iterator[pd.DataFrame]:
     """
     Read a Pandas Dataframe from a QuasarDB Timeseries table. Returns a generator with dataframes of size `batch_size`, which is useful
@@ -311,24 +310,41 @@ def stream_dataframes(
 
 
 def stream_dataframe(
-    conn: quasardb.Cluster, table: Union[str, Table], **kwargs: Any
+    conn: quasardb.Cluster,
+    table: Union[str, Table],
+    *,
+    batch_size: Optional[int] = 2**16,
+    column_names: Optional[list[str]] = None,
+    ranges: Optional[list[tuple[np.datetime64, np.datetime64]]] = None,
 ) -> Iterator[pd.DataFrame]:
     """
     Read a single table and return a stream of dataframes. This is a convenience function that wraps around
     `stream_dataframes`.
     """
-    kwargs["tables"] = [table]
-
     # For backwards compatibility, we drop the `$table` column returned: this is not strictly
     # necessary, but it also is somewhat reasonable to drop it when we're reading from a single
     # table, which is the case here.
     clean_df_fn = lambda df: df.drop(columns=["$table"])
 
-    return (clean_df_fn(df) for df in stream_dataframes(conn, **kwargs))
+    return (
+        clean_df_fn(df)
+        for df in stream_dataframes(
+            conn,
+            [table],
+            batch_size=batch_size,
+            column_names=column_names,
+            ranges=ranges,
+        )
+    )
 
 
 def read_dataframe(
-    conn: quasardb.Cluster, table: Union[str, Table], **kwargs: Any
+    conn: quasardb.Cluster,
+    table: Union[str, Table],
+    *,
+    batch_size: Optional[int] = 2**16,
+    column_names: Optional[list[str]] = None,
+    ranges: Optional[list[tuple[np.datetime64, np.datetime64]]] = None,
 ) -> pd.DataFrame:
     """
     Read a Pandas Dataframe from a QuasarDB Timeseries table. Wraps around stream_dataframes(), and
@@ -347,23 +363,21 @@ def read_dataframe(
 
     """
 
-    if (
-        "batch_size" in kwargs
-        and kwargs["batch_size"] != 0
-        and kwargs["batch_size"] != None
-    ):
+    if batch_size is not None and batch_size != 0:
         logger.warning(
             "Providing a batch size with read_dataframe is unsupported, overriding batch_size to 65536."
         )
         logger.warning(
             "If you wish to traverse the data in smaller batches, please use: stream_dataframe()."
         )
-        kwargs["batch_size"] = 2**16
+        batch_size = 2**16
 
     # Note that this is *lazy*, dfs is a generator, not a list -- as such, dataframes will be
     # fetched on-demand, which means that an error could occur in the middle of processing
     # dataframes.
-    dfs = stream_dataframe(conn, table, **kwargs)
+    dfs = stream_dataframe(
+        conn, table, batch_size=batch_size, column_names=column_names, ranges=ranges
+    )
 
     # if result of stream_dataframe is empty this could result in ValueError on pd.concat()
     # as stream_dataframe is a generator there is no easy way to check for this condition without evaluation
@@ -411,6 +425,23 @@ def write_dataframes(
     *,
     create: bool = False,
     shard_size: Optional[timedelta] = None,
+    # numpy.write_arrays passthrough options
+    dtype: Optional[
+        Union[
+            qdbnp.DType, dict[str, Optional[qdbnp.DType]], list[Optional[qdbnp.DType]]
+        ]
+    ] = None,
+    push_mode: Optional[quasardb.WriterPushMode] = None,
+    _async: bool = False,
+    fast: bool = False,
+    truncate: Union[bool, tuple[Any, ...]] = False,
+    truncate_range: Optional[tuple[Any, ...]] = None,
+    deduplicate: Union[bool, str, list[str]] = False,
+    deduplication_mode: str = "drop",
+    infer_types: bool = True,
+    writer: Optional[Writer] = None,
+    write_through: bool = True,
+    retries: Union[int, quasardb.RetryOptions] = 3,
     **kwargs: Any,
 ) -> list[Table]:
     """
@@ -479,21 +510,105 @@ def write_dataframes(
         data_by_table.append((table, data))
 
     kwargs["deprecation_stacklevel"] = kwargs.get("deprecation_stacklevel", 1) + 1
-    return qdbnp.write_arrays(data_by_table, cluster, table=None, index=None, **kwargs)
+    return qdbnp.write_arrays(
+        data_by_table,
+        cluster,
+        table=None,
+        index=None,
+        dtype=dtype,
+        push_mode=push_mode,
+        _async=_async,
+        fast=fast,
+        truncate=truncate,
+        truncate_range=truncate_range,
+        deduplicate=deduplicate,
+        deduplication_mode=deduplication_mode,
+        infer_types=infer_types,
+        writer=writer,
+        write_through=write_through,
+        retries=retries,
+        **kwargs,
+    )
 
 
 def write_dataframe(
-    df: pd.DataFrame, cluster: quasardb.Cluster, table: Union[str, Table], **kwargs: Any
+    df: pd.DataFrame,
+    cluster: quasardb.Cluster,
+    table: Union[str, Table],
+    *,
+    create: bool = False,
+    shard_size: Optional[timedelta] = None,
+    # numpy.write_arrays passthrough options
+    dtype: Optional[
+        Union[
+            qdbnp.DType, dict[str, Optional[qdbnp.DType]], list[Optional[qdbnp.DType]]
+        ]
+    ] = None,
+    push_mode: Optional[quasardb.WriterPushMode] = None,
+    _async: bool = False,
+    fast: bool = False,
+    truncate: Union[bool, tuple[Any, ...]] = False,
+    truncate_range: Optional[tuple[Any, ...]] = None,
+    deduplicate: Union[bool, str, list[str]] = False,
+    deduplication_mode: str = "drop",
+    infer_types: bool = True,
+    writer: Optional[Writer] = None,
+    write_through: bool = True,
+    retries: Union[int, quasardb.RetryOptions] = 3,
+    **kwargs: Any,
 ) -> list[Table]:
     """
     Store a single dataframe into a table. Takes the same arguments as `write_dataframes`, except only
     a single df/table combination.
     """
     kwargs["deprecation_stacklevel"] = kwargs.get("deprecation_stacklevel", 1) + 1
-    return write_dataframes([(table, df)], cluster, **kwargs)
+    return write_dataframes(
+        [(table, df)],
+        cluster,
+        create=create,
+        shard_size=shard_size,
+        dtype=dtype,
+        push_mode=push_mode,
+        _async=_async,
+        fast=fast,
+        truncate=truncate,
+        truncate_range=truncate_range,
+        deduplicate=deduplicate,
+        deduplication_mode=deduplication_mode,
+        infer_types=infer_types,
+        writer=writer,
+        write_through=write_through,
+        retries=retries,
+        **kwargs,
+    )
 
 
-def write_pinned_dataframe(*args: Any, **kwargs: Any) -> list[Table]:
+def write_pinned_dataframe(
+    df: pd.DataFrame,
+    cluster: quasardb.Cluster,
+    table: Union[str, Table],
+    *,
+    create: bool = False,
+    shard_size: Optional[timedelta] = None,
+    # numpy.write_arrays passthrough options
+    dtype: Optional[
+        Union[
+            qdbnp.DType, dict[str, Optional[qdbnp.DType]], list[Optional[qdbnp.DType]]
+        ]
+    ] = None,
+    push_mode: Optional[quasardb.WriterPushMode] = None,
+    _async: bool = False,
+    fast: bool = False,
+    truncate: Union[bool, tuple[Any, ...]] = False,
+    truncate_range: Optional[tuple[Any, ...]] = None,
+    deduplicate: Union[bool, str, list[str]] = False,
+    deduplication_mode: str = "drop",
+    infer_types: bool = True,
+    writer: Optional[Writer] = None,
+    write_through: bool = True,
+    retries: Union[int, quasardb.RetryOptions] = 3,
+    **kwargs: Any,
+) -> list[Table]:
     """
     Legacy wrapper around write_dataframe()
     """
@@ -502,7 +617,26 @@ def write_pinned_dataframe(*args: Any, **kwargs: Any) -> list[Table]:
     )
     logger.warning("Please use write_dataframe directly instead")
     kwargs["deprecation_stacklevel"] = 2
-    return write_dataframe(*args, **kwargs)
+    return write_dataframe(
+        df,
+        cluster,
+        table,
+        create=create,
+        shard_size=shard_size,
+        dtype=dtype,
+        push_mode=push_mode,
+        _async=_async,
+        fast=fast,
+        truncate=truncate,
+        truncate_range=truncate_range,
+        deduplicate=deduplicate,
+        deduplication_mode=deduplication_mode,
+        infer_types=infer_types,
+        writer=writer,
+        write_through=write_through,
+        retries=retries,
+        **kwargs,
+    )
 
 
 def _create_table_from_df(
