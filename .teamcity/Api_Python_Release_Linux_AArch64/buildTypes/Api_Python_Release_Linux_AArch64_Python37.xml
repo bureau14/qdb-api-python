@@ -4,6 +4,7 @@
   <description />
   <settings ref="Api_Python_Release_Linux_AArch64_Build">
     <parameters>
+      <param name="pypa_image_tag" value="2025.05.03-1" />
       <param name="python_version" value="3.7" />
     </parameters>
     <build-runners>
