@@ -6,6 +6,21 @@
     <parameters>
       <param name="python_version" value="3.7" />
     </parameters>
+    <build-runners>
+      <runner id="RUNNER_53" name="Build container" type="DockerCommand">
+        <parameters>
+          <param name="command.args" value="--build-arg PYTHON_VERSION=%python_version% --build-arg TAG=%pypa_image_tag%" />
+          <param name="docker.command.type" value="build" />
+          <param name="docker.image.namesAndTags" value="build:%build.vcs.number%-%python_version%" />
+          <param name="docker.push.remove.image" value="true" />
+          <param name="dockerImage.platform" value="linux" />
+          <param name="dockerfile.contextDir" value="docker/" />
+          <param name="dockerfile.path" value="docker/Dockerfile" />
+          <param name="dockerfile.source" value="PATH" />
+          <param name="teamcity.step.mode" value="default" />
+        </parameters>
+      </runner>
+    </build-runners>
   </settings>
 </build-type>
 
