@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<template xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="f96eaf5d-f7e0-4856-ac51-e0a6e0ac0e97" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2021.1/project-config.xsd">
+<template xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="f96eaf5d-f7e0-4856-ac51-e0a6e0ac0e97" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2025.3/project-config.xsd">
   <name>Build</name>
   <settings>
     <options>
@@ -113,7 +113,6 @@ tar -czvf dist/doc.tar.gz doc/*]]></param>
       <equals id="RQ_333" name="teamcity.agent.jvm.os.name" value="Linux" />
       <equals id="RQ_334" name="teamcity.agent.jvm.os.arch" value="aarch64" />
     </requirements>
-    <build-triggers />
     <build-extensions>
       <extension id="perfmon" type="perfmon">
         <parameters>
@@ -142,6 +141,6 @@ tar -czvf dist/doc.tar.gz doc/*]]></param>
         </options>
       </depend-on>
     </dependencies>
-    <cleanup />
   </settings>
 </template>
+
