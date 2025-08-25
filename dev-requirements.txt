@@ -36,7 +36,8 @@ teamcity-messages == 1.29
 setuptools-git == 1.2
 
 # Linting
-black==24.10.0
+black==24.10.0; python_version >= '3.9'
+black == 23.3.0; python_version < '3.9'
 
 # Stubs
 mypy

@@ -1,8 +1,8 @@
 ARG POLICY="manylinux_2_28"
 ARG ARCH="x86_64"
 ARG PLATFORM="${POLICY}_${ARCH}"
-
-FROM quay.io/pypa/$PLATFORM
+ARG TAG="latest"
+FROM quay.io/pypa/$PLATFORM:${TAG}
 
 ARG PYTHON_VERSION
 
