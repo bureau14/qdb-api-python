@@ -6,12 +6,6 @@
     <parameters>
       <param name="python_version" value="3.11" />
     </parameters>
-    <artifact-dependencies>
-      <dependency id="ARTIFACT_DEPENDENCY_65" sourceBuildTypeId="Quasardb_Artifacts_Debug_Linux_X8664Core2_Composite" cleanDestination="false">
-        <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
-        <artifact sourcePath="*-linux-64bit-core2-debug-c-api.tar.zst!**/*=&gt;qdb&#xD;&#xA;*-linux-64bit-core2-debug-utils.tar.zst!**/*=&gt;qdb&#xD;&#xA;*-linux-64bit-core2-debug-server.tar.zst!**/*=&gt;qdb" />
-      </dependency>
-    </artifact-dependencies>
   </settings>
 </build-type>
 
