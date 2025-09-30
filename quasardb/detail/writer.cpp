@@ -220,7 +220,8 @@ void staged_table::prepare_table_data(qdb_exp_batch_push_table_data_t & table_da
 void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
     detail::deduplicate_options const & deduplicate_options,
     qdb_ts_range_t * ranges,
-    qdb_exp_batch_push_table_t & batch)
+    qdb_exp_batch_push_table_t & batch,
+    qdb_exp_batch_creation_mode_t creation)
 {
     batch.name = _table_name.c_str();
 
@@ -235,7 +236,7 @@ void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
     batch.where_duplicate       = nullptr;
     batch.where_duplicate_count = 0;
     batch.deduplication_mode    = qdb_exp_batch_deduplication_mode_disabled;
-    batch.creation              = qdb_exp_batch_dont_create;
+    batch.creation              = creation;
 
     enum detail::deduplication_mode_t mode_ = deduplicate_options.mode_;
 
@@ -309,6 +310,27 @@ void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
     }
 
     return ret;
+}
+
+/* static */ py::kwargs detail::batch_creation_mode::ensure(py::kwargs kwargs)
+{
+    if (kwargs.contains(batch_creation_mode::kw_creation_mode) == false)
+    {
+        kwargs[batch_creation_mode::kw_creation_mode] = batch_creation_mode::default_creation_mode;
+    }
+
+    return kwargs;
+}
+
+/* static */ qdb_exp_batch_creation_mode_t detail::batch_creation_mode::from_kwargs(
+    py::kwargs const & kwargs)
+{
+    assert(kwargs.contains(batch_creation_mode::kw_creation_mode));
+
+    // By default no flags are set
+    qdb_exp_batch_creation_mode_t ret = qdb_exp_batch_dont_create;
+
+    return py::cast<qdb_exp_batch_creation_mode_t>(kwargs[batch_creation_mode::kw_creation_mode]);
 }
 
 /* static */ qdb_exp_batch_options_t detail::batch_options::from_kwargs(py::kwargs const & kwargs)
