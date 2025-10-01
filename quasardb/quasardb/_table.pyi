@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import datetime
 import typing
-from typing import Any
-
-import numpy
+from typing import Any, Optional, Union
 
 from quasardb.quasardb._reader import Reader
+from quasardb.typing import MaskedArrayAny, NDArrayAny, NDArrayTime, RangeSet
 
 from ._entry import Entry
 
@@ -70,10 +69,13 @@ class IndexedColumnInfo:
 class Table(Entry):
     def __repr__(self) -> str: ...
     def blob_get_ranges(
-        self, column: str, ranges: Any = None
-    ) -> tuple[numpy.ndarray, numpy.ma.MaskedArray]: ...
+        self, column: str, ranges: Optional[RangeSet] = None
+    ) -> tuple[NDArrayTime, MaskedArrayAny]: ...
     def blob_insert(
-        self, column: str, timestamps: numpy.ndarray, values: numpy.ma.MaskedArray
+        self,
+        column: str,
+        timestamps: NDArrayTime,
+        values: Union[MaskedArrayAny, NDArrayAny],
     ) -> None: ...
     def column_id_by_index(self, index: int) -> str: ...
     def column_index_by_id(self, alias: str) -> int: ...
@@ -87,40 +89,52 @@ class Table(Entry):
         ttl: datetime.timedelta = ...,
     ) -> None: ...
     def double_get_ranges(
-        self, column: str, ranges: Any = None
-    ) -> tuple[numpy.ndarray, numpy.ma.MaskedArray]: ...
+        self, column: str, ranges: Optional[RangeSet] = None
+    ) -> tuple[NDArrayTime, MaskedArrayAny]: ...
     def double_insert(
-        self, column: str, timestamps: numpy.ndarray, values: numpy.ma.MaskedArray
+        self,
+        column: str,
+        timestamps: NDArrayTime,
+        values: Union[MaskedArrayAny, NDArrayAny],
     ) -> None: ...
-    def erase_ranges(self, column: str, ranges: Any) -> int: ...
+    def erase_ranges(self, column: str, ranges: RangeSet) -> int: ...
     def get_shard_size(self) -> datetime.timedelta: ...
     def get_ttl(self) -> datetime.timedelta: ...
     def has_ttl(self) -> bool: ...
     def insert_columns(self, columns: list[ColumnInfo]) -> None: ...
     def int64_get_ranges(
-        self, column: str, ranges: Any = None
-    ) -> tuple[numpy.ndarray, numpy.ma.MaskedArray]: ...
+        self, column: str, ranges: Optional[RangeSet] = None
+    ) -> tuple[NDArrayTime, MaskedArrayAny]: ...
     def int64_insert(
-        self, column: str, timestamps: numpy.ndarray, values: numpy.ma.MaskedArray
+        self,
+        column: str,
+        timestamps: NDArrayTime,
+        values: Union[MaskedArrayAny, NDArrayAny],
     ) -> None: ...
     def list_columns(self) -> list[ColumnInfo]: ...
     def reader(
         self,
         column_names: list[str] = [],
         batch_size: int = 0,
-        ranges: list[tuple] = [],
+        ranges: RangeSet = [],
     ) -> Reader: ...
     def retrieve_metadata(self) -> None: ...
     def string_get_ranges(
-        self, column: str, ranges: Any = None
-    ) -> tuple[numpy.ndarray, numpy.ma.MaskedArray]: ...
+        self, column: str, ranges: Optional[RangeSet] = None
+    ) -> tuple[NDArrayTime, MaskedArrayAny]: ...
     def string_insert(
-        self, column: str, timestamps: numpy.ndarray, values: numpy.ma.MaskedArray
+        self,
+        column: str,
+        timestamps: NDArrayTime,
+        values: Union[MaskedArrayAny, NDArrayAny],
     ) -> None: ...
     def subscribe(self, conn: Any) -> Any: ...
     def timestamp_get_ranges(
-        self, column: str, ranges: Any = None
-    ) -> tuple[numpy.ndarray, numpy.ma.MaskedArray]: ...
+        self, column: str, ranges: Optional[RangeSet] = None
+    ) -> tuple[NDArrayTime, MaskedArrayAny]: ...
     def timestamp_insert(
-        self, column: str, timestamps: numpy.ndarray, values: numpy.ma.MaskedArray
+        self,
+        column: str,
+        timestamps: NDArrayTime,
+        values: Union[MaskedArrayAny, NDArrayAny],
     ) -> None: ...

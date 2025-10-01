@@ -61,7 +61,7 @@ def _get_next(
 
     txs = _get_transactions_since(conn, table_name, state["last"])
 
-    xs: list[dict[str, Any]] = list()
+    xs: list[dict[str, Any]] = []
     for tx in txs:
         txid = tx["transaction_id"]
 

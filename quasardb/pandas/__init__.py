@@ -36,7 +36,8 @@ from typing import Any, Iterator, Optional, Union
 import quasardb
 import quasardb.numpy as qdbnp
 import quasardb.table_cache as table_cache
-from quasardb.quasardb import Table, Writer
+from quasardb.quasardb import Cluster, Table, Writer
+from quasardb.typing import DType, MaskedArrayAny, Range, RangeSet
 
 logger = logging.getLogger("quasardb.pandas")
 
@@ -55,7 +56,7 @@ try:
     import numpy.ma as ma
     import pandas as pd
     from pandas.core.api import DataFrame, Series
-    from pandas.core.base import PandasObject
+    from pandas.core.base import PandasObject  # type: ignore[attr-defined]
 
 except ImportError:
     raise PandasRequired("The pandas library is required to handle pandas data formats")
@@ -85,12 +86,13 @@ _dtype_map: dict[Any, quasardb.ColumnType] = {
     "datetime64": quasardb.ColumnType.Timestamp,
 }
 
+# Type hint for TableLike parameter
+TableLike = Union[str, Table]
+
 
 def read_series(
-    table: Table,
-    col_name: str,
-    ranges: Optional[list[tuple[np.datetime64, np.datetime64]]] = None,
-) -> Series:
+    table: Table, col_name: str, ranges: Optional[RangeSet] = None
+) -> pd.Series[Any]:
     """
     Read a Pandas Timeseries from a single column.
 
@@ -129,15 +131,15 @@ def read_series(
 
     res = (read_with[t])(**kwargs)
 
-    return Series(res[1], index=res[0])
+    return pd.Series(res[1], index=res[0])
 
 
 def write_series(
-    series: Series,
+    series: pd.Series,
     table: Table,
     col_name: str,
     infer_types: bool = True,
-    dtype: Optional[qdbnp.DType] = None,
+    dtype: Optional[DType] = None,
 ) -> None:
     """
     Writes a Pandas Timeseries to a single column.
@@ -188,7 +190,7 @@ def write_series(
 
 
 def query(
-    cluster: quasardb.Cluster,
+    cluster: Cluster,
     query: str,
     index: Optional[str] = None,
     blobs: bool = False,
@@ -240,12 +242,12 @@ def query(
 
 
 def stream_dataframes(
-    conn: quasardb.Cluster,
-    tables: list[Union[str, Table]],
+    conn: Cluster,
+    tables: list[TableLike],
     *,
     batch_size: Optional[int] = 2**16,
     column_names: Optional[list[str]] = None,
-    ranges: Optional[list[tuple[np.datetime64, np.datetime64]]] = None,
+    ranges: Optional[RangeSet] = None,
 ) -> Iterator[pd.DataFrame]:
     """
     Read a Pandas Dataframe from a QuasarDB Timeseries table. Returns a generator with dataframes of size `batch_size`, which is useful
@@ -310,12 +312,12 @@ def stream_dataframes(
 
 
 def stream_dataframe(
-    conn: quasardb.Cluster,
-    table: Union[str, Table],
+    conn: Cluster,
+    table: TableLike,
     *,
     batch_size: Optional[int] = 2**16,
     column_names: Optional[list[str]] = None,
-    ranges: Optional[list[tuple[np.datetime64, np.datetime64]]] = None,
+    ranges: Optional[RangeSet] = None,
 ) -> Iterator[pd.DataFrame]:
     """
     Read a single table and return a stream of dataframes. This is a convenience function that wraps around
@@ -339,12 +341,12 @@ def stream_dataframe(
 
 
 def read_dataframe(
-    conn: quasardb.Cluster,
-    table: Union[str, Table],
+    conn: Cluster,
+    table: TableLike,
     *,
     batch_size: Optional[int] = 2**16,
     column_names: Optional[list[str]] = None,
-    ranges: Optional[list[tuple[np.datetime64, np.datetime64]]] = None,
+    ranges: Optional[RangeSet] = None,
 ) -> pd.DataFrame:
     """
     Read a Pandas Dataframe from a QuasarDB Timeseries table. Wraps around stream_dataframes(), and
@@ -394,7 +396,7 @@ def read_dataframe(
 
 def _extract_columns(
     df: pd.DataFrame, cinfos: list[tuple[str, quasardb.ColumnType]]
-) -> dict[str, ma.MaskedArray[Any, Any]]:
+) -> dict[str, MaskedArrayAny]:
     """
     Converts dataframe to a number of numpy arrays, one for each column.
 
@@ -402,7 +404,7 @@ def _extract_columns(
     If a table column is not present in the dataframe, it it have a None entry.
     If a dataframe column is not present in the table, it will be ommitted.
     """
-    ret: dict[str, ma.MaskedArray[Any, Any]] = {}
+    ret: dict[str, MaskedArrayAny] = {}
 
     # Grab all columns from the DataFrame in the order of table columns,
     # put None if not present in df.
@@ -418,8 +420,8 @@ def _extract_columns(
 
 def write_dataframes(
     dfs: Union[
-        dict[Union[str, Table], pd.DataFrame],
-        list[tuple[Union[str, Table], pd.DataFrame]],
+        dict[TableLike, pd.DataFrame],
+        list[tuple[TableLike, pd.DataFrame]],
     ],
     cluster: quasardb.Cluster,
     *,
@@ -427,15 +429,13 @@ def write_dataframes(
     shard_size: Optional[timedelta] = None,
     # numpy.write_arrays passthrough options
     dtype: Optional[
-        Union[
-            qdbnp.DType, dict[str, Optional[qdbnp.DType]], list[Optional[qdbnp.DType]]
-        ]
+        Union[DType, dict[str, Optional[DType]], list[Optional[DType]]]
     ] = None,
     push_mode: Optional[quasardb.WriterPushMode] = None,
     _async: bool = False,
     fast: bool = False,
-    truncate: Union[bool, tuple[Any, ...]] = False,
-    truncate_range: Optional[tuple[Any, ...]] = None,
+    truncate: Union[bool, Range] = False,
+    truncate_range: Optional[Range] = None,
     deduplicate: Union[bool, str, list[str]] = False,
     deduplication_mode: str = "drop",
     infer_types: bool = True,
@@ -505,7 +505,9 @@ def write_dataframes(
         # is sparse, most notably forcing sparse integer arrays to floating points.
 
         data = _extract_columns(df, cinfos)
-        data["$timestamp"] = df.index.to_numpy(copy=False, dtype="datetime64[ns]")  # type: ignore[index]
+        data["$timestamp"] = ma.masked_array(
+            df.index.to_numpy(copy=False, dtype="datetime64[ns]")
+        )  # We cast to masked_array to enforce typing compliance
 
         data_by_table.append((table, data))
 
@@ -534,21 +536,19 @@ def write_dataframes(
 def write_dataframe(
     df: pd.DataFrame,
     cluster: quasardb.Cluster,
-    table: Union[str, Table],
+    table: TableLike,
     *,
     create: bool = False,
     shard_size: Optional[timedelta] = None,
     # numpy.write_arrays passthrough options
     dtype: Optional[
-        Union[
-            qdbnp.DType, dict[str, Optional[qdbnp.DType]], list[Optional[qdbnp.DType]]
-        ]
+        Union[DType, dict[str, Optional[DType]], list[Optional[DType]]]
     ] = None,
     push_mode: Optional[quasardb.WriterPushMode] = None,
     _async: bool = False,
     fast: bool = False,
-    truncate: Union[bool, tuple[Any, ...]] = False,
-    truncate_range: Optional[tuple[Any, ...]] = None,
+    truncate: Union[bool, Range] = False,
+    truncate_range: Optional[Range] = None,
     deduplicate: Union[bool, str, list[str]] = False,
     deduplication_mode: str = "drop",
     infer_types: bool = True,
@@ -586,21 +586,19 @@ def write_dataframe(
 def write_pinned_dataframe(
     df: pd.DataFrame,
     cluster: quasardb.Cluster,
-    table: Union[str, Table],
+    table: TableLike,
     *,
     create: bool = False,
     shard_size: Optional[timedelta] = None,
     # numpy.write_arrays passthrough options
     dtype: Optional[
-        Union[
-            qdbnp.DType, dict[str, Optional[qdbnp.DType]], list[Optional[qdbnp.DType]]
-        ]
+        Union[DType, dict[str, Optional[DType]], list[Optional[DType]]]
     ] = None,
     push_mode: Optional[quasardb.WriterPushMode] = None,
     _async: bool = False,
     fast: bool = False,
-    truncate: Union[bool, tuple[Any, ...]] = False,
-    truncate_range: Optional[tuple[Any, ...]] = None,
+    truncate: Union[bool, Range] = False,
+    truncate_range: Optional[Range] = None,
     deduplicate: Union[bool, str, list[str]] = False,
     deduplication_mode: str = "drop",
     infer_types: bool = True,

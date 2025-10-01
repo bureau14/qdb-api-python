@@ -33,11 +33,10 @@ import time
 import warnings
 from typing import Any, Iterable, Optional, Sequence, Union
 
-from numpy.typing import NDArray
-
 import quasardb
 import quasardb.table_cache as table_cache
 from quasardb.quasardb import Table, Writer
+from quasardb.typing import DType, MaskedArrayAny, NDArrayAny, NDArrayTime
 
 logger = logging.getLogger("quasardb.numpy")
 
@@ -60,8 +59,6 @@ except ImportError as err:
     raise NumpyRequired(
         "The numpy library is required to handle numpy arrays formats"
     ) from err
-
-DType = np.dtype[Any]
 
 
 class IncompatibleDtypeError(TypeError):
@@ -147,7 +144,7 @@ def _coerce_dtype(
     columns: list[tuple[str, quasardb.ColumnType]],
 ) -> list[Optional[DType]]:
     if dtype is None:
-        dtype = [None] * len(columns)  # type: ignore[assignment]
+        dtype = [None] * len(columns)
 
     if isinstance(dtype, np.dtype):
         dtype = [dtype]
@@ -335,9 +332,7 @@ def _coerce_deduplicate(
     return deduplicate
 
 
-def _clean_nulls(
-    xs: ma.MaskedArray[Any, Any], dtype: DType
-) -> ma.MaskedArray[Any, Any]:
+def _clean_nulls(xs: MaskedArrayAny, dtype: DType) -> MaskedArrayAny:
     """
     Numpy's masked arrays have a downside that in case they're not able to convert a (masked!) value to
     the desired dtype, they raise an error. So, for example, if I have a masked array of objects that
@@ -373,8 +368,8 @@ def _clean_nulls(
 
 
 def _coerce_data(
-    data: list[ma.MaskedArray[Any, Any]], dtype: list[Optional[DType]]
-) -> list[ma.MaskedArray[Any, Any]]:
+    data: list[MaskedArrayAny], dtype: list[Optional[DType]]
+) -> list[MaskedArrayAny]:
     """
     Coerces each numpy array of `data` to the dtype present in `dtype`.
     """
@@ -403,7 +398,7 @@ def _coerce_data(
             logger.debug("data of data[%d] after: %s", i, data_)
 
             try:
-                data[i] = data_.astype(dtype_)  # type: ignore[assignment]
+                data[i] = ma.masked_array(data_.astype(dtype_))
             except TypeError as err:
                 # One 'bug' is that, if everything is masked, the underlying data type can be
                 # pretty much anything.
@@ -436,7 +431,7 @@ def _coerce_data(
 
 
 def _probe_length(
-    xs: Union[dict[Any, NDArray[Any]], Iterable[NDArray[Any]]]
+    xs: Union[dict[Any, NDArrayAny], Iterable[NDArrayAny]]
 ) -> Optional[int]:
     """
     Returns the length of the first non-null array in `xs`, or None if all arrays
@@ -453,7 +448,7 @@ def _probe_length(
 
 
 def _ensure_list(
-    xs: Union[list[Any], dict[Any, Any], NDArray[Any]],
+    xs: Union[list[Any], dict[Any, Any], NDArrayAny],
     cinfos: list[tuple[str, quasardb.ColumnType]],
 ) -> list[Any]:
     """
@@ -550,13 +545,7 @@ def _type_check(
     return True
 
 
-def ensure_ma(
-    xs: Any, dtype: Optional[Union[DType, list[Optional[DType]]]] = None
-) -> Union[list[ma.MaskedArray[Any, Any]], ma.MaskedArray[Any, Any]]:
-    if isinstance(dtype, list):
-        assert isinstance(xs, list) == True
-        return [ensure_ma(xs_, dtype_) for (xs_, dtype_) in zip(xs, dtype)]  # type: ignore[list-item]
-
+def _ensure_ma(xs: Any, dtype: Optional[DType] = None) -> MaskedArrayAny:
     # Don't bother if we're already a masked array
     if ma.isMA(xs):
         return xs
@@ -577,9 +566,19 @@ def ensure_ma(
         return ma.masked_invalid(xs, copy=False)
 
 
+def ensure_ma(
+    xs: Any, dtype: Optional[Union[DType, list[Optional[DType]]]] = None
+) -> Union[list[MaskedArrayAny], MaskedArrayAny]:
+    if isinstance(dtype, list):
+        assert isinstance(xs, list) == True
+        return [_ensure_ma(xs_, dtype_) for (xs_, dtype_) in zip(xs, dtype)]
+
+    return _ensure_ma(xs, dtype)
+
+
 def read_array(
     table: Optional[Table] = None, column: Optional[str] = None, ranges: Any = None
-) -> tuple[NDArray, ma.MaskedArray]:
+) -> tuple[NDArrayTime, MaskedArrayAny]:
     if table is None:
         raise RuntimeError("A table is required.")
 
@@ -608,7 +607,7 @@ def read_array(
 
 def write_array(
     data: Any = None,
-    index: Optional[NDArray[Any]] = None,
+    index: Optional[NDArrayTime] = None,
     table: Optional[Table] = None,
     column: Optional[str] = None,
     dtype: Optional[DType] = None,
@@ -708,7 +707,7 @@ def write_arrays(
     dtype: Optional[
         Union[DType, dict[str, Optional[DType]], list[Optional[DType]]]
     ] = None,
-    index: Optional[NDArray[np.datetime64]] = None,
+    index: Optional[NDArrayTime] = None,
     # TODO: Set the default push_mode after removing _async, fast and truncate
     push_mode: Optional[quasardb.WriterPushMode] = None,
     _async: bool = False,
@@ -921,6 +920,11 @@ def write_arrays(
             # side-effects.
             data_ = data_.copy()
             index_ = data_.pop("$timestamp")
+
+            if ma.isMA(index_):
+                # Index might be a masked array
+                index_ = index_.data
+
             assert "$timestamp" not in data_
         elif index is not None:
             index_ = index
@@ -986,14 +990,12 @@ def write_arrays(
 
 
 def _xform_query_results(
-    xs: Sequence[tuple[str, Union[ma.MaskedArray[Any, Any], NDArray[Any]]]],
+    xs: Sequence[tuple[str, MaskedArrayAny]],
     index: Optional[Union[str, int]],
     dict: bool,
-) -> tuple[
-    NDArray[Any], Union[dict[str, NDArray[Any]], list[NDArray[Any]], NDArray[Any]]
-]:
+) -> tuple[NDArrayAny, Union[dict[str, MaskedArrayAny], list[MaskedArrayAny]]]:
     if len(xs) == 0:
-        return (np.array([], np.dtype("datetime64[ns]")), np.array([]))
+        return (np.array([], np.dtype("datetime64[ns]")), [ma.masked_array([])])
 
     n = None
     for x in xs:
@@ -1008,7 +1010,10 @@ def _xform_query_results(
         # Generate a range, put it in the front of the result list,
         # recurse and tell the function to use that index.
         assert isinstance(n, int)
-        xs_ = [("$index", np.arange(n))] + list(xs)
+        xs_: Sequence[tuple[str, MaskedArrayAny]] = [
+            ("$index", ma.masked_array(np.arange(n)))
+        ] + list(xs)
+
         return _xform_query_results(xs_, "$index", dict)
 
     if isinstance(index, str):
@@ -1036,7 +1041,7 @@ def _xform_query_results(
     idx = xs[index][1]
     del xs[index]
 
-    # Our index *may* be a masked array, but if it is, there should be no
+    # Our index *must* be a masked array, and there should be no
     # masked items: we cannot not have an index for a certain row.
     if ma.isMA(idx):
         if ma.count_masked(idx) > 0:
@@ -1058,9 +1063,7 @@ def query(
     query: str,
     index: Optional[Union[str, int]] = None,
     dict: bool = False,
-) -> tuple[
-    NDArray[Any], Union[dict[str, NDArray[Any]], list[NDArray[Any]], NDArray[Any]]
-]:
+) -> tuple[NDArrayAny, Union[dict[str, MaskedArrayAny], list[MaskedArrayAny]]]:
     """
     Execute a query and return the results as numpy arrays. The shape of the return value
     is always:

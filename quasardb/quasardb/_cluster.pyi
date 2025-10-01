@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import datetime
 from types import TracebackType
-from typing import Any, Optional, Sequence, Type
+from typing import Any, Optional, Type
 
-import numpy as np
-
+from ..typing import MaskedArrayAny, RangeSet
 from ._batch_column import BatchColumnInfo
 from ._batch_inserter import TimeSeriesBatch
 from ._blob import Blob
@@ -46,7 +45,7 @@ class Cluster:
         timeout: datetime.timedelta = datetime.timedelta(minutes=1),
         do_version_check: bool = False,
         enable_encryption: bool = False,
-        compression_mode: Options.Compression = ...,  # balanced
+        compression_mode: Options.Compression = Options.Compression.Balanced,
         client_max_parallelism: int = 0,
     ) -> None: ...
     def blob(self, alias: str) -> Blob: ...
@@ -82,15 +81,13 @@ class Cluster:
     def query_continuous_new_values(
         self, query: str, pace: datetime.timedelta, blobs: bool | list[str] = False
     ) -> QueryContinuous: ...
-    def query_numpy(
-        self, query: str
-    ) -> Sequence[tuple[str, np.ma.MaskedArray[Any, Any]]]: ...
+    def query_numpy(self, query: str) -> list[tuple[str, MaskedArrayAny]]: ...
     def reader(
         self,
         table_names: list[str],
         column_names: list[str] = [],
         batch_size: int = 0,
-        ranges: list[tuple] = [],
+        ranges: RangeSet = [],
     ) -> Reader: ...
     def string(self, alias: str) -> String: ...
     def suffix_count(self, suffix: str) -> int: ...

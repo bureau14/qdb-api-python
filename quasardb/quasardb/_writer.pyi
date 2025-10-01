@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Iterable
 
+from quasardb.typing import Range
+
 from ._table import Table
 
 class WriterData:
@@ -52,18 +54,17 @@ class Writer:
         deduplication_mode: str,
         deduplicate: str,
         retries: int,
-        range: tuple[Any, ...],
+        range: Range,
         **kwargs: Any,
     ) -> None: ...
     def push_fast(
         self,
         data: WriterData,
         write_through: bool,
-        push_mode: WriterPushMode,
         deduplication_mode: str,
         deduplicate: str,
         retries: int,
-        range: tuple[Any, ...],
+        range: Range,
         **kwargs: Any,
     ) -> None:
         """Deprecated: Use `writer.push()` instead."""
@@ -72,11 +73,10 @@ class Writer:
         self,
         data: WriterData,
         write_through: bool,
-        push_mode: WriterPushMode,
         deduplication_mode: str,
         deduplicate: str,
         retries: int,
-        range: tuple[Any, ...],
+        range: Range,
         **kwargs: Any,
     ) -> None:
         """Deprecated: Use `writer.push()` instead."""
@@ -85,11 +85,10 @@ class Writer:
         self,
         data: WriterData,
         write_through: bool,
-        push_mode: WriterPushMode,
         deduplication_mode: str,
         deduplicate: str,
         retries: int,
-        range: tuple[Any, ...],
+        range: Range,
         **kwargs: Any,
     ) -> None:
         """Deprecated: Use `writer.push()` instead3."""
