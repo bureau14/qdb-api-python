@@ -28,7 +28,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r scripts/github_actions/requirements.txt
+          pip install black==24.10.0
 
       - name: Run black on Python files
         run: |
@@ -38,22 +38,21 @@ jobs:
         run: |
           black --include '\.pyi$' --check --verbose .
 
-  # typing:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Check out code
-  #       uses: actions/checkout@v4
+  typing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
 
-  #     - name: Setup Python version
-  #       uses: actions/setup-python@v5
-  #       with:
-  #         python-version: '3.13'
+      - name: Setup Python version
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
 
-  #     - name: Install dependencies
-  #       run: |
-  #         pip install -r scripts/github_actions/requirements.txt
-  #         pip install -r dev-requirements.txt
+      - name: Install dependencies
+        run: |
+          pip install -r dev-requirements.txt
 
-  #     - name: Run mypy
-  #       run: |
-  #         mypy --check quasardb
+      - name: Run mypy
+        run: |
+          mypy quasardb --check --disallow-untyped-defs

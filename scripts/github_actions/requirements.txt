@@ -1,2 +1,0 @@
-black[colorama]==24.10.0
-slack_sdk==3.34.0
