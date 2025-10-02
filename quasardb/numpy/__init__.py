@@ -478,6 +478,10 @@ def _ensure_list(
     # of the array.
     n = _probe_length(xs)
 
+    if n is None:
+        logger.error("Unable to probe length: provided arrays: %s", xs)
+        raise ValueError("Unable to probe array length: all provided arrays None?")
+
     ret = list()
 
     for i in range(len(cinfos)):

@@ -38,6 +38,7 @@ setuptools-git == 1.2
 # Linting
 black==23.3.0; python_version <= '3.7'
 black==24.10.0; python_version > '3.7'
+
 # Stubs
 mypy
 pybind11-stubgen
