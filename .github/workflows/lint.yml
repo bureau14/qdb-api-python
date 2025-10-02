@@ -39,7 +39,7 @@ jobs:
           black --include '\.pyi$' --check --verbose .
 
   typing:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out code
         uses: actions/checkout@v4
