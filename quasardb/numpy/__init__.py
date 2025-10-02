@@ -1001,7 +1001,7 @@ def _xform_query_results(
     dict: bool,
 ) -> Tuple[NDArrayAny, Union[Dict[str, MaskedArrayAny], List[MaskedArrayAny]]]:
     if len(xs) == 0:
-        return (np.array([], np.dtype("datetime64[ns]")), [ma.masked_array([])])
+        return (np.array([], np.dtype("datetime64[ns]")), {} if dict else [])
 
     n = None
     for x in xs:
