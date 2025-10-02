@@ -3,7 +3,7 @@ import re
 from collections import defaultdict
 from datetime import datetime
 from enum import Enum
-from typing import Any, TypeVar, Union
+from typing import Any, DefaultDict, Dict, List, TypeVar, Union
 
 import quasardb
 from quasardb.quasardb import Cluster, Node
@@ -36,7 +36,7 @@ def is_cumulative_stat(s: str) -> bool:
     return user_pattern.match(s) is None
 
 
-def by_node(conn: Cluster) -> dict[str, dict[str, Any]]:
+def by_node(conn: Cluster) -> Dict[str, Dict[str, Any]]:
     """
     Returns statistic grouped by node URI.
 
@@ -47,7 +47,7 @@ def by_node(conn: Cluster) -> dict[str, dict[str, Any]]:
     return {x: of_node(conn.node(x)) for x in conn.endpoints()}
 
 
-def of_node(dconn: Node) -> dict[str, Any]:
+def of_node(dconn: Node) -> Dict[str, Any]:
     """
     Returns statistic for a single node.
 
@@ -63,7 +63,7 @@ def of_node(dconn: Node) -> dict[str, Any]:
     idx = _index_keys(dconn, ks)
     raw = {k: _get_stat_value(dconn, k) for k in ks}
 
-    ret: dict[str, Any] = {
+    ret: Dict[str, Any] = {
         "by_uid": _by_uid(raw, idx),
         "cumulative": _cumulative(raw, idx),
     }
@@ -114,7 +114,7 @@ def stat_type(stat_id: str) -> None:
     return None
 
 
-def _get_all_keys(dconn: Node, n: int = 1024) -> list[str]:
+def _get_all_keys(dconn: Node, n: int = 1024) -> List[str]:
     """
     Returns all keys from a single node.
 
@@ -179,7 +179,7 @@ _unit_string_to_enum = {
 T = TypeVar("T", Type, Unit)
 
 
-def _lookup_enum(dconn: Node, k: str, m: dict[str, T]) -> T:
+def _lookup_enum(dconn: Node, k: str, m: Dict[str, T]) -> T:
     """
     Utility function to avoid code duplication: automatically looks up a key's value
     from QuasarDB and looks it up in provided dict.
@@ -212,7 +212,7 @@ def _lookup_unit(dconn: Node, k: str) -> Unit:
     return _lookup_enum(dconn, k, _unit_string_to_enum)
 
 
-def _index_keys(dconn: Node, ks: list[str]) -> defaultdict[str, dict[str, Any]]:
+def _index_keys(dconn: Node, ks: List[str]) -> DefaultDict[str, Dict[str, Any]]:
     """
     Takes all statistics keys that are retrieved, and "indexes" them in such a way
     that we end up with a dict of all statistic keys, their type and their unit.
@@ -248,7 +248,7 @@ def _index_keys(dconn: Node, ks: list[str]) -> defaultdict[str, dict[str, Any]]:
     # In which case we'll store `requests.out_bytes` as the statistic type, and look up the type
     # and unit for those metrics and add a placeholder value.
 
-    ret: defaultdict[str, dict[str, Any]] = defaultdict(
+    ret: DefaultDict[str, Dict[str, Any]] = defaultdict(
         lambda: {"value": None, "type": None, "unit": None}
     )
 
@@ -308,9 +308,9 @@ def _get_stat_value(dconn: Node, k: str) -> Union[int, str]:
 
 
 def _by_uid(
-    stats: dict[str, Union[int, str]], idx: defaultdict[str, dict[str, Any]]
-) -> dict[int, dict[str, dict[str, Any]]]:
-    xs: dict[int, dict[str, dict[str, Any]]] = {}
+    stats: Dict[str, Union[int, str]], idx: DefaultDict[str, Dict[str, Any]]
+) -> Dict[int, Dict[str, Dict[str, Any]]]:
+    xs: Dict[int, Dict[str, Dict[str, Any]]] = {}
 
     for k, v in stats.items():
         matches = user_pattern.match(k)
@@ -344,9 +344,9 @@ def _by_uid(
 
 
 def _cumulative(
-    stats: dict[str, Union[int, str]], idx: defaultdict[str, dict[str, Any]]
-) -> dict[str, dict[str, Any]]:
-    xs: dict[str, dict[str, Any]] = {}
+    stats: Dict[str, Union[int, str]], idx: DefaultDict[str, Dict[str, Any]]
+) -> Dict[str, Dict[str, Any]]:
+    xs: Dict[str, Dict[str, Any]] = {}
 
     for k, v in stats.items():
         matches = total_pattern.match(k)

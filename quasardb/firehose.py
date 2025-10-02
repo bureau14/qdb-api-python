@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Any, Iterator, Optional
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 import numpy as np
 
@@ -12,7 +12,7 @@ POLL_INTERVAL = 0.1
 logger = logging.getLogger("quasardb.firehose")
 
 
-def _init() -> dict[str, Any]:
+def _init() -> Dict[str, Any]:
     """
     Initialize our internal state.
     """
@@ -20,8 +20,8 @@ def _init() -> dict[str, Any]:
 
 
 def _get_transactions_since(
-    conn: Cluster, table_name: str, last: Optional[dict[str, Any]]
-) -> list[dict[str, Any]]:
+    conn: Cluster, table_name: str, last: Optional[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
     """
     Retrieve all transactions since a certain timestamp. `last` is expected to be a dict
     firehose row with at least a $timestamp attached.
@@ -40,7 +40,7 @@ def _get_transactions_since(
 
 def _get_transaction_data(
     conn: Cluster, table_name: str, begin: str, end: str
-) -> list[dict[str, Any]]:
+) -> List[Dict[str, Any]]:
     """
     Gets all data from a certain table.
     """
@@ -49,8 +49,8 @@ def _get_transaction_data(
 
 
 def _get_next(
-    conn: Cluster, table_name: str, state: dict[str, Any]
-) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    conn: Cluster, table_name: str, state: Dict[str, Any]
+) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
 
     # Our flow to retrieve new data is as follows:
     # 1. Based on the state's last processed transaction, retrieve all transactions
@@ -61,7 +61,7 @@ def _get_next(
 
     txs = _get_transactions_since(conn, table_name, state["last"])
 
-    xs: list[dict[str, Any]] = []
+    xs: List[Dict[str, Any]] = []
     for tx in txs:
         txid = tx["transaction_id"]
 
@@ -92,7 +92,7 @@ def _get_next(
     return (state, xs)
 
 
-def subscribe(conn: Cluster, table_name: str) -> Iterator[dict[str, Any]]:
+def subscribe(conn: Cluster, table_name: str) -> Iterator[Dict[str, Any]]:
     state = _init()
 
     while True:

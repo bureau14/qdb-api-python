@@ -31,7 +31,7 @@ from __future__ import annotations
 import logging
 import time
 import warnings
-from typing import Any, Iterable, Optional, Sequence, Union
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Type, Union
 
 import quasardb
 import quasardb.table_cache as table_cache
@@ -70,7 +70,7 @@ class IncompatibleDtypeError(TypeError):
         self,
         cname: Optional[str] = None,
         ctype: Optional[quasardb.ColumnType] = None,
-        expected: Optional[list[DType]] = None,
+        expected: Optional[List[DType]] = None,
         provided: Optional[DType] = None,
     ):
         self.cname = cname
@@ -90,7 +90,7 @@ class IncompatibleDtypeErrors(TypeError):
     Wraps multiple dtype errors
     """
 
-    def __init__(self, xs: list[IncompatibleDtypeError]):
+    def __init__(self, xs: List[IncompatibleDtypeError]):
         self.xs = xs
         super().__init__(self.msg())
 
@@ -103,7 +103,7 @@ class InvalidDataCardinalityError(ValueError):
     Raised when the provided data arrays doesn't match the table's columns.
     """
 
-    def __init__(self, data: list[Any], cinfos: list[Any]) -> None:
+    def __init__(self, data: List[Any], cinfos: List[Any]) -> None:
         self.data = data
         self.cinfos = cinfos
         super().__init__(self.msg())
@@ -117,7 +117,7 @@ class InvalidDataCardinalityError(ValueError):
 # Based on QuasarDB column types, which dtype do we accept?
 # First entry will always be the 'preferred' dtype, other ones
 # those that we can natively convert in native code.
-_ctype_to_dtype: dict[quasardb.ColumnType, list[DType]] = {
+_ctype_to_dtype: Dict[quasardb.ColumnType, List[DType]] = {
     quasardb.ColumnType.String: [np.dtype("U")],
     quasardb.ColumnType.Symbol: [np.dtype("U")],
     quasardb.ColumnType.Int64: [np.dtype("i8"), np.dtype("i4"), np.dtype("i2")],
@@ -140,9 +140,11 @@ def _best_dtype_for_ctype(ctype: quasardb.ColumnType) -> DType:
 
 
 def _coerce_dtype(
-    dtype: Optional[Union[DType, dict[str, Optional[DType]], list[Optional[DType]]]],
-    columns: list[tuple[str, quasardb.ColumnType]],
-) -> list[Optional[DType]]:
+    dtype: Optional[
+        Union[DType, Dict[str, Optional[DType]], Sequence[Optional[DType]]]
+    ],
+    columns: List[Tuple[str, quasardb.ColumnType]],
+) -> List[Optional[DType]]:
     if dtype is None:
         dtype = [None] * len(columns)
 
@@ -151,7 +153,7 @@ def _coerce_dtype(
 
     if type(dtype) is dict:
         # Conveniently look up column index by label
-        offsets: dict[str, int] = {}
+        offsets: Dict[str, int] = {}
         for i in range(len(columns)):
             (cname, _) = columns[i]
             offsets[cname] = i
@@ -160,7 +162,7 @@ def _coerce_dtype(
         # the relative offset within the table.
         #
         # Any columns not provided will have a 'None' dtype.
-        dtype_: list[Optional[DType]] = [None] * len(columns)
+        dtype_: List[Optional[DType]] = [None] * len(columns)
 
         for k, dt in dtype.items():
             if not k in offsets:
@@ -188,12 +190,12 @@ def _coerce_dtype(
             )
         )
 
-    return dtype
+    return list(dtype)
 
 
 def _add_desired_dtypes(
-    dtype: list[Optional[DType]], columns: list[tuple[str, quasardb.ColumnType]]
-) -> list[Optional[DType]]:
+    dtype: List[Optional[DType]], columns: List[Tuple[str, quasardb.ColumnType]]
+) -> List[Optional[DType]]:
     """
     When infer_types=True, this function sets the 'desired' dtype for each of the columns.
     `dtype` is expected to be the output of `_coerce_dtype`, that is, a list-like with an
@@ -258,7 +260,7 @@ def dtypes_equal(lhs: DType, rhs: DType) -> bool:
     return lhs == rhs
 
 
-def _dtype_found(needle: DType, haystack: list[DType]) -> bool:
+def _dtype_found(needle: DType, haystack: List[DType]) -> bool:
     """
     Returns True if one of the dtypes in `haystack` matches that of `needle`.
     """
@@ -270,7 +272,7 @@ def _dtype_found(needle: DType, haystack: list[DType]) -> bool:
 
 
 def _validate_dtypes(
-    data: list[Any], columns: list[tuple[str, quasardb.ColumnType]]
+    data: List[Any], columns: List[Tuple[str, quasardb.ColumnType]]
 ) -> None:
     errors = list()
 
@@ -291,10 +293,10 @@ def _validate_dtypes(
 
 
 def _coerce_deduplicate(
-    deduplicate: Union[bool, str, list[str]],
+    deduplicate: Union[bool, str, List[str]],
     deduplication_mode: str,
-    columns: list[tuple[str, quasardb.ColumnType]],
-) -> Union[bool, list[str]]:
+    columns: List[Tuple[str, quasardb.ColumnType]],
+) -> Union[bool, List[str]]:
     """
     Throws an error when 'deduplicate' options are incorrect.
     """
@@ -368,8 +370,8 @@ def _clean_nulls(xs: MaskedArrayAny, dtype: DType) -> MaskedArrayAny:
 
 
 def _coerce_data(
-    data: list[MaskedArrayAny], dtype: list[Optional[DType]]
-) -> list[MaskedArrayAny]:
+    data: List[MaskedArrayAny], dtype: List[Optional[DType]]
+) -> List[MaskedArrayAny]:
     """
     Coerces each numpy array of `data` to the dtype present in `dtype`.
     """
@@ -431,7 +433,7 @@ def _coerce_data(
 
 
 def _probe_length(
-    xs: Union[dict[Any, NDArrayAny], Iterable[NDArrayAny]]
+    xs: Union[Dict[Any, NDArrayAny], Iterable[NDArrayAny]]
 ) -> Optional[int]:
     """
     Returns the length of the first non-null array in `xs`, or None if all arrays
@@ -448,9 +450,9 @@ def _probe_length(
 
 
 def _ensure_list(
-    xs: Union[list[Any], dict[Any, Any], NDArrayAny],
-    cinfos: list[tuple[str, quasardb.ColumnType]],
-) -> list[Any]:
+    xs: Union[List[Any], Dict[Any, Any], NDArrayAny],
+    cinfos: List[Tuple[str, quasardb.ColumnType]],
+) -> List[Any]:
     """
     If input data is a dict, ensures it's converted to a list with the correct
     offsets.
@@ -511,8 +513,8 @@ def _coerce_retries(
 def _kwarg_deprecation_warning(
     old_kwarg: str,
     old_value: Any,
-    new_kwargs: list[str],
-    new_values: list[Any],
+    new_kwargs: List[str],
+    new_values: List[Any],
     stacklevel: int,
 ) -> None:
     new_declaration = ", ".join(
@@ -530,7 +532,7 @@ def _kwarg_deprecation_warning(
 def _type_check(
     var: Any,
     var_name: str,
-    target_type: type,
+    target_type: Type,
     raise_error: bool = True,
     allow_none: bool = True,
 ) -> bool:
@@ -567,8 +569,8 @@ def _ensure_ma(xs: Any, dtype: Optional[DType] = None) -> MaskedArrayAny:
 
 
 def ensure_ma(
-    xs: Any, dtype: Optional[Union[DType, list[Optional[DType]]]] = None
-) -> Union[list[MaskedArrayAny], MaskedArrayAny]:
+    xs: Any, dtype: Optional[Union[DType, List[Optional[DType]]]] = None
+) -> Union[List[MaskedArrayAny], MaskedArrayAny]:
     if isinstance(dtype, list):
         assert isinstance(xs, list) == True
         return [_ensure_ma(xs_, dtype_) for (xs_, dtype_) in zip(xs, dtype)]
@@ -578,14 +580,14 @@ def ensure_ma(
 
 def read_array(
     table: Optional[Table] = None, column: Optional[str] = None, ranges: Any = None
-) -> tuple[NDArrayTime, MaskedArrayAny]:
+) -> Tuple[NDArrayTime, MaskedArrayAny]:
     if table is None:
         raise RuntimeError("A table is required.")
 
     if column is None:
         raise RuntimeError("A column is required.")
 
-    kwargs: dict[str, Any] = {"column": column}
+    kwargs: Dict[str, Any] = {"column": column}
 
     if ranges is not None:
         kwargs["ranges"] = ranges
@@ -663,7 +665,7 @@ def write_array(
     # write_arrays().
 
     cinfos = [(column, ctype)]
-    dtype_: list[Optional[DType]] = [dtype]
+    dtype_: List[Optional[DType]] = [dtype]
 
     dtype_ = _coerce_dtype(dtype_, cinfos)
 
@@ -705,16 +707,16 @@ def write_arrays(
     table: Optional[Union[str, Table]] = None,
     *,
     dtype: Optional[
-        Union[DType, dict[str, Optional[DType]], list[Optional[DType]]]
+        Union[DType, Dict[str, Optional[DType]], List[Optional[DType]]]
     ] = None,
     index: Optional[NDArrayTime] = None,
     # TODO: Set the default push_mode after removing _async, fast and truncate
     push_mode: Optional[quasardb.WriterPushMode] = None,
     _async: bool = False,
     fast: bool = False,
-    truncate: Union[bool, tuple[Any, ...]] = False,
-    truncate_range: Optional[tuple[Any, ...]] = None,
-    deduplicate: Union[bool, str, list[str]] = False,
+    truncate: Union[bool, Tuple[Any, ...]] = False,
+    truncate_range: Optional[Tuple[Any, ...]] = None,
+    deduplicate: Union[bool, str, List[str]] = False,
     deduplication_mode: str = "drop",
     infer_types: bool = True,
     writer: Optional[Writer] = None,
@@ -722,7 +724,7 @@ def write_arrays(
     retries: Union[int, quasardb.RetryOptions] = 3,
     # We accept additional kwargs that will be passed through the writer.push() methods
     **kwargs: Any,
-) -> list[Table]:
+) -> List[Table]:
     """
     Write multiple aligned numpy arrays to a table.
 
@@ -897,7 +899,7 @@ def write_arrays(
     if writer is None:
         writer = cluster.writer()
 
-    ret: list[Table] = []
+    ret: List[Table] = []
     n_rows = 0
     push_data = quasardb.WriterData()
 
@@ -990,10 +992,10 @@ def write_arrays(
 
 
 def _xform_query_results(
-    xs: Sequence[tuple[str, MaskedArrayAny]],
+    xs: Sequence[Tuple[str, MaskedArrayAny]],
     index: Optional[Union[str, int]],
     dict: bool,
-) -> tuple[NDArrayAny, Union[dict[str, MaskedArrayAny], list[MaskedArrayAny]]]:
+) -> Tuple[NDArrayAny, Union[Dict[str, MaskedArrayAny], List[MaskedArrayAny]]]:
     if len(xs) == 0:
         return (np.array([], np.dtype("datetime64[ns]")), [ma.masked_array([])])
 
@@ -1010,7 +1012,7 @@ def _xform_query_results(
         # Generate a range, put it in the front of the result list,
         # recurse and tell the function to use that index.
         assert isinstance(n, int)
-        xs_: Sequence[tuple[str, MaskedArrayAny]] = [
+        xs_: Sequence[Tuple[str, MaskedArrayAny]] = [
             ("$index", ma.masked_array(np.arange(n)))
         ] + list(xs)
 
@@ -1063,7 +1065,7 @@ def query(
     query: str,
     index: Optional[Union[str, int]] = None,
     dict: bool = False,
-) -> tuple[NDArrayAny, Union[dict[str, MaskedArrayAny], list[MaskedArrayAny]]]:
+) -> Tuple[NDArrayAny, Union[Dict[str, MaskedArrayAny], List[MaskedArrayAny]]]:
     """
     Execute a query and return the results as numpy arrays. The shape of the return value
     is always:

@@ -1,8 +1,8 @@
-from typing import Any
+from typing import Any, List
 
 from .writer import extend_writer
 
-__all__: list[Any] = []
+__all__: List[Any] = []
 
 
 def extend_module(m: Any) -> None:

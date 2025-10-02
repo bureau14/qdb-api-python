@@ -1,12 +1,12 @@
 import copy
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 import numpy.ma as ma
 
 import quasardb
 
-__all__: list[Any] = []
+__all__: List[Any] = []
 
 
 def _ensure_ctype(self: Any, idx: int, ctype: quasardb.ColumnType) -> None:
@@ -27,7 +27,7 @@ def _ensure_ctype(self: Any, idx: int, ctype: quasardb.ColumnType) -> None:
         raise quasardb.IncompatibleTypeError()
 
 
-def _legacy_next_row(self: Any, table: Any) -> dict[str, Any]:
+def _legacy_next_row(self: Any, table: Any) -> Dict[str, Any]:
     if "pending" not in self._legacy_state:
         self._legacy_state["pending"] = []
 
@@ -40,7 +40,7 @@ def _legacy_next_row(self: Any, table: Any) -> dict[str, Any]:
     return self._legacy_state["pending"][-1]
 
 
-def _legacy_current_row(self: Any) -> dict[str, Any]:
+def _legacy_current_row(self: Any) -> Dict[str, Any]:
     return self._legacy_state["pending"][-1]
 
 
@@ -112,7 +112,7 @@ def _legacy_push(self: Any) -> Optional[quasardb.WriterData]:
     all_idx = set(ctype_by_idx.keys())
 
     # Prepare data structure
-    pivoted: dict[str, Any] = {"$timestamp": [], "by_index": {}}
+    pivoted: Dict[str, Any] = {"$timestamp": [], "by_index": {}}
     for i in all_idx:
         pivoted["by_index"][i] = []
 

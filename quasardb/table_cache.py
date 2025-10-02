@@ -1,11 +1,11 @@
 import logging
-from typing import Optional
+from typing import Dict, Optional
 
 from quasardb.quasardb import Cluster, Table
 
 logger = logging.getLogger("quasardb.table_cache")
 
-_cache: dict[str, Table] = {}
+_cache: Dict[str, Table] = {}
 
 
 def clear() -> None:
