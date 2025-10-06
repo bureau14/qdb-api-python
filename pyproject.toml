@@ -25,5 +25,6 @@ xfail_strict = true
 filterwarnings = []
 testpaths = ["tests"]
 
-# [tool.mypy]
-# python_version = "3.9"
+[tool.mypy]
+python_version = "3.7"
+disallow_untyped_defs = true

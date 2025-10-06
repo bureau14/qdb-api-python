@@ -26,15 +26,17 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+from __future__ import annotations
 
 import logging
 import time
 import warnings
-from typing import Dict, List, Optional, Tuple, Union
-from numpy.typing import DTypeLike
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Type, Union
 
 import quasardb
 import quasardb.table_cache as table_cache
+from quasardb.quasardb import Table, Writer
+from quasardb.typing import DType, MaskedArrayAny, NDArrayAny, NDArrayTime
 
 logger = logging.getLogger("quasardb.numpy")
 
@@ -64,7 +66,13 @@ class IncompatibleDtypeError(TypeError):
     Exception raised when a provided dtype is not the expected dtype.
     """
 
-    def __init__(self, cname=None, ctype=None, expected=None, provided=None) -> None:
+    def __init__(
+        self,
+        cname: Optional[str] = None,
+        ctype: Optional[quasardb.ColumnType] = None,
+        expected: Optional[List[DType]] = None,
+        provided: Optional[DType] = None,
+    ):
         self.cname = cname
         self.ctype = ctype
         self.expected = expected
@@ -82,7 +90,7 @@ class IncompatibleDtypeErrors(TypeError):
     Wraps multiple dtype errors
     """
 
-    def __init__(self, xs) -> None:
+    def __init__(self, xs: List[IncompatibleDtypeError]):
         self.xs = xs
         super().__init__(self.msg())
 
@@ -95,7 +103,7 @@ class InvalidDataCardinalityError(ValueError):
     Raised when the provided data arrays doesn't match the table's columns.
     """
 
-    def __init__(self, data, cinfos) -> None:
+    def __init__(self, data: List[Any], cinfos: List[Any]) -> None:
         self.data = data
         self.cinfos = cinfos
         super().__init__(self.msg())
@@ -109,7 +117,7 @@ class InvalidDataCardinalityError(ValueError):
 # Based on QuasarDB column types, which dtype do we accept?
 # First entry will always be the 'preferred' dtype, other ones
 # those that we can natively convert in native code.
-_ctype_to_dtype = {
+_ctype_to_dtype: Dict[quasardb.ColumnType, List[DType]] = {
     quasardb.ColumnType.String: [np.dtype("U")],
     quasardb.ColumnType.Symbol: [np.dtype("U")],
     quasardb.ColumnType.Int64: [np.dtype("i8"), np.dtype("i4"), np.dtype("i2")],
@@ -119,7 +127,7 @@ _ctype_to_dtype = {
 }
 
 
-def _best_dtype_for_ctype(ctype: quasardb.ColumnType):
+def _best_dtype_for_ctype(ctype: quasardb.ColumnType) -> DType:
     """
     Returns the 'best' DType for a certain column type. For example, for blobs, even
     though we accept py::bytes, prefer bytestrings (as they are faster to read in c++).
@@ -132,9 +140,11 @@ def _best_dtype_for_ctype(ctype: quasardb.ColumnType):
 
 
 def _coerce_dtype(
-    dtype: Union[DTypeLike, Dict[str, DTypeLike], List[DTypeLike]],
-    columns: List[Tuple[str, quasardb.ColumnInfo]],
-) -> List[DTypeLike]:
+    dtype: Optional[
+        Union[DType, Dict[str, Optional[DType]], Sequence[Optional[DType]]]
+    ],
+    columns: List[Tuple[str, quasardb.ColumnType]],
+) -> List[Optional[DType]]:
     if dtype is None:
         dtype = [None] * len(columns)
 
@@ -143,7 +153,7 @@ def _coerce_dtype(
 
     if type(dtype) is dict:
         # Conveniently look up column index by label
-        offsets = {}
+        offsets: Dict[str, int] = {}
         for i in range(len(columns)):
             (cname, _) = columns[i]
             offsets[cname] = i
@@ -152,7 +162,7 @@ def _coerce_dtype(
         # the relative offset within the table.
         #
         # Any columns not provided will have a 'None' dtype.
-        dtype_ = [None] * len(columns)
+        dtype_: List[Optional[DType]] = [None] * len(columns)
 
         for k, dt in dtype.items():
             if not k in offsets:
@@ -175,17 +185,17 @@ def _coerce_dtype(
 
     if len(dtype) is not len(columns):
         raise ValueError(
-            "Expected exactly one dtype for each column, but %d dtypes were provided for %d columns".format(
+            "Expected exactly one dtype for each column, but {} dtypes were provided for {} columns".format(
                 len(dtype), len(columns)
             )
         )
 
-    return dtype
+    return list(dtype)
 
 
 def _add_desired_dtypes(
-    dtype: List[DTypeLike], columns: List[Tuple[str, quasardb.ColumnInfo]]
-) -> List[DTypeLike]:
+    dtype: List[Optional[DType]], columns: List[Tuple[str, quasardb.ColumnType]]
+) -> List[Optional[DType]]:
     """
     When infer_types=True, this function sets the 'desired' dtype for each of the columns.
     `dtype` is expected to be the output of `_coerce_dtype`, that is, a list-like with an
@@ -209,7 +219,7 @@ def _add_desired_dtypes(
     return dtype
 
 
-def _is_all_masked(xs):
+def _is_all_masked(xs: Any) -> bool:
     if ma.isMA(xs):
         return ma.size(xs) == ma.count_masked(xs)
 
@@ -239,7 +249,7 @@ def _is_all_masked(xs):
     return all(x is None for x in xs)
 
 
-def dtypes_equal(lhs, rhs):
+def dtypes_equal(lhs: DType, rhs: DType) -> bool:
     if lhs.kind == "U" or lhs.kind == "S":
         # Unicode and string data has variable length encoding, which means their itemsize
         # can be anything.
@@ -250,7 +260,7 @@ def dtypes_equal(lhs, rhs):
     return lhs == rhs
 
 
-def _dtype_found(needle, haystack):
+def _dtype_found(needle: DType, haystack: List[DType]) -> bool:
     """
     Returns True if one of the dtypes in `haystack` matches that of `needle`.
     """
@@ -261,19 +271,17 @@ def _dtype_found(needle, haystack):
     return False
 
 
-def _validate_dtypes(data, columns):
+def _validate_dtypes(
+    data: List[Any], columns: List[Tuple[str, quasardb.ColumnType]]
+) -> None:
     errors = list()
-
-    def _error_to_msg(e):
-        (cname, ctype, provided_dtype, expected_dtype) = e
-        return
 
     for data_, (cname, ctype) in zip(data, columns):
         expected_ = _ctype_to_dtype[ctype]
 
         logger.debug("data_.dtype = %s, expected_ = %s", data_.dtype, expected_)
 
-        if _dtype_found(data_.dtype, expected_) == False:
+        if not _dtype_found(data_.dtype, expected_):
             errors.append(
                 IncompatibleDtypeError(
                     cname=cname, ctype=ctype, provided=data_.dtype, expected=expected_
@@ -284,11 +292,15 @@ def _validate_dtypes(data, columns):
         raise IncompatibleDtypeErrors(errors)
 
 
-def _coerce_deduplicate(deduplicate, deduplication_mode, columns):
+def _coerce_deduplicate(
+    deduplicate: Union[bool, str, List[str]],
+    deduplication_mode: str,
+    columns: List[Tuple[str, quasardb.ColumnType]],
+) -> Union[bool, List[str]]:
     """
     Throws an error when 'deduplicate' options are incorrect.
     """
-    cnames = [cname for (cname, ctype) in columns]
+    cnames = [cname for (cname, _) in columns]
 
     if deduplication_mode not in ["drop", "upsert"]:
         raise RuntimeError(
@@ -308,7 +320,7 @@ def _coerce_deduplicate(deduplicate, deduplication_mode, columns):
     if not isinstance(deduplicate, list):
         raise TypeError(
             "drop_duplicates should be either a bool or a list, got: "
-            + type(deduplicate)
+            + str(type(deduplicate))
         )
 
     for column_name in deduplicate:
@@ -322,7 +334,7 @@ def _coerce_deduplicate(deduplicate, deduplication_mode, columns):
     return deduplicate
 
 
-def _clean_nulls(xs, dtype):
+def _clean_nulls(xs: MaskedArrayAny, dtype: DType) -> MaskedArrayAny:
     """
     Numpy's masked arrays have a downside that in case they're not able to convert a (masked!) value to
     the desired dtype, they raise an error. So, for example, if I have a masked array of objects that
@@ -343,7 +355,7 @@ def _clean_nulls(xs, dtype):
     if xs.dtype is not np.dtype("object"):
         return xs
 
-    fill_value = None
+    fill_value: Any = None
     if dtype == np.float64 or dtype == np.float32 or dtype == np.float16:
         fill_value = float("nan")
     elif dtype == np.int64 or dtype == np.int32 or dtype == np.int16:
@@ -357,7 +369,9 @@ def _clean_nulls(xs, dtype):
     return ma.array(xs_, mask=mask)
 
 
-def _coerce_data(data, dtype):
+def _coerce_data(
+    data: List[MaskedArrayAny], dtype: List[Optional[DType]]
+) -> List[MaskedArrayAny]:
     """
     Coerces each numpy array of `data` to the dtype present in `dtype`.
     """
@@ -386,7 +400,7 @@ def _coerce_data(data, dtype):
             logger.debug("data of data[%d] after: %s", i, data_)
 
             try:
-                data[i] = data_.astype(dtype_)
+                data[i] = ma.masked_array(data_.astype(dtype_))
             except TypeError as err:
                 # One 'bug' is that, if everything is masked, the underlying data type can be
                 # pretty much anything.
@@ -418,7 +432,9 @@ def _coerce_data(data, dtype):
     return data
 
 
-def _probe_length(xs):
+def _probe_length(
+    xs: Union[Dict[Any, NDArrayAny], Iterable[NDArrayAny]]
+) -> Optional[int]:
     """
     Returns the length of the first non-null array in `xs`, or None if all arrays
     are null.
@@ -433,7 +449,10 @@ def _probe_length(xs):
     return None
 
 
-def _ensure_list(xs, cinfos):
+def _ensure_list(
+    xs: Union[List[Any], Dict[Any, Any], NDArrayAny],
+    cinfos: List[Tuple[str, quasardb.ColumnType]],
+) -> List[Any]:
     """
     If input data is a dict, ensures it's converted to a list with the correct
     offsets.
@@ -479,7 +498,9 @@ def _ensure_list(xs, cinfos):
     return ret
 
 
-def _coerce_retries(retries) -> quasardb.RetryOptions:
+def _coerce_retries(
+    retries: Optional[Union[int, quasardb.RetryOptions]]
+) -> quasardb.RetryOptions:
     if retries is None:
         return quasardb.RetryOptions()
     elif isinstance(retries, int):
@@ -489,13 +510,17 @@ def _coerce_retries(retries) -> quasardb.RetryOptions:
     else:
         raise TypeError(
             "retries should either be an integer or quasardb.RetryOptions, got: "
-            + type(retries)
+            + str(type(retries))
         )
 
 
 def _kwarg_deprecation_warning(
-    old_kwarg, old_value, new_kwargs, new_values, stacklevel
-):
+    old_kwarg: str,
+    old_value: Any,
+    new_kwargs: List[str],
+    new_values: List[Any],
+    stacklevel: int,
+) -> None:
     new_declaration = ", ".join(
         f"{new_kwarg}={new_value}"
         for new_kwarg, new_value in zip(new_kwargs, new_values)
@@ -508,23 +533,25 @@ def _kwarg_deprecation_warning(
     )
 
 
-def _type_check(var, var_name, target_type, raise_error=True, allow_none=True):
+def _type_check(
+    var: Any,
+    var_name: str,
+    target_type: Type,
+    raise_error: bool = True,
+    allow_none: bool = True,
+) -> bool:
     if allow_none and var is None:
         return True
     if not isinstance(var, target_type):
         if raise_error:
-            raise quasardb.quasardb.InvalidArgumentError(
+            raise quasardb.InvalidArgumentError(
                 f"Invalid '{var_name}' type, expected: {target_type}, got: {type(var)}"
             )
         return False
     return True
 
 
-def ensure_ma(xs, dtype=None):
-    if isinstance(dtype, list):
-        assert isinstance(xs, list) == True
-        return [ensure_ma(xs_, dtype_) for (xs_, dtype_) in zip(xs, dtype)]
-
+def _ensure_ma(xs: Any, dtype: Optional[DType] = None) -> MaskedArrayAny:
     # Don't bother if we're already a masked array
     if ma.isMA(xs):
         return xs
@@ -545,14 +572,26 @@ def ensure_ma(xs, dtype=None):
         return ma.masked_invalid(xs, copy=False)
 
 
-def read_array(table=None, column=None, ranges=None):
+def ensure_ma(
+    xs: Any, dtype: Optional[Union[DType, List[Optional[DType]]]] = None
+) -> Union[List[MaskedArrayAny], MaskedArrayAny]:
+    if isinstance(dtype, list):
+        assert isinstance(xs, list) == True
+        return [_ensure_ma(xs_, dtype_) for (xs_, dtype_) in zip(xs, dtype)]
+
+    return _ensure_ma(xs, dtype)
+
+
+def read_array(
+    table: Optional[Table] = None, column: Optional[str] = None, ranges: Any = None
+) -> Tuple[NDArrayTime, MaskedArrayAny]:
     if table is None:
         raise RuntimeError("A table is required.")
 
     if column is None:
         raise RuntimeError("A column is required.")
 
-    kwargs = {"column": column}
+    kwargs: Dict[str, Any] = {"column": column}
 
     if ranges is not None:
         kwargs["ranges"] = ranges
@@ -573,8 +612,13 @@ def read_array(table=None, column=None, ranges=None):
 
 
 def write_array(
-    data=None, index=None, table=None, column=None, dtype=None, infer_types=True
-):
+    data: Any = None,
+    index: Optional[NDArrayTime] = None,
+    table: Optional[Table] = None,
+    column: Optional[str] = None,
+    dtype: Optional[DType] = None,
+    infer_types: bool = True,
+) -> None:
     """
     Write a Numpy array to a single column.
 
@@ -625,16 +669,16 @@ def write_array(
     # write_arrays().
 
     cinfos = [(column, ctype)]
-    dtype_ = [dtype]
+    dtype_: List[Optional[DType]] = [dtype]
 
-    dtype = _coerce_dtype(dtype_, cinfos)
+    dtype_ = _coerce_dtype(dtype_, cinfos)
 
     if infer_types is True:
-        dtype = _add_desired_dtypes(dtype, cinfos)
+        dtype_ = _add_desired_dtypes(dtype_, cinfos)
 
     # data_ = an array of [data]
     data_ = [data]
-    data_ = _coerce_data(data_, dtype)
+    data_ = _coerce_data(data_, dtype_)
     _validate_dtypes(data_, cinfos)
 
     # No functions that assume array-of-data anymore, let's put it back
@@ -662,27 +706,29 @@ def write_array(
 
 
 def write_arrays(
-    data,
-    cluster,
-    table=None,
+    data: Any,
+    cluster: quasardb.Cluster,
+    table: Optional[Union[str, Table]] = None,
     *,
-    dtype=None,
-    index=None,
+    dtype: Optional[
+        Union[DType, Dict[str, Optional[DType]], List[Optional[DType]]]
+    ] = None,
+    index: Optional[NDArrayTime] = None,
     # TODO: Set the default push_mode after removing _async, fast and truncate
-    push_mode=None,
-    _async=False,
-    fast=False,
-    truncate=False,
-    truncate_range=None,
-    deduplicate=False,
-    deduplication_mode="drop",
-    infer_types=True,
-    writer=None,
-    write_through=True,
-    retries=3,
+    push_mode: Optional[quasardb.WriterPushMode] = None,
+    _async: bool = False,
+    fast: bool = False,
+    truncate: Union[bool, Tuple[Any, ...]] = False,
+    truncate_range: Optional[Tuple[Any, ...]] = None,
+    deduplicate: Union[bool, str, List[str]] = False,
+    deduplication_mode: str = "drop",
+    infer_types: bool = True,
+    writer: Optional[Writer] = None,
+    write_through: bool = True,
+    retries: Union[int, quasardb.RetryOptions] = 3,
     # We accept additional kwargs that will be passed through the writer.push() methods
-    **kwargs,
-):
+    **kwargs: Any,
+) -> List[Table]:
     """
     Write multiple aligned numpy arrays to a table.
 
@@ -841,7 +887,7 @@ def write_arrays(
 
         if kwarg_value:
             if push_mode and push_mode != mode:
-                raise quasardb.quasardb.InvalidArgumentError(
+                raise quasardb.InvalidArgumentError(
                     f"Found '{kwarg}' in kwargs, but push mode is already set to {push_mode}"
                 )
             push_mode = mode
@@ -857,20 +903,20 @@ def write_arrays(
     if writer is None:
         writer = cluster.writer()
 
-    ret = []
+    ret: List[Table] = []
     n_rows = 0
     push_data = quasardb.WriterData()
 
-    for table, data_ in data:
-        # Acquire reference to table if string is provided
-        if isinstance(table, str):
-            table = table_cache.lookup(table, cluster)
+    for table_, data_ in data:
+        # Acquire reference to table_ if string is provided
+        if isinstance(table_, str):
+            table_ = table_cache.lookup(table_, cluster)
 
-        cinfos = [(x.name, x.type) for x in table.list_columns()]
-        dtype = _coerce_dtype(dtype, cinfos)
+        cinfos = [(x.name, x.type) for x in table_.list_columns()]
+        dtype_ = _coerce_dtype(dtype, cinfos)
 
-        assert type(dtype) is list
-        assert len(dtype) is len(cinfos)
+        assert type(dtype_) is list
+        assert len(dtype_) is len(cinfos)
 
         if index is None and isinstance(data_, dict) and "$timestamp" in data_:
             # Create shallow copy of `data_` so that we don't modify the reference, i.e.
@@ -880,6 +926,11 @@ def write_arrays(
             # side-effects.
             data_ = data_.copy()
             index_ = data_.pop("$timestamp")
+
+            if ma.isMA(index_):
+                # Index might be a masked array
+                index_ = index_.data
+
             assert "$timestamp" not in data_
         elif index is not None:
             index_ = index
@@ -889,15 +940,16 @@ def write_arrays(
         assert index_ is not None
 
         if infer_types is True:
-            dtype = _add_desired_dtypes(dtype, cinfos)
+            dtype_ = _add_desired_dtypes(dtype_, cinfos)
 
         data_ = _ensure_list(data_, cinfos)
 
         if len(data_) != len(cinfos):
             raise InvalidDataCardinalityError(data_, cinfos)
 
-        data_ = ensure_ma(data_, dtype=dtype)
-        data_ = _coerce_data(data_, dtype)
+        data_ = ensure_ma(data_, dtype=dtype_)
+        assert isinstance(data_, list)
+        data_ = _coerce_data(data_, dtype_)
 
         # Just some additional friendly information about incorrect dtypes, we'd
         # prefer to have this information thrown from Python instead of native
@@ -912,10 +964,10 @@ def write_arrays(
         for i in range(len(data_)):
             assert len(data_[i]) == len(index_)
 
-        push_data.append(table, index_, data_)
+        push_data.append(table_, index_, data_)
 
         n_rows += len(index_)
-        ret.append(table)
+        ret.append(table_)
 
     retries = _coerce_retries(retries)
 
@@ -943,9 +995,13 @@ def write_arrays(
     return ret
 
 
-def _xform_query_results(xs, index, dict):
+def _xform_query_results(
+    xs: Sequence[Tuple[str, MaskedArrayAny]],
+    index: Optional[Union[str, int]],
+    dict: bool,
+) -> Tuple[NDArrayAny, Union[Dict[str, MaskedArrayAny], List[MaskedArrayAny]]]:
     if len(xs) == 0:
-        return (np.array([], np.dtype("datetime64[ns]")), np.array([]))
+        return (np.array([], np.dtype("datetime64[ns]")), {} if dict else [])
 
     n = None
     for x in xs:
@@ -959,7 +1015,11 @@ def _xform_query_results(xs, index, dict):
     if index is None:
         # Generate a range, put it in the front of the result list,
         # recurse and tell the function to use that index.
-        xs_ = [("$index", np.arange(n))] + xs
+        assert isinstance(n, int)
+        xs_: Sequence[Tuple[str, MaskedArrayAny]] = [
+            ("$index", ma.masked_array(np.arange(n)))
+        ] + list(xs)
+
         return _xform_query_results(xs_, "$index", dict)
 
     if isinstance(index, str):
@@ -983,10 +1043,11 @@ def _xform_query_results(xs, index, dict):
             )
         )
 
+    assert isinstance(xs, list)
     idx = xs[index][1]
     del xs[index]
 
-    # Our index *may* be a masked array, but if it is, there should be no
+    # Our index *must* be a masked array, and there should be no
     # masked items: we cannot not have an index for a certain row.
     if ma.isMA(idx):
         if ma.count_masked(idx) > 0:
@@ -997,17 +1058,18 @@ def _xform_query_results(xs, index, dict):
         assert isinstance(idx.data, np.ndarray)
         idx = idx.data
 
-    xs_ = None
-
-    if dict is True:
-        xs_ = {x[0]: x[1] for x in xs}
+    if dict:
+        return idx, {x[0]: x[1] for x in xs}
     else:
-        xs_ = [x[1] for x in xs]
-
-    return (idx, xs_)
+        return idx, [x[1] for x in xs]
 
 
-def query(cluster, query, index=None, dict=False):
+def query(
+    cluster: quasardb.Cluster,
+    query: str,
+    index: Optional[Union[str, int]] = None,
+    dict: bool = False,
+) -> Tuple[NDArrayAny, Union[Dict[str, MaskedArrayAny], List[MaskedArrayAny]]]:
     """
     Execute a query and return the results as numpy arrays. The shape of the return value
     is always:
@@ -1039,7 +1101,6 @@ def query(cluster, query, index=None, dict=False):
 
     """
 
-    m = {}
     xs = cluster.query_numpy(query)
 
     return _xform_query_results(xs, index, dict)
