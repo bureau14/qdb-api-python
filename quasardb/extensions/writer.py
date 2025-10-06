@@ -1,12 +1,15 @@
 import copy
-import quasardb
+from typing import Any, Callable, Dict, List, Optional
+
 import numpy as np
 import numpy.ma as ma
 
-__all__ = []
+import quasardb
+
+__all__: List[Any] = []
 
 
-def _ensure_ctype(self, idx, ctype):
+def _ensure_ctype(self: Any, idx: int, ctype: quasardb.ColumnType) -> None:
     assert "table" in self._legacy_state
     infos = self._legacy_state["table"].list_columns()
     cinfo = infos[idx]
@@ -24,7 +27,7 @@ def _ensure_ctype(self, idx, ctype):
         raise quasardb.IncompatibleTypeError()
 
 
-def _legacy_next_row(self, table):
+def _legacy_next_row(self: Any, table: Any) -> Dict[str, Any]:
     if "pending" not in self._legacy_state:
         self._legacy_state["pending"] = []
 
@@ -37,37 +40,37 @@ def _legacy_next_row(self, table):
     return self._legacy_state["pending"][-1]
 
 
-def _legacy_current_row(self):
+def _legacy_current_row(self: Any) -> Dict[str, Any]:
     return self._legacy_state["pending"][-1]
 
 
-def _legacy_start_row(self, table, x):
+def _legacy_start_row(self: Any, table: Any, x: np.datetime64) -> None:
     row = _legacy_next_row(self, table)
     assert "$timestamp" not in row
     row["$timestamp"] = x
 
 
-def _legacy_set_double(self, idx, x):
+def _legacy_set_double(self: Any, idx: int, x: float) -> None:
     _ensure_ctype(self, idx, quasardb.ColumnType.Double)
     assert isinstance(x, float)
     assert idx not in _legacy_current_row(self)["by_index"]
     _legacy_current_row(self)["by_index"][idx] = x
 
 
-def _legacy_set_int64(self, idx, x):
+def _legacy_set_int64(self: Any, idx: int, x: int) -> None:
     _ensure_ctype(self, idx, quasardb.ColumnType.Int64)
     assert isinstance(x, int)
     assert idx not in _legacy_current_row(self)["by_index"]
     _legacy_current_row(self)["by_index"][idx] = x
 
 
-def _legacy_set_timestamp(self, idx, x):
+def _legacy_set_timestamp(self: Any, idx: int, x: np.datetime64) -> None:
     _ensure_ctype(self, idx, quasardb.ColumnType.Timestamp)
     assert idx not in _legacy_current_row(self)["by_index"]
     _legacy_current_row(self)["by_index"][idx] = x
 
 
-def _legacy_set_string(self, idx, x):
+def _legacy_set_string(self: Any, idx: int, x: str) -> None:
     _ensure_ctype(self, idx, quasardb.ColumnType.String)
     assert isinstance(x, str)
     assert idx not in _legacy_current_row(self)["by_index"]
@@ -75,7 +78,7 @@ def _legacy_set_string(self, idx, x):
     _legacy_current_row(self)["by_index"][idx] = x
 
 
-def _legacy_set_blob(self, idx, x):
+def _legacy_set_blob(self: Any, idx: int, x: bytes) -> None:
     _ensure_ctype(self, idx, quasardb.ColumnType.Blob)
     assert isinstance(x, bytes)
     assert idx not in _legacy_current_row(self)["by_index"]
@@ -83,10 +86,10 @@ def _legacy_set_blob(self, idx, x):
     _legacy_current_row(self)["by_index"][idx] = x
 
 
-def _legacy_push(self):
+def _legacy_push(self: Any) -> Optional[quasardb.WriterData]:
     if "pending" not in self._legacy_state:
         # Extremely likely default case, no "old" rows
-        return
+        return None
 
     assert "table" in self._legacy_state
     table = self._legacy_state["table"]
@@ -109,7 +112,7 @@ def _legacy_push(self):
     all_idx = set(ctype_by_idx.keys())
 
     # Prepare data structure
-    pivoted = {"$timestamp": [], "by_index": {}}
+    pivoted: Dict[str, Any] = {"$timestamp": [], "by_index": {}}
     for i in all_idx:
         pivoted["by_index"][i] = []
 
@@ -140,7 +143,6 @@ def _legacy_push(self):
 
         mask = [x is None for x in xs]
 
-        xs_ = []
         if all(mask):
             xs_ = ma.masked_all(len(xs), dtype=dtype)
         else:
@@ -159,9 +161,11 @@ def _legacy_push(self):
     return push_data
 
 
-def _wrap_fn(old_fn, replace_fn):
+def _wrap_fn(
+    old_fn: Callable[..., Any], replace_fn: Callable[..., Optional[quasardb.WriterData]]
+) -> Callable[..., Any]:
 
-    def wrapped(self, *args, **kwargs):
+    def wrapped(self: Any, *args: Any, **kwargs: Any) -> Any:
         data = replace_fn(self)
         if data:
             return old_fn(self, data, *args, **kwargs)
@@ -171,7 +175,7 @@ def _wrap_fn(old_fn, replace_fn):
     return wrapped
 
 
-def extend_writer(x):
+def extend_writer(x: Any) -> None:
     """
     Extends the writer with the "old", batch inserter API. This is purely
     a backwards compatibility layer, and we want to avoid having to maintain that

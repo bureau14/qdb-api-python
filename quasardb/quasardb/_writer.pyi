@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+from typing import Any, Iterable
+
+from quasardb.typing import Range
+
 from ._table import Table
 
 class WriterData:
     def __init__(self) -> None: ...
     def append(
-        self, table: Table, index: list[object], column_data: list[list[object]]
+        self, table: Table, index: Iterable[Any], column_data: Iterable[Any]
     ) -> None: ...
     def empty(self) -> bool: ...
 
@@ -15,27 +19,27 @@ class WriterPushMode:
     Fast: WriterPushMode  # value = <WriterPushMode.Fast: 2>
     Async: WriterPushMode  # value = <WriterPushMode.Async: 3>
     __members__: dict[str, WriterPushMode]
-    def __and__(self, other: object) -> object: ...
-    def __eq__(self, other: object) -> bool: ...
-    def __ge__(self, other: object) -> bool: ...
+    def __and__(self, other: Any) -> Any: ...
+    def __eq__(self, other: Any) -> bool: ...
+    def __ge__(self, other: Any) -> bool: ...
     def __getstate__(self) -> int: ...
-    def __gt__(self, other: object) -> bool: ...
+    def __gt__(self, other: Any) -> bool: ...
     def __hash__(self) -> int: ...
     def __index__(self) -> int: ...
     def __init__(self, value: int) -> None: ...
     def __int__(self) -> int: ...
-    def __invert__(self) -> object: ...
-    def __le__(self, other: object) -> bool: ...
-    def __lt__(self, other: object) -> bool: ...
-    def __ne__(self, other: object) -> bool: ...
-    def __or__(self, other: object) -> object: ...
-    def __rand__(self, other: object) -> object: ...
+    def __invert__(self) -> Any: ...
+    def __le__(self, other: Any) -> bool: ...
+    def __lt__(self, other: Any) -> bool: ...
+    def __ne__(self, other: Any) -> bool: ...
+    def __or__(self, other: Any) -> Any: ...
+    def __rand__(self, other: Any) -> Any: ...
     def __repr__(self) -> str: ...
-    def __ror__(self, other: object) -> object: ...
-    def __rxor__(self, other: object) -> object: ...
+    def __ror__(self, other: Any) -> Any: ...
+    def __rxor__(self, other: Any) -> Any: ...
     def __setstate__(self, state: int) -> None: ...
     def __str__(self) -> str: ...
-    def __xor__(self, other: object) -> object: ...
+    def __xor__(self, other: Any) -> Any: ...
     @property
     def name(self) -> str: ...
     @property
@@ -50,19 +54,18 @@ class Writer:
         deduplication_mode: str,
         deduplicate: str,
         retries: int,
-        range: tuple[object, ...],
-        **kwargs,
+        range: Range,
+        **kwargs: Any,
     ) -> None: ...
     def push_fast(
         self,
         data: WriterData,
         write_through: bool,
-        push_mode: WriterPushMode,
         deduplication_mode: str,
         deduplicate: str,
         retries: int,
-        range: tuple[object, ...],
-        **kwargs,
+        range: Range,
+        **kwargs: Any,
     ) -> None:
         """Deprecated: Use `writer.push()` instead."""
 
@@ -70,12 +73,11 @@ class Writer:
         self,
         data: WriterData,
         write_through: bool,
-        push_mode: WriterPushMode,
         deduplication_mode: str,
         deduplicate: str,
         retries: int,
-        range: tuple[object, ...],
-        **kwargs,
+        range: Range,
+        **kwargs: Any,
     ) -> None:
         """Deprecated: Use `writer.push()` instead."""
 
@@ -83,29 +85,28 @@ class Writer:
         self,
         data: WriterData,
         write_through: bool,
-        push_mode: WriterPushMode,
         deduplication_mode: str,
         deduplicate: str,
         retries: int,
-        range: tuple[object, ...],
-        **kwargs,
+        range: Range,
+        **kwargs: Any,
     ) -> None:
         """Deprecated: Use `writer.push()` instead3."""
 
-    def start_row(self, table: object, x: object) -> None:
+    def start_row(self, table: Any, x: Any) -> None:
         """Legacy function"""
 
-    def set_double(self, idx: object, value: object) -> object:
+    def set_double(self, idx: Any, value: Any) -> Any:
         """Legacy function"""
 
-    def set_int64(self, idx: object, value: object) -> object:
+    def set_int64(self, idx: Any, value: Any) -> Any:
         """Legacy function"""
 
-    def set_string(self, idx: object, value: object) -> object:
+    def set_string(self, idx: Any, value: Any) -> Any:
         """Legacy function"""
 
-    def set_blob(self, idx: object, value: object) -> object:
+    def set_blob(self, idx: Any, value: Any) -> Any:
         """Legacy function"""
 
-    def set_timestamp(self, idx: object, value: object) -> object:
+    def set_timestamp(self, idx: Any, value: Any) -> Any:
         """Legacy function"""

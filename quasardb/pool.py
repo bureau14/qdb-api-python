@@ -1,22 +1,30 @@
-import logging
-import quasardb
-import threading
+from __future__ import annotations
+
 import functools
+import logging
+import threading
 import weakref
+from types import TracebackType
+from typing import Any, Callable, Optional, Type, TypeVar, Union
+
+# import quasardb
+from quasardb import Cluster
 
 logger = logging.getLogger("quasardb.pool")
 
-
-def _create_conn(**kwargs):
-    return quasardb.Cluster(**kwargs)
+T = TypeVar("T")
 
 
-class SessionWrapper(object):
-    def __init__(self, pool, conn):
+def _create_conn(**kwargs: Any) -> Cluster:
+    return Cluster(**kwargs)
+
+
+class SessionWrapper:
+    def __init__(self, pool: Pool, conn: Cluster):
         self._conn = conn
         self._pool = pool
 
-    def __getattr__(self, attr):
+    def __getattr__(self, attr: Any) -> Any:
         # This hack copies all the quasardb.Cluster() properties, functions and
         # whatnot, and pretends that this class is actually a quasardb.Cluster.
         #
@@ -41,14 +49,19 @@ class SessionWrapper(object):
 
         return getattr(self._conn, attr)
 
-    def __enter__(self):
+    def __enter__(self: T) -> T:
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         self._pool.release(self._conn)
 
 
-class Pool(object):
+class Pool:
     """
     A connection pool. This class should not be initialized directly, but
     rather the subclass `SingletonPool` should be initialized.
@@ -88,8 +101,10 @@ class Pool(object):
 
     """
 
-    def __init__(self, get_conn=None, **kwargs):
-        self._all_connections = []
+    def __init__(
+        self, get_conn: Optional[Callable[..., Cluster]] = None, **kwargs: Any
+    ):
+        self._all_connections: list[SessionWrapper] = []
 
         if get_conn is None:
             get_conn = functools.partial(_create_conn, **kwargs)
@@ -99,16 +114,21 @@ class Pool(object):
 
         self._get_conn = get_conn
 
-    def __enter__(self):
+    def __enter__(self: T) -> T:
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         self.close()
 
-    def _create_conn(self):
+    def _create_conn(self) -> SessionWrapper:
         return SessionWrapper(self, self._get_conn())
 
-    def close(self):
+    def close(self) -> None:
         """
         Close this connection pool, and all associated connections. This function
         is automatically invoked when used in a with-block or when using the global
@@ -118,10 +138,10 @@ class Pool(object):
             logger.debug("closing connection {}".format(conn))
             conn.close()
 
-    def _do_connect(self):
+    def _do_connect(self) -> SessionWrapper:
         raise NotImplementedError
 
-    def connect(self) -> quasardb.Cluster:
+    def connect(self) -> SessionWrapper:
         """
         Acquire a new connection from the pool. Returned connection must either
         be explicitly released using `pool.release()`, or should be wrapped in a
@@ -134,10 +154,10 @@ class Pool(object):
         logger.info("Acquiring connection from pool")
         return self._do_connect()
 
-    def _do_release(self):
+    def _do_release(self, conn: Cluster) -> None:
         raise NotImplementedError
 
-    def release(self, conn: quasardb.Cluster):
+    def release(self, conn: Cluster) -> None:
         """
         Put a connection back into the pool
         """
@@ -175,11 +195,11 @@ class SingletonPool(Pool):
     ```
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any):
         Pool.__init__(self, **kwargs)
         self._conn = threading.local()
 
-    def _do_connect(self):
+    def _do_connect(self) -> SessionWrapper:
         try:
             c = self._conn.current()
             if c:
@@ -193,7 +213,7 @@ class SingletonPool(Pool):
 
         return c
 
-    def _do_release(self, conn):
+    def _do_release(self, conn: Cluster) -> None:
         # Thread-local connections do not have to be 'released'.
         pass
 
@@ -201,7 +221,7 @@ class SingletonPool(Pool):
 __instance = None
 
 
-def initialize(*args, **kwargs):
+def initialize(*args: Any, **kwargs: Any) -> None:
     """
     Initialize a new global SingletonPool. Forwards all arguments to the constructor of
     `SingletonPool()`.
@@ -244,7 +264,12 @@ def instance() -> SingletonPool:
     return __instance
 
 
-def _inject_conn_arg(conn, arg, args, kwargs):
+def _inject_conn_arg(
+    conn: SessionWrapper,
+    arg: Union[str, int],
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
+) -> tuple[tuple[Any, ...], dict[str, Any]]:
     """
     Decorator utility function. Takes the argument provided to the decorator
     that configures how we should inject the pool into the args to the callback
@@ -256,9 +281,9 @@ def _inject_conn_arg(conn, arg, args, kwargs):
         #
         # Because positional args are always a tuple, and tuples don't have an
         # easy 'insert into position' function, we just cast to and from a list.
-        args = list(args)
-        args.insert(arg, conn)
-        args = tuple(args)
+        args_list = list(args)
+        args_list.insert(arg, conn)
+        args = tuple(args_list)
     else:
         assert isinstance(arg, str) == True
         # If not a number, we assume it's a kwarg, which makes things easier
@@ -267,7 +292,9 @@ def _inject_conn_arg(conn, arg, args, kwargs):
     return (args, kwargs)
 
 
-def with_conn(_fn=None, *, arg=0):
+def with_conn(
+    _fn: Optional[Callable[..., Any]] = None, *, arg: Union[str, int] = 0
+) -> Callable[..., Any]:
     """
     Decorator function that handles connection assignment, release and invocation for you.
     Should be used in conjuction with the global singleton accessor, see also: `initialize()`.
@@ -295,8 +322,8 @@ def with_conn(_fn=None, *, arg=0):
     ```
     """
 
-    def inner(fn):
-        def wrapper(*args, **kwargs):
+    def inner(fn: Callable[..., Any]) -> Callable[..., Any]:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             pool = instance()
 
             with pool.connect() as conn:
