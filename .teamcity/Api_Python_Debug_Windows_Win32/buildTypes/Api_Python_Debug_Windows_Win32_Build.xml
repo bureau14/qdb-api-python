@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<template xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="e2b8a974-a7e5-4be6-a9f6-9a55352b5e55" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2021.1/project-config.xsd">
+<template xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="e2b8a974-a7e5-4be6-a9f6-9a55352b5e55" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2025.3/project-config.xsd">
   <name>Build</name>
   <settings>
     <options>
@@ -63,7 +63,6 @@
       <ver-no-less-than id="RQ_137" name="system.cl.version" value="18" />
       <ver-no-less-than id="RQ_26" name="system.cmake.version" value="2.8" />
     </requirements>
-    <build-triggers />
     <build-extensions>
       <extension id="perfmon" type="perfmon">
         <parameters>
@@ -85,7 +84,6 @@
         </options>
       </depend-on>
     </dependencies>
-    <cleanup />
   </settings>
 </template>
 
