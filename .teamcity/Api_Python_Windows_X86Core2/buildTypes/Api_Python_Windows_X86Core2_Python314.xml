@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<build-type xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2025.3/project-config.xsd">
-  <name>Python 3.13</name>
+<build-type xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="2f6b4aed-1397-46b0-b571-df6eb7a37157" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2025.3/project-config.xsd">
+  <name>Python 3.14</name>
   <description />
   <settings ref="Api_Python_Windows_X86_Build">
     <disabled-settings>
