@@ -4,7 +4,7 @@
   <description>End of life: 2029-10</description>
   <settings ref="Api_Python_Release_Osx_AArch64_Build">
     <parameters>
-      <param name="python_executable" value="%system.python313.path%" />
+      <param name="python_executable" value="%system.python314.path%" />
     </parameters>
   </settings>
 </build-type>
