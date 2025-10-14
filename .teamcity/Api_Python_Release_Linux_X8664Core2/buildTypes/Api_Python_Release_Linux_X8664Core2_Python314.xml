@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<build-type xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="4f224fe9-41c0-4159-893b-27d7d373d6cf" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2025.3/project-config.xsd">
+  <name>Python 3.14</name>
+  <description />
+  <settings ref="Api_Python_Release_Linux_X8664Core2_Build">
+    <parameters>
+      <param name="python_version" value="3.13" />
+    </parameters>
+    <build-runners order="RUNNER_53, RUNNER_280, RUNNER_93, RUNNER_101, RUNNER_62, RUNNER_56, RUNNER_57, RUNNER_144" />
+  </settings>
+</build-type>
+
