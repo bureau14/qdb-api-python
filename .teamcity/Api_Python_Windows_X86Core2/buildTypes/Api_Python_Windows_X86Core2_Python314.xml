@@ -7,7 +7,7 @@
       <setting-ref ref="RQ_191" />
     </disabled-settings>
     <parameters>
-      <param name="PYTHON_CMD" value="%system.python313-32.exe%" spec="text label='Python executable' description='Absolutely location to Python executable to use for the build, e.g. c:\Python3.6\python.exe' validationMode='not_empty'" />
+      <param name="PYTHON_CMD" value="%system.python314-32.exe%" spec="text description='Absolutely location to Python executable to use for the build, e.g. c:\Python3.6\python.exe' label='Python executable' validationMode='not_empty' display='normal'" />
       <param name="env.PYTHON_CMD" value="%system.python313-32.exe%" />
       <param name="env.PYTHON_EXECUTABLE" value="%system.python313-32.exe%" />
     </parameters>
