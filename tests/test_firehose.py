@@ -24,7 +24,8 @@ def _ensure_timeout(f, timeout=3):
     # This test is useful, so if you know how to fix this under e.g. Windows, let's
     # fix it!
     if platform == "linux" or platform == "linux2":
-        p = multiprocessing.Process(target=f)
+        ctx = multiprocessing.get_context("fork")
+        p = ctx.Process(target=f)
         p.start()
 
         p.join(timeout)
