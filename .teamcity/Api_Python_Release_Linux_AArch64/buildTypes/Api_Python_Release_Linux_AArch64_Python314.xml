@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<build-type xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="834e8e67-d39e-4b4c-8cc9-3d9d09f77d55" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2025.3/project-config.xsd">
+  <name>Python 3.14</name>
+  <description />
+  <settings ref="Api_Python_Release_Linux_AArch64_Build">
+    <parameters>
+      <param name="python_version" value="3.13" />
+    </parameters>
+  </settings>
+</build-type>
+
