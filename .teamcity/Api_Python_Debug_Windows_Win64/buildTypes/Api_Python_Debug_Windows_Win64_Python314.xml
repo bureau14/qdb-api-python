@@ -9,7 +9,7 @@
     <parameters>
       <param name="PYTHON_CMD" value="%system.python314-64.exe%" spec="text description='Absolutely location to Python executable to use for the build, e.g. c:\Python3.6\python.exe' label='Python executable' validationMode='not_empty' display='normal'" />
       <param name="env.PYTHON_CMD" value="%system.python314-64.exe%" spec="text description='Absolutely location to Python executable to use for the build, e.g. c:\Python3.6\python.exe' label='Python executable' validationMode='not_empty' display='normal'" />
-      <param name="env.PYTHON_EXECUTABLE" value="%system.python313-64.exe%" />
+      <param name="env.PYTHON_EXECUTABLE" value="%system.python314-64.exe%" />
     </parameters>
     <requirements>
       <equals id="RQ_191" name="system.python39.cpu" value="x64" />
