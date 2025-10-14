@@ -7,7 +7,7 @@
       <setting-ref ref="RQ_164" />
     </disabled-settings>
     <parameters>
-      <param name="python_executable" value="%system.python313.path%" />
+      <param name="python_executable" value="%system.python314.path%" />
     </parameters>
   </settings>
 </build-type>
