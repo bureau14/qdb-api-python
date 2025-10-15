@@ -11,10 +11,6 @@
       <vcs-entry-ref root-id="QdbApiPython" />
     </vcs-settings>
     <artifact-dependencies>
-      <dependency id="python39" sourceBuildTypeId="Api_Python_Debug_Linux_X8664Core2_Python39" cleanDestination="false">
-        <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
-        <artifact sourcePath="*" />
-      </dependency>
       <dependency id="python310" sourceBuildTypeId="Api_Python_Debug_Linux_X8664Core2_Python310" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="*" />
@@ -28,6 +24,14 @@
         <artifact sourcePath="*" />
       </dependency>
       <dependency id="python313" sourceBuildTypeId="Api_Python_Debug_Linux_X8664Core2_Python313" cleanDestination="false">
+        <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
+        <artifact sourcePath="*" />
+      </dependency>
+      <dependency id="ARTIFACT_DEPENDENCY_1090" sourceBuildTypeId="Api_Python_Debug_Linux_X8664Core2_Python314" cleanDestination="true">
+        <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
+        <artifact sourcePath="*" />
+      </dependency>
+      <dependency id="python39" sourceBuildTypeId="Api_Python_Debug_Linux_X8664Core2_Python39" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="*" />
       </dependency>
