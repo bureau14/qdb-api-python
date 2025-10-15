@@ -24,6 +24,8 @@ def _ensure_timeout(f, timeout=3):
     # This test is useful, so if you know how to fix this under e.g. Windows, let's
     # fix it!
     if platform == "linux" or platform == "linux2":
+        # way of starting process on Linux changed in python 3.14 from fork to forkserver: https://github.com/python/cpython/issues/84559
+        # to keep this test working on newer python versions we specify the "fork" method explicitly
         ctx = multiprocessing.get_context("fork")
         p = ctx.Process(target=f)
         p.start()
