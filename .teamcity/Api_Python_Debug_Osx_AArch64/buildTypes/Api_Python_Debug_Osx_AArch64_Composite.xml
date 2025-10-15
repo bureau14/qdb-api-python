@@ -8,10 +8,6 @@
       <option name="showDependenciesChanges" value="true" />
     </options>
     <artifact-dependencies>
-      <dependency id="python39" sourceBuildTypeId="Api_Python_Debug_Osx_AArch64_Python39" cleanDestination="false">
-        <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
-        <artifact sourcePath="**" />
-      </dependency>
       <dependency id="python310" sourceBuildTypeId="Api_Python_Debug_Osx_AArch64_Python310" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="**" />
@@ -25,6 +21,14 @@
         <artifact sourcePath="**" />
       </dependency>
       <dependency id="python313" sourceBuildTypeId="Api_Python_Debug_Osx_AArch64_Python313" cleanDestination="false">
+        <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
+        <artifact sourcePath="**" />
+      </dependency>
+      <dependency id="ARTIFACT_DEPENDENCY_1082" sourceBuildTypeId="Api_Python_Debug_Osx_AArch64_Python314" cleanDestination="false">
+        <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
+        <artifact sourcePath="**" />
+      </dependency>
+      <dependency id="python39" sourceBuildTypeId="Api_Python_Debug_Osx_AArch64_Python39" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="**" />
       </dependency>
