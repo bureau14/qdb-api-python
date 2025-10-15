@@ -12,10 +12,6 @@
       <vcs-entry-ref root-id="QdbApiPython" />
     </vcs-settings>
     <artifact-dependencies>
-      <dependency id="python39" sourceBuildTypeId="Api_Python_Debug_Windows_Win32_Python39" cleanDestination="false">
-        <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
-        <artifact sourcePath="*" />
-      </dependency>
       <dependency id="python310" sourceBuildTypeId="Api_Python_Debug_Windows_Win32_Python310" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="*" />
@@ -29,6 +25,14 @@
         <artifact sourcePath="*" />
       </dependency>
       <dependency id="python313" sourceBuildTypeId="Api_Python_Debug_Windows_Win32_Python313" cleanDestination="false">
+        <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
+        <artifact sourcePath="*" />
+      </dependency>
+      <dependency id="ARTIFACT_DEPENDENCY_1086" sourceBuildTypeId="Api_Python_Debug_Windows_Win32_Python314" cleanDestination="false">
+        <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
+        <artifact sourcePath="*" />
+      </dependency>
+      <dependency id="python39" sourceBuildTypeId="Api_Python_Debug_Windows_Win32_Python39" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="*" />
       </dependency>
