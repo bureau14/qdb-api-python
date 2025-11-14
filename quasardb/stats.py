@@ -326,7 +326,8 @@ def _by_uid(
                 continue
 
             if not metric in idx:
-                raise Exception(f"Metric not in internal index: {metric}")
+                logger.warning("Metric not in internal index: %s", metric)
+                continue
 
             # Parse user id
             uid = int(uid_str)
@@ -362,7 +363,8 @@ def _cumulative(
                 continue
 
             if not metric in idx:
-                raise Exception(f"Metric not in internal index: {metric}")
+                logger.warning("Metric not in internal index: %s", metric)
+                continue
 
             x = idx[metric].copy()
             x["value"] = v
