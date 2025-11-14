@@ -162,7 +162,20 @@ public:
         qdb_entry_metadata_t md;
         qdb_error_t err = qdb_get_metadata(*_handle, _alias.c_str(), &md);
 
-        return err == qdb_e_ok;
+        if (err == qdb_e_alias_not_found) [[unlikely]]
+        {
+            // Absence is a valid  outcome. We explicitly do not throw here.
+            return false;
+        }
+
+        // Any other error means the entry might exist but something failed.
+        qdb::qdb_throw_if_error(*_handle, err);
+
+        // If we reached this point, err must represent success.
+        // We keep the assert as a sanity check.
+        assert(err == qdb_e_ok);
+
+        return true;
     }
 
     inline metadata get_metadata() const
