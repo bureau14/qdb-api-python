@@ -162,7 +162,7 @@ public:
         qdb_entry_metadata_t md;
         qdb_error_t err = qdb_get_metadata(*_handle, _alias.c_str(), &md);
 
-        if (err == qdb_e_alias_not_found)
+        if (err == qdb_e_alias_not_found) [[unlikely]]
         {
             // Absence is a valid  outcome. We explicitly do not throw here.
             return false;
@@ -243,18 +243,19 @@ static inline void register_entry(Module & m)
 
     py::enum_<qdb_entry_type_t>{e, "Type", py::arithmetic(), "Entry type"}
         .value("Uninitialized", qdb_entry_uninitialized)
-        .value("Blob", qdb_entry_blob)
+	.value("Blob", qdb_entry_blob)
         .value("Integer", qdb_entry_integer)
         .value("HashSet", qdb_entry_hset)
         .value("Tag", qdb_entry_tag)
         .value("Deque", qdb_entry_deque)
         .value("Stream", qdb_entry_stream)
-        .value("Timeseries", qdb_entry_ts);
+        .value("Timeseries", qdb_entry_ts)
+        ;
 
     e.def(py::init([](py::args, py::kwargs) {
-         throw qdb::direct_instantiation_exception{};
-         return nullptr;
-     }))
+	    throw qdb::direct_instantiation_exception{};
+	    return nullptr;
+        }))
         .def("attach_tag", &qdb::entry::attach_tag)
         .def("attach_tags", &qdb::entry::attach_tags)
         .def("detach_tag", &qdb::entry::detach_tag)
@@ -262,27 +263,31 @@ static inline void register_entry(Module & m)
         .def("has_tag", &qdb::entry::has_tag)
         .def("get_tags", &qdb::entry::get_tags)
         .def("remove", &qdb::entry::remove)
-        .def("exists", &qdb::entry::exists, "Returns true if the entry exists")
+        .def("exists", &qdb::entry::exists,
+            "Returns true if the entry exists")
         .def("get_location", &qdb::entry::get_location)
         .def("get_entry_type", &qdb::entry::get_entry_type)
         .def("get_metadata", &qdb::entry::get_metadata)
-        .def("get_name", &qdb::entry::get_name);
+        .def("get_name", &qdb::entry::get_name)
+        ;
 
     py::class_<qdb::entry::metadata>{e, "Metadata"}
         .def(py::init<>())
         .def_readwrite("type", &qdb::entry::metadata::type)
         .def_readwrite("size", &qdb::entry::metadata::size)
         .def_readwrite("modification_time", &qdb::entry::metadata::modification_time)
-        .def_readwrite("expiry_time", &qdb::entry::metadata::expiry_time);
+        .def_readwrite("expiry_time", &qdb::entry::metadata::expiry_time)
+        ;
 
     py::class_<qdb::expirable_entry, qdb::entry>{m, "ExpirableEntry"}
         .def(py::init([](py::args, py::kwargs) {
-            throw qdb::direct_instantiation_exception{};
-            return nullptr;
+	    throw qdb::direct_instantiation_exception{};
+	    return nullptr;
         }))
         .def("expires_at", &qdb::expirable_entry::expires_at)
         .def("expires_from_now", &qdb::expirable_entry::expires_from_now)
-        .def("get_expiry_time", &qdb::expirable_entry::get_expiry_time);
+        .def("get_expiry_time", &qdb::expirable_entry::get_expiry_time)
+        ;
 }
 
 } // namespace qdb
