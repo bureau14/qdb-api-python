@@ -146,12 +146,65 @@ private:
     std::size_t n_;
 };
 
+class arrow_reader_iterator
+{
+public:
+    arrow_reader_iterator() noexcept
+        : handle_{nullptr}
+        , reader_{nullptr}
+        , batch_size_{0}
+        , stream_{nullptr}
+    {}
+
+    arrow_reader_iterator(handle_ptr handle, qdb_reader_handle_t reader, std::size_t batch_size)
+        : handle_{handle}
+        , reader_{reader}
+        , batch_size_{batch_size}
+        , stream_{nullptr}
+    {
+        this->operator++();
+    }
+
+    bool operator!=(arrow_reader_iterator const & rhs) const noexcept
+    {
+        return !(*this == rhs);
+    }
+
+    bool operator==(arrow_reader_iterator const & rhs) const noexcept
+    {
+        if (handle_ == nullptr)
+        {
+            assert(reader_ == nullptr);
+            assert(stream_ == nullptr);
+        }
+        else
+        {
+            assert(reader_ != nullptr);
+            assert(stream_ != nullptr);
+        }
+
+        return handle_ == rhs.handle_ && reader_ == rhs.reader_ && batch_size_ == rhs.batch_size_
+               && stream_ == rhs.stream_;
+    }
+
+    arrow_reader_iterator & operator++();
+    py::object operator*();
+
+private:
+    qdb::handle_ptr handle_;
+    qdb_reader_handle_t reader_;
+
+    std::size_t batch_size_;
+    qdb_arrow_stream_t * stream_;
+};
+
 }; // namespace detail
 
 class reader
 {
 public:
-    using iterator = detail::reader_iterator;
+    using iterator       = detail::reader_iterator;
+    using arrow_iterator = detail::arrow_reader_iterator;
 
 public:
     /**
@@ -233,6 +286,23 @@ public:
     iterator end() const noexcept
     {
         return iterator{};
+    }
+
+    arrow_iterator arrow_begin() const
+    {
+        if (reader_ == nullptr) [[unlikely]]
+        {
+            throw qdb::uninitialized_exception{
+                "Reader not yet opened: please encapsulate calls to the reader in a `with` block, or "
+                "explicitly `open` and `close` the resource"};
+        }
+
+        return arrow_iterator{handle_, reader_, batch_size_};
+    }
+
+    arrow_iterator arrow_end() const noexcept
+    {
+        return arrow_iterator{};
     }
 
 private:

@@ -2,6 +2,7 @@
 import pytest
 import quasardb
 import numpy as np
+import pandas as pd
 
 
 def test_can_open_reader(qdbd_connection, table):
@@ -123,3 +124,38 @@ def test_reader_can_iterate_batches(
 
             for column_name in column_names:
                 assert len(row[column_name]) == batch_size
+
+
+'''
+def test_arrow_reader_batches(
+    qdbpd_write_fn, df_with_table, qdbd_connection, reader_batch_size
+):
+    pa = pytest.importorskip("pyarrow")
+
+    (ctype, dtype, df, table) = df_with_table
+
+    qdbpd_write_fn(df, qdbd_connection, table, infer_types=False, dtype=dtype)
+
+    table_names = [table.get_name()]
+
+    with qdbd_connection.reader(table_names, batch_size=reader_batch_size) as reader:
+        batches = list(reader.arrow_batches())
+
+    assert len(batches) > 0
+
+    tables = [batch.read_all() for batch in batches]
+    combined = pa.concat_tables(tables)
+
+    result_df = combined.to_pandas()
+    assert "$timestamp" in result_df.columns
+
+    result_df = result_df.set_index("$timestamp")
+    result_df.index = result_df.index.astype("datetime64[ns]")
+
+    expected_df = df.copy()
+    expected_df.index = expected_df.index.astype("datetime64[ns]")
+
+    pd.testing.assert_frame_equal(
+        expected_df.sort_index(), result_df.sort_index(), check_like=True
+    )
+'''
