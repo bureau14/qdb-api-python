@@ -15,24 +15,34 @@ namespace detail
 
 static py::object arrow_stream_to_record_batch_reader(ArrowArrayStream * stream)
 {
-    // Destructor in case PyArrow failed
-    auto capsule = py::capsule(stream, "arrow_array_stream", [](PyObject * cap) {
-        void * ptr = PyCapsule_GetPointer(cap, "arrow_array_stream");
-        if (!ptr) return;
-        auto * s = reinterpret_cast<ArrowArrayStream *>(ptr);
-        if (s && s->release)
-        {
-            s->release(s);
-        }
-    });
+    auto capsule = py::capsule(stream, "arrow_array_stream");
 
     static py::object import_from_c = [] {
         py::module pyarrow = py::module::import("pyarrow");
-        return pyarrow.attr("RecordBatchReader").attr("_import_from_c");
+        py::object rbr     = pyarrow.attr("RecordBatchReader");
+
+        // new version of PyArrow (>= 15) – PyCapsule stream support
+        if (py::hasattr(rbr, "_import_from_c_capsule"))
+        {
+            return rbr.attr("_import_from_c_capsule");
+        }
+
+        // old versions - classical API
+        return rbr.attr("_import_from_c");
     }();
 
-    py::object rbr = import_from_c(capsule);
-    return rbr;
+    try
+    {
+        return import_from_c(capsule);
+    }
+    catch (...)
+    {
+        if (stream && stream->release)
+        {
+            stream->release(stream);
+        }
+        throw;
+    }
 }
 
 /* static */
@@ -135,7 +145,7 @@ arrow_reader_iterator & arrow_reader_iterator::operator++()
 {
     if (stream_ != nullptr)
     {
-        qdb_release(*handle_, stream_);
+        // qdb_release(*handle_, stream_);
         stream_ = nullptr;
     }
 
