@@ -250,7 +250,7 @@ public:
     }
 
     /**
-     * Opens the actual reader; this will initiatate a call to quasardb and initialize the local
+     * Opens the actual reader; this will initiate a call to quasardb and initialize the local
      * reader handle. If table strings are provided instead of qdb::table objects, will automatically
      * look those up.
      *
