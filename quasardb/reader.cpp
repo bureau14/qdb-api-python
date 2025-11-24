@@ -275,7 +275,7 @@ void register_reader(py::module_ & m)
         .def(
             "__iter__", [](qdb::reader & r) { return py::make_iterator(r.begin(), r.end()); },
             py::keep_alive<0, 1>())
-#if 1
+#if 0
         .def(
             "arrow_batch_reader",
             [](qdb::reader & r) { return py::make_iterator(r.arrow_begin(), r.arrow_end()); },
