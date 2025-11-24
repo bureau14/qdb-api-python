@@ -29,7 +29,6 @@ packages = [
     package_name,
     "quasardb.pandas",
     "quasardb.numpy",
-    "quasardb.pyarrow",
     "quasardb.extensions",
     "quasardb.quasardb",  # stubs
     "quasardb.quasardb.metrics",  # stubs
