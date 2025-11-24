@@ -126,7 +126,6 @@ def test_reader_can_iterate_batches(
                 assert len(row[column_name]) == batch_size
 
 
-'''
 def test_arrow_reader_batches(
     qdbpd_write_fn, df_with_table, qdbd_connection, reader_batch_size
 ):
@@ -139,7 +138,7 @@ def test_arrow_reader_batches(
     table_names = [table.get_name()]
 
     with qdbd_connection.reader(table_names, batch_size=reader_batch_size) as reader:
-        batches = list(reader.arrow_batches())
+        batches = list(reader.arrow_batch_reader())
 
     assert len(batches) > 0
 
@@ -158,4 +157,3 @@ def test_arrow_reader_batches(
     pd.testing.assert_frame_equal(
         expected_df.sort_index(), result_df.sort_index(), check_like=True
     )
-'''
