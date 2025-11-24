@@ -201,7 +201,7 @@ setup(
     ],
     keywords="quasardb timeseries database API driver ",
     setup_requires=[],
-    install_requires=["numpy"],
+    install_requires=["numpy", "PyArrow >= 19.0.0"],
     extras_require={
         "pandas": ["pandas"],
         "test": ["pytest"],
