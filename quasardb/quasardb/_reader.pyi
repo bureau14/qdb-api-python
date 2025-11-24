@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import TracebackType
 from typing import Any, Iterator, Optional, Type
-import pyarrow as pa
+import pyarrow as pa  # type: ignore[import]
 
 class Reader:
     def __enter__(self) -> Reader: ...
