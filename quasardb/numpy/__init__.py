@@ -433,7 +433,7 @@ def _coerce_data(
 
 
 def _probe_length(
-    xs: Union[Dict[Any, NDArrayAny], Iterable[NDArrayAny]]
+    xs: Union[Dict[Any, NDArrayAny], Iterable[NDArrayAny]],
 ) -> Optional[int]:
     """
     Returns the length of the first non-null array in `xs`, or None if all arrays
@@ -499,7 +499,7 @@ def _ensure_list(
 
 
 def _coerce_retries(
-    retries: Optional[Union[int, quasardb.RetryOptions]]
+    retries: Optional[Union[int, quasardb.RetryOptions]],
 ) -> quasardb.RetryOptions:
     if retries is None:
         return quasardb.RetryOptions()

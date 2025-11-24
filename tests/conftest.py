@@ -422,7 +422,7 @@ def _gen_unicode_word(n: int) -> str:
         (0x00A1, 0x00AC),
         (0x00AE, 0x00FF),
         (0x0100, 0x017F),
-        #(0x0180, 0x024F),
+        # (0x0180, 0x024F),
         (0x2C60, 0x2C7F),
         (0x16A0, 0x16F0),
         (0x0370, 0x0377),
@@ -438,6 +438,7 @@ def _gen_unicode_word(n: int) -> str:
     ]
 
     return "".join(random.choice(alphabet) for _ in range(n))
+
 
 def _gen_unicode(n):
     """
