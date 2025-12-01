@@ -4,7 +4,7 @@
   <description />
   <settings ref="Api_Python_Release_Linux_X8664Core2_Build">
     <options>
-      <option name="artifactRules" value="dist/quasardb-*.manylinux*.whl&#xA;dist/quasardb*.egg&#xA;dist/quasardb*.tar.gz&#xA;dist/doc.tar.gz&#xA;insecure/log =&gt; logs/insecure&#xA;secure/log =&gt; logs/secure" />
+      <option name="artifactRules" value="dist/quasardb-*manylinux*.whl&#xA;dist/quasardb*.egg&#xA;dist/quasardb*.tar.gz&#xA;dist/doc.tar.gz&#xA;insecure/log =&gt; logs/insecure&#xA;secure/log =&gt; logs/secure" />
     </options>
     <parameters>
       <param name="python_version" value="3.10" />
