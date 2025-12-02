@@ -147,17 +147,16 @@ def test_arrow_reader_batches(
 
     result_df = combined.to_pandas()
     assert "$table" in result_df.columns
-
-    """
     assert "$timestamp" in result_df.columns
+    assert table_names.count == 1
 
     result_df = result_df.set_index("$timestamp")
     result_df.index = result_df.index.astype("datetime64[ns]")
 
     expected_df = df.copy()
+    expected_df["$table"] = table_names[0]
     expected_df.index = expected_df.index.astype("datetime64[ns]")
 
     pd.testing.assert_frame_equal(
         expected_df.sort_index(), result_df.sort_index(), check_like=True
     )
-    """
