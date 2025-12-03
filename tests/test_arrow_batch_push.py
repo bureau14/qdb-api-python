@@ -15,7 +15,10 @@ def test_batch_push_arrow_with_options(qdbd_connection, entry_name):
     table.create([column])
 
     timestamps = np.array(
-        [np.datetime64("2024-01-01T00:00:00", "ns"), np.datetime64("2024-01-01T00:00:01", "ns")],
+        [
+            np.datetime64("2024-01-01T00:00:00", "ns"),
+            np.datetime64("2024-01-01T00:00:01", "ns"),
+        ],
         dtype="datetime64[ns]",
     )
     values = pa.array([1.5, 2.5], type=pa.float64())
@@ -25,7 +28,12 @@ def test_batch_push_arrow_with_options(qdbd_connection, entry_name):
     reader = pa.RecordBatchReader.from_batches(batch.schema, [batch])
 
     qdbd_connection.batch_push_arrow(
-        table_name, reader, deduplicate=False, deduplication_mode="drop", push_mode=quasardb.WriterPushMode.Transactional, write_through=False
+        table_name,
+        reader,
+        deduplicate=False,
+        deduplication_mode="drop",
+        push_mode=quasardb.WriterPushMode.Transactional,
+        write_through=False,
     )
 
     results = table.double_get_ranges(
