@@ -130,6 +130,7 @@ def test_reader_can_iterate_batches(
 # Arrow-based reader tests
 # ---------------------------------------------------------------------------
 
+
 def _read_all_arrow_batches_to_df(reader):
     """
     Helper: reads arrow batches one by one, concatenates them,
