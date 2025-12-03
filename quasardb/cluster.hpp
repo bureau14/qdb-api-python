@@ -30,6 +30,7 @@
  */
 #pragma once
 
+#include "arrow_batch_push.hpp"
 #include "batch_inserter.hpp"
 #include "blob.hpp"
 #include "continuous.hpp"
@@ -60,7 +61,6 @@
 #include <pybind11/stl.h>
 #include <chrono>
 #include <iostream>
-
 
 namespace qdb
 {
@@ -337,8 +337,8 @@ public:
     {
         check_open();
 
-	auto o = std::make_shared<qdb::find_query>(_handle, query_string);
-	return o->run();
+        auto o = std::make_shared<qdb::find_query>(_handle, query_string);
+        return o->run();
     }
 
     py::object query(const std::string & query_string, const py::object & blobs)
@@ -379,6 +379,11 @@ public:
         const std::string & query_string, std::chrono::milliseconds pace, const py::object & blobs)
     {
         return query_continuous(qdb_query_continuous_new_values_only, query_string, pace, blobs);
+    }
+
+    void batch_push_arrow(const std::string & table_name, const py::object & reader, py::kwargs args)
+    {
+        qdb::exp_batch_push_arrow_with_options(_handle, table_name, reader, std::move(args));
     }
 
 public:
@@ -502,23 +507,29 @@ public:
     {
         check_open();
 
-        std::string query = query_string;
+        std::string query              = query_string;
         const std::string limit_string = "LIMIT 1";
         query += " " + limit_string;
-      
+
         // TODO:
         // should return dict of column names and dtypes
         // currently returns numpy masked arrays
         return py::cast(qdb::numpy_query(_handle, query));
     }
 
-    py::object split_query_range(std::chrono::system_clock::time_point start, std::chrono::system_clock::time_point end, std::chrono::milliseconds delta)
+    py::object split_query_range(std::chrono::system_clock::time_point start,
+        std::chrono::system_clock::time_point end,
+        std::chrono::milliseconds delta)
     {
-        std::vector<std::pair<std::chrono::system_clock::time_point, std::chrono::system_clock::time_point>> ranges;
+        std::vector<
+            std::pair<std::chrono::system_clock::time_point, std::chrono::system_clock::time_point>>
+            ranges;
 
-        for (auto current_start = start; current_start < end; ) {
+        for (auto current_start = start; current_start < end;)
+        {
             auto current_end = current_start + delta;
-            if (current_end > end) {
+            if (current_end > end)
+            {
                 current_end = end;
             }
             ranges.emplace_back(current_start, current_end);
@@ -526,7 +537,6 @@ public:
         }
         return py::cast(ranges);
     }
-
 
 private:
     std::string _uri;

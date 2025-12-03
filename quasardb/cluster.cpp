@@ -115,24 +115,22 @@ void register_cluster(py::module_ & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::cluster>(m, "Cluster",
-        "Represents a connection to the QuasarDB cluster.")
+    py::class_<qdb::cluster>(m, "Cluster", "Represents a connection to the QuasarDB cluster.")
         .def(py::init<const std::string &, const std::string &, const std::string &,
                  const std::string &, const std::string &, const std::string &,
                  std::chrono::milliseconds, bool, bool, qdb_compression_t, std::size_t>(),
-            py::arg("uri"),
-            py::arg("user_name")          = std::string{},
-            py::arg("user_private_key")   = std::string{},
+            py::arg("uri"),                                //
+            py::arg("user_name")          = std::string{}, //
+            py::arg("user_private_key")   = std::string{}, //
             py::arg("cluster_public_key") = std::string{},
-            py::kw_only(),
+            py::kw_only(), //
             py::arg("user_security_file")      = std::string{},
             py::arg("cluster_public_key_file") = std::string{},
-            py::arg("timeout")                 = std::chrono::minutes{1},
+            py::arg("timeout")                 = std::chrono::minutes{1}, //
             py::arg("do_version_check")        = false,
-            py::arg("enable_encryption")       = false,
+            py::arg("enable_encryption")       = false, //
             py::arg("compression_mode")        = qdb_comp_balanced,
-            py::arg("client_max_parallelism")  = std::size_t{0}
-            )
+            py::arg("client_max_parallelism")  = std::size_t{0})
         .def("__enter__", &qdb::cluster::enter)
         .def("__exit__", &qdb::cluster::exit)
         .def("tidy_memory", &qdb::cluster::tidy_memory)
@@ -156,29 +154,31 @@ void register_cluster(py::module_ & m)
         .def("table", &qdb::cluster::table)
         .def("ts_batch", &qdb::cluster::inserter)
         .def("inserter", &qdb::cluster::inserter)
-        .def("reader", &qdb::cluster::reader,
-            py::arg("table_names"),
-            py::kw_only(),
+        .def("reader", &qdb::cluster::reader, //
+            py::arg("table_names"),           //
+            py::kw_only(),                    //
             py::arg("column_names") = std::vector<std::string>{},
-            py::arg("batch_size")   = std::size_t{0},
-            py::arg("ranges")       = std::vector<py::tuple>{}
-            )
+            py::arg("batch_size")   = std::size_t{0}, //
+            py::arg("ranges")       = std::vector<py::tuple>{})
         .def("pinned_writer", &qdb::cluster::pinned_writer)
         .def("writer", &qdb::cluster::writer)
         .def("find", &qdb::cluster::find)
-        .def("query", &qdb::cluster::query,
-            py::arg("query"),
+        .def("query", &qdb::cluster::query, //
+            py::arg("query"),               //
             py::arg("blobs") = false)
-        .def("query_numpy", &qdb::cluster::query_numpy,
+        .def("query_numpy", &qdb::cluster::query_numpy, //
             py::arg("query"))
-        .def("query_continuous_full", &qdb::cluster::query_continuous_full,
+        .def("query_continuous_full", &qdb::cluster::query_continuous_full, //
             py::arg("query"),
-            py::arg("pace"),
+            py::arg("pace"), //
             py::arg("blobs") = false)
         .def("query_continuous_new_values", &qdb::cluster::query_continuous_new_values,
-            py::arg("query"),
-            py::arg("pace"),
+            py::arg("query"), //
+            py::arg("pace"),  //
             py::arg("blobs") = false)
+        .def("batch_push_arrow", &qdb::cluster::batch_push_arrow, //
+            py::arg("table"),                                     //
+            py::arg("reader"))
         .def("prefix_get", &qdb::cluster::prefix_get)
         .def("prefix_count", &qdb::cluster::prefix_count)
         .def("suffix_get", &qdb::cluster::suffix_get)
