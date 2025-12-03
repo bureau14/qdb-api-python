@@ -40,31 +40,6 @@ namespace qdb
 namespace
 {
 
-void _set_deduplication_mode(
-    detail::deduplication_mode_t mode, bool columns, qdb_exp_batch_push_arrow_t & out)
-{
-    // Set deduplication mode only when `columns` is true, in which we will deduplicate based on
-    // *all* columns.
-    out.deduplication_mode =
-        (columns == true ? detail::to_qdb(mode) : qdb_exp_batch_deduplication_mode_disabled);
-}
-
-void _set_deduplication_mode(detail::deduplication_mode_t mode,
-    std::vector<std::string> const & columns,
-    qdb_exp_batch_push_arrow_t & out)
-{
-    // A specific set of columns to deduplicate has been provided, in which case
-    // we'll need to do a small transformation of the column names.
-    auto where_duplicate = std::make_unique<char const *[]>(columns.size());
-
-    std::transform(std::cbegin(columns), std::cend(columns), where_duplicate.get(),
-        [](std::string const & column) -> char const * { return column.c_str(); });
-
-    out.deduplication_mode    = detail::to_qdb(mode);
-    out.where_duplicate       = where_duplicate.release(); //???
-    out.where_duplicate_count = columns.size();
-}
-
 class arrow_stream_holder
 {
 public:
@@ -72,7 +47,7 @@ public:
         : _reader{std::move(reader)}
     {
         _reader.attr("_export_to_c")(pybind11::int_(reinterpret_cast<uintptr_t>(&_stream)));
-
+#if 0 // not used now
         if (_stream.get_schema)
         {
             const int result = _stream.get_schema(&_stream, &_schema);
@@ -85,6 +60,7 @@ public:
         {
             throw std::runtime_error("Arrow: get_schema() is null");
         }
+#endif
     }
 
     ~arrow_stream_holder()
@@ -92,27 +68,25 @@ public:
         reset();
     }
 
-    arrow_stream_holder(const arrow_stream_holder &)              = delete;
-    arrow_stream_holder & operator=(const arrow_stream_holder &)  = delete;
-    arrow_stream_holder(const arrow_stream_holder &&)             = delete;
-    arrow_stream_holder & operator=(const arrow_stream_holder &&) = delete;
-
-    ArrowArrayStream * stream() noexcept
+    void detach() noexcept
     {
-        return &_stream;
-    }
-    const ArrowArrayStream * stream() const noexcept
-    {
-        return &_stream;
+        invalidate_stream();
+        invalidate_schema();
     }
 
-    ArrowSchema * schema() noexcept
+    arrow_stream_holder(const arrow_stream_holder &)             = delete;
+    arrow_stream_holder & operator=(const arrow_stream_holder &) = delete;
+    arrow_stream_holder(arrow_stream_holder &&)                  = delete;
+    arrow_stream_holder & operator=(arrow_stream_holder &&)      = delete;
+
+    ArrowArrayStream & stream() noexcept
     {
-        return &_schema;
+        return _stream;
     }
-    const ArrowSchema * schema() const noexcept
+
+    ArrowSchema & schema() noexcept
     {
-        return &_schema;
+        return _schema;
     }
 
 private:
@@ -160,11 +134,35 @@ struct arrow_batch
 {
     arrow_stream_holder stream;
     std::vector<std::string> duplicate_names;
-    std::vector<qdb_string_t> duplicate_columns;
+    std::vector<char const *> duplicate_ptrs;
 
     explicit arrow_batch(pybind11::object reader)
         : stream{std::move(reader)}
     {}
+
+    static inline void set_deduplication_mode(
+        detail::deduplication_mode_t mode, bool columns, qdb_exp_batch_push_arrow_t & out)
+    {
+        // Set deduplication mode only when `columns` is true, in which we will deduplicate based on
+        // *all* columns.
+        out.deduplication_mode =
+            (columns == true ? detail::to_qdb(mode) : qdb_exp_batch_deduplication_mode_disabled);
+    }
+
+    inline void set_deduplication_mode(detail::deduplication_mode_t mode,
+        std::vector<std::string> const & columns,
+        qdb_exp_batch_push_arrow_t & out)
+    {
+        duplicate_names = columns; // save names to keep them alive
+
+        duplicate_ptrs.resize(duplicate_names.size());
+        std::transform(duplicate_names.begin(), duplicate_names.end(), duplicate_ptrs.begin(),
+            [](std::string const & s) { return s.c_str(); });
+
+        out.deduplication_mode    = detail::to_qdb(mode);
+        out.where_duplicate       = duplicate_ptrs.data();
+        out.where_duplicate_count = static_cast<qdb_size_t>(duplicate_ptrs.size());
+    }
 
     qdb_exp_batch_push_arrow_t build(const std::string & table_name,
         const detail::deduplicate_options & dedup,
@@ -172,18 +170,19 @@ struct arrow_batch
     {
         qdb_exp_batch_push_arrow_t batch{};
 
-        batch.name                  = table_name.data();
-        batch.data.stream           = *stream.stream();
-        batch.data.schema           = *stream.schema();
+        batch.name                  = table_name.c_str();
+        batch.data.stream           = stream.stream();
+        batch.data.schema           = stream.schema();
         batch.truncate_ranges       = ranges;
         batch.truncate_range_count  = (ranges == nullptr ? 0u : 1u);
         batch.where_duplicate       = nullptr;
         batch.where_duplicate_count = 0u;
 
-        std::visit([&mode = dedup.mode_, &batch](
-                       auto const & columns) { _set_deduplication_mode(mode, columns, batch); },
+        std::visit([&mode = dedup.mode_, &batch, this](
+                       auto const & columns) { set_deduplication_mode(mode, columns, batch); },
             dedup.columns_);
 
+        stream.detach();
         return batch;
     }
 };
