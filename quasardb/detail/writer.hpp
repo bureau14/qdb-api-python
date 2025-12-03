@@ -212,7 +212,7 @@ public:
             [](std::string const & column) -> char const * { return column.c_str(); });
 
         out.deduplication_mode    = detail::to_qdb(mode);
-        out.where_duplicate       = where_duplicate.release();
+        out.where_duplicate       = where_duplicate.release();//???
         out.where_duplicate_count = columns.size();
     }
 
