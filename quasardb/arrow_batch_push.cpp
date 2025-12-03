@@ -90,7 +90,7 @@ public:
     }
 
 private:
-    void reset()
+    void reset() noexcept
     {
         if (_stream.release)
         {
