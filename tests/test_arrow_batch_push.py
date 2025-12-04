@@ -59,10 +59,13 @@ def test_batch_push_arrow_with_options(qdbd_connection, entry_name):
     np.testing.assert_allclose(results[1], np.array([1.5, 2.5]))
 
 
-@pytest.mark.parametrize("deduplication_mode, expected_values", [
-    ("drop", np.array([1.5, 2.5])),
-    ("upsert", np.array([10.5, 11.5])),
-])
+@pytest.mark.parametrize(
+    "deduplication_mode, expected_values",
+    [
+        ("drop", np.array([1.5, 2.5])),
+        ("upsert", np.array([10.5, 11.5])),
+    ],
+)
 def test_batch_push_arrow_deduplicate_modes(
     qdbd_connection, entry_name, deduplication_mode, expected_values
 ):
@@ -81,10 +84,17 @@ def test_batch_push_arrow_deduplicate_modes(
     initial_reader = _arrow_reader(timestamps, [1.5, 2.5])
     duplicate_reader = _arrow_reader(timestamps, [10.5, 11.5])
 
-    qdbd_connection.batch_push_arrow(table.get_name(), initial_reader, write_through=True,)
     qdbd_connection.batch_push_arrow(
-        table.get_name(), duplicate_reader, deduplicate=True, deduplication_mode=deduplication_mode, write_through=True,
-
+        table.get_name(),
+        initial_reader,
+        write_through=True,
+    )
+    qdbd_connection.batch_push_arrow(
+        table.get_name(),
+        duplicate_reader,
+        deduplicate=True,
+        deduplication_mode=deduplication_mode,
+        write_through=True,
     )
 
     results = table.double_get_ranges(
@@ -112,6 +122,9 @@ def test_batch_push_arrow_invalid_deduplication_mode(qdbd_connection, entry_name
 
     with pytest.raises(quasardb.InvalidArgumentError):
         qdbd_connection.batch_push_arrow(
-            table.get_name(), reader, deduplicate=True, deduplication_mode="invalid", write_through=False,
-
+            table.get_name(),
+            reader,
+            deduplicate=True,
+            deduplication_mode="invalid",
+            write_through=False,
         )
