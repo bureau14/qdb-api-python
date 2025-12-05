@@ -92,7 +92,7 @@ def test_batch_push_arrow_deduplicate_modes(
     qdbd_connection.batch_push_arrow(
         table.get_name(),
         duplicate_reader,
-        deduplicate=True,
+        deduplicate=["$timestamp"],
         deduplication_mode=deduplication_mode,
         write_through=True,
     )
