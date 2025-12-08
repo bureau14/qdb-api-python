@@ -145,7 +145,7 @@ arrow_reader_iterator & arrow_reader_iterator::operator++()
 {
     if (stream_ != nullptr)
     {
-        // qdb_release(*handle_, stream_);
+        qdb_release(*handle_, stream_);
         stream_ = nullptr;
     }
 
