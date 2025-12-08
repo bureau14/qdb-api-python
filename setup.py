@@ -60,7 +60,7 @@ class CMakeBuild(build_ext):
     def do_build_extension(self, ext):
         extdir = os.path.join(
             os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name))),
-            "build_quasardb",
+            "quasardb",
         )
 
         # We provide CMAKE_LIBRARY_OUTPUT_DIRECTORY to cmake, where it will copy libqdb_api.so (or
