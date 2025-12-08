@@ -195,7 +195,7 @@ private:
     qdb_reader_handle_t reader_;
 
     std::size_t batch_size_;
-    qdb_arrow_stream_t * stream_;
+    ArrowArrayStream * stream_;
 };
 
 }; // namespace detail

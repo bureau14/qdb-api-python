@@ -47,20 +47,6 @@ public:
         : _reader{std::move(reader)}
     {
         _reader.attr("_export_to_c")(pybind11::int_(reinterpret_cast<uintptr_t>(&_stream)));
-#if 0 // not used now
-        if (_stream.get_schema)
-        {
-            const int result = _stream.get_schema(&_stream, &_schema);
-            if (result != 0)
-            {
-                throw std::runtime_error("Arrow: get_schema() failed");
-            }
-        }
-        else
-        {
-            throw std::runtime_error("Arrow: get_schema() is null");
-        }
-#endif
     }
 
     ~arrow_stream_holder()
@@ -71,7 +57,6 @@ public:
     void detach() noexcept
     {
         invalidate_stream();
-        invalidate_schema();
     }
 
     arrow_stream_holder(const arrow_stream_holder &)             = delete;
@@ -84,11 +69,6 @@ public:
         return _stream;
     }
 
-    ArrowSchema & schema() noexcept
-    {
-        return _schema;
-    }
-
 private:
     void reset() noexcept
     {
@@ -96,11 +76,6 @@ private:
         {
             _stream.release(&_stream);
             invalidate_stream();
-        }
-        if (_schema.release)
-        {
-            _schema.release(&_schema);
-            invalidate_schema();
         }
     }
 
@@ -112,22 +87,8 @@ private:
         _stream.private_data = nullptr;
     }
 
-    void invalidate_schema() noexcept
-    {
-        _schema.release      = nullptr;
-        _schema.private_data = nullptr;
-        _schema.format       = nullptr;
-        _schema.name         = nullptr;
-        _schema.metadata     = nullptr;
-        _schema.flags        = 0;
-        _schema.n_children   = 0;
-        _schema.children     = nullptr;
-        _schema.dictionary   = nullptr;
-    }
-
     pybind11::object _reader;
     ArrowArrayStream _stream{};
-    ArrowSchema _schema{};
 };
 
 struct arrow_batch
@@ -171,8 +132,7 @@ struct arrow_batch
         qdb_exp_batch_push_arrow_t batch{};
 
         batch.name                  = table_name.c_str();
-        batch.data.stream           = stream.stream();
-        batch.data.schema           = stream.schema();
+        batch.stream                = stream.stream();
         batch.truncate_ranges       = ranges;
         batch.truncate_range_count  = (ranges == nullptr ? 0u : 1u);
         batch.where_duplicate       = nullptr;

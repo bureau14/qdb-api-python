@@ -52,7 +52,7 @@ enum deduplication_mode_t
 
 };
 
-constexpr inline qdb_exp_batch_deduplication_mode_t to_qdb(enum detail::deduplication_mode_t mode)
+constexpr inline qdb_exp_batch_deduplication_mode_t to_qdb(detail::deduplication_mode_t mode)
 {
     switch (mode)
     {
@@ -191,8 +191,10 @@ public:
         qdb_ts_range_t * ranges,
         qdb_exp_batch_push_table_t & batch);
 
-    static inline void _set_deduplication_mode(
-        enum detail::deduplication_mode_t mode, bool columns, qdb_exp_batch_push_table_t & out)
+    static inline void _set_deduplication_mode(detail::deduplication_mode_t mode,
+        bool columns,
+        qdb_exp_batch_push_table_t & out,
+        std::vector<const char *> & duplicate_ptrs)
     {
         // Set deduplication mode only when `columns` is true, in which we will deduplicate based on
         // *all* columns.
@@ -200,19 +202,20 @@ public:
             (columns == true ? detail::to_qdb(mode) : qdb_exp_batch_deduplication_mode_disabled);
     }
 
-    static inline void _set_deduplication_mode(enum detail::deduplication_mode_t mode,
+    static inline void _set_deduplication_mode(detail::deduplication_mode_t mode,
         std::vector<std::string> const & columns,
-        qdb_exp_batch_push_table_t & out)
+        qdb_exp_batch_push_table_t & out,
+        std::vector<const char *> & duplicate_ptrs)
     {
         // A specific set of columns to deduplicate has been provided, in which case
         // we'll need to do a small transformation of the column names.
-        auto where_duplicate = std::make_unique<char const *[]>(columns.size());
+        duplicate_ptrs.resize(columns.size());
 
-        std::transform(std::cbegin(columns), std::cend(columns), where_duplicate.get(),
+        std::transform(std::cbegin(columns), std::cend(columns), duplicate_ptrs.begin(),
             [](std::string const & column) -> char const * { return column.c_str(); });
 
         out.deduplication_mode    = detail::to_qdb(mode);
-        out.where_duplicate       = where_duplicate.release();//???
+        out.where_duplicate       = duplicate_ptrs.data();
         out.where_duplicate_count = columns.size();
     }
 
@@ -256,6 +259,7 @@ private:
     std::vector<any_column> _columns;
 
     std::vector<qdb_exp_batch_push_column_t> _columns_data;
+    std::vector<const char *> _duplicate_ptrs;
 };
 
 /**

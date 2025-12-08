@@ -174,7 +174,7 @@ py::object arrow_reader_iterator::operator*()
 {
     assert(stream_ != nullptr);
 
-    return arrow_stream_to_record_batch_reader(&stream_->stream);
+    return arrow_stream_to_record_batch_reader(stream_);
 }
 
 }; // namespace detail
