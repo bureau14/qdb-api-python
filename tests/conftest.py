@@ -699,7 +699,7 @@ def _array_with_index_and_table(
 
     index = pd.Index(
         # pd.date_range(start_date, periods=row_count, freq="s"), name="$timestamp"
-        pd.date_range(start_date, periods=row_count, freq="S"), name = "$timestamp"
+        pd.date_range(start_date, periods=row_count, freq="S"), name="$timestamp"
     ).to_numpy(dtype=np.dtype("datetime64[ns]"))
 
     table = qdbd_connection.table(table_name)
