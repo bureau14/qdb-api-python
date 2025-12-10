@@ -441,8 +441,13 @@ def _gen_unicode_word(n: int) -> str:
         (0x038C, 0x038C),
     ]
 
+    try:
+        get_char = unichr
+    except NameError:
+        get_char = chr
+
     alphabet = [
-        chr(code_point)
+        get_char(code_point)
         for start, end in include_ranges
         for code_point in range(start, end + 1)
     ]
