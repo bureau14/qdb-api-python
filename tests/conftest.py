@@ -425,6 +425,11 @@ def _gen_unicode_word(n: int) -> str:
     #            but as of now, 2023-09-14, i am too busy. if this ever causes problems down the
     #            road, Mea Culpa, it is my fault.
 
+    try:
+        get_char = unichr
+    except NameError:
+        get_char = chr
+
     include_ranges: List[Tuple[int, int]] = [
         (0x0021, 0x0021),
         (0x0023, 0x0026),
@@ -440,11 +445,6 @@ def _gen_unicode_word(n: int) -> str:
         (0x0384, 0x038A),
         (0x038C, 0x038C),
     ]
-
-    try:
-        get_char = unichr
-    except NameError:
-        get_char = chr
 
     alphabet = [
         get_char(code_point)
