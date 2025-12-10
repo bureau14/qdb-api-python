@@ -414,6 +414,16 @@ def _gen_unicode_word(n: int) -> str:
     """
     Generates a string of length n from random characters in the specified Unicode ranges.
     """
+    ###
+    # XXX(leon): i have no time to fully investigate right now, but under certain environments,
+    #            for some reason, this causes problems. it *may* be related to reusing memory
+    #            of underlying numpy arrays or something like that, i do not know exactly, but
+    #            it complains about unicode conversion errors if you generate multiple dataframes.
+    #
+    #            need to dig deeper, but don't have time right now. i think maybe we're reusing
+    #            the same numpy array memory arenas in multiple dataframes or something like that.
+    #            but as of now, 2023-09-14, i am too busy. if this ever causes problems down the
+    #            road, Mea Culpa, it is my fault.
 
     include_ranges: List[Tuple[int, int]] = [
         (0x0021, 0x0021),
@@ -422,7 +432,7 @@ def _gen_unicode_word(n: int) -> str:
         (0x00A1, 0x00AC),
         (0x00AE, 0x00FF),
         (0x0100, 0x017F),
-        # (0x0180, 0x024F),
+        (0x0180, 0x024F),
         (0x2C60, 0x2C7F),
         (0x16A0, 0x16F0),
         (0x0370, 0x0377),
