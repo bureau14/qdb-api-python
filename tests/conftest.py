@@ -698,7 +698,8 @@ def _array_with_index_and_table(
 ):
 
     index = pd.Index(
-        pd.date_range(start_date, periods=row_count, freq="s"), name="$timestamp"
+        # pd.date_range(start_date, periods=row_count, freq="s"), name="$timestamp"
+        pd.date_range(start_date, periods=row_count, freq="S"), name = "$timestamp"
     ).to_numpy(dtype=np.dtype("datetime64[ns]"))
 
     table = qdbd_connection.table(table_name)
@@ -767,7 +768,8 @@ def deduplication_mode(request):
     return request.param
 
 
-@pytest.fixture(params=["s"], ids=["frequency=s"])
+# @pytest.fixture(params=["s"], ids=["frequency=s"])
+@pytest.fixture(params=["S"], ids=["frequency=S"])
 def frequency(request):
     yield request.param
 
