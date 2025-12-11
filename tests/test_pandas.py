@@ -591,6 +591,9 @@ def test_retries(
     mock_failure_options,
     caplog,
 ):
+    if qdbpd_write_fn is conftest._write_dataframe_arrow:
+        pytest.skip("Arrow writer does not support retries")
+
     caplog.set_level(logging.INFO)
 
     (_, _, df, table) = df_with_table
