@@ -31,8 +31,15 @@ def test_batch_push_metrics(qdbpd_write_fn, df_with_table, qdbd_connection):
         m = measure.get()
         assert len(m) > 0
 
-        assert "qdb_batch_push" in m
-        assert m["qdb_batch_push"] > 0
+        # Arrow-based pushes currently do not emit the same metric label as the
+        # regular writer pipeline. Only enforce the metric check when using the
+        # classic writer path to avoid false negatives for the Arrow variant.
+        if qdbpd_write_fn.__name__ != "_write_dataframe_arrow":
+            assert "qdb_batch_push" in m
+            assert m["qdb_batch_push"] > 0
+        else:
+            assert "qdb_batch_push_arrow" in m
+            assert m["qdb_batch_push_arrow"] > 0
 
 
 def test_query_metrics(qdbpd_write_fn, df_with_table, qdbd_connection):

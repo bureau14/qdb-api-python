@@ -39,6 +39,7 @@
 #include "handle.hpp"
 #include "integer.hpp"
 #include "logger.hpp"
+#include "metrics.hpp"
 #include "node.hpp"
 #include "options.hpp"
 #include "perf.hpp"
@@ -383,6 +384,7 @@ public:
 
     void batch_push_arrow(const std::string & table_name, const py::object & reader, py::kwargs args)
     {
+        qdb::metrics::scoped_capture capture{"qdb_batch_push_arrow"};
         qdb::exp_batch_push_arrow_with_options(_handle, table_name, reader, std::move(args));
     }
 
