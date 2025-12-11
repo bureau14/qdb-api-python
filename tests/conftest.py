@@ -942,7 +942,15 @@ def datetime_(request):
     return x - datetime.timedelta(microseconds=x.microsecond)
 
 
-@pytest.fixture(params=[qdbpd.write_dataframe])
+def _write_dataframe_arrow(*args, **kwargs):
+    pytest.importorskip("pyarrow")
+    return qdbpd.write_dataframe(*args, arrow_push=True, **kwargs)
+
+
+@pytest.fixture(
+    params=[qdbpd.write_dataframe, _write_dataframe_arrow],
+    ids=["writer_push", "arrow_push"],
+)
 def qdbpd_write_fn(request):
     yield request.param
 

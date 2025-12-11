@@ -431,6 +431,7 @@ def write_dataframes(
     dtype: Optional[
         Union[DType, Dict[str, Optional[DType]], List[Optional[DType]]]
     ] = None,
+    arrow_push: bool = False,
     push_mode: Optional[quasardb.WriterPushMode] = None,
     _async: bool = False,
     fast: bool = False,
@@ -518,6 +519,7 @@ def write_dataframes(
         table=None,
         index=None,
         dtype=dtype,
+        arrow_push=arrow_push,
         push_mode=push_mode,
         _async=_async,
         fast=fast,
@@ -544,6 +546,7 @@ def write_dataframe(
     dtype: Optional[
         Union[DType, Dict[str, Optional[DType]], List[Optional[DType]]]
     ] = None,
+    arrow_push: bool = False,
     push_mode: Optional[quasardb.WriterPushMode] = None,
     _async: bool = False,
     fast: bool = False,
@@ -568,6 +571,7 @@ def write_dataframe(
         create=create,
         shard_size=shard_size,
         dtype=dtype,
+        arrow_push=arrow_push,
         push_mode=push_mode,
         _async=_async,
         fast=fast,

@@ -1,7 +1,9 @@
 import numpy as np
+import pandas as pd
 import pytest
 
 import quasardb
+import quasardb.pandas as qdbpd
 
 
 def _arrow_reader(timestamps, values):
@@ -128,3 +130,37 @@ def test_batch_push_arrow_invalid_deduplication_mode(qdbd_connection, entry_name
             deduplication_mode="invalid",
             write_through=False,
         )
+
+
+def test_arrow_push_roundtrip_with_pandas(df_with_table, qdbd_connection):
+    pa = pytest.importorskip("pyarrow")
+
+    (_, _, df, table) = df_with_table
+
+    qdbpd.write_dataframe(
+        df, qdbd_connection, table, infer_types=False, arrow_push=True
+    )
+
+    batches = []
+    with qdbd_connection.reader([table.get_name()]) as reader:
+        for batch_reader in reader.arrow_batch_reader():
+            batches.append(batch_reader.read_all())
+
+    combined = pa.concat_tables(batches)
+    result_df = combined.to_pandas()
+
+    assert "$timestamp" in result_df.columns
+
+    result_df = result_df.set_index("$timestamp")
+    result_df.index = result_df.index.astype("datetime64[ns]")
+
+    # Build expected dataframe: original df + $table column
+    expected_df = df.copy()
+    # $table does not exist initially, we must add it explicitly
+    expected_df["$table"] = table.get_name()
+    expected_df["$timestamp"] = expected_df.index.astype("datetime64[ns]")
+    expected_df = expected_df.set_index("$timestamp")
+
+    pd.testing.assert_frame_equal(
+        expected_df.sort_index(), result_df.sort_index(), check_like=True, check_dtype=False
+    )
