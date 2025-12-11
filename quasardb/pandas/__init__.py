@@ -409,11 +409,28 @@ def _extract_columns(
     # Grab all columns from the DataFrame in the order of table columns,
     # put None if not present in df.
     for i in range(len(cinfos)):
-        (cname, _) = cinfos[i]
+        (cname, ctype) = cinfos[i]
 
         if cname in df.columns:
-            arr = df[cname].array
-            ret[cname] = ma.masked_array(arr.to_numpy(copy=False), mask=arr.isna())
+            #arr = df[cname].array
+            #ret[cname] = ma.masked_array(arr.to_numpy(copy=False), mask=arr.isna())
+            series = df[cname]
+
+            # Ensure the numpy array dtype matches what the backend expects. Pandas will
+            # often upcast integer columns with nulls to object dtype, which will fail the
+            # dtype validation in qdbnp.write_arrays when using Arrow push. We explicitly
+            # coerce to the preferred dtype for the column type and rely on the mask to
+            # represent nulls. Using the Series keeps the mask handling consistent for
+            # masked arrays as well.
+            expected_dtype = qdbnp._best_dtype_for_ctype(ctype)
+            mask = series.isna().to_numpy(dtype=bool, copy=False)
+            data = series.to_numpy(
+                copy=False,
+                dtype=expected_dtype,
+                na_value=np.zeros(1, dtype=expected_dtype)[0],
+            )
+
+            ret[cname] = ma.masked_array(data, mask=mask)
 
     return ret
 
