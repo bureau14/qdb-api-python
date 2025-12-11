@@ -536,7 +536,9 @@ def _masked_to_arrow_array(xs: Any, *, pa: Any, pa_type: Any):
     return pa.array(xs, type=pa_type, mask=mask)
 
 
-def _push_arrow_batches(cluster: quasardb.Cluster, batches: Any, kwargs: Dict[str, Any]):
+def _push_arrow_batches(
+    cluster: quasardb.Cluster, batches: Any, kwargs: Dict[str, Any]
+):
     pa = __import__("pyarrow")
 
     for table, index, data, cinfos in batches:

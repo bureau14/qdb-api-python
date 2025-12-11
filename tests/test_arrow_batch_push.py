@@ -162,5 +162,8 @@ def test_arrow_push_roundtrip_with_pandas(df_with_table, qdbd_connection):
     expected_df = expected_df.set_index("$timestamp")
 
     pd.testing.assert_frame_equal(
-        expected_df.sort_index(), result_df.sort_index(), check_like=True, check_dtype=False
+        expected_df.sort_index(),
+        result_df.sort_index(),
+        check_like=True,
+        check_dtype=False,
     )

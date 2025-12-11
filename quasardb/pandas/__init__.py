@@ -412,8 +412,6 @@ def _extract_columns(
         (cname, ctype) = cinfos[i]
 
         if cname in df.columns:
-            #arr = df[cname].array
-            #ret[cname] = ma.masked_array(arr.to_numpy(copy=False), mask=arr.isna())
             series = df[cname]
 
             # Ensure the numpy array dtype matches what the backend expects. Pandas will
