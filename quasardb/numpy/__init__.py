@@ -514,7 +514,7 @@ def _coerce_retries(
         )
 
 
-def _arrow_type_for_column(ctype: quasardb.ColumnType, pa: Any):
+def _arrow_type_for_column(ctype: quasardb.ColumnType, pa: Any) -> Any:
     mapping = {
         quasardb.ColumnType.Double: pa.float64(),
         quasardb.ColumnType.Blob: pa.binary(),
@@ -527,7 +527,7 @@ def _arrow_type_for_column(ctype: quasardb.ColumnType, pa: Any):
     return mapping[ctype]
 
 
-def _masked_to_arrow_array(xs: Any, *, pa: Any, pa_type: Any):
+def _masked_to_arrow_array(xs: Any, *, pa: Any, pa_type: Any) -> Any:
     mask = None
     if ma.isMA(xs):
         mask = xs.mask
@@ -538,7 +538,7 @@ def _masked_to_arrow_array(xs: Any, *, pa: Any, pa_type: Any):
 
 def _push_arrow_batches(
     cluster: quasardb.Cluster, batches: Any, kwargs: Dict[str, Any]
-):
+) -> None:
     pa = __import__("pyarrow")
 
     for table, index, data, cinfos in batches:
