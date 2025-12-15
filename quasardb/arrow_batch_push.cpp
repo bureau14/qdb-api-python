@@ -33,6 +33,7 @@
 #include <convert/value.hpp>
 #include <detail/writer.hpp>
 #include <algorithm>
+#include <metrics.hpp>
 
 namespace qdb
 {
@@ -127,14 +128,15 @@ struct arrow_batch
 
     qdb_exp_batch_push_arrow_t build(const std::string & table_name,
         const detail::deduplicate_options & dedup,
-        qdb_ts_range_t * ranges)
+        qdb_ts_range_t * ranges,
+        qdb_size_t ranges_count)
     {
         qdb_exp_batch_push_arrow_t batch{};
 
         batch.name                  = table_name.c_str();
         batch.stream                = stream.stream();
         batch.truncate_ranges       = ranges;
-        batch.truncate_range_count  = (ranges == nullptr ? 0u : 1u);
+        batch.truncate_range_count  = (ranges == nullptr ? 0u : ranges_count);
         batch.where_duplicate       = nullptr;
         batch.where_duplicate_count = 0u;
 
@@ -154,24 +156,67 @@ void exp_batch_push_arrow_with_options(handle_ptr handle,
     const pybind11::object & reader,
     pybind11::kwargs args)
 {
-    auto dedup = detail::deduplicate_options::from_kwargs(args);
+    auto dedup                      = detail::deduplicate_options::from_kwargs(args);
+    qdb_exp_batch_options_t options = detail::batch_options::from_kwargs(args);
 
-    qdb_ts_range_t range{};
+    std::vector<qdb_ts_range_t> truncate_ranges;
     qdb_ts_range_t * range_ptr = nullptr;
 
-    if (args.contains("range"))
+
+    if (options.mode == qdb_exp_batch_push_truncate)
+        [[unlikely]] // Unlikely because truncate isn't used much
     {
-        range = convert::value<pybind11::tuple, qdb_ts_range_t>(
-            pybind11::cast<pybind11::tuple>(args["range"]));
-        range_ptr = &range;
+        if (args.contains("range"))
+        {
+            truncate_ranges = detail::batch_truncate_ranges::from_kwargs(args);
+            range_ptr       = truncate_ranges.data();
+        }
+        else
+        {
+            throw qdb::invalid_argument_exception{"No truncate range provided."};
+        }
     }
 
     arrow_batch batch{reader};
-    auto c_batch                    = batch.build(table_name, dedup, range_ptr);
-    qdb_exp_batch_options_t options = detail::batch_options::from_kwargs(args);
+    auto c_batch = batch.build(table_name, dedup, range_ptr, truncate_ranges.size());
 
-    qdb::qdb_throw_if_error(
-        *handle, qdb_exp_batch_push_arrow_with_options(*handle, &options, &c_batch, nullptr, 1u));
+    qdb_error_t err{qdb_e_ok};
+    {
+        // Make sure to measure the time it takes to do the actual push.
+        // This is in its own scoped block so that we only actually measure
+        // the push time, not e.g. retry time.
+        qdb::metrics::scoped_capture capture{"qdb_batch_push_arrow"};
+
+        err = qdb_exp_batch_push_arrow_with_options(*handle, &options, &c_batch, nullptr, 1u);
+    }
+
+    qdb::logger logger("quasardb.batch_push_arrow");
+    auto retry_options = detail::retry_options::from_kwargs(args);
+    if (retry_options.should_retry(err))
+        [[unlikely]] // Unlikely, because err is most likely to be qdb_e_ok
+    {
+        if (err == qdb_e_async_pipe_full) [[likely]]
+        {
+            logger.info("Async pipelines are currently full");
+        }
+        else
+        {
+            logger.warn("A temporary error occurred");
+        }
+
+        std::chrono::milliseconds delay = retry_options.delay;
+        logger.info("Sleeping for %d milliseconds", delay.count());
+
+        std::this_thread::sleep_for(delay);
+
+        // Now try again -- easier way to go about this is to enter recursion. Note how
+        // we permutate the retry_options, which automatically adjusts the amount of retries
+        // left and the next sleep duration.
+        logger.warn("Retrying push operation, retries left: %d", retry_options.retries_left);
+        err = qdb_exp_batch_push_arrow_with_options(*handle, &options, &c_batch, nullptr, 1u);
+    }
+
+    qdb::qdb_throw_if_error(*handle, err);
 }
 
 } // namespace qdb
