@@ -162,11 +162,10 @@ void exp_batch_push_arrow_with_options(handle_ptr handle,
     std::vector<qdb_ts_range_t> truncate_ranges;
     qdb_ts_range_t * range_ptr = nullptr;
 
-
     if (options.mode == qdb_exp_batch_push_truncate)
         [[unlikely]] // Unlikely because truncate isn't used much
     {
-        if (args.contains("range"))
+        if (args.contains(detail::batch_truncate_ranges::kw_range))
         {
             truncate_ranges = detail::batch_truncate_ranges::from_kwargs(args);
             range_ptr       = truncate_ranges.data();
@@ -180,6 +179,9 @@ void exp_batch_push_arrow_with_options(handle_ptr handle,
     arrow_batch batch{reader};
     auto c_batch = batch.build(table_name, dedup, range_ptr, truncate_ranges.size());
 
+    qdb::logger logger("quasardb.batch_push_arrow");
+    logger.debug("Pushing Arrow stream in %s using %s push mode", table_name,
+        detail::batch_push_mode::to_string(options.mode));
     qdb_error_t err{qdb_e_ok};
     {
         // Make sure to measure the time it takes to do the actual push.
@@ -190,7 +192,6 @@ void exp_batch_push_arrow_with_options(handle_ptr handle,
         err = qdb_exp_batch_push_arrow_with_options(*handle, &options, &c_batch, nullptr, 1u);
     }
 
-    qdb::logger logger("quasardb.batch_push_arrow");
     auto retry_options = detail::retry_options::from_kwargs(args);
     if (retry_options.should_retry(err))
         [[unlikely]] // Unlikely, because err is most likely to be qdb_e_ok

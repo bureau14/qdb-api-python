@@ -308,12 +308,26 @@ def test_write_dataframe_push_fast(qdbpd_write_fn, qdbd_connection, df_with_tabl
 def test_write_dataframe_push_truncate(qdbpd_write_fn, qdbd_connection, df_with_table):
     (_, _, df1, table) = df_with_table
 
+    # For Arrow Push we need to have the truncate range
+    step = df1.index[1] - df1.index[0]
+    start = np.datetime64(df1.index[0].to_datetime64(), "ns")
+    end = np.datetime64((df1.index[-1] + step).to_datetime64(), "ns")
+    ranges = (start, end)
+
     # Ensures that we can do a full-circle write and read of a dataframe
     qdbpd_write_fn(
-        df1, qdbd_connection, table, push_mode=quasardb.WriterPushMode.Truncate
+        df1,
+        qdbd_connection,
+        table,
+        push_mode=quasardb.WriterPushMode.Truncate,
+        range=ranges,
     )
     qdbpd_write_fn(
-        df1, qdbd_connection, table, push_mode=quasardb.WriterPushMode.Truncate
+        df1,
+        qdbd_connection,
+        table,
+        push_mode=quasardb.WriterPushMode.Truncate,
+        range=ranges,
     )
 
     df2 = qdbpd.read_dataframe(qdbd_connection, table)
@@ -577,7 +591,11 @@ def test_push_mode(qdbpd_write_fn, df_with_table, push_mode, qdbd_connection, ca
         kwargs["_async"] = True
 
     caplog.clear()
-    caplog.set_level(logging.DEBUG, logger="quasardb.writer")
+    logger_name = "quasardb.writer"
+    if qdbpd_write_fn is conftest._write_dataframe_arrow:
+        logger_name = "quasardb.batch_push_arrow"
+
+    caplog.set_level(logging.DEBUG, logger=logger_name)
     qdbpd_write_fn(df, qdbd_connection, table, **kwargs)
 
     assert any(expected in x.message for x in caplog.records)
