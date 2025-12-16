@@ -150,7 +150,12 @@ else
     VENV_PYTHON="${SCRIPT_DIR}/../../.env/bin/python"
 fi
 
-${VENV_PYTHON} -m pip install --upgrade -r dev-requirements.txt
+if [[ "${ARCH_BITS}" == "32" ]]
+then
+	${VENV_PYTHON} -m pip install --upgrade -r dev-requirements-32.txt
+else
+	${VENV_PYTHON} -m pip install --upgrade -r dev-requirements.txt
+fi	
 
 export QDB_TESTS_ENABLED=ON
 ${VENV_PYTHON} -m build -w
