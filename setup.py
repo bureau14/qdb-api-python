@@ -36,7 +36,7 @@ packages = [
 
 
 is_windows_32bit = platform.system() == "Windows" and sys.maxsize <= 2**32
-if is_win32:
+if is_windows_32bit:
     extras_arrow = []
 else:
     extras_arrow = ["pyarrow"]
