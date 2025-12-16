@@ -99,9 +99,10 @@ function evil_outer {
 #
 ###
 
+ARCH_BITS=$(${PYTHON} -c 'import struct;print( 8 * struct.calcsize("P"))')
+
 if [[ "$(uname)" == MINGW* ]]
 then
-    ARCH_BITS=$(${PYTHON} -c 'import struct;print( 8 * struct.calcsize("P"))')
     echo "Windows build detected, target arch with bits: ${ARCH_BITS}"
 
     if [[ "${ARCH_BITS}" == "32" ]]

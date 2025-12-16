@@ -43,6 +43,7 @@ else
     ${VENV_PYTHON} -m pip install --upgrade setuptools wheel auditwheel
 fi
 
+ARCH_BITS=$(${PYTHON} -c 'import struct;print( 8 * struct.calcsize("P"))')
 if [[ "${ARCH_BITS}" == "32" ]]
 then
 	${VENV_PYTHON} -m pip install --upgrade -r dev-requirements-32.txt
