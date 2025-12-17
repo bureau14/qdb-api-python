@@ -35,13 +35,6 @@ packages = [
 ]
 
 
-is_windows_32bit = platform.system() == "Windows" and sys.maxsize <= 2**32
-if is_windows_32bit:
-    extras_arrow = []
-else:
-    extras_arrow = ["pyarrow"]
-
-
 class CMakeExtension(Extension):
     def __init__(self, name, sourcedir=""):
         Extension.__init__(self, name, sources=[])
@@ -211,7 +204,7 @@ setup(
     install_requires=["numpy"],
     extras_require={
         "pandas": ["pandas"],
-        "arrow": extras_arrow,
+        "arrow": ["pyarrow"],
         "test": ["pytest"],
     },
     packages=packages,
