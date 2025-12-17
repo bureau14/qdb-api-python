@@ -1018,8 +1018,10 @@ def write_arrays(
         for i in range(len(data_)):
             assert len(data_[i]) == len(index_)
 
-        push_data.append(table_, index_, data_)
-        arrow_batches.append((table_, index_, data_, cinfos))
+        if arrow_push:
+            arrow_batches.append((table_, index_, data_, cinfos))
+        else:
+            push_data.append(table_, index_, data_)
 
         n_rows += len(index_)
         ret.append(table_)
