@@ -433,7 +433,7 @@ def _coerce_data(
 
 
 def _probe_length(
-    xs: Union[Dict[Any, NDArrayAny], Iterable[NDArrayAny]]
+    xs: Union[Dict[Any, NDArrayAny], Iterable[NDArrayAny]],
 ) -> Optional[int]:
     """
     Returns the length of the first non-null array in `xs`, or None if all arrays
@@ -499,7 +499,7 @@ def _ensure_list(
 
 
 def _coerce_retries(
-    retries: Optional[Union[int, quasardb.RetryOptions]]
+    retries: Optional[Union[int, quasardb.RetryOptions]],
 ) -> quasardb.RetryOptions:
     if retries is None:
         return quasardb.RetryOptions()
@@ -512,6 +512,53 @@ def _coerce_retries(
             "retries should either be an integer or quasardb.RetryOptions, got: "
             + str(type(retries))
         )
+
+
+def _arrow_type_for_column(ctype: quasardb.ColumnType, pa: Any) -> Any:
+    mapping = {
+        quasardb.ColumnType.Double: pa.float64(),
+        quasardb.ColumnType.Blob: pa.binary(),
+        quasardb.ColumnType.String: pa.string(),
+        quasardb.ColumnType.Symbol: pa.string(),
+        quasardb.ColumnType.Int64: pa.int64(),
+        quasardb.ColumnType.Timestamp: pa.timestamp("ns"),
+    }
+
+    return mapping[ctype]
+
+
+def _masked_to_arrow_array(xs: Any, *, pa: Any, pa_type: Any) -> Any:
+    mask = None
+    if ma.isMA(xs):
+        mask = xs.mask
+        xs = xs.data
+
+    return pa.array(xs, type=pa_type, mask=mask)
+
+
+def _push_arrow_batches(
+    cluster: quasardb.Cluster, batches: Any, kwargs: Dict[str, Any]
+) -> None:
+    pa = __import__("pyarrow")
+
+    for table, index, data, cinfos in batches:
+        arrays = [
+            pa.array(index.astype("datetime64[ns]"), type=pa.timestamp("ns")),
+        ]
+        names = ["$timestamp"]
+
+        for (cname, ctype), values in zip(cinfos, data):
+            arrays.append(
+                _masked_to_arrow_array(
+                    values, pa=pa, pa_type=_arrow_type_for_column(ctype, pa)
+                )
+            )
+            names.append(cname)
+
+        batch = pa.record_batch(arrays, names=names)
+        reader = pa.RecordBatchReader.from_batches(batch.schema, [batch])
+
+        cluster.batch_push_arrow(table.get_name(), reader, **kwargs)
 
 
 def _kwarg_deprecation_warning(
@@ -710,6 +757,7 @@ def write_arrays(
     cluster: quasardb.Cluster,
     table: Optional[Union[str, Table]] = None,
     *,
+    arrow_push: bool = False,
     dtype: Optional[
         Union[DType, Dict[str, Optional[DType]], List[Optional[DType]]]
     ] = None,
@@ -756,6 +804,11 @@ def write_arrays(
       For example, 'my_table' or cluster.table('my_table') are both valid values.
 
       Defaults to False.
+
+    arrow_push: optional bool
+      When True, writes data through the Arrow batch push API instead of the classic
+      writer pipeline. This is primarily intended for validation purposes and relies on
+      ``pyarrow`` being available.
 
     index: optional np.array with dtype datetime64[ns]
       Optionally explicitly provide an array as the $timestamp index. If not provided,
@@ -906,6 +959,7 @@ def write_arrays(
     ret: List[Table] = []
     n_rows = 0
     push_data = quasardb.WriterData()
+    arrow_batches = []
 
     for table_, data_ in data:
         # Acquire reference to table_ if string is provided
@@ -964,7 +1018,10 @@ def write_arrays(
         for i in range(len(data_)):
             assert len(data_[i]) == len(index_)
 
-        push_data.append(table_, index_, data_)
+        if arrow_push:
+            arrow_batches.append((table_, index_, data_, cinfos))
+        else:
+            push_data.append(table_, index_, data_)
 
         n_rows += len(index_)
         ret.append(table_)
@@ -987,6 +1044,11 @@ def write_arrays(
 
     logger.debug("pushing %d rows", n_rows)
     start = time.time()
+
+    if arrow_push:
+        _push_arrow_batches(cluster, arrow_batches, push_kwargs)
+        logger.debug("pushed %d rows in %s seconds", n_rows, (time.time() - start))
+        return ret
 
     writer.push(push_data, **push_kwargs)
 

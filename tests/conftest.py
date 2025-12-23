@@ -10,6 +10,7 @@ import pandas as pd
 import datetime
 import pprint
 from functools import partial
+from typing import List, Tuple
 
 import quasardb
 import quasardb.pandas as qdbpd
@@ -409,8 +410,10 @@ def _gen_string(n):
     return list(str(x) for x in _gen_floating(n, low=0))
 
 
-def _gen_unicode_word(n):
-
+def _gen_unicode_word(n: int) -> str:
+    """
+    Generates a string of length n from random characters in the specified Unicode ranges.
+    """
     ###
     # XXX(leon): i have no time to fully investigate right now, but under certain environments,
     #            for some reason, this causes problems. it *may* be related to reusing memory
@@ -427,7 +430,7 @@ def _gen_unicode_word(n):
     except NameError:
         get_char = chr
 
-    include_ranges = [
+    include_ranges: List[Tuple[int, int]] = [
         (0x0021, 0x0021),
         (0x0023, 0x0026),
         (0x0028, 0x007E),
@@ -445,11 +448,11 @@ def _gen_unicode_word(n):
 
     alphabet = [
         get_char(code_point)
-        for current_range in include_ranges
-        for code_point in range(current_range[0], current_range[1] + 1)
+        for start, end in include_ranges
+        for code_point in range(start, end + 1)
     ]
 
-    return "".join(random.choice(alphabet) for i in range(n))
+    return "".join(random.choice(alphabet) for _ in range(n))
 
 
 def _gen_unicode(n):
@@ -695,7 +698,9 @@ def _array_with_index_and_table(
 ):
 
     index = pd.Index(
-        pd.date_range(start_date, periods=row_count, freq="S"), name="$timestamp"
+        # pd.date_range(start_date, periods=row_count, freq="s"), name="$timestamp"
+        pd.date_range(start_date, periods=row_count, freq="S"),
+        name="$timestamp",
     ).to_numpy(dtype=np.dtype("datetime64[ns]"))
 
     table = qdbd_connection.table(table_name)
@@ -764,6 +769,7 @@ def deduplication_mode(request):
     return request.param
 
 
+# @pytest.fixture(params=["s"], ids=["frequency=s"])
 @pytest.fixture(params=["S"], ids=["frequency=S"])
 def frequency(request):
     yield request.param
@@ -937,7 +943,15 @@ def datetime_(request):
     return x - datetime.timedelta(microseconds=x.microsecond)
 
 
-@pytest.fixture(params=[qdbpd.write_dataframe])
+def _write_dataframe_arrow(*args, **kwargs):
+    pytest.importorskip("pyarrow")
+    return qdbpd.write_dataframe(*args, arrow_push=True, **kwargs)
+
+
+@pytest.fixture(
+    params=[qdbpd.write_dataframe, _write_dataframe_arrow],
+    ids=["writer_push", "arrow_push"],
+)
 def qdbpd_write_fn(request):
     yield request.param
 

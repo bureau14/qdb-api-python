@@ -27,7 +27,6 @@ wheel
 pytest
 pytest-runner
 pytest-benchmark
-pyarrow
 
 # Seems like numpy>2 requires this in combination with pytest,
 # but is never set in the requirements.

@@ -13,7 +13,40 @@ namespace qdb
 namespace detail
 {
 
-/* static */ py::dict reader_data::convert(qdb_bulk_reader_table_data_t const & data)
+static py::object arrow_stream_to_record_batch_reader(ArrowArrayStream * stream)
+{
+    auto capsule = py::capsule(stream, "arrow_array_stream");
+
+    static py::object import_from_c = [] {
+        py::module pyarrow = py::module::import("pyarrow");
+        py::object rbr     = pyarrow.attr("RecordBatchReader");
+
+        // new version of PyArrow (>= 15) – PyCapsule stream support
+        if (py::hasattr(rbr, "_import_from_c_capsule"))
+        {
+            return rbr.attr("_import_from_c_capsule");
+        }
+
+        // old versions - classical API
+        return rbr.attr("_import_from_c");
+    }();
+
+    try
+    {
+        return import_from_c(capsule);
+    }
+    catch (...)
+    {
+        if (stream && stream->release)
+        {
+            stream->release(stream);
+        }
+        throw;
+    }
+}
+
+/* static */
+py::dict reader_data::convert(qdb_bulk_reader_table_data_t const & data)
 {
     py::dict ret{};
 
@@ -107,6 +140,42 @@ reader_iterator & reader_iterator::operator++()
 
     return *this;
 };
+
+arrow_reader_iterator & arrow_reader_iterator::operator++()
+{
+    if (stream_ != nullptr)
+    {
+        qdb_release(*handle_, stream_);
+        stream_ = nullptr;
+    }
+
+    qdb_error_t err = qdb_bulk_reader_get_data_arrow(reader_, &stream_, batch_size_);
+
+    if (err == qdb_e_iterator_end) [[unlikely]]
+    {
+        handle_     = nullptr;
+        reader_     = nullptr;
+        batch_size_ = 0;
+        stream_     = nullptr;
+    }
+    else
+    {
+        qdb::qdb_throw_if_error(*handle_, err);
+
+        assert(handle_ != nullptr);
+        assert(reader_ != nullptr);
+        assert(stream_ != nullptr);
+    }
+
+    return *this;
+}
+
+py::object arrow_reader_iterator::operator*()
+{
+    assert(stream_ != nullptr);
+
+    return arrow_stream_to_record_batch_reader(stream_);
+}
 
 }; // namespace detail
 
@@ -207,14 +276,18 @@ void register_reader(py::module_ & m)
     // basic interface
     reader_c
         .def(py::init([](py::args, py::kwargs) {
-	    throw qdb::direct_instantiation_exception{"conn.reader(...)"};
-	    return nullptr;
+            throw qdb::direct_instantiation_exception{"conn.reader(...)"};
+            return nullptr;
         }))
         .def("get_batch_size", &qdb::reader::get_batch_size)
         .def("__enter__", &qdb::reader::enter)
         .def("__exit__", &qdb::reader::exit)
         .def(
             "__iter__", [](qdb::reader & r) { return py::make_iterator(r.begin(), r.end()); },
+            py::keep_alive<0, 1>())
+        .def(
+            "arrow_batch_reader",
+            [](qdb::reader & r) { return py::make_iterator(r.arrow_begin(), r.arrow_end()); },
             py::keep_alive<0, 1>());
 }
 

@@ -237,10 +237,11 @@ void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
     batch.deduplication_mode    = qdb_exp_batch_deduplication_mode_disabled;
     batch.creation              = qdb_exp_batch_dont_create;
 
-    enum detail::deduplication_mode_t mode_ = deduplicate_options.mode_;
+    detail::deduplication_mode_t mode_ = deduplicate_options.mode_;
 
     std::visit(
-        [&mode_, &batch](auto const & columns) { _set_deduplication_mode(mode_, columns, batch); },
+        [&mode_, &batch, this](
+            auto const & columns) { _set_deduplication_mode(mode_, columns, batch, _duplicate_ptrs); },
         deduplicate_options.columns_);
 }
 
@@ -330,7 +331,7 @@ void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
 
     std::string deduplication_mode = args["deduplication_mode"].cast<std::string>();
 
-    enum detail::deduplication_mode_t deduplication_mode_;
+    detail::deduplication_mode_t deduplication_mode_;
     if (deduplication_mode == "drop")
     {
         deduplication_mode_ = detail::deduplication_mode_drop;
