@@ -8,23 +8,12 @@
       <option name="showDependenciesChanges" value="true" />
     </options>
     <artifact-dependencies>
-      <dependency id="core2" sourceBuildTypeId="Api_Python_Debug_Osx_X8664Core2_Composite" cleanDestination="false">
-        <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
-        <artifact sourcePath="**" />
-      </dependency>
       <dependency id="aarch64" sourceBuildTypeId="Api_Python_Debug_Osx_AArch64_Composite" cleanDestination="false">
         <revisionRule name="sameChainOrLastFinished" revision="latest.sameChainOrLastFinished" />
         <artifact sourcePath="**" />
       </dependency>
     </artifact-dependencies>
     <dependencies>
-      <depend-on sourceBuildTypeId="Api_Python_Debug_Osx_X8664Core2_Composite">
-        <options>
-          <option name="run-build-if-dependency-failed" value="RUN_ADD_PROBLEM" />
-          <option name="take-started-build-with-same-revisions" value="true" />
-          <option name="take-successful-builds-only" value="true" />
-        </options>
-      </depend-on>
       <depend-on sourceBuildTypeId="Api_Python_Debug_Osx_AArch64_Composite">
         <options>
           <option name="run-build-if-dependency-failed" value="RUN_ADD_PROBLEM" />
