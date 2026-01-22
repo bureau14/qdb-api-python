@@ -764,7 +764,7 @@ def deduplication_mode(request):
     return request.param
 
 
-@pytest.fixture(params=["S"], ids=["frequency=S"])
+@pytest.fixture(params=["s"], ids=["frequency=s"])
 def frequency(request):
     yield request.param
 
