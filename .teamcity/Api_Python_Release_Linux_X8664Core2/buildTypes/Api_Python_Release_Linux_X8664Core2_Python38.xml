@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<build-type xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="365692ba-de38-4c26-9cf7-dc051a812c66" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2025.3/project-config.xsd">
+  <name>Python 3.8</name>
+  <description />
+  <settings ref="Api_Python_Release_Linux_X8664Core2_Build">
+    <parameters>
+      <param name="pypa_image_tag" value="2025.05.03-1" />
+      <param name="python_version" value="3.8" />
+    </parameters>
+    <build-runners>
+      <runner id="Build_documentation" name="Build documentation" type="simpleRunner">
+        <parameters>
+          <param name="command.executable" value="bash" />
+          <param name="command.parameters" value="scripts/teamcity/30.doc.sh" />
+          <param name="plugin.docker.imageId" value="build:%build.vcs.number%-%python_version%" />
+          <param name="plugin.docker.imagePlatform" value="linux" />
+          <param name="teamcity.step.mode" value="default" />
+        </parameters>
+      </runner>
+      <runner id="RUNNER_53" name="Build container" type="DockerCommand">
+        <parameters>
+          <param name="command.args" value="--build-arg PYTHON_VERSION=%python_version% --build-arg TAG=%pypa_image_tag%" />
+          <param name="docker.command.type" value="build" />
+          <param name="docker.image.namesAndTags" value="build:%build.vcs.number%-%python_version%" />
+          <param name="docker.push.remove.image" value="true" />
+          <param name="dockerImage.platform" value="linux" />
+          <param name="dockerfile.contextDir" value="docker/" />
+          <param name="dockerfile.path" value="docker/Dockerfile" />
+          <param name="dockerfile.source" value="PATH" />
+          <param name="teamcity.step.mode" value="default" />
+        </parameters>
+      </runner>
+    </build-runners>
+  </settings>
+</build-type>
+
