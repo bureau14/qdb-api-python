@@ -47,12 +47,32 @@ public:
     explicit arrow_stream_holder(pybind11::object reader)
         : _reader{std::move(reader)}
     {
-        _reader.attr("_export_to_c")(pybind11::int_(reinterpret_cast<uintptr_t>(&_stream)));
+        pybind11::gil_scoped_acquire gil;
+
+        ArrowArrayStream tmp{};
+        try
+        {
+            _reader.attr("_export_to_c")(pybind11::int_(reinterpret_cast<uintptr_t>(&tmp)));
+        }
+        catch (...)
+        {
+            safe_release(tmp);
+            throw;
+        }
+
+        _stream = tmp;
     }
 
     ~arrow_stream_holder()
     {
-        reset();
+        try
+        {
+            reset();
+        }
+        catch (...)
+        {
+            // do nothing, we must not throw from the destructor
+        }
     }
 
     void detach() noexcept
@@ -70,6 +90,13 @@ public:
         return _stream;
     }
 
+    ArrowArrayStream release_stream() noexcept
+    {
+        ArrowArrayStream out = _stream;
+        invalidate_stream();
+        return out;
+    }
+
 private:
     void reset() noexcept
     {
@@ -80,12 +107,34 @@ private:
         }
     }
 
+    static void invalidate_stream_struct(ArrowArrayStream & s) noexcept
+    {
+        s.release      = nullptr;
+        s.get_next     = nullptr;
+        s.get_schema   = nullptr;
+        s.private_data = nullptr;
+    }
+
     void invalidate_stream() noexcept
     {
-        _stream.release      = nullptr;
-        _stream.get_next     = nullptr;
-        _stream.get_schema   = nullptr;
-        _stream.private_data = nullptr;
+        invalidate_stream_struct(_stream);
+    }
+
+    static void safe_release(ArrowArrayStream & s) noexcept
+    {
+        if (!s.release) return;
+
+        if (Py_IsInitialized())
+        {
+            pybind11::gil_scoped_acquire gil;
+            s.release(&s);
+        }
+        else
+        {
+            // Oops. Python is not initialized
+        }
+
+        invalidate_stream_struct(s);
     }
 
     pybind11::object _reader;
