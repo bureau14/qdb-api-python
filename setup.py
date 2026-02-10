@@ -179,8 +179,8 @@ setup(
     description="Python API for quasardb",
     author="quasardb SAS",
     license="BSD",
-    author_email="contact@quasardb.net",
-    url="https://www.quasardb.net/",
+    author_email="support@quasar.ai",
+    url="https://quasar.ai/",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: End Users/Desktop",

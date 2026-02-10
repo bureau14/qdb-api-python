@@ -94,7 +94,7 @@ def gen_df(start_time, count, step=1, unit="D"):
 
 
 def gen_series(start_time, count):
-    idx = pd.date_range(start_time, periods=count, freq="S")
+    idx = pd.date_range(start_time, periods=count, freq="s")
 
     return {
         "the_double": pd.Series(np.random.uniform(-100.0, 100.0, count), index=idx),
