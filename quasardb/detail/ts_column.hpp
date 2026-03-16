@@ -188,11 +188,6 @@ static inline std::vector<qdb_ts_column_info_ex_t> convert_create_columns_ex(
     std::vector<qdb_ts_column_info_ex_t> res;
     res.reserve(columns.size() + 1);
 
-    if (columns.empty())
-    {
-        return res;
-    }
-
     bool has_timestamp_column = false;
     for (std::size_t idx = 0; idx < columns.size(); ++idx)
     {
