@@ -147,9 +147,13 @@ static inline std::vector<qdb_ts_column_info_t> convert_columns(
 static inline std::vector<qdb_ts_column_info_ex_t> convert_columns_ex(
     const std::vector<column_info> & columns)
 {
-    std::vector<qdb_ts_column_info_ex_t> res(columns.size());
+    std::vector<qdb_ts_column_info_ex_t> res;
+    res.reserve(columns.size() + 1);
+    // TODO(valeriy): add mandatory column $timestamp
+    // Remove this code when we add support for creating tables without $timestamp
+    res.emplace_back("$timestamp", qdb_ts_column_timestamp, nullptr);
 
-    std::transform(columns.cbegin(), columns.cend(), res.begin(),
+    std::transform(columns.cbegin(), columns.cend(), res.end(),
         [](const column_info & ci) -> qdb_ts_column_info_ex_t { return ci; });
 
     return res;
