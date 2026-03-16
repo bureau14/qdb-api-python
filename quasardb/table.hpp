@@ -329,7 +329,8 @@ static inline void register_table(Module & m)
             return nullptr;
         }))
         .def("__repr__", &qdb::table::repr)
-        .def("create", &qdb::table::create, py::arg("columns"),
+        .def("create", &qdb::table::create, //
+            py::arg("columns"),             //
             py::arg("shard_size") = std::chrono::hours{24},
             py::arg("ttl")        = std::chrono::milliseconds::zero())
         .def("retrieve_metadata", &qdb::table::retrieve_metadata)
@@ -344,9 +345,10 @@ static inline void register_table(Module & m)
         .def("get_ttl", &qdb::table::get_ttl)
         .def("get_shard_size", &qdb::table::get_shard_size)
 
-        .def("reader", &qdb::table::reader, py::kw_only(),
-            py::arg("column_names") = std::vector<std::string>{},
-            py::arg("batch_size")   = std::size_t{0}, //
+        .def("reader", &qdb::table::reader,                       //
+            py::kw_only(),                                        //
+            py::arg("column_names") = std::vector<std::string>{}, //
+            py::arg("batch_size")   = std::size_t{0},             //
             py::arg("ranges")       = std::vector<py::tuple>{})
 
         .def("subscribe", &qdb::table::subscribe)
