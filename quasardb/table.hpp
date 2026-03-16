@@ -75,7 +75,7 @@ public:
             ttl_ = ttl.count();
         }
 
-        const auto c_columns = detail::convert_columns_ex(columns);
+        const auto c_columns = detail::convert_create_columns_ex(columns);
         qdb::qdb_throw_if_error(*_handle, qdb_ts_create_ex(*_handle, _alias.c_str(), shard_size.count(),
                                               c_columns.data(), c_columns.size(), ttl_));
     }
@@ -325,14 +325,13 @@ static inline void register_table(Module & m)
 
     py::class_<qdb::table, qdb::entry>{m, "Table", "Table representation"}
         .def(py::init([](py::args, py::kwargs) {
-	    throw qdb::direct_instantiation_exception{"conn.table(...)"};
-	    return nullptr;
+            throw qdb::direct_instantiation_exception{"conn.table(...)"};
+            return nullptr;
         }))
         .def("__repr__", &qdb::table::repr)
         .def("create", &qdb::table::create, py::arg("columns"),
             py::arg("shard_size") = std::chrono::hours{24},
-            py::arg("ttl")        = std::chrono::milliseconds::zero()
-            )
+            py::arg("ttl")        = std::chrono::milliseconds::zero())
         .def("retrieve_metadata", &qdb::table::retrieve_metadata)
         .def("column_index_by_id", &qdb::table::column_index_by_id)
         .def("column_type_by_id", &qdb::table::column_type_by_id)
@@ -345,12 +344,10 @@ static inline void register_table(Module & m)
         .def("get_ttl", &qdb::table::get_ttl)
         .def("get_shard_size", &qdb::table::get_shard_size)
 
-        .def("reader", &qdb::table::reader,
-            py::kw_only(),
+        .def("reader", &qdb::table::reader, py::kw_only(),
             py::arg("column_names") = std::vector<std::string>{},
-            py::arg("batch_size")   = std::size_t{0},
-            py::arg("ranges")       = std::vector<py::tuple>{}
-            )
+            py::arg("batch_size")   = std::size_t{0}, //
+            py::arg("ranges")       = std::vector<py::tuple>{})
 
         .def("subscribe", &qdb::table::subscribe)
         .def("erase_ranges", &qdb::table::erase_ranges)
@@ -360,26 +357,21 @@ static inline void register_table(Module & m)
         .def("int64_insert", &qdb::table::int64_insert)
         .def("timestamp_insert", &qdb::table::timestamp_insert)
 
-        .def("blob_get_ranges", &qdb::table::blob_get_ranges,
-            py::arg("column"),
-            py::arg("ranges") = py::none{}
-            )
-        .def("string_get_ranges", &qdb::table::string_get_ranges,
-            py::arg("column"),
-            py::arg("ranges") = py::none{}
-            )
-        .def("double_get_ranges", &qdb::table::double_get_ranges,
-            py::arg("column"),
-            py::arg("ranges") = py::none{}
-            )
-        .def("int64_get_ranges", &qdb::table::int64_get_ranges,
-            py::arg("column"),
-            py::arg("ranges") = py::none{}
-            )
-        .def("timestamp_get_ranges", &qdb::table::timestamp_get_ranges,
-            py::arg("column"),
-            py::arg("ranges") = py::none{}
-        );
+        .def("blob_get_ranges", &qdb::table::blob_get_ranges, //
+            py::arg("column"),                                //
+            py::arg("ranges") = py::none{})
+        .def("string_get_ranges", &qdb::table::string_get_ranges, //
+            py::arg("column"),                                    //
+            py::arg("ranges") = py::none{})
+        .def("double_get_ranges", &qdb::table::double_get_ranges, //
+            py::arg("column"),                                    //
+            py::arg("ranges") = py::none{})
+        .def("int64_get_ranges", &qdb::table::int64_get_ranges, //
+            py::arg("column"),                                  //
+            py::arg("ranges") = py::none{})
+        .def("timestamp_get_ranges", &qdb::table::timestamp_get_ranges, //
+            py::arg("column"),                                          //
+            py::arg("ranges") = py::none{});
 }
 
 } // namespace qdb

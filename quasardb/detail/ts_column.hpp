@@ -32,14 +32,21 @@
 
 #include "../error.hpp"
 #include <qdb/ts.h>
+#include <algorithm>
 #include <cassert>
+#include <iterator>
+#include <map>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace qdb
 {
 
 namespace detail
 {
+
+inline constexpr const char * timestamp_column_name = "$timestamp";
 
 inline std::string type_to_string(qdb_ts_column_type_t t)
 {
@@ -144,16 +151,82 @@ static inline std::vector<qdb_ts_column_info_t> convert_columns(
 
     return res;
 }
-static inline std::vector<qdb_ts_column_info_ex_t> convert_columns_ex(
+
+static inline bool is_timestamp_column(column_info const & column)
+{
+    return column.name == timestamp_column_name;
+}
+
+static inline void validate_timestamp_column(column_info const & column, std::size_t idx)
+{
+    if (is_timestamp_column(column) == false)
+    {
+        return;
+    }
+
+    if (column.type != qdb_ts_column_timestamp) [[unlikely]]
+    {
+        throw qdb::invalid_argument_exception{"column '" + column.name + "' must have type timestamp"};
+    }
+
+    if (column.symtable.empty() == false) [[unlikely]]
+    {
+        throw qdb::invalid_argument_exception{
+            "column '" + column.name + "' cannot define a symbol table"};
+    }
+
+    if (idx != 0) [[unlikely]]
+    {
+        throw qdb::invalid_argument_exception{
+            "column '$timestamp' must be the first column in the table schema"};
+    }
+}
+
+static inline std::vector<qdb_ts_column_info_ex_t> convert_create_columns_ex(
     const std::vector<column_info> & columns)
 {
     std::vector<qdb_ts_column_info_ex_t> res;
     res.reserve(columns.size() + 1);
-    // TODO(valeriy): add mandatory column $timestamp
-    // Remove this code when we add support for creating tables without $timestamp
-    res.emplace_back("$timestamp", qdb_ts_column_timestamp, nullptr);
 
-    std::transform(columns.cbegin(), columns.cend(), res.end(),
+    bool has_timestamp_column = false;
+    for (std::size_t idx = 0; idx < columns.size(); ++idx)
+    {
+        auto const & column = columns[idx];
+        validate_timestamp_column(column, idx);
+        has_timestamp_column = has_timestamp_column || is_timestamp_column(column);
+    }
+
+    if (has_timestamp_column == false)
+    {
+        res.push_back(qdb_ts_column_info_ex_t{
+            timestamp_column_name,
+            qdb_ts_column_timestamp,
+            nullptr,
+        });
+    }
+
+    std::transform(columns.cbegin(), columns.cend(), std::back_inserter(res),
+        [](const column_info & ci) -> qdb_ts_column_info_ex_t { return ci; });
+
+    return res;
+}
+
+static inline std::vector<qdb_ts_column_info_ex_t> convert_columns_ex(
+    const std::vector<column_info> & columns)
+{
+    std::vector<qdb_ts_column_info_ex_t> res;
+    res.reserve(columns.size());
+
+    for (auto const & column : columns)
+    {
+        if (is_timestamp_column(column)) [[unlikely]]
+        {
+            throw qdb::invalid_argument_exception{
+                "column '$timestamp' is managed by the server and cannot be added explicitly"};
+        }
+    }
+
+    std::transform(columns.cbegin(), columns.cend(), std::back_inserter(res),
         [](const column_info & ci) -> qdb_ts_column_info_ex_t { return ci; });
 
     return res;
@@ -162,10 +235,19 @@ static inline std::vector<qdb_ts_column_info_ex_t> convert_columns_ex(
 static inline std::vector<column_info> convert_columns(
     const qdb_ts_column_info_ex_t * columns, size_t count)
 {
-    std::vector<column_info> res(count);
+    std::vector<column_info> res;
+    res.reserve(count);
 
-    std::transform(columns, columns + count, res.begin(),
-        [](const qdb_ts_column_info_ex_t & ci) { return column_info{ci}; });
+    for (size_t i = 0; i < count; ++i)
+    {
+        column_info column{columns[i]};
+        if (is_timestamp_column(column) && column.type == qdb_ts_column_timestamp)
+        {
+            continue;
+        }
+
+        res.push_back(std::move(column));
+    }
 
     return res;
 }
