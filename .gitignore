@@ -148,3 +148,4 @@ insecure/
 secure/
 user_private.key
 users.cfg
+tests/test_perf.out

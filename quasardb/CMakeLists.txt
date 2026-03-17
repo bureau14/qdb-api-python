@@ -344,6 +344,8 @@ if(NOT QDB_LINK_STATIC_LIB)
 endif()
 
 set(QDB_FILES
+  arrow_batch_push.cpp
+  arrow_batch_push.hpp
   batch_inserter.hpp
   blob.hpp
   cluster.hpp

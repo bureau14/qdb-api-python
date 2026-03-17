@@ -30,7 +30,7 @@ T gen_char()
         std::make_pair(0x2C60, 0x2C7F), std::make_pair(0x16A0, 0x16F0), std::make_pair(0x0370, 0x0377),
         std::make_pair(0x037A, 0x037E), std::make_pair(0x0384, 0x038A), std::make_pair(0x038C, 0x038C)};
 
-    auto n = valid_ranges.size();
+    int n = static_cast<int>(valid_ranges.size());
 
     std::random_device rd;
     std::mt19937 gen(rd());

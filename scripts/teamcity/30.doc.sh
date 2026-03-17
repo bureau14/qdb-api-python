@@ -16,7 +16,14 @@ else
     VENV_PYTHON="${SCRIPT_DIR}/../../.env/bin/python"
 fi
 
-${VENV_PYTHON} -m pip install -r dev-requirements.txt
+ARCH_BITS=$(${PYTHON} -c 'import struct;print( 8 * struct.calcsize("P"))')
+if [[ "${ARCH_BITS}" == "32" ]]
+then
+	${VENV_PYTHON} -m pip install --upgrade -r dev-requirements-32.txt
+else
+	${VENV_PYTHON} -m pip install --upgrade -r dev-requirements.txt
+fi	
+
 ${VENV_PYTHON} -m pip install --no-deps --force-reinstall dist/quasardb-*manylinux*.whl
 ${VENV_PYTHON} -m pip install --upgrade pydoc3
 

@@ -204,6 +204,7 @@ setup(
     install_requires=["numpy"],
     extras_require={
         "pandas": ["pandas"],
+        "arrow": ["pyarrow"],
         "test": ["pytest"],
     },
     packages=packages,
