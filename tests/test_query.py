@@ -415,5 +415,5 @@ def test_returns_inserted_multi_data_with_star_select(
 
 
 def test_create_table(qdbd_connection, entry_name):
-    query = 'create table "{}" (col int64)'.format(entry_name)
+    query = 'create table "{}" ($timestamp timestamp, col int64)'.format(entry_name)
     _ = qdbd_connection.query(query)

@@ -32,14 +32,21 @@
 
 #include "../error.hpp"
 #include <qdb/ts.h>
+#include <algorithm>
 #include <cassert>
+#include <iterator>
+#include <map>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace qdb
 {
 
 namespace detail
 {
+
+inline constexpr const char * timestamp_column_name = "$timestamp";
 
 inline std::string type_to_string(qdb_ts_column_type_t t)
 {
@@ -144,11 +151,71 @@ static inline std::vector<qdb_ts_column_info_t> convert_columns(
 
     return res;
 }
+
+static inline bool is_timestamp_column(column_info const & column)
+{
+    return column.name == timestamp_column_name;
+}
+
+static inline void validate_timestamp_column(column_info const & column, std::size_t idx)
+{
+    if (column.type != qdb_ts_column_timestamp) [[unlikely]]
+    {
+        throw qdb::invalid_argument_exception{"column '" + column.name + "' must have type timestamp"};
+    }
+
+    if (column.symtable.empty() == false) [[unlikely]]
+    {
+        throw qdb::invalid_argument_exception{
+            "column '" + column.name + "' cannot define a symbol table"};
+    }
+
+    if (idx != 0) [[unlikely]]
+    {
+        throw qdb::invalid_argument_exception{
+            "column '$timestamp' must be the first column in the table schema"};
+    }
+}
+
+static inline bool find_timestamp_column(const std::vector<column_info> & columns)
+{
+    for (std::size_t idx = 0; idx < columns.size(); ++idx)
+    {
+        auto const & column = columns[idx];
+        if (!is_timestamp_column(column)) continue;
+
+        validate_timestamp_column(column, idx);
+        return true;
+    }
+    return false;
+}
+
+static inline std::vector<qdb_ts_column_info_ex_t> convert_create_columns_ex(
+    const std::vector<column_info> & columns)
+{
+    std::vector<qdb_ts_column_info_ex_t> res;
+    res.reserve(columns.size() + 1);
+
+    bool has_timestamp_column = find_timestamp_column(columns);
+    if (has_timestamp_column == false)
+    {
+        res.push_back(qdb_ts_column_info_ex_t{
+            timestamp_column_name,
+            qdb_ts_column_timestamp,
+            nullptr,
+        });
+    }
+
+    std::transform(columns.cbegin(), columns.cend(), std::back_inserter(res),
+        [](const column_info & ci) -> qdb_ts_column_info_ex_t { return ci; });
+
+    return res;
+}
+
 static inline std::vector<qdb_ts_column_info_ex_t> convert_columns_ex(
     const std::vector<column_info> & columns)
 {
     std::vector<qdb_ts_column_info_ex_t> res(columns.size());
-
     std::transform(columns.cbegin(), columns.cend(), res.begin(),
         [](const column_info & ci) -> qdb_ts_column_info_ex_t { return ci; });
 
@@ -159,7 +226,6 @@ static inline std::vector<column_info> convert_columns(
     const qdb_ts_column_info_ex_t * columns, size_t count)
 {
     std::vector<column_info> res(count);
-
     std::transform(columns, columns + count, res.begin(),
         [](const qdb_ts_column_info_ex_t & ci) { return column_info{ci}; });
 
