@@ -214,19 +214,8 @@ static inline std::vector<qdb_ts_column_info_ex_t> convert_create_columns_ex(
 static inline std::vector<qdb_ts_column_info_ex_t> convert_columns_ex(
     const std::vector<column_info> & columns)
 {
-    std::vector<qdb_ts_column_info_ex_t> res;
-    res.reserve(columns.size());
-
-    for (auto const & column : columns)
-    {
-        if (is_timestamp_column(column)) [[unlikely]]
-        {
-            throw qdb::invalid_argument_exception{
-                "column '$timestamp' is managed by the server and cannot be added explicitly"};
-        }
-    }
-
-    std::transform(columns.cbegin(), columns.cend(), std::back_inserter(res),
+    std::vector<qdb_ts_column_info_ex_t> res(columns.size());
+    std::transform(columns.cbegin(), columns.cend(), res.begin(),
         [](const column_info & ci) -> qdb_ts_column_info_ex_t { return ci; });
 
     return res;
@@ -235,19 +224,9 @@ static inline std::vector<qdb_ts_column_info_ex_t> convert_columns_ex(
 static inline std::vector<column_info> convert_columns(
     const qdb_ts_column_info_ex_t * columns, size_t count)
 {
-    std::vector<column_info> res;
-    res.reserve(count);
-
-    for (size_t i = 0; i < count; ++i)
-    {
-        column_info column{columns[i]};
-        if (is_timestamp_column(column) && column.type == qdb_ts_column_timestamp)
-        {
-            continue;
-        }
-
-        res.push_back(std::move(column));
-    }
+    std::vector<column_info> res(count);
+    std::transform(columns, columns + count, res.begin(),
+        [](const qdb_ts_column_info_ex_t & ci) { return column_info{ci}; });
 
     return res;
 }
