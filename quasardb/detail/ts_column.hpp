@@ -159,11 +159,6 @@ static inline bool is_timestamp_column(column_info const & column)
 
 static inline void validate_timestamp_column(column_info const & column, std::size_t idx)
 {
-    if (is_timestamp_column(column) == false)
-    {
-        return;
-    }
-
     if (column.type != qdb_ts_column_timestamp) [[unlikely]]
     {
         throw qdb::invalid_argument_exception{"column '" + column.name + "' must have type timestamp"};
@@ -182,20 +177,26 @@ static inline void validate_timestamp_column(column_info const & column, std::si
     }
 }
 
+static inline bool find_timestamp_column(const std::vector<column_info> & columns)
+{
+    for (std::size_t idx = 0; idx < columns.size(); ++idx)
+    {
+        auto const & column = columns[idx];
+        if (!is_timestamp_column(column)) continue;
+
+        validate_timestamp_column(column, idx);
+        return true;
+    }
+    return false;
+}
+
 static inline std::vector<qdb_ts_column_info_ex_t> convert_create_columns_ex(
     const std::vector<column_info> & columns)
 {
     std::vector<qdb_ts_column_info_ex_t> res;
     res.reserve(columns.size() + 1);
 
-    bool has_timestamp_column = false;
-    for (std::size_t idx = 0; idx < columns.size(); ++idx)
-    {
-        auto const & column = columns[idx];
-        validate_timestamp_column(column, idx);
-        has_timestamp_column = has_timestamp_column || is_timestamp_column(column);
-    }
-
+    bool has_timestamp_column = find_timestamp_column(columns);
     if (has_timestamp_column == false)
     {
         res.push_back(qdb_ts_column_info_ex_t{
