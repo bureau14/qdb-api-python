@@ -70,7 +70,7 @@ void cluster::close()
             _handle->close();
         }
     }
-    catch (qdb::invalid_handle_exception const & e)
+    catch (qdb::invalid_handle_exception const & /*e*/)
     {
         // This can happen if, for example, we call close() after an error occured; in those
         // circumstances, we fully expect the connection to already be invalid, and we should
