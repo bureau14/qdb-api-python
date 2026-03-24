@@ -21,42 +21,6 @@ using point_type = typename traits::qdb_value<Type>::point_type;
 template <qdb_ts_column_type_t, concepts::dtype DType>
 struct column_inserter;
 
-#define COLUMN_INSERTER_DECL(CTYPE, DTYPE, VALUE_TYPE, FN)                                  \
-    template <>                                                                             \
-    struct column_inserter<CTYPE, DTYPE>                                                    \
-    {                                                                                       \
-        inline void operator()(handle_ptr handle,                                           \
-            std::string const & table,                                                      \
-            std::string const & column,                                                     \
-            pybind11::array const & timestamps,                                             \
-            qdb::masked_array const & values)                                               \
-        {                                                                                   \
-            handle->check_open();                                                           \
-                                                                                            \
-            qdb::object_tracker::scoped_repository ctx{};                                   \
-            qdb::object_tracker::scoped_capture capture{ctx};                               \
-            numpy::array::ensure<traits::datetime64_ns_dtype>(timestamps);                  \
-            auto xs = convert::point_array<DTYPE, VALUE_TYPE>(timestamps, values);          \
-                                                                                            \
-            qdb::qdb_throw_if_error(                                                        \
-                *handle, FN(*handle, table.c_str(), column.c_str(), xs.data(), xs.size())); \
-        };                                                                                  \
-    };
-
-COLUMN_INSERTER_DECL(qdb_ts_column_int64, traits::int64_dtype, qdb_int_t, qdb_ts_int64_insert);
-COLUMN_INSERTER_DECL(qdb_ts_column_int64, traits::int32_dtype, qdb_int_t, qdb_ts_int64_insert);
-COLUMN_INSERTER_DECL(qdb_ts_column_int64, traits::int16_dtype, qdb_int_t, qdb_ts_int64_insert);
-COLUMN_INSERTER_DECL(qdb_ts_column_double, traits::float64_dtype, double, qdb_ts_double_insert);
-COLUMN_INSERTER_DECL(qdb_ts_column_double, traits::float32_dtype, double, qdb_ts_double_insert);
-
-COLUMN_INSERTER_DECL(
-    qdb_ts_column_timestamp, traits::datetime64_ns_dtype, qdb_timespec_t, qdb_ts_timestamp_insert);
-COLUMN_INSERTER_DECL(qdb_ts_column_string, traits::unicode_dtype, qdb_string_t, qdb_ts_string_insert);
-COLUMN_INSERTER_DECL(qdb_ts_column_blob, traits::pyobject_dtype, qdb_blob_t, qdb_ts_blob_insert);
-COLUMN_INSERTER_DECL(qdb_ts_column_blob, traits::bytestring_dtype, qdb_blob_t, qdb_ts_blob_insert);
-
-#undef COLUMN_INSERTER_DECL
-
 template <qdb_ts_column_type_t ColumnType>
 inline void insert_column_dispatch(handle_ptr handle,
     std::string const & table,
