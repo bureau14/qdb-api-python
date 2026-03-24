@@ -35,7 +35,7 @@ T gen_char()
     std::random_device rd;
     std::mt19937 gen(rd());
 
-    std::uniform_int_distribution<> range_dis(0, n - 1);
+    std::uniform_int_distribution<> range_dis(0, static_cast<int>(n) - 1);
     auto [beg, end] = valid_ranges.at(range_dis(gen));
 
     std::uniform_int_distribution<> char_dis(static_cast<u32_type>(beg), static_cast<u32_type>(end));

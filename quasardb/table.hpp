@@ -253,41 +253,6 @@ private:
     }
 
 public:
-    qdb_uint_t erase_ranges(const std::string & column, py::object ranges);
-
-public:
-    void blob_insert(const std::string & column,
-        const pybind11::array & timestamps,
-        const qdb::masked_array & values);
-    void string_insert(const std::string & column,
-        const pybind11::array & timestamps,
-        qdb::masked_array const & values);
-    void double_insert(const std::string & column,
-        const pybind11::array & timestamps,
-        qdb::masked_array const & values);
-    void int64_insert(const std::string & column,
-        const pybind11::array & timestamps,
-        qdb::masked_array const & values);
-    void timestamp_insert(const std::string & column,
-        const pybind11::array & timestamps,
-        const qdb::masked_array & values);
-
-public:
-    std::pair<pybind11::array, masked_array> blob_get_ranges(
-        const std::string & column, py::object ranges);
-
-    std::pair<pybind11::array, masked_array> string_get_ranges(
-        const std::string & column, py::object ranges);
-
-    std::pair<pybind11::array, masked_array> double_get_ranges(
-        const std::string & column, py::object ranges);
-
-    std::pair<pybind11::array, masked_array> int64_get_ranges(
-        const std::string & column, py::object ranges);
-
-    std::pair<pybind11::array, masked_array> timestamp_get_ranges(
-        const std::string & column, py::object ranges);
-
     py::object subscribe(py::object conn)
     {
         auto firehose = py::module::import("quasardb.firehose");
@@ -351,29 +316,7 @@ static inline void register_table(Module & m)
             py::arg("batch_size")   = std::size_t{0},             //
             py::arg("ranges")       = std::vector<py::tuple>{})
 
-        .def("subscribe", &qdb::table::subscribe)
-        .def("erase_ranges", &qdb::table::erase_ranges)
-        .def("blob_insert", &qdb::table::blob_insert)
-        .def("string_insert", &qdb::table::string_insert)
-        .def("double_insert", &qdb::table::double_insert)
-        .def("int64_insert", &qdb::table::int64_insert)
-        .def("timestamp_insert", &qdb::table::timestamp_insert)
-
-        .def("blob_get_ranges", &qdb::table::blob_get_ranges, //
-            py::arg("column"),                                //
-            py::arg("ranges") = py::none{})
-        .def("string_get_ranges", &qdb::table::string_get_ranges, //
-            py::arg("column"),                                    //
-            py::arg("ranges") = py::none{})
-        .def("double_get_ranges", &qdb::table::double_get_ranges, //
-            py::arg("column"),                                    //
-            py::arg("ranges") = py::none{})
-        .def("int64_get_ranges", &qdb::table::int64_get_ranges, //
-            py::arg("column"),                                  //
-            py::arg("ranges") = py::none{})
-        .def("timestamp_get_ranges", &qdb::table::timestamp_get_ranges, //
-            py::arg("column"),                                          //
-            py::arg("ranges") = py::none{});
+        .def("subscribe", &qdb::table::subscribe);
 }
 
 } // namespace qdb
