@@ -231,6 +231,7 @@ def test_push_truncate_explicit_range(qdbd_connection, table, many_intervals):
     data = _generate_data(len(many_intervals))
     # (doubles, integers, blobs, strings, timestamps) = data
     (doubles, _, _, _, _, _) = data
+    whole_range = (many_intervals[0], many_intervals[-1:][0] + np.timedelta64(2, "s"))
 
     inserter = qdbd_connection.inserter(_make_inserter_info(table))
 

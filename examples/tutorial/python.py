@@ -1,6 +1,7 @@
 # import-start
 import json
 import quasardb
+import quasardb.numpy as qdbnp
 import numpy as np
 
 # import-end
@@ -152,10 +153,15 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
         dtype="datetime64[ns]",
     )
 
-    # When inserting, we provide the value arrays en timestamp arrays separately.
-    t.double_insert("open", timestamps, opens)
-    t.double_insert("close", timestamps, closes)
-    t.int64_insert("volume", timestamps, volumes)
+    # When inserting, we provide the value arrays and timestamp arrays using the
+    # numpy helper functions.
+    qdbnp.write_arrays(
+        {"open": opens, "close": closes, "volume": volumes},
+        c,
+        t,
+        index=timestamps,
+        infer_types=False,
+    )
 
     # column-insert-end
 
@@ -171,9 +177,9 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
     )
 
     # As with insertion, our API works with native numpy arrays and returns the results as such.
-    (timestamps1, opens) = t.double_get_ranges("open", intervals)
-    (timestamps2, closes) = t.double_get_ranges("close", intervals)
-    (timestamps3, volumes) = t.int64_get_ranges("volume", intervals)
+    (timestamps1, opens) = qdbnp.read_array(t, "open", intervals)
+    (timestamps2, closes) = qdbnp.read_array(t, "close", intervals)
+    (timestamps3, volumes) = qdbnp.read_array(t, "volume", intervals)
 
     # For this specific dataset, timestamps1 == timestamps2 == timestamps3, but
     # this does not necessarily have to be the case.

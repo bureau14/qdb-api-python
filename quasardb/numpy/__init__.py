@@ -599,6 +599,23 @@ def _concat_masked(xs: List[MaskedArrayAny]) -> MaskedArrayAny:
     return ma.concatenate(xs)
 
 
+def _coerce_ranges(ranges: Any) -> Any:
+    if ranges is None:
+        return None
+
+    if isinstance(ranges, np.ndarray):
+        if ranges.ndim != 2 or ranges.shape[1] != 2:
+            raise TypeError(
+                "ranges numpy array is expected to have shape (n, 2), got {}".format(
+                    ranges.shape
+                )
+            )
+
+        return [tuple(r) for r in ranges.tolist()]
+
+    return ranges
+
+
 def read_array(
     table: Optional[Table] = None, column: Optional[str] = None, ranges: Any = None
 ) -> Tuple[NDArrayTime, MaskedArrayAny]:
@@ -611,6 +628,7 @@ def read_array(
     _column_info_by_name(table, column)
 
     reader_kwargs: Dict[str, Any] = {"column_names": [column], "batch_size": 0}
+    ranges = _coerce_ranges(ranges)
     if ranges is not None:
         reader_kwargs["ranges"] = ranges
 

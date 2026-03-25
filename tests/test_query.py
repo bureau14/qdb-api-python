@@ -276,7 +276,11 @@ def test_supports_all_column_types(
         assert col == column_name
         np.testing.assert_array_equal(xs, inserted_data[1])
     elif query_handler == "dict":
-        res = qdbd_connection.query(query)
+        query_kwargs = {}
+        if value_type == "blob":
+            query_kwargs["blobs"] = [column_name]
+
+        res = qdbd_connection.query(query, **query_kwargs)
         assert len(res) == len(inserted_data[1])
 
         for i in range(len(res)):
@@ -410,10 +414,23 @@ def test_returns_inserted_multi_data_with_star_select(
     qdbd_connection, table, intervals
 ):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(qdbd_connection, table, start_time, 100)
-    inserted_blob_data = _insert_blob_points(qdbd_connection, table, start_time, 100)
-    inserted_int64_data = _insert_int64_points(qdbd_connection, table, start_time, 100)
-    inserted_timestamp_data = _insert_timestamp_points(qdbd_connection, table, start_time, 100)
+    inserted_double_data = tslib._generate_double_ts(start_time, 100)
+    inserted_blob_data = tslib._generate_blob_ts(start_time, 100)
+    inserted_int64_data = tslib._generate_int64_ts(start_time, 100)
+    inserted_timestamp_data = tslib._generate_timestamp_ts(start_time, start_time, 100)
+
+    qdbnp.write_arrays(
+        {
+            tslib._double_col_name(table): inserted_double_data[1],
+            tslib._blob_col_name(table): inserted_blob_data[1],
+            tslib._int64_col_name(table): inserted_int64_data[1],
+            tslib._ts_col_name(table): inserted_timestamp_data[1],
+        },
+        qdbd_connection,
+        table,
+        index=inserted_double_data[0],
+        infer_types=True,
+    )
 
     query = (
         'select * from "'
