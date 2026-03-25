@@ -11,18 +11,13 @@ def _extend_cluster(x: Any) -> None:
         return
 
     original_table: Callable[..., Any] = x.table
-    original_ts: Callable[..., Any] = x.ts
 
     def table_with_cluster(self: Any, *args: Any, **kwargs: Any) -> Any:
         table = original_table(self, *args, **kwargs)
         return table_cache.register_cluster(table, self)
 
-    def ts_with_cluster(self: Any, *args: Any, **kwargs: Any) -> Any:
-        table = original_ts(self, *args, **kwargs)
-        return table_cache.register_cluster(table, self)
-
     x.table = table_with_cluster
-    x.ts = ts_with_cluster
+    x.ts = table_with_cluster
     x._qdb_cluster_extended = True
 
 

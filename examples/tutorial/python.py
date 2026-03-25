@@ -177,14 +177,12 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
     )
 
     # As with insertion, our API works with native numpy arrays and returns the results as such.
-    (timestamps1, opens) = qdbnp.read_array(t, "open", intervals)
-    (timestamps2, closes) = qdbnp.read_array(t, "close", intervals)
-    (timestamps3, volumes) = qdbnp.read_array(t, "volume", intervals)
-
-    # For this specific dataset, timestamps1 == timestamps2 == timestamps3, but
-    # this does not necessarily have to be the case.
-    np.testing.assert_array_equal(timestamps1, timestamps2)
-    np.testing.assert_array_equal(timestamps1, timestamps3)
+    (timestamps, columns) = qdbnp.read_arrays(
+        t, columns=["open", "close", "volume"], ranges=intervals
+    )
+    opens = columns["open"]
+    closes = columns["close"]
+    volumes = columns["volume"]
 
     # column-get-end
 

@@ -584,14 +584,6 @@ def ensure_ma(
     return _ensure_ma(xs, dtype)
 
 
-def _column_info_by_name(table: Table, column: str) -> Tuple[str, quasardb.ColumnType]:
-    for cinfo in table.list_columns():
-        if cinfo.name == column:
-            return (cinfo.name, cinfo.type)
-
-    raise KeyError("Column not found: {}".format(column))
-
-
 def _column_infos_by_names(
     table: Table, columns: Optional[Sequence[str]]
 ) -> List[Tuple[str, quasardb.ColumnType]]:
@@ -743,7 +735,7 @@ def write_array(
     if index is None:
         raise RuntimeError("An index numpy timestamp array is required.")
 
-    _column_info_by_name(table, column)
+    _column_infos_by_names(table, [column])
     cluster = table_cache.cluster_for(table)
 
     write_arrays(
