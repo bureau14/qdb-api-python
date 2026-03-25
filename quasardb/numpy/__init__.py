@@ -704,7 +704,7 @@ def write_array(
     _column_info_by_name(table, column)
     cluster = table_cache.cluster_for(table)
 
-    return write_arrays(
+    write_arrays(
         {column: data},
         cluster,
         table,
