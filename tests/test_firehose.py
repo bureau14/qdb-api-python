@@ -92,7 +92,11 @@ def test_subscribe_single_table(qdbd_connection, table, many_intervals):
         many_intervals_.append(x + np.timedelta64(365, "D"))
 
     doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
-        inserter, table, many_intervals_, batchlib._regular_push
+        inserter,
+        table,
+        many_intervals_,
+        batchlib._regular_push,
+        expect_empty_before_push=False,
     )
 
     # Note that we only reset `offset`; since we just inserted exactly double

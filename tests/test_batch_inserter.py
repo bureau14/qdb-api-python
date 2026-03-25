@@ -110,7 +110,14 @@ def _assert_results(table, intervals, data):
     np.testing.assert_array_equal(results[1], symbols)
 
 
-def _test_with_table(inserter, table, intervals, push_method=_regular_push, data=None):
+def _test_with_table(
+    inserter,
+    table,
+    intervals,
+    push_method=_regular_push,
+    data=None,
+    expect_empty_before_push=True,
+):
 
     if data is None:
         data = _generate_data(len(intervals))
@@ -119,24 +126,25 @@ def _test_with_table(inserter, table, intervals, push_method=_regular_push, data
 
     _set_batch_inserter_data(inserter, intervals, data)
 
-    # before the push, there is nothing
-    results = qdbnp.read_array(table, tslib._double_col_name(table))
-    assert len(results[0]) == 0
+    if expect_empty_before_push:
+        # before the push, there is nothing
+        results = qdbnp.read_array(table, tslib._double_col_name(table))
+        assert len(results[0]) == 0
 
-    results = qdbnp.read_array(table, tslib._blob_col_name(table))
-    assert len(results[0]) == 0
+        results = qdbnp.read_array(table, tslib._blob_col_name(table))
+        assert len(results[0]) == 0
 
-    results = qdbnp.read_array(table, tslib._string_col_name(table))
-    assert len(results[0]) == 0
+        results = qdbnp.read_array(table, tslib._string_col_name(table))
+        assert len(results[0]) == 0
 
-    results = qdbnp.read_array(table, tslib._int64_col_name(table))
-    assert len(results[0]) == 0
+        results = qdbnp.read_array(table, tslib._int64_col_name(table))
+        assert len(results[0]) == 0
 
-    results = qdbnp.read_array(table, tslib._ts_col_name(table))
-    assert len(results[0]) == 0
+        results = qdbnp.read_array(table, tslib._ts_col_name(table))
+        assert len(results[0]) == 0
 
-    results = qdbnp.read_array(table, tslib._symbol_col_name(table))
-    assert len(results[0]) == 0
+        results = qdbnp.read_array(table, tslib._symbol_col_name(table))
+        assert len(results[0]) == 0
 
     # after push, there is everything
     push_method(inserter)
