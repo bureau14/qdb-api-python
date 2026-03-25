@@ -656,7 +656,9 @@ def read_arrays(
         reader_kwargs["ranges"] = ranges
 
     idx_batches: List[NDArrayTime] = []
-    value_batches: Dict[str, List[MaskedArrayAny]] = {cname: [] for cname in column_names}
+    value_batches: Dict[str, List[MaskedArrayAny]] = {
+        cname: [] for cname in column_names
+    }
 
     with table.reader(**reader_kwargs) as reader:
         for batch in reader:
@@ -672,7 +674,9 @@ def read_arrays(
         )
 
     if len(idx_batches) == 1:
-        return idx_batches[0], {cname: value_batches[cname][0] for cname in column_names}
+        return idx_batches[0], {
+            cname: value_batches[cname][0] for cname in column_names
+        }
 
     return np.concatenate(idx_batches), {
         cname: _concat_masked(batches) for (cname, batches) in value_batches.items()
