@@ -2,15 +2,21 @@
 import pytest
 import quasardb
 import numpy as np
+import quasardb.numpy as qdbnp
 import test_table as tslib
 import time
 import datetime
 
 
-def _insert_double_points(table, start_time, points=10):
+def _insert_double_points(qdbd_connection, table, start_time, points=10):
     inserted_double_data = tslib._generate_double_ts(start_time, points)
-    table.double_insert(
-        tslib._double_col_name(table), inserted_double_data[0], inserted_double_data[1]
+    qdbnp.write_arrays(
+        {tslib._double_col_name(table): inserted_double_data[1]},
+        qdbd_connection,
+        table,
+        index=inserted_double_data[0],
+        dtype={tslib._double_col_name(table): inserted_double_data[1].dtype},
+        infer_types=False,
     )
     return inserted_double_data
 
@@ -72,7 +78,7 @@ def _test_against_table(res, table, data):
 @pytest.mark.skip(reason="Flaky test -- tracked in QDB-14766 in shortcut")
 def test_returns_rows_full(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(table, start_time, 1)
+    inserted_double_data = _insert_double_points(qdbd_connection, table, start_time, 1)
     q = 'select * from "' + table.get_name() + '"'
     cont = qdbd_connection.query_continuous_full(
         q, datetime.timedelta(milliseconds=100)
@@ -85,7 +91,7 @@ def test_returns_rows_full(qdbd_connection, table, intervals):
 @pytest.mark.skip(reason="Flaky test -- tracked in QDB-14766 in shortcut")
 def test_returns_rows_full_probe(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(table, start_time, 1)
+    inserted_double_data = _insert_double_points(qdbd_connection, table, start_time, 1)
     q = 'select * from "' + table.get_name() + '"'
     cont = qdbd_connection.query_continuous_full(
         q, datetime.timedelta(milliseconds=100)
@@ -100,7 +106,7 @@ def test_returns_rows_full_probe(qdbd_connection, table, intervals):
 @pytest.mark.skip(reason="Flaky test -- tracked in QDB-14766 in shortcut")
 def test_returns_rows_full_iterator(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(table, start_time, 1)
+    inserted_double_data = _insert_double_points(qdbd_connection, table, start_time, 1)
     q = 'select * from "' + table.get_name() + '"'
     cont = qdbd_connection.query_continuous_full(
         q, datetime.timedelta(milliseconds=100)
@@ -114,7 +120,7 @@ def test_returns_rows_full_iterator(qdbd_connection, table, intervals):
 @pytest.mark.skip(reason="Flaky test -- tracked in QDB-14766 in shortcut")
 def test_returns_rows_new_values(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(table, start_time, 1)
+    inserted_double_data = _insert_double_points(qdbd_connection, table, start_time, 1)
     q = 'select * from "' + table.get_name() + '"'
     cont = qdbd_connection.query_continuous_new_values(
         q, datetime.timedelta(milliseconds=100)
@@ -127,7 +133,7 @@ def test_returns_rows_new_values(qdbd_connection, table, intervals):
 @pytest.mark.skip(reason="Flaky test -- tracked in QDB-14766 in shortcut")
 def test_returns_rows_new_values_probe(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(table, start_time, 1)
+    inserted_double_data = _insert_double_points(qdbd_connection, table, start_time, 1)
     q = 'select * from "' + table.get_name() + '"'
     cont = qdbd_connection.query_continuous_new_values(
         q, datetime.timedelta(milliseconds=100)
@@ -142,7 +148,7 @@ def test_returns_rows_new_values_probe(qdbd_connection, table, intervals):
 @pytest.mark.skip(reason="Flaky test -- tracked in QDB-14766 in shortcut")
 def test_returns_rows_new_value_iterator(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(table, start_time, 1)
+    inserted_double_data = _insert_double_points(qdbd_connection, table, start_time, 1)
     q = 'select * from "' + table.get_name() + '"'
     cont = qdbd_connection.query_continuous_new_values(
         q, datetime.timedelta(milliseconds=100)
@@ -171,7 +177,7 @@ def __wait_for(cont, f, max_ticks=10):
 @pytest.mark.skip(reason="Flaky test -- tracked in QDB-14766 in shortcut")
 def test_returns_rows_full_value_iterator_multiple(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(table, start_time, 1)
+    inserted_double_data = _insert_double_points(qdbd_connection, table, start_time, 1)
     q = 'select * from "' + table.get_name() + '"'
     cont = qdbd_connection.query_continuous_full(
         q, datetime.timedelta(milliseconds=100)
@@ -180,7 +186,7 @@ def test_returns_rows_full_value_iterator_multiple(qdbd_connection, table, inter
     assert True is __wait_for(cont, lambda x: len(x) == 1)
 
     start_time += np.timedelta64(1, "m")
-    inserted_double_data = _insert_double_points(table, start_time, 1)
+    inserted_double_data = _insert_double_points(qdbd_connection, table, start_time, 1)
 
     assert True is __wait_for(cont, lambda x: len(x) == 2)
 
@@ -188,7 +194,7 @@ def test_returns_rows_full_value_iterator_multiple(qdbd_connection, table, inter
 @pytest.mark.skip(reason="Flaky test -- tracked in QDB-14766 in shortcut")
 def test_returns_rows_new_value_iterator_multiple(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(table, start_time, 1)
+    inserted_double_data = _insert_double_points(qdbd_connection, table, start_time, 1)
     q = 'select * from "' + table.get_name() + '"'
     cont = qdbd_connection.query_continuous_new_values(
         q, datetime.timedelta(milliseconds=100)
@@ -197,6 +203,6 @@ def test_returns_rows_new_value_iterator_multiple(qdbd_connection, table, interv
     assert True is __wait_for(cont, lambda x: len(x) == 1)
 
     start_time += np.timedelta64(1, "m")
-    inserted_double_data = _insert_double_points(table, start_time, 1)
+    inserted_double_data = _insert_double_points(qdbd_connection, table, start_time, 1)
 
     assert True is __wait_for(cont, lambda x: len(x) == 1)

@@ -122,7 +122,7 @@ def gen_series(start_time, count):
     }
 
 
-def test_series_read_write(series_with_table):
+def test_series_read_write(qdbd_connection, series_with_table):
     (ctype, dtype, series, table) = series_with_table
 
     col = table.column_id_by_index(0)

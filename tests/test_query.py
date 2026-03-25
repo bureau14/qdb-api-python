@@ -2,48 +2,73 @@
 import pytest
 import quasardb
 import numpy as np
+import quasardb.numpy as qdbnp
 
 import test_table as tslib
 
 
-def _insert_double_points(table, start_time, points=10):
+def _insert_double_points(qdbd_connection, table, start_time, points=10):
     inserted_double_data = tslib._generate_double_ts(start_time, points)
-    table.double_insert(
-        tslib._double_col_name(table), inserted_double_data[0], inserted_double_data[1]
+    qdbnp.write_arrays(
+        {tslib._double_col_name(table): inserted_double_data[1]},
+        qdbd_connection,
+        table,
+        index=inserted_double_data[0],
+        dtype={tslib._double_col_name(table): inserted_double_data[1].dtype},
+        infer_types=False,
     )
     return inserted_double_data
 
 
-def _insert_blob_points(table, start_time, points=10):
+def _insert_blob_points(qdbd_connection, table, start_time, points=10):
     inserted_blob_data = tslib._generate_blob_ts(start_time, points)
-    table.blob_insert(
-        tslib._blob_col_name(table), inserted_blob_data[0], inserted_blob_data[1]
+    qdbnp.write_arrays(
+        {tslib._blob_col_name(table): inserted_blob_data[1]},
+        qdbd_connection,
+        table,
+        index=inserted_blob_data[0],
+        infer_types=True,
     )
     return inserted_blob_data
 
 
-def _insert_string_points(table, start_time, points=10):
+def _insert_string_points(qdbd_connection, table, start_time, points=10):
     xs = tslib._generate_string_ts(start_time, points)
-    table.string_insert(tslib._string_col_name(table), xs[0], xs[1])
+    qdbnp.write_arrays(
+        {tslib._string_col_name(table): xs[1]},
+        qdbd_connection,
+        table,
+        index=xs[0],
+        dtype={tslib._string_col_name(table): xs[1].dtype},
+        infer_types=False,
+    )
     return xs
 
 
-def _insert_int64_points(table, start_time, points=10):
+def _insert_int64_points(qdbd_connection, table, start_time, points=10):
     inserted_int64_data = tslib._generate_int64_ts(start_time, points)
-    table.int64_insert(
-        tslib._int64_col_name(table), inserted_int64_data[0], inserted_int64_data[1]
+    qdbnp.write_arrays(
+        {tslib._int64_col_name(table): inserted_int64_data[1]},
+        qdbd_connection,
+        table,
+        index=inserted_int64_data[0],
+        dtype={tslib._int64_col_name(table): inserted_int64_data[1].dtype},
+        infer_types=False,
     )
     return inserted_int64_data
 
 
-def _insert_timestamp_points(table, start_time, points=10):
+def _insert_timestamp_points(qdbd_connection, table, start_time, points=10):
     inserted_timestamp_data = tslib._generate_timestamp_ts(
         start_time, start_time, points
     )
-    table.timestamp_insert(
-        tslib._ts_col_name(table),
-        inserted_timestamp_data[0],
-        inserted_timestamp_data[1],
+    qdbnp.write_arrays(
+        {tslib._ts_col_name(table): inserted_timestamp_data[1]},
+        qdbd_connection,
+        table,
+        index=inserted_timestamp_data[0],
+        dtype={tslib._ts_col_name(table): inserted_timestamp_data[1].dtype},
+        infer_types=False,
     )
     return inserted_timestamp_data
 
@@ -66,7 +91,9 @@ point_inserter_by_type = {
 }
 
 
-def _insert_points(value_type, table, start_time=None, intervals=None, points=10):
+def _insert_points(
+    qdbd_connection, value_type, table, start_time=None, intervals=None, points=10
+):
     if start_time is None:
         assert intervals is not None
         start_time = tslib._start_time(intervals)
@@ -74,7 +101,7 @@ def _insert_points(value_type, table, start_time=None, intervals=None, points=10
     assert start_time is not None
 
     fn = point_inserter_by_type[value_type]
-    return fn(table, start_time, points)
+    return fn(qdbd_connection, table, start_time, points)
 
 
 def _column_name(table, value_type):
@@ -169,7 +196,7 @@ def test_returns_empty_result(qdbd_connection, table):
 
 def test_returns_table_as_string(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(table, start_time, 10)
+    inserted_double_data = _insert_double_points(qdbd_connection, table, start_time, 10)
     query = (
         'select * from "'
         + table.get_name()
@@ -187,7 +214,7 @@ def test_returns_table_as_string(qdbd_connection, table, intervals):
 
 def test_returns_table_as_blob(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(table, start_time, 10)
+    inserted_double_data = _insert_double_points(qdbd_connection, table, start_time, 10)
     query = (
         'select * from "'
         + table.get_name()
@@ -205,7 +232,7 @@ def test_returns_table_as_blob(qdbd_connection, table, intervals):
 
 def test_returns_inserted_data_with_star_select(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(table, start_time, 10)
+    inserted_double_data = _insert_double_points(qdbd_connection, table, start_time, 10)
     query = (
         'select * from "'
         + table.get_name()
@@ -234,7 +261,7 @@ def test_returns_inserted_data_with_star_select(qdbd_connection, table, interval
 def test_supports_all_column_types(
     value_type, query_handler, qdbd_connection, table, intervals
 ):
-    inserted_data = _insert_points(value_type, table, intervals=intervals)
+    inserted_data = _insert_points(qdbd_connection, value_type, table, intervals=intervals)
     column_name = _column_name(table, value_type)
     query = 'SELECT "{}" FROM "{}"'.format(column_name, table.get_name())
 
@@ -278,7 +305,7 @@ def test_query_handler_benchmark(
         raise RuntimeError("Unrecognized query handler: {}".format(query_handler))
 
     inserted_data = _insert_points(
-        value_type, table, intervals=intervals, points=row_count
+        qdbd_connection, value_type, table, intervals=intervals, points=row_count
     )
     column_name = _column_name(table, value_type)
     query = 'SELECT "{}" FROM "{}"'.format(column_name, table.get_name())
@@ -288,7 +315,7 @@ def test_query_handler_benchmark(
 
 def test_returns_inserted_data_with_column_select(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(table, start_time, 10)
+    inserted_double_data = _insert_double_points(qdbd_connection, table, start_time, 10)
     query = (
         "select "
         + tslib._double_col_name(table)
@@ -315,7 +342,7 @@ def test_returns_inserted_data_with_column_select(qdbd_connection, table, interv
 
 def test_returns_inserted_data_with_specific_select(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(table, start_time, 10)
+    inserted_double_data = _insert_double_points(qdbd_connection, table, start_time, 10)
     query = (
         "select $timestamp, $table, "
         + tslib._double_col_name(table)

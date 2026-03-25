@@ -582,6 +582,23 @@ def ensure_ma(
     return _ensure_ma(xs, dtype)
 
 
+def _column_info_by_name(table: Table, column: str) -> Tuple[str, quasardb.ColumnType]:
+    for cinfo in table.list_columns():
+        if cinfo.name == column:
+            return (cinfo.name, cinfo.type)
+
+    raise KeyError("Column not found: {}".format(column))
+
+
+def _concat_masked(xs: List[MaskedArrayAny]) -> MaskedArrayAny:
+    if len(xs) == 0:
+        return ma.masked_array(np.array([]))
+    if len(xs) == 1:
+        return xs[0]
+
+    return ma.concatenate(xs)
+
+
 def read_array(
     table: Optional[Table] = None, column: Optional[str] = None, ranges: Any = None
 ) -> Tuple[NDArrayTime, MaskedArrayAny]:
@@ -591,24 +608,27 @@ def read_array(
     if column is None:
         raise RuntimeError("A column is required.")
 
-    kwargs: Dict[str, Any] = {"column": column}
+    _column_info_by_name(table, column)
 
+    reader_kwargs: Dict[str, Any] = {"column_names": [column], "batch_size": 0}
     if ranges is not None:
-        kwargs["ranges"] = ranges
+        reader_kwargs["ranges"] = ranges
 
-    read_with = {
-        quasardb.ColumnType.Double: table.double_get_ranges,
-        quasardb.ColumnType.Blob: table.blob_get_ranges,
-        quasardb.ColumnType.String: table.string_get_ranges,
-        quasardb.ColumnType.Symbol: table.string_get_ranges,
-        quasardb.ColumnType.Int64: table.int64_get_ranges,
-        quasardb.ColumnType.Timestamp: table.timestamp_get_ranges,
-    }
+    idx_batches: List[NDArrayTime] = []
+    value_batches: List[MaskedArrayAny] = []
 
-    ctype = table.column_type_by_id(column)
+    with table.reader(**reader_kwargs) as reader:
+        for batch in reader:
+            idx_batches.append(batch["$timestamp"])
+            value_batches.append(batch[column])
 
-    fn = read_with[ctype]
-    return fn(**kwargs)
+    if len(idx_batches) == 0:
+        return (np.array([], dtype=np.dtype("datetime64[ns]")), ma.masked_array(np.array([])))
+
+    if len(idx_batches) == 1:
+        return idx_batches[0], value_batches[0]
+
+    return np.concatenate(idx_batches), _concat_masked(value_batches)
 
 
 def write_array(
@@ -658,51 +678,17 @@ def write_array(
     if index is None:
         raise RuntimeError("An index numpy timestamp array is required.")
 
-    data = ensure_ma(data, dtype=dtype)
-    ctype = table.column_type_by_id(column)
+    _column_info_by_name(table, column)
+    cluster = table_cache.cluster_for(table)
 
-    # We try to reuse some of the other functions, which assume array-like
-    # shapes for column info and data. It's a bit hackish, but actually works
-    # well.
-    #
-    # We should probably generalize this block of code with the same found in
-    # write_arrays().
-
-    cinfos = [(column, ctype)]
-    dtype_: List[Optional[DType]] = [dtype]
-
-    dtype_ = _coerce_dtype(dtype_, cinfos)
-
-    if infer_types is True:
-        dtype_ = _add_desired_dtypes(dtype_, cinfos)
-
-    # data_ = an array of [data]
-    data_ = [data]
-    data_ = _coerce_data(data_, dtype_)
-    _validate_dtypes(data_, cinfos)
-
-    # No functions that assume array-of-data anymore, let's put it back
-    data = data_[0]
-
-    # Dispatch to the correct function
-    write_with = {
-        quasardb.ColumnType.Double: table.double_insert,
-        quasardb.ColumnType.Blob: table.blob_insert,
-        quasardb.ColumnType.String: table.string_insert,
-        quasardb.ColumnType.Symbol: table.string_insert,
-        quasardb.ColumnType.Int64: table.int64_insert,
-        quasardb.ColumnType.Timestamp: table.timestamp_insert,
-    }
-
-    logger.info(
-        "Writing array (%d rows of dtype %s) to columns %s.%s (type %s)",
-        len(data),
-        data.dtype,
-        table.get_name(),
-        column,
-        ctype,
+    return write_arrays(
+        {column: data},
+        cluster,
+        table,
+        dtype={column: dtype},
+        index=index,
+        infer_types=infer_types,
     )
-    write_with[ctype](column, index, data)
 
 
 def write_arrays(

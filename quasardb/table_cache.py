@@ -1,17 +1,24 @@
 import logging
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from quasardb.quasardb import Cluster, Table
+if TYPE_CHECKING:
+    from quasardb.quasardb import Cluster, Table
+else:
+    Cluster = Any
+    Table = Any
 
 logger = logging.getLogger("quasardb.table_cache")
 
 _cache: Dict[str, Table] = {}
+_table_clusters: Dict[int, Cluster] = {}
 
 
 def clear() -> None:
     global _cache
+    global _table_clusters
     logger.info("Clearing table cache")
     _cache = {}
+    _table_clusters = {}
 
 
 def exists(table_name: str) -> bool:
@@ -43,6 +50,23 @@ def store(table: Table, table_name: Optional[str] = None) -> Table:
     return table
 
 
+def register_cluster(table: Table, conn: Cluster) -> Table:
+    _table_clusters[id(table)] = conn
+    return table
+
+
+def cluster_for(table: Table) -> Cluster:
+    key = id(table)
+    if key not in _table_clusters:
+        raise KeyError(
+            "Unable to resolve cluster for table '{}'. Please obtain the table from a Cluster instance.".format(
+                table.get_name()
+            )
+        )
+
+    return _table_clusters[key]
+
+
 def lookup(table_name: str, conn: Cluster) -> Table:
     """
     Retrieves table from _cache if already exists. If it does not exist,
@@ -52,9 +76,9 @@ def lookup(table_name: str, conn: Cluster) -> Table:
     metadata is
     """
     if exists(table_name):
-        return _cache[table_name]
+        return register_cluster(_cache[table_name], conn)
 
     logger.debug("table %s not yet found, looking up", table_name)
     table = conn.table(table_name)
 
-    return store(table, table_name)
+    return register_cluster(store(table, table_name), conn)

@@ -89,31 +89,6 @@ def test_get_ttl_throws_when_table_does_not_exist(qdbd_connection, entry_name):
         table.get_ttl()
 
 
-def test_insert_throws_when_timeseries_does_not_exist(qdbd_connection, entry_name):
-    table = qdbd_connection.table(entry_name)
-
-    with pytest.raises(quasardb.AliasNotFoundError):
-        table.double_insert(
-            "the_double", np.array(np.datetime64("2011-01-01", "ns")), np.array([1.0])
-        )
-
-
-def test_get_ranges_throws_when_timeseries_does_not_exist(
-    qdbd_connection, entry_name, intervals
-):
-    table = qdbd_connection.table(entry_name)
-    with pytest.raises(quasardb.AliasNotFoundError):
-        table.double_get_ranges("blah", intervals)
-
-
-def test_erase_ranges_throw_when_timeseries_does_not_exist(
-    qdbd_connection, entry_name, intervals
-):
-    table = qdbd_connection.table(entry_name)
-    with pytest.raises(quasardb.AliasNotFoundError):
-        table.erase_ranges("blah", intervals)
-
-
 def test_create_without_columns(qdbd_connection, entry_name):
     table = qdbd_connection.table(entry_name)
     table.create([])

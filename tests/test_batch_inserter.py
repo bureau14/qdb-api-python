@@ -8,6 +8,7 @@ from time import sleep
 import pytest
 import quasardb
 import numpy as np
+import quasardb.numpy as qdbnp
 
 
 def _row_insertion_method(
@@ -83,29 +84,28 @@ def _set_batch_inserter_data(inserter, intervals, data, start=0):
 def _assert_results(table, intervals, data):
     (doubles, integers, blobs, strings, timestamps, symbols) = data
 
-    whole_range = (intervals[0], intervals[-1:][0] + np.timedelta64(2, "s"))
-    results = table.double_get_ranges(tslib._double_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._double_col_name(table))
 
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], doubles)
 
-    results = table.blob_get_ranges(tslib._blob_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._blob_col_name(table))
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], blobs)
 
-    results = table.string_get_ranges(tslib._string_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._string_col_name(table))
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], strings)
 
-    results = table.int64_get_ranges(tslib._int64_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._int64_col_name(table))
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], integers)
 
-    results = table.timestamp_get_ranges(tslib._ts_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._ts_col_name(table))
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], timestamps)
 
-    results = table.string_get_ranges(tslib._symbol_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._symbol_col_name(table))
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], symbols)
 
@@ -115,30 +115,27 @@ def _test_with_table(inserter, table, intervals, push_method=_regular_push, data
     if data is None:
         data = _generate_data(len(intervals))
 
-    # range is right exclusive, so the timestamp has to be beyond
-    whole_range = (intervals[0], intervals[-1:][0] + np.timedelta64(2, "s"))
-
     (doubles, integers, blobs, strings, timestamps, symbols) = data
 
     _set_batch_inserter_data(inserter, intervals, data)
 
     # before the push, there is nothing
-    results = table.double_get_ranges(tslib._double_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._double_col_name(table))
     assert len(results[0]) == 0
 
-    results = table.blob_get_ranges(tslib._blob_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._blob_col_name(table))
     assert len(results[0]) == 0
 
-    results = table.string_get_ranges(tslib._string_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._string_col_name(table))
     assert len(results[0]) == 0
 
-    results = table.int64_get_ranges(tslib._int64_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._int64_col_name(table))
     assert len(results[0]) == 0
 
-    results = table.timestamp_get_ranges(tslib._ts_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._ts_col_name(table))
     assert len(results[0]) == 0
 
-    results = table.string_get_ranges(tslib._symbol_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._symbol_col_name(table))
     assert len(results[0]) == 0
 
     # after push, there is everything
@@ -191,8 +188,6 @@ def test_failed_local_table_with_wrong_columns(qdbd_connection, entry_name):
 
 def test_push_truncate_implicit_range(qdbd_connection, table, many_intervals):
 
-    whole_range = (many_intervals[0], many_intervals[-1:][0] + np.timedelta64(2, "s"))
-
     # Generate our dataset
     data = _generate_data(len(many_intervals))
     # (doubles, integers, blobs, strings, timestamps) = data
@@ -204,7 +199,7 @@ def test_push_truncate_implicit_range(qdbd_connection, table, many_intervals):
     inserter.push()
 
     # Compare results, should be equal
-    results = table.double_get_ranges(tslib._double_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._double_col_name(table))
 
     np.testing.assert_array_equal(results[0], many_intervals)
     np.testing.assert_array_equal(results[1], doubles)
@@ -214,7 +209,7 @@ def test_push_truncate_implicit_range(qdbd_connection, table, many_intervals):
     inserter.push()
 
     # Compare results, should now have the same data twice
-    results = table.double_get_ranges(tslib._double_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._double_col_name(table))
 
     assert len(results[1]) == 2 * len(doubles)
 
@@ -224,15 +219,13 @@ def test_push_truncate_implicit_range(qdbd_connection, table, many_intervals):
 
     # Verify results, truncating should now make things the same
     # as the beginning again.
-    results = table.double_get_ranges(tslib._double_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._double_col_name(table))
 
     np.testing.assert_array_equal(results[0], many_intervals)
     np.testing.assert_array_equal(results[1], doubles)
 
 
 def test_push_truncate_explicit_range(qdbd_connection, table, many_intervals):
-
-    whole_range = (many_intervals[0], many_intervals[-1:][0] + np.timedelta64(2, "s"))
 
     # Generate our dataset
     data = _generate_data(len(many_intervals))
@@ -249,7 +242,7 @@ def test_push_truncate_explicit_range(qdbd_connection, table, many_intervals):
 
     # Verify results, truncating should now make things the same
     # as the beginning again.
-    results = table.double_get_ranges(tslib._double_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._double_col_name(table))
 
     np.testing.assert_array_equal(results[0], many_intervals)
     np.testing.assert_array_equal(results[1], doubles)
@@ -262,7 +255,7 @@ def test_push_truncate_explicit_range(qdbd_connection, table, many_intervals):
 
     # Verify results, truncating should now make things the same
     # as the beginning again.
-    results = table.double_get_ranges(tslib._double_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._double_col_name(table))
 
     np.testing.assert_array_equal(results[0], many_intervals[1:])
     np.testing.assert_array_equal(results[1], doubles[1:])

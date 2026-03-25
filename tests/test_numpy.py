@@ -40,10 +40,9 @@ def _unicode_to_object_array(xs):
 
 
 @conftest.override_cdtypes("native")
-def test_array_read_write_native_dtypes(array_with_index_and_table):
+def test_array_read_write_native_dtypes(qdbd_connection, array_with_index_and_table):
     """
     * qdbnp.write_array()
-    * => qdb_ts_*_insert
     * => no conversion
     """
     (ctype, dtype, data, index, table) = array_with_index_and_table
@@ -57,10 +56,9 @@ def test_array_read_write_native_dtypes(array_with_index_and_table):
 
 
 @conftest.override_cdtypes("inferrable")
-def test_array_read_write_inferrable_dtypes(array_with_index_and_table):
+def test_array_read_write_inferrable_dtypes(qdbd_connection, array_with_index_and_table):
     """
     * qdbnp.write_array()
-    * => qdb_ts_*_insert
     * => conversion in python
     """
     (ctype, dtype, data, index, table) = array_with_index_and_table
@@ -73,7 +71,7 @@ def test_array_read_write_inferrable_dtypes(array_with_index_and_table):
 
 
 @conftest.override_cdtypes("native")
-def test_arrays_read_write_native_dtypes(array_with_index_and_table, qdbd_connection):
+def test_arrays_read_write_native_dtypes(qdbd_connection, array_with_index_and_table):
     """
     * qdbnp.write_arrays()
     * => pinned writer
@@ -99,7 +97,7 @@ def test_arrays_read_write_native_dtypes(array_with_index_and_table, qdbd_connec
 
 @conftest.override_cdtypes("inferrable")
 def test_arrays_read_write_inferrable_dtypes(
-    array_with_index_and_table, qdbd_connection
+    qdbd_connection, array_with_index_and_table
 ):
     """
     * qdbnp.write_arrays()
@@ -117,7 +115,7 @@ def test_arrays_read_write_inferrable_dtypes(
 
 
 @conftest.override_cdtypes("native")
-def test_arrays_read_write_data_as_dict(array_with_index_and_table, qdbd_connection):
+def test_arrays_read_write_data_as_dict(qdbd_connection, array_with_index_and_table):
     """
     * qdbnp.write_arrays()
     * => pinned writer
@@ -142,7 +140,7 @@ def test_arrays_read_write_data_as_dict(array_with_index_and_table, qdbd_connect
 
 
 @conftest.override_cdtypes("native")
-def test_provide_index_as_dict(array_with_index_and_table, qdbd_connection):
+def test_provide_index_as_dict(qdbd_connection, array_with_index_and_table):
     """
     For convenience, we allow the `$timestamp` index also to provided as a dict
     key.
@@ -168,7 +166,7 @@ def test_provide_index_as_dict(array_with_index_and_table, qdbd_connection):
 
 @conftest.override_cdtypes("native")
 def test_provide_index_as_dict_has_no_side_effects_sc16279(
-    array_with_index_and_table, qdbd_connection
+    qdbd_connection, array_with_index_and_table
 ):
     """
     In earlier versions of the API, we `pop`'ed the $timestamp from the provided dict without making a
@@ -297,7 +295,7 @@ def test_arrays_deduplicate(
 
 
 @conftest.override_cdtypes(np.dtype("unicode"))
-def test_string_array_returns_unicode(array_with_index_and_table, qdbd_connection):
+def test_string_array_returns_unicode(qdbd_connection, array_with_index_and_table):
     """
     Validates that our C++ backend encodes unicode variable width arrays correctly.
     This yields significantly better performance than using objects, especially if
@@ -327,7 +325,7 @@ def test_string_array_returns_unicode(array_with_index_and_table, qdbd_connectio
 ######
 
 
-def _prepare_query_test(array_with_index_and_table, qdbd_connection):
+def _prepare_query_test(qdbd_connection, array_with_index_and_table):
     (ctype, dtype, data, index, table) = array_with_index_and_table
 
     col = table.column_id_by_index(0)
@@ -337,27 +335,27 @@ def _prepare_query_test(array_with_index_and_table, qdbd_connection):
     return (data, index, col, q)
 
 
-def test_query_valid_results(array_with_index_and_table, qdbd_connection):
+def test_query_valid_results(qdbd_connection, array_with_index_and_table):
     (data, index, col, q) = _prepare_query_test(
-        array_with_index_and_table, qdbd_connection
+        qdbd_connection, array_with_index_and_table
     )
 
     (idx, res) = qdbnp.query(qdbd_connection, q, index="$timestamp")
     assert_indexed_arrays_equal((index, data), (idx, res[0]))
 
 
-def test_query_unknown_index(array_with_index_and_table, qdbd_connection):
+def test_query_unknown_index(qdbd_connection, array_with_index_and_table):
     (data, index, col, q) = _prepare_query_test(
-        array_with_index_and_table, qdbd_connection
+        qdbd_connection, array_with_index_and_table
     )
 
     with pytest.raises(KeyError):
         qdbnp.query(qdbd_connection, q, index="fooasbsdaog")
 
 
-def test_query_iota_index(array_with_index_and_table, qdbd_connection):
+def test_query_iota_index(qdbd_connection, array_with_index_and_table):
     (data, index, col, q) = _prepare_query_test(
-        array_with_index_and_table, qdbd_connection
+        qdbd_connection, array_with_index_and_table
     )
 
     # Simple test which just ensures when no explicit index is provided,
@@ -370,9 +368,9 @@ def test_query_iota_index(array_with_index_and_table, qdbd_connection):
 
 
 @conftest.override_sparsify("partial")
-def test_query_masked_index(array_with_index_and_table, qdbd_connection):
+def test_query_masked_index(qdbd_connection, array_with_index_and_table):
     (data, index, col, q) = _prepare_query_test(
-        array_with_index_and_table, qdbd_connection
+        qdbd_connection, array_with_index_and_table
     )
 
     with pytest.raises(ValueError):
@@ -380,7 +378,7 @@ def test_query_masked_index(array_with_index_and_table, qdbd_connection):
         qdbnp.query(qdbd_connection, q, index=col)
 
 
-def test_query_empty_result(array_with_index_and_table, qdbd_connection):
+def test_query_empty_result(qdbd_connection, array_with_index_and_table):
     (ctype, dtype, data, index, table) = array_with_index_and_table
 
     q = 'SELECT * FROM "{}"'.format(table.get_name())
@@ -392,7 +390,7 @@ def test_query_empty_result(array_with_index_and_table, qdbd_connection):
 
 @conftest.override_sparsify("none")
 @conftest.override_cdtypes([np.dtype("int64"), np.dtype("float64")])
-def test_query_insert(array_with_index_and_table, qdbd_connection):
+def test_query_insert(qdbd_connection, array_with_index_and_table):
     (ctype, dtype, data, index, table) = array_with_index_and_table
 
     col = table.column_id_by_index(0)
@@ -487,7 +485,7 @@ def test_regression_sc11333(qdbd_connection, table_name, start_date, row_count):
         assert_indexed_arrays_equal((idx, data[i]), res)
 
 
-def test_write_through_flag(arrays_with_index_and_table, qdbd_connection):
+def test_write_through_flag(qdbd_connection, arrays_with_index_and_table):
     (ctype, dtype, data, index, table) = arrays_with_index_and_table
 
     col = table.column_id_by_index(0)

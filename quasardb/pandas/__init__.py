@@ -108,30 +108,9 @@ def read_series(
     ranges : list
       A list of ranges to read, represented as tuples of Numpy datetime64[ns] objects.
     """
-    read_with = {
-        quasardb.ColumnType.Double: table.double_get_ranges,
-        quasardb.ColumnType.Blob: table.blob_get_ranges,
-        quasardb.ColumnType.String: table.string_get_ranges,
-        quasardb.ColumnType.Int64: table.int64_get_ranges,
-        quasardb.ColumnType.Timestamp: table.timestamp_get_ranges,
-        quasardb.ColumnType.Symbol: table.string_get_ranges,
-    }
-
-    kwargs: Dict[str, Any] = {"column": col_name}
-
-    if ranges is not None:
-        kwargs["ranges"] = ranges
-
-    # Dispatch based on column type
-    t = table.column_type_by_id(col_name)
-
-    logger.info(
-        "reading Series from column %s.%s with type %s", table.get_name(), col_name, t
-    )
-
-    res = (read_with[t])(**kwargs)
-
-    return pd.Series(res[1], index=res[0])
+    logger.info("reading Series from column %s.%s", table.get_name(), col_name)
+    index, values = qdbnp.read_array(table=table, column=col_name, ranges=ranges)
+    return pd.Series(values, index=index)
 
 
 def write_series(

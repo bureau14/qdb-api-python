@@ -7,6 +7,7 @@ from time import sleep
 
 import pytest
 import quasardb
+import quasardb.numpy as qdbnp
 import numpy as np
 
 
@@ -399,28 +400,27 @@ def _set_batch_writer_data(writer, table, intervals, data, start=0):
 def _assert_results(table, intervals, data):
     (doubles, integers, blobs, strings, timestamps, symbols) = data
 
-    whole_range = (intervals[0], intervals[-1:][0] + np.timedelta64(2, "s"))
-    results = table.double_get_ranges(tslib._double_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._double_col_name(table))
 
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], doubles)
 
-    results = table.blob_get_ranges(tslib._blob_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._blob_col_name(table))
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], blobs)
 
-    results = table.string_get_ranges(tslib._string_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._string_col_name(table))
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], strings)
 
-    results = table.int64_get_ranges(tslib._int64_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._int64_col_name(table))
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], integers)
 
-    results = table.timestamp_get_ranges(tslib._ts_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._ts_col_name(table))
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], timestamps)
 
-    results = table.string_get_ranges(tslib._symbol_col_name(table), [whole_range])
+    results = qdbnp.read_array(table, tslib._symbol_col_name(table))
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], symbols)
