@@ -122,15 +122,17 @@ _ctype_to_dtype: Dict[quasardb.ColumnType, List[DType]] = {
     quasardb.ColumnType.Symbol: [np.dtype("U")],
     quasardb.ColumnType.Int64: [np.dtype("i8"), np.dtype("i4"), np.dtype("i2")],
     quasardb.ColumnType.Double: [np.dtype("f8"), np.dtype("f4")],
-    quasardb.ColumnType.Blob: [np.dtype("S"), np.dtype("O")],
+    # Prefer Python bytes objects for blobs. Fixed-width numpy bytestrings are still
+    # accepted, but auto-converting raw binary payloads with embedded NUL bytes to
+    # dtype("S") may truncate the visible value semantics at the Python layer.
+    quasardb.ColumnType.Blob: [np.dtype("O"), np.dtype("S")],
     quasardb.ColumnType.Timestamp: [np.dtype("datetime64[ns]")],
 }
 
 
 def _best_dtype_for_ctype(ctype: quasardb.ColumnType) -> DType:
     """
-    Returns the 'best' DType for a certain column type. For example, for blobs, even
-    though we accept py::bytes, prefer bytestrings (as they are faster to read in c++).
+    Returns the 'best' DType for a certain column type.
     """
     possible_dtypes = _ctype_to_dtype[ctype]
     assert len(possible_dtypes) > 0
