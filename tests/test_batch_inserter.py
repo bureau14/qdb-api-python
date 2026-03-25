@@ -81,31 +81,35 @@ def _set_batch_inserter_data(inserter, intervals, data, start=0):
         inserter.set_string(5, symbols[i])
 
 
-def _assert_results(table, intervals, data):
+def _assert_results(table, intervals, data, ranges=None):
     (doubles, integers, blobs, strings, timestamps, symbols) = data
 
-    results = qdbnp.read_array(table, tslib._double_col_name(table))
+    read_kwargs = {}
+    if ranges is not None:
+        read_kwargs["ranges"] = ranges
+
+    results = qdbnp.read_array(table, tslib._double_col_name(table), **read_kwargs)
 
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], doubles)
 
-    results = qdbnp.read_array(table, tslib._blob_col_name(table))
+    results = qdbnp.read_array(table, tslib._blob_col_name(table), **read_kwargs)
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], blobs)
 
-    results = qdbnp.read_array(table, tslib._string_col_name(table))
+    results = qdbnp.read_array(table, tslib._string_col_name(table), **read_kwargs)
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], strings)
 
-    results = qdbnp.read_array(table, tslib._int64_col_name(table))
+    results = qdbnp.read_array(table, tslib._int64_col_name(table), **read_kwargs)
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], integers)
 
-    results = qdbnp.read_array(table, tslib._ts_col_name(table))
+    results = qdbnp.read_array(table, tslib._ts_col_name(table), **read_kwargs)
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], timestamps)
 
-    results = qdbnp.read_array(table, tslib._symbol_col_name(table))
+    results = qdbnp.read_array(table, tslib._symbol_col_name(table), **read_kwargs)
     np.testing.assert_array_equal(results[0], intervals)
     np.testing.assert_array_equal(results[1], symbols)
 
@@ -117,6 +121,8 @@ def _test_with_table(
     push_method=_regular_push,
     data=None,
     expect_empty_before_push=True,
+    assert_results_after_push=True,
+    result_ranges=None,
 ):
 
     if data is None:
@@ -151,7 +157,8 @@ def _test_with_table(
     if push_method == _async_push:
         sleep(20)
 
-    _assert_results(table, intervals, data)
+    if assert_results_after_push:
+        _assert_results(table, intervals, data, ranges=result_ranges)
 
     return doubles, blobs, strings, integers, timestamps, symbols
 

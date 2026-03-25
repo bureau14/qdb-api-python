@@ -97,6 +97,9 @@ def test_subscribe_single_table(qdbd_connection, table, many_intervals):
         many_intervals_,
         batchlib._regular_push,
         expect_empty_before_push=False,
+        result_ranges=[
+            (many_intervals_[0], many_intervals_[-1] + np.timedelta64(1, "ns"))
+        ],
     )
 
     # Note that we only reset `offset`; since we just inserted exactly double
