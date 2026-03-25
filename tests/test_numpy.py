@@ -10,6 +10,7 @@ import conftest
 
 import quasardb
 import quasardb.numpy as qdbnp
+import test_table as tslib
 from utils import assert_indexed_arrays_equal, assert_ma_equal
 
 logger = logging.getLogger("test-numpy")
@@ -312,6 +313,103 @@ def test_string_array_returns_unicode(qdbd_connection, array_with_index_and_tabl
 
     (idx, xs) = qdbnp.read_array(table, col)
     assert qdbnp.dtypes_equal(xs.dtype, np.dtype("unicode"))
+
+
+def test_read_arrays_reads_all_columns_when_columns_empty(qdbd_connection, table):
+    index = np.array(
+        [
+            np.datetime64("2017-01-01T00:00:00", "ns"),
+            np.datetime64("2017-01-01T00:00:01", "ns"),
+            np.datetime64("2017-01-01T00:00:02", "ns"),
+        ],
+        dtype=np.dtype("datetime64[ns]"),
+    )
+    doubles = np.array([1.0, 2.0, 3.0], dtype=np.float64)
+    blobs = np.array([b"a\x00b", b"cd", b"ef"], dtype=np.object_)
+    strings = np.array(["content_0", "content_1", "content_2"], dtype=np.dtype("U"))
+    integers = np.array([10, 11, 12], dtype=np.int64)
+    timestamps = np.array(
+        [
+            np.datetime64("2017-01-02T00:00:00", "ns"),
+            np.datetime64("2017-01-02T00:00:01", "ns"),
+            np.datetime64("2017-01-02T00:00:02", "ns"),
+        ],
+        dtype=np.dtype("datetime64[ns]"),
+    )
+    symbols = np.array(["sym_0", "sym_1", "sym_2"], dtype=np.dtype("U"))
+
+    qdbnp.write_arrays(
+        {
+            tslib._double_col_name(table): doubles,
+            tslib._blob_col_name(table): blobs,
+            tslib._string_col_name(table): strings,
+            tslib._int64_col_name(table): integers,
+            tslib._ts_col_name(table): timestamps,
+            tslib._symbol_col_name(table): symbols,
+        },
+        qdbd_connection,
+        table,
+        index=index,
+        infer_types=False,
+        dtype={
+            tslib._double_col_name(table): doubles.dtype,
+            tslib._blob_col_name(table): blobs.dtype,
+            tslib._string_col_name(table): strings.dtype,
+            tslib._int64_col_name(table): integers.dtype,
+            tslib._ts_col_name(table): timestamps.dtype,
+            tslib._symbol_col_name(table): symbols.dtype,
+        },
+    )
+
+    idx, xs = qdbnp.read_arrays(table, columns=[])
+
+    np.testing.assert_array_equal(idx, index)
+    assert list(xs.keys()) == [c.name for c in table.list_columns()]
+    np.testing.assert_array_equal(xs[tslib._double_col_name(table)], doubles)
+    np.testing.assert_array_equal(xs[tslib._blob_col_name(table)], blobs)
+    np.testing.assert_array_equal(xs[tslib._string_col_name(table)], strings)
+    np.testing.assert_array_equal(xs[tslib._int64_col_name(table)], integers)
+    np.testing.assert_array_equal(xs[tslib._ts_col_name(table)], timestamps)
+    np.testing.assert_array_equal(xs[tslib._symbol_col_name(table)], symbols)
+
+
+def test_read_arrays_reads_selected_columns_with_ranges(qdbd_connection, table):
+    index = np.array(
+        [
+            np.datetime64("2017-01-01T00:00:00", "ns"),
+            np.datetime64("2017-01-01T00:00:01", "ns"),
+            np.datetime64("2017-01-01T00:00:02", "ns"),
+            np.datetime64("2017-01-01T00:00:03", "ns"),
+        ],
+        dtype=np.dtype("datetime64[ns]"),
+    )
+    doubles = np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float64)
+    integers = np.array([10, 11, 12, 13], dtype=np.int64)
+
+    qdbnp.write_arrays(
+        {
+            tslib._double_col_name(table): doubles,
+            tslib._int64_col_name(table): integers,
+        },
+        qdbd_connection,
+        table,
+        index=index,
+        infer_types=False,
+        dtype={
+            tslib._double_col_name(table): doubles.dtype,
+            tslib._int64_col_name(table): integers.dtype,
+        },
+    )
+
+    columns = [tslib._double_col_name(table), tslib._int64_col_name(table)]
+    ranges = [(index[1], index[2] + np.timedelta64(1, "ns"))]
+
+    idx, xs = qdbnp.read_arrays(table, columns=columns, ranges=ranges)
+
+    np.testing.assert_array_equal(idx, index[1:3])
+    assert list(xs.keys()) == columns
+    np.testing.assert_array_equal(xs[tslib._double_col_name(table)], doubles[1:3])
+    np.testing.assert_array_equal(xs[tslib._int64_col_name(table)], integers[1:3])
 
 
 ######

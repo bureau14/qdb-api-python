@@ -89,6 +89,8 @@ def test_reader_can_iterate_rows(
             seen = True
 
             assert len(row["$timestamp"]) == row_count
+            assert "$table" in row
+            assert len(row["$table"]) == row_count
 
             for column_name in column_names:
                 assert len(row[column_name]) == row_count
@@ -120,6 +122,8 @@ def test_reader_can_iterate_batches(
             seen += 1
 
             assert len(row["$timestamp"]) == batch_size
+            assert "$table" in row
+            assert len(row["$table"]) == batch_size
 
             for column_name in column_names:
                 assert len(row[column_name]) == batch_size

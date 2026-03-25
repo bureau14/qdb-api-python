@@ -592,6 +592,24 @@ def _column_info_by_name(table: Table, column: str) -> Tuple[str, quasardb.Colum
     raise KeyError("Column not found: {}".format(column))
 
 
+def _column_infos_by_names(
+    table: Table, columns: Optional[Sequence[str]]
+) -> List[Tuple[str, quasardb.ColumnType]]:
+    infos = table.list_columns()
+
+    if columns is None or len(columns) == 0:
+        return [(cinfo.name, cinfo.type) for cinfo in infos]
+
+    requested = set(columns)
+    by_name = {cinfo.name: (cinfo.name, cinfo.type) for cinfo in infos}
+    missing = [column for column in columns if column not in by_name]
+    if missing:
+        raise KeyError("Column not found: {}".format(missing[0]))
+
+    # Preserve explicit request order.
+    return [by_name[column] for column in columns]
+
+
 def _concat_masked(xs: List[MaskedArrayAny]) -> MaskedArrayAny:
     if len(xs) == 0:
         return ma.masked_array(np.array([]))
@@ -618,6 +636,49 @@ def _coerce_ranges(ranges: Any) -> Any:
     return ranges
 
 
+def read_arrays(
+    table: Optional[Table] = None,
+    columns: Optional[Sequence[str]] = None,
+    ranges: Any = None,
+) -> Tuple[NDArrayTime, Dict[str, MaskedArrayAny]]:
+    if table is None:
+        raise RuntimeError("A table is required.")
+
+    cinfos = _column_infos_by_names(table, columns)
+    column_names = [cname for (cname, _) in cinfos]
+
+    reader_kwargs: Dict[str, Any] = {"batch_size": 0}
+    if len(column_names) > 0:
+        reader_kwargs["column_names"] = column_names
+
+    ranges = _coerce_ranges(ranges)
+    if ranges is not None:
+        reader_kwargs["ranges"] = ranges
+
+    idx_batches: List[NDArrayTime] = []
+    value_batches: Dict[str, List[MaskedArrayAny]] = {cname: [] for cname in column_names}
+
+    with table.reader(**reader_kwargs) as reader:
+        for batch in reader:
+            idx_batches.append(batch["$timestamp"])
+
+            for cname in column_names:
+                value_batches[cname].append(batch[cname])
+
+    if len(idx_batches) == 0:
+        return (
+            np.array([], dtype=np.dtype("datetime64[ns]")),
+            {cname: ma.masked_array(np.array([])) for cname in column_names},
+        )
+
+    if len(idx_batches) == 1:
+        return idx_batches[0], {cname: value_batches[cname][0] for cname in column_names}
+
+    return np.concatenate(idx_batches), {
+        cname: _concat_masked(batches) for (cname, batches) in value_batches.items()
+    }
+
+
 def read_array(
     table: Optional[Table] = None, column: Optional[str] = None, ranges: Any = None
 ) -> Tuple[NDArrayTime, MaskedArrayAny]:
@@ -627,31 +688,8 @@ def read_array(
     if column is None:
         raise RuntimeError("A column is required.")
 
-    _column_info_by_name(table, column)
-
-    reader_kwargs: Dict[str, Any] = {"column_names": [column], "batch_size": 0}
-    ranges = _coerce_ranges(ranges)
-    if ranges is not None:
-        reader_kwargs["ranges"] = ranges
-
-    idx_batches: List[NDArrayTime] = []
-    value_batches: List[MaskedArrayAny] = []
-
-    with table.reader(**reader_kwargs) as reader:
-        for batch in reader:
-            idx_batches.append(batch["$timestamp"])
-            value_batches.append(batch[column])
-
-    if len(idx_batches) == 0:
-        return (
-            np.array([], dtype=np.dtype("datetime64[ns]")),
-            ma.masked_array(np.array([])),
-        )
-
-    if len(idx_batches) == 1:
-        return idx_batches[0], value_batches[0]
-
-    return np.concatenate(idx_batches), _concat_masked(value_batches)
+    idx, data = read_arrays(table=table, columns=[column], ranges=ranges)
+    return idx, data[column]
 
 
 def write_array(

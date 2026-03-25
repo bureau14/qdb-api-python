@@ -400,27 +400,20 @@ def _set_batch_writer_data(writer, table, intervals, data, start=0):
 def _assert_results(table, intervals, data):
     (doubles, integers, blobs, strings, timestamps, symbols) = data
 
-    results = qdbnp.read_array(table, tslib._double_col_name(table))
+    columns = [
+        tslib._double_col_name(table),
+        tslib._blob_col_name(table),
+        tslib._string_col_name(table),
+        tslib._int64_col_name(table),
+        tslib._ts_col_name(table),
+        tslib._symbol_col_name(table),
+    ]
+    idx, results = qdbnp.read_arrays(table, columns=columns)
 
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], doubles)
-
-    results = qdbnp.read_array(table, tslib._blob_col_name(table))
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], blobs)
-
-    results = qdbnp.read_array(table, tslib._string_col_name(table))
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], strings)
-
-    results = qdbnp.read_array(table, tslib._int64_col_name(table))
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], integers)
-
-    results = qdbnp.read_array(table, tslib._ts_col_name(table))
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], timestamps)
-
-    results = qdbnp.read_array(table, tslib._symbol_col_name(table))
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], symbols)
+    np.testing.assert_array_equal(idx, intervals)
+    np.testing.assert_array_equal(results[tslib._double_col_name(table)], doubles)
+    np.testing.assert_array_equal(results[tslib._blob_col_name(table)], blobs)
+    np.testing.assert_array_equal(results[tslib._string_col_name(table)], strings)
+    np.testing.assert_array_equal(results[tslib._int64_col_name(table)], integers)
+    np.testing.assert_array_equal(results[tslib._ts_col_name(table)], timestamps)
+    np.testing.assert_array_equal(results[tslib._symbol_col_name(table)], symbols)

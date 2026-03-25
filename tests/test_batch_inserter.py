@@ -84,34 +84,23 @@ def _set_batch_inserter_data(inserter, intervals, data, start=0):
 def _assert_results(table, intervals, data, ranges=None):
     (doubles, integers, blobs, strings, timestamps, symbols) = data
 
-    read_kwargs = {}
-    if ranges is not None:
-        read_kwargs["ranges"] = ranges
+    columns = [
+        tslib._double_col_name(table),
+        tslib._blob_col_name(table),
+        tslib._string_col_name(table),
+        tslib._int64_col_name(table),
+        tslib._ts_col_name(table),
+        tslib._symbol_col_name(table),
+    ]
+    idx, results = qdbnp.read_arrays(table, columns=columns, ranges=ranges)
 
-    results = qdbnp.read_array(table, tslib._double_col_name(table), **read_kwargs)
-
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], doubles)
-
-    results = qdbnp.read_array(table, tslib._blob_col_name(table), **read_kwargs)
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], blobs)
-
-    results = qdbnp.read_array(table, tslib._string_col_name(table), **read_kwargs)
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], strings)
-
-    results = qdbnp.read_array(table, tslib._int64_col_name(table), **read_kwargs)
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], integers)
-
-    results = qdbnp.read_array(table, tslib._ts_col_name(table), **read_kwargs)
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], timestamps)
-
-    results = qdbnp.read_array(table, tslib._symbol_col_name(table), **read_kwargs)
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], symbols)
+    np.testing.assert_array_equal(idx, intervals)
+    np.testing.assert_array_equal(results[tslib._double_col_name(table)], doubles)
+    np.testing.assert_array_equal(results[tslib._blob_col_name(table)], blobs)
+    np.testing.assert_array_equal(results[tslib._string_col_name(table)], strings)
+    np.testing.assert_array_equal(results[tslib._int64_col_name(table)], integers)
+    np.testing.assert_array_equal(results[tslib._ts_col_name(table)], timestamps)
+    np.testing.assert_array_equal(results[tslib._symbol_col_name(table)], symbols)
 
 
 def _test_with_table(
@@ -134,23 +123,8 @@ def _test_with_table(
 
     if expect_empty_before_push:
         # before the push, there is nothing
-        results = qdbnp.read_array(table, tslib._double_col_name(table))
-        assert len(results[0]) == 0
-
-        results = qdbnp.read_array(table, tslib._blob_col_name(table))
-        assert len(results[0]) == 0
-
-        results = qdbnp.read_array(table, tslib._string_col_name(table))
-        assert len(results[0]) == 0
-
-        results = qdbnp.read_array(table, tslib._int64_col_name(table))
-        assert len(results[0]) == 0
-
-        results = qdbnp.read_array(table, tslib._ts_col_name(table))
-        assert len(results[0]) == 0
-
-        results = qdbnp.read_array(table, tslib._symbol_col_name(table))
-        assert len(results[0]) == 0
+        idx, _ = qdbnp.read_arrays(table, columns=[])
+        assert len(idx) == 0
 
     # after push, there is everything
     push_method(inserter)
