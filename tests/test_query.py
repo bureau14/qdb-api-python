@@ -266,7 +266,9 @@ def test_returns_inserted_data_with_star_select(qdbd_connection, table, interval
 def test_supports_all_column_types(
     value_type, query_handler, qdbd_connection, table, intervals
 ):
-    inserted_data = _insert_points(qdbd_connection, value_type, table, intervals=intervals)
+    inserted_data = _insert_points(
+        qdbd_connection, value_type, table, intervals=intervals
+    )
     column_name = _column_name(table, value_type)
     query = 'SELECT "{}" FROM "{}"'.format(column_name, table.get_name())
 

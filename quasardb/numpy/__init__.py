@@ -435,7 +435,7 @@ def _coerce_data(
 
 
 def _probe_length(
-    xs: Union[Dict[Any, NDArrayAny], Iterable[NDArrayAny]]
+    xs: Union[Dict[Any, NDArrayAny], Iterable[NDArrayAny]],
 ) -> Optional[int]:
     """
     Returns the length of the first non-null array in `xs`, or None if all arrays
@@ -501,7 +501,7 @@ def _ensure_list(
 
 
 def _coerce_retries(
-    retries: Optional[Union[int, quasardb.RetryOptions]]
+    retries: Optional[Union[int, quasardb.RetryOptions]],
 ) -> quasardb.RetryOptions:
     if retries is None:
         return quasardb.RetryOptions()
@@ -643,7 +643,10 @@ def read_array(
             value_batches.append(batch[column])
 
     if len(idx_batches) == 0:
-        return (np.array([], dtype=np.dtype("datetime64[ns]")), ma.masked_array(np.array([])))
+        return (
+            np.array([], dtype=np.dtype("datetime64[ns]")),
+            ma.masked_array(np.array([])),
+        )
 
     if len(idx_batches) == 1:
         return idx_batches[0], value_batches[0]
