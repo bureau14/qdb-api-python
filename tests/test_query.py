@@ -73,10 +73,15 @@ def _insert_timestamp_points(qdbd_connection, table, start_time, points=10):
     return inserted_timestamp_data
 
 
-def _insert_symbol_points(table, start_time, points=10):
+def _insert_symbol_points(qdbd_connection, table, start_time, points=10):
     inserted_symbol_data = tslib._generate_symbol_ts(start_time, points)
-    table.symbol_insert(
-        tslib._ts_col_name(table), inserted_symbol_data[0], inserted_symbol_data[1]
+    qdbnp.write_arrays(
+        {tslib._symbol_col_name(table): inserted_symbol_data[1]},
+        qdbd_connection,
+        table,
+        index=inserted_symbol_data[0],
+        dtype={tslib._symbol_col_name(table): inserted_symbol_data[1].dtype},
+        infer_types=False,
     )
     return inserted_symbol_data
 
@@ -367,7 +372,7 @@ def test_returns_inserted_data_with_specific_select(qdbd_connection, table, inte
 
 def test_returns_count_data_with_count_select(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
-    _ = _insert_double_points(table, start_time, 10)
+    _ = _insert_double_points(qdbd_connection, table, start_time, 10)
     query = (
         "select count("
         + tslib._double_col_name(table)
@@ -385,7 +390,7 @@ def test_returns_count_data_with_count_select(qdbd_connection, table, intervals)
 
 def test_returns_count_data_with_sum_select(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(table, start_time, 10)
+    inserted_double_data = _insert_double_points(qdbd_connection, table, start_time, 10)
     query = (
         "select sum("
         + tslib._double_col_name(table)
@@ -405,10 +410,10 @@ def test_returns_inserted_multi_data_with_star_select(
     qdbd_connection, table, intervals
 ):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(table, start_time, 100)
-    inserted_blob_data = _insert_blob_points(table, start_time, 100)
-    inserted_int64_data = _insert_int64_points(table, start_time, 100)
-    inserted_timestamp_data = _insert_timestamp_points(table, start_time, 100)
+    inserted_double_data = _insert_double_points(qdbd_connection, table, start_time, 100)
+    inserted_blob_data = _insert_blob_points(qdbd_connection, table, start_time, 100)
+    inserted_int64_data = _insert_int64_points(qdbd_connection, table, start_time, 100)
+    inserted_timestamp_data = _insert_timestamp_points(qdbd_connection, table, start_time, 100)
 
     query = (
         'select * from "'
