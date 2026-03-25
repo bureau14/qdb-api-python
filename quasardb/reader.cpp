@@ -43,6 +43,7 @@ namespace detail
                 ranges::views::counted(column.data.doubles, data.row_count));
             break;
         case qdb_ts_column_string:
+        case qdb_ts_column_symbol:
             xs = convert::masked_array<qdb_string_t, traits::unicode_dtype>(
                 ranges::views::counted(column.data.strings, data.row_count));
             break;
@@ -55,16 +56,9 @@ namespace detail
                 ranges::views::counted(column.data.timestamps, data.row_count));
             break;
 
-        case qdb_ts_column_symbol:
-            // This should not happen, as "symbol" is just an internal representation, and symbols
-            // are exposed to the user as strings. If this actually happens, it indicates either
-            // a bug in the bulk reader *or* a memory corruption.
-            throw qdb::not_implemented_exception(
-                "Internal error: invalid data type: symbol column type returned from bulk reader");
-
         case qdb_ts_column_uninitialized:
             throw qdb::not_implemented_exception(
-                "Internal error: invalid data type: unintialized column "
+                "Internal error: invalid data type: uninitialized column "
                 "type returned from bulk reader");
         };
 
@@ -207,8 +201,8 @@ void register_reader(py::module_ & m)
     // basic interface
     reader_c
         .def(py::init([](py::args, py::kwargs) {
-	    throw qdb::direct_instantiation_exception{"conn.reader(...)"};
-	    return nullptr;
+            throw qdb::direct_instantiation_exception{"conn.reader(...)"};
+            return nullptr;
         }))
         .def("get_batch_size", &qdb::reader::get_batch_size)
         .def("__enter__", &qdb::reader::enter)
