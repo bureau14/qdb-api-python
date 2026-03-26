@@ -41,7 +41,7 @@ def _unicode_to_object_array(xs):
 
 
 @conftest.override_cdtypes("native")
-def test_array_read_write_native_dtypes(qdbd_connection, array_with_index_and_table):
+def test_array_read_write_native_dtypes(array_with_index_and_table):
     """
     * qdbnp.write_array()
     * => no conversion
@@ -57,9 +57,7 @@ def test_array_read_write_native_dtypes(qdbd_connection, array_with_index_and_ta
 
 
 @conftest.override_cdtypes("inferrable")
-def test_array_read_write_inferrable_dtypes(
-    qdbd_connection, array_with_index_and_table
-):
+def test_array_read_write_inferrable_dtypes(array_with_index_and_table):
     """
     * qdbnp.write_array()
     * => conversion in python
