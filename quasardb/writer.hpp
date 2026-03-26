@@ -35,6 +35,7 @@
 #include "logger.hpp"
 #include "metrics.hpp"
 #include "object_tracker.hpp"
+#include "writer_fwd.hpp"
 #include "detail/writer.hpp"
 #include <vector>
 
@@ -300,10 +301,6 @@ public:
     // fully deprecated.
     py::dict legacy_state_;
 };
-
-// don't use shared_ptr, let Python do the reference counting, otherwise you will have an undefined
-// behavior
-using writer_ptr = std::unique_ptr<writer>;
 
 template <
     qdb::concepts::writer_push_strategy PushStrategy,

@@ -34,13 +34,12 @@
 #include "masked_array.hpp"
 #include "reader_fwd.hpp"
 #include "table_fwd.hpp"
+#include "writer_fwd.hpp"
 #include "detail/ts_column.hpp"
 #include <memory>
 
 namespace qdb
 {
-
-class writer;
 
 class table : public entry
 {
@@ -166,7 +165,7 @@ public:
         std::size_t batch_size,                        //
         std::vector<py::tuple> const & ranges) const;
 
-    std::unique_ptr<qdb::writer> writer() const;
+    qdb::writer_ptr writer() const;
 
     /**
      * Returns true if this table has a TTL assigned.

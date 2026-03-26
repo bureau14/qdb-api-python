@@ -53,7 +53,7 @@ qdb::reader_ptr table::reader(                     //
     return std::make_unique<qdb::reader>(_handle, table_names, column_names, batch_size, ranges);
 };
 
-std::unique_ptr<qdb::writer> table::writer() const
+qdb::writer_ptr table::writer() const
 {
     _handle->check_open();
     return std::make_unique<qdb::writer>(_handle);
