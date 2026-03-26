@@ -4,6 +4,7 @@
 #include "object_tracker.hpp"
 #include "reader.hpp"
 #include "traits.hpp"
+#include "writer.hpp"
 #include "convert/point.hpp"
 #include <memory> // for make_unique
 
@@ -77,5 +78,11 @@ qdb::reader_ptr table::reader(                     //
     std::vector<std::string> table_names{get_name()};
     return std::make_unique<qdb::reader>(_handle, table_names, column_names, batch_size, ranges);
 };
+
+std::unique_ptr<qdb::writer> table::writer() const
+{
+    _handle->check_open();
+    return std::make_unique<qdb::writer>(_handle);
+}
 
 }; // namespace qdb

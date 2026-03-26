@@ -35,9 +35,12 @@
 #include "reader_fwd.hpp"
 #include "table_fwd.hpp"
 #include "detail/ts_column.hpp"
+#include <memory>
 
 namespace qdb
 {
+
+class writer;
 
 class table : public entry
 {
@@ -162,6 +165,8 @@ public:
         std::vector<std::string> const & column_names, //
         std::size_t batch_size,                        //
         std::vector<py::tuple> const & ranges) const;
+
+    std::unique_ptr<qdb::writer> writer() const;
 
     /**
      * Returns true if this table has a TTL assigned.
@@ -315,6 +320,7 @@ static inline void register_table(Module & m)
             py::arg("column_names") = std::vector<std::string>{}, //
             py::arg("batch_size")   = std::size_t{0},             //
             py::arg("ranges")       = std::vector<py::tuple>{})
+        .def("writer", &qdb::table::writer)
 
         .def("subscribe", &qdb::table::subscribe);
 }

@@ -736,21 +736,20 @@ def write_array(
         raise RuntimeError("An index numpy timestamp array is required.")
 
     _column_infos_by_names(table, [column])
-    cluster = table_cache.cluster_for(table)
-
     write_arrays(
         {column: data},
-        cluster,
+        None,
         table,
         dtype={column: dtype},
         index=index,
         infer_types=infer_types,
+        writer=table.writer(),
     )
 
 
 def write_arrays(
     data: Any,
-    cluster: quasardb.Cluster,
+    cluster: Optional[quasardb.Cluster],
     table: Optional[Union[str, Table]] = None,
     *,
     dtype: Optional[
@@ -791,8 +790,9 @@ def write_arrays(
       In all cases, all numpy arrays are expected to be of exactly the same length as the
       index.
 
-    cluster: quasardb.Cluster
-      Active connection to the QuasarDB cluster
+    cluster: optional quasardb.Cluster
+      Active connection to the QuasarDB cluster. Required when `writer` is not provided,
+      or when tables are referenced by name instead of by `Table` object.
 
     table: quasardb.Table or str
       Either a string or a reference to a QuasarDB Timeseries table object.
@@ -850,7 +850,7 @@ def write_arrays(
       Defaults to `Transactional`.
 
     truncate: optional bool
-      **DEPRECATED** – Use `push_mode=WriterPushMode.Truncate` instead.
+      **DEPRECATED** - Use `push_mode=WriterPushMode.Truncate` instead.
       Truncate (also referred to as upsert) the data in-place. Will detect time range to truncate
       from the time range inside the dataframe.
 
@@ -860,7 +860,7 @@ def write_arrays(
       Time range to truncate from the time range inside the dataframe.
 
     _async: optional bool
-      **DEPRECATED** – Use `push_mode=WriterPushMode.Async` instead.
+      **DEPRECATED** - Use `push_mode=WriterPushMode.Async` instead.
       If true, uses asynchronous insertion API where commits are buffered server-side and
       acknowledged before they are written to disk. If you insert to the same table from
       multiple processes, setting this to True may improve performance.
@@ -868,7 +868,7 @@ def write_arrays(
       Defaults to False.
 
     fast: optional bool
-      **DEPRECATED** – Use `push_mode=WriterPushMode.Fast` instead.
+      **DEPRECATED** - Use `push_mode=WriterPushMode.Fast` instead.
       Whether to use 'fast push'. If you incrementally add small batches of data to table,
       you may see better performance if you set this to True.
 
@@ -944,6 +944,8 @@ def write_arrays(
 
     # Create batch column info from dataframe
     if writer is None:
+        if cluster is None:
+            raise RuntimeError("A cluster is required when no writer is provided.")
         writer = cluster.writer()
 
     ret: List[Table] = []
@@ -953,6 +955,10 @@ def write_arrays(
     for table_, data_ in data:
         # Acquire reference to table_ if string is provided
         if isinstance(table_, str):
+            if cluster is None:
+                raise RuntimeError(
+                    "A cluster is required when a table name is provided."
+                )
             table_ = table_cache.lookup(table_, cluster)
 
         cinfos = [(x.name, x.type) for x in table_.list_columns()]
