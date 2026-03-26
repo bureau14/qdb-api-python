@@ -146,7 +146,7 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
     closes = np.array([3.50, 3.55], dtype=np.float64)
     volumes = np.array([10000, 7500], dtype=np.int64)
 
-    # Seperately, we generate a numpy array of timestamps. Since our three columns share
+    # Separately, we generate a numpy array of timestamps. Since our three columns share
     # the same timestamps, we can reuse this array for all of them, but this is not required.
     timestamps = np.array(
         [np.datetime64("2019-02-01"), np.datetime64("2019-02-02")],
@@ -172,9 +172,7 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
     # time (exclusive).
     #
     # In this example, we just use a single interval.
-    intervals = np.array(
-        [(np.datetime64("2019-02-01", "ns"), np.datetime64("2019-02-02", "ns"))]
-    )
+    intervals = [(np.datetime64("2019-02-01", "ns"), np.datetime64("2019-02-02", "ns"))]
 
     # As with insertion, our API works with native numpy arrays and returns the results as such.
     (timestamps, columns) = qdbnp.read_arrays(

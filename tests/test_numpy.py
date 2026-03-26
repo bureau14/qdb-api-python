@@ -410,6 +410,45 @@ def test_read_arrays_reads_selected_columns_with_ranges(qdbd_connection, table):
     np.testing.assert_array_equal(xs[tslib._int64_col_name(table)], integers[1:3])
 
 
+def test_read_arrays_accepts_numpy_ranges(qdbd_connection, table):
+    index = np.array(
+        [
+            np.datetime64("2017-01-01T00:00:00", "ns"),
+            np.datetime64("2017-01-01T00:00:01", "ns"),
+            np.datetime64("2017-01-01T00:00:02", "ns"),
+        ],
+        dtype=np.dtype("datetime64[ns]"),
+    )
+    doubles = np.array([1.0, 2.0, 3.0], dtype=np.float64)
+
+    qdbnp.write_arrays(
+        {tslib._double_col_name(table): doubles},
+        qdbd_connection,
+        table,
+        index=index,
+        infer_types=False,
+        dtype={tslib._double_col_name(table): doubles.dtype},
+    )
+
+    ranges = np.array([(index[1], index[2] + np.timedelta64(1, "ns"))])
+    idx, xs = qdbnp.read_arrays(
+        table, columns=[tslib._double_col_name(table)], ranges=ranges
+    )
+
+    np.testing.assert_array_equal(idx, index[1:3])
+    np.testing.assert_array_equal(xs[tslib._double_col_name(table)], doubles[1:3])
+
+
+def test_read_arrays_rejects_string_columns(table):
+    with pytest.raises(TypeError):
+        qdbnp.read_arrays(table, columns="the_double")
+
+
+def test_read_arrays_rejects_duplicate_columns(table):
+    with pytest.raises(ValueError):
+        qdbnp.read_arrays(table, columns=["the_double", "the_double"])
+
+
 ######
 #
 # Query tests

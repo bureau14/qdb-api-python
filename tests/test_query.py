@@ -27,7 +27,8 @@ def _insert_blob_points(qdbd_connection, table, start_time, points=10):
         qdbd_connection,
         table,
         index=inserted_blob_data[0],
-        infer_types=True,
+        dtype={tslib._blob_col_name(table): inserted_blob_data[1].dtype},
+        infer_types=False,
     )
     return inserted_blob_data
 
@@ -431,7 +432,13 @@ def test_returns_inserted_multi_data_with_star_select(
         qdbd_connection,
         table,
         index=inserted_double_data[0],
-        infer_types=True,
+        dtype={
+            tslib._double_col_name(table): inserted_double_data[1].dtype,
+            tslib._blob_col_name(table): inserted_blob_data[1].dtype,
+            tslib._int64_col_name(table): inserted_int64_data[1].dtype,
+            tslib._ts_col_name(table): inserted_timestamp_data[1].dtype,
+        },
+        infer_types=False,
     )
 
     query = (

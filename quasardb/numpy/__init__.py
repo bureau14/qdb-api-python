@@ -592,7 +592,20 @@ def _column_infos_by_names(
     if columns is None or len(columns) == 0:
         return [(cinfo.name, cinfo.type) for cinfo in infos]
 
-    requested = set(columns)
+    if isinstance(columns, str):
+        raise TypeError("columns is expected to be a sequence of column names, got str")
+
+    duplicates = set()
+    seen = set()
+    for column in columns:
+        if column in seen:
+            duplicates.add(column)
+        seen.add(column)
+    if duplicates:
+        raise ValueError(
+            "Duplicate columns are not allowed: {}".format(sorted(duplicates)[0])
+        )
+
     by_name = {cinfo.name: (cinfo.name, cinfo.type) for cinfo in infos}
     missing = [column for column in columns if column not in by_name]
     if missing:
@@ -611,6 +624,10 @@ def _concat_masked(xs: List[MaskedArrayAny]) -> MaskedArrayAny:
     return ma.concatenate(xs)
 
 
+def _empty_masked_for_ctype(ctype: quasardb.ColumnType) -> MaskedArrayAny:
+    return ma.masked_array(np.array([], dtype=_best_dtype_for_ctype(ctype)))
+
+
 def _coerce_ranges(ranges: Any) -> Any:
     if ranges is None:
         return None
@@ -623,7 +640,7 @@ def _coerce_ranges(ranges: Any) -> Any:
                 )
             )
 
-        return [tuple(r) for r in ranges.tolist()]
+        return [(ranges[i, 0], ranges[i, 1]) for i in range(ranges.shape[0])]
 
     return ranges
 
@@ -662,7 +679,7 @@ def read_arrays(
     if len(idx_batches) == 0:
         return (
             np.array([], dtype=np.dtype("datetime64[ns]")),
-            {cname: ma.masked_array(np.array([])) for cname in column_names},
+            {cname: _empty_masked_for_ctype(ctype) for (cname, ctype) in cinfos},
         )
 
     if len(idx_batches) == 1:
