@@ -1,39 +1,13 @@
 #include "table.hpp"
-#include "dispatch.hpp"
 #include "metrics.hpp"
-#include "object_tracker.hpp"
 #include "reader.hpp"
-#include "traits.hpp"
 #include "writer.hpp"
-#include "convert/point.hpp"
 #include <memory> // for make_unique
 
 namespace qdb
 {
 
 namespace py = pybind11;
-
-namespace detail
-{
-
-template <typename Type>
-using point_type = typename traits::qdb_value<Type>::point_type;
-
-template <qdb_ts_column_type_t, concepts::dtype DType>
-struct column_inserter;
-
-template <qdb_ts_column_type_t ColumnType>
-inline void insert_column_dispatch(handle_ptr handle,
-    std::string const & table,
-    std::string const & column,
-    pybind11::array const & timestamps,
-    qdb::masked_array const & values)
-{
-    dispatch::by_dtype<column_inserter, ColumnType>(
-        values.dtype(), handle, table, column, timestamps, values);
-};
-
-}; // namespace detail
 
 void table::_cache_metadata() const
 {
