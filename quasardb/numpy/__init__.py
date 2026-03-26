@@ -645,15 +645,11 @@ def _coerce_ranges(ranges: Any) -> Any:
     return ranges
 
 
-def read_arrays(
-    table: Optional[Table] = None,
-    columns: Optional[Sequence[str]] = None,
+def _read_arrays_with_reader(
+    table: Table,
+    cinfos: List[Tuple[str, quasardb.ColumnType]],
     ranges: Any = None,
 ) -> Tuple[NDArrayTime, Dict[str, MaskedArrayAny]]:
-    if table is None:
-        raise RuntimeError("A table is required.")
-
-    cinfos = _column_infos_by_names(table, columns)
     column_names = [cname for (cname, _) in cinfos]
 
     reader_kwargs: Dict[str, Any] = {"batch_size": 0}
@@ -690,6 +686,60 @@ def read_arrays(
     return np.concatenate(idx_batches), {
         cname: _concat_masked(batches) for (cname, batches) in value_batches.items()
     }
+
+
+def read_arrays(
+    table: Optional[Table] = None,
+    columns: Optional[Sequence[str]] = None,
+    ranges: Any = None,
+) -> Tuple[NDArrayTime, Dict[str, MaskedArrayAny]]:
+    """
+    Read one or more columns from a table as numpy masked arrays.
+
+    Parameters:
+    -----------
+
+    table: quasardb.Table
+      Table object to read from.
+
+    columns: optional sequence[str]
+      Column names to read. If None or an empty sequence is provided, all table
+      columns are read.
+
+    ranges: optional list[tuple] or numpy.ndarray
+      Time ranges to read. When provided as a numpy array, it is expected to
+      have shape (n, 2) and contain datetime64[ns] values. If None, the full
+      available range is read.
+
+    Returns:
+    --------
+
+    tuple[numpy.ndarray, dict[str, numpy.ma.MaskedArray]]
+      A pair consisting of the shared timestamp index and a mapping of column
+      names to masked arrays.
+
+    Examples:
+    ---------
+
+    Read all columns:
+
+    >>> idx, cols = qdbnp.read_arrays(table=my_table, columns=[])
+
+    Read a subset of columns for a given time range:
+
+    >>> idx, cols = qdbnp.read_arrays(
+    ...     table=my_table,
+    ...     columns=["open", "close"],
+    ...     ranges=[(start, end)],
+    ... )
+    >>> opens = cols["open"]
+    >>> closes = cols["close"]
+    """
+    if table is None:
+        raise RuntimeError("A table is required.")
+
+    cinfos = _column_infos_by_names(table, columns)
+    return _read_arrays_with_reader(table, cinfos, ranges=ranges)
 
 
 def read_array(
