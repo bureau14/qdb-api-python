@@ -129,7 +129,8 @@ _ctype_to_dtype: Dict[quasardb.ColumnType, List[DType]] = {
 
 def _best_dtype_for_ctype(ctype: quasardb.ColumnType) -> DType:
     """
-    Returns the 'best' DType for a certain column type.
+    Returns the 'best' DType for a certain column type. For example, for blobs, even
+    though we accept py::bytes, prefer bytestrings (as they are faster to read in c++).
     """
     possible_dtypes = _ctype_to_dtype[ctype]
     assert len(possible_dtypes) > 0
