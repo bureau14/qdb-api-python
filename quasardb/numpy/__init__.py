@@ -122,10 +122,7 @@ _ctype_to_dtype: Dict[quasardb.ColumnType, List[DType]] = {
     quasardb.ColumnType.Symbol: [np.dtype("U")],
     quasardb.ColumnType.Int64: [np.dtype("i8"), np.dtype("i4"), np.dtype("i2")],
     quasardb.ColumnType.Double: [np.dtype("f8"), np.dtype("f4")],
-    # Prefer Python bytes objects for blobs. Fixed-width numpy bytestrings are still
-    # accepted, but auto-converting raw binary payloads with embedded NUL bytes to
-    # dtype("S") may truncate the visible value semantics at the Python layer.
-    quasardb.ColumnType.Blob: [np.dtype("O"), np.dtype("S")],
+    quasardb.ColumnType.Blob: [np.dtype("S"), np.dtype("O")],
     quasardb.ColumnType.Timestamp: [np.dtype("datetime64[ns]")],
 }
 
