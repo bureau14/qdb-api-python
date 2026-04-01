@@ -178,6 +178,10 @@ inline std::string perf_label_name(qdb_perf_label_t label)
         return "time_vector_reading_ends";
     case qdb_pl_unknown:
         return "unknown";
+    case qdb_pl_entry_reading_starts:
+        return "entry_reading_starts";
+    case qdb_pl_entry_reading_ends:
+        return "entry_reading_ends";
     }
     return "";
 }
@@ -327,8 +331,8 @@ static inline void register_perf(Module & m)
 
     py::class_<qdb::perf>(m, "Perf")
         .def(py::init([](py::args, py::kwargs) {
-	    throw qdb::direct_instantiation_exception{"conn.perf(...)"};
-	    return nullptr;
+            throw qdb::direct_instantiation_exception{"conn.perf(...)"};
+            return nullptr;
         }))
         .def("get", &qdb::perf::get, py::arg("flame") = false, py::arg("outfile") = "")
         .def("clear", &qdb::perf::clear_all_profiles)
