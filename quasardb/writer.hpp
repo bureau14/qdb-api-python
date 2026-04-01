@@ -337,7 +337,8 @@ static void register_writer(py::module_ & m)
     writer_c.def_readwrite("_legacy_state", &qdb::writer::legacy_state_);
 
     // push functions
-    writer_c.def("push", &qdb::writer::push<PS, SS>, "Regular batch push")
+    writer_c //
+        .def("push", &qdb::writer::push<PS, SS>, "Regular batch push")
         .def("push_async", &qdb::writer::push_async<PS, SS>,
             "Asynchronous batch push that buffers data inside the QuasarDB daemon")
         .def("push_fast", &qdb::writer::push_fast<PS, SS>,
