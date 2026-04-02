@@ -125,8 +125,8 @@ def read_series(
         "qdbnp.read_arrays(..., columns=[col_name], ...) or qdbpd.read_dataframe()",
     )
     logger.info("reading Series from column %s.%s", table.get_name(), col_name)
-    index, values = qdbnp.read_arrays(table=table, columns=[col_name], ranges=ranges)
-    return pd.Series(values[col_name], index=index)
+    index, columns = qdbnp.read_arrays(table=table, columns=[col_name], ranges=ranges)
+    return pd.Series(columns[col_name], index=index)
 
 
 def write_series(
