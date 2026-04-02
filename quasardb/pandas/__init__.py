@@ -270,9 +270,11 @@ def stream_dataframes(
 
       Defaults to all columns.
 
-    ranges: optional list
-      A list of time ranges to read, represented as tuples of Numpy datetime64[ns] objects.
-      Defaults to the entire table.
+    ranges: optional list[tuple] or numpy.ndarray
+      Time ranges to read. When provided as a numpy array, it is expected to
+      have shape (n, 2) and contain datetime64[ns] values.
+
+      Defaults to the entire table set.
 
     """
     # Sanitize batch_size
@@ -291,7 +293,7 @@ def stream_dataframes(
         kwargs["column_names"] = column_names
 
     if ranges:
-        kwargs["ranges"] = ranges
+        kwargs["ranges"] = qdbnp._coerce_ranges(ranges)
 
     coerce_table_name_fn = lambda x: x if isinstance(x, str) else x.get_name()
     kwargs["table_names"] = [coerce_table_name_fn(x) for x in tables]
@@ -358,6 +360,10 @@ def read_dataframe(
     table : str | quasardb.Table
       QuasarDB table to stream, either as a string or a table object. When re-executing the same function
       multiple times on the same tables, providing the table as an object has a performance benefit.
+
+    ranges : optional list[tuple] or numpy.ndarray
+      Time ranges to read. When provided as a numpy array, it is expected to
+      have shape (n, 2) and contain datetime64[ns] values.
 
     """
 

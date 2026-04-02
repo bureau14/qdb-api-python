@@ -593,17 +593,6 @@ def _column_infos_by_names(
     if isinstance(columns, str):
         raise TypeError("columns is expected to be a sequence of column names, got str")
 
-    duplicates = set()
-    seen = set()
-    for column in columns:
-        if column in seen:
-            duplicates.add(column)
-        seen.add(column)
-    if duplicates:
-        raise ValueError(
-            "Duplicate columns are not allowed: {}".format(sorted(duplicates)[0])
-        )
-
     by_name = {cinfo.name: (cinfo.name, cinfo.type) for cinfo in infos}
     missing = [column for column in columns if column not in by_name]
     if missing:
@@ -745,6 +734,9 @@ def read_array(
 ) -> Tuple[NDArrayTime, MaskedArrayAny]:
     """
     Deprecated compatibility wrapper around read_arrays().
+
+    Reads a single column and returns its shared timestamp index together with
+    the column data as a masked array.
     """
     warnings.warn(
         "qdbnp.read_array() is deprecated and will be removed in a future version. "
@@ -818,7 +810,6 @@ def write_array(
     if index is None:
         raise RuntimeError("An index numpy timestamp array is required.")
 
-    _column_infos_by_names(table, [column])
     write_arrays(
         {column: data},
         None,
@@ -881,7 +872,7 @@ def write_arrays(
       Either a string or a reference to a QuasarDB Timeseries table object.
       For example, 'my_table' or cluster.table('my_table') are both valid values.
 
-      Defaults to False.
+      Defaults to None.
 
     index: optional np.array with dtype datetime64[ns]
       Optionally explicitly provide an array as the $timestamp index. If not provided,

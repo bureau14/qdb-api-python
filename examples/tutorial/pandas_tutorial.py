@@ -28,7 +28,9 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
 
     # bulk-read-start
 
-    ranges = [(np.datetime64("2019-02-01", "ns"), np.datetime64("2019-02-02", "ns"))]
+    ranges = np.array(
+        [(np.datetime64("2019-02-01", "ns"), np.datetime64("2019-02-02", "ns"))]
+    )
     t = c.table("stocks")
 
     # The `read_dataframe` function provides a performance-efficient mechanism to read data
@@ -39,7 +41,7 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
 
     # column-insert-start
 
-    # We can also write a dataframe that contains only a subset of the table's columns.
+    # We can write a dataframe that contains only a subset of the table's columns.
     # Separately, we generate a numpy array of timestamps. Since our three columns share
     # the same timestamps, we can reuse this as the index for all columns.
     timestamps = np.array(
@@ -66,7 +68,9 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
     # time (exclusive).
     #
     # In this example, we just use a single interval.
-    intervals = [(np.datetime64("2019-02-01", "ns"), np.datetime64("2019-02-02", "ns"))]
+    intervals = np.array(
+        [(np.datetime64("2019-02-01", "ns"), np.datetime64("2019-02-02", "ns"))]
+    )
 
     # We can then use read_dataframe to fetch only the subset of columns we need.
     df = qdbpd.read_dataframe(
