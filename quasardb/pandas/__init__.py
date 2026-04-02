@@ -107,8 +107,9 @@ def read_series(
     col_name : str
       Name of the column to read.
 
-    ranges : list
-      A list of ranges to read, represented as tuples of Numpy datetime64[ns] objects.
+    ranges : optional list[tuple] or numpy.ndarray
+      Time ranges to read. When provided as a numpy array, it is expected to
+      have shape (n, 2) and contain datetime64[ns] values.
     """
     warnings.warn(
         "qdbpd.read_series() is deprecated and will be removed in a future version. "
@@ -292,7 +293,7 @@ def stream_dataframes(
     if column_names:
         kwargs["column_names"] = column_names
 
-    if ranges:
+    if ranges is not None:
         kwargs["ranges"] = qdbnp._coerce_ranges(ranges)
 
     coerce_table_name_fn = lambda x: x if isinstance(x, str) else x.get_name()

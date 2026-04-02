@@ -178,7 +178,7 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
 
     # As with insertion, our API works with native numpy arrays and returns the results as such.
     (timestamps, columns) = qdbnp.read_arrays(
-        t, columns=["open", "close", "volume"], ranges=intervals
+        t, columns=["open", "close", "volume"], ranges=intervals, cluster=c
     )
     opens = columns["open"]
     closes = columns["close"]

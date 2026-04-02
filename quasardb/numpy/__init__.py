@@ -170,6 +170,7 @@ def _coerce_dtype(
                     "Forced dtype provided for column '%s' = %s, but that column is not found in the table. Skipping...",
                     k,
                 )
+                continue
 
             i = offsets[k]
             dtype_[i] = dt
@@ -633,31 +634,21 @@ def _coerce_ranges(ranges: Any) -> Any:
 
 
 def _read_arrays_with_reader(
-    table: Table,
+    reader: Any,
     cinfos: List[Tuple[str, quasardb.ColumnType]],
-    ranges: Any = None,
 ) -> Tuple[NDArrayTime, Dict[str, MaskedArrayAny]]:
     column_names = [cname for (cname, _) in cinfos]
-
-    reader_kwargs: Dict[str, Any] = {"batch_size": 0}
-    if len(column_names) > 0:
-        reader_kwargs["column_names"] = column_names
-
-    ranges = _coerce_ranges(ranges)
-    if ranges is not None:
-        reader_kwargs["ranges"] = ranges
 
     idx_batches: List[NDArrayTime] = []
     value_batches: Dict[str, List[MaskedArrayAny]] = {
         cname: [] for cname in column_names
     }
 
-    with table.reader(**reader_kwargs) as reader:
-        for batch in reader:
-            idx_batches.append(batch["$timestamp"])
+    for batch in reader:
+        idx_batches.append(batch["$timestamp"])
 
-            for cname in column_names:
-                value_batches[cname].append(batch[cname])
+        for cname in column_names:
+            value_batches[cname].append(batch[cname])
 
     if len(idx_batches) == 0:
         return (
@@ -676,9 +667,10 @@ def _read_arrays_with_reader(
 
 
 def read_arrays(
-    table: Optional[Table] = None,
+    table: Optional[Union[str, Table]] = None,
     columns: Optional[Sequence[str]] = None,
     ranges: Any = None,
+    cluster: Optional[quasardb.Cluster] = None,
 ) -> Tuple[NDArrayTime, Dict[str, MaskedArrayAny]]:
     """
     Read one or more columns from a table as numpy masked arrays.
@@ -686,8 +678,8 @@ def read_arrays(
     Parameters:
     -----------
 
-    table: quasardb.Table
-      Table object to read from.
+    table: quasardb.Table or str
+      Table object or table name to read from.
 
     columns: optional sequence[str]
       Column names to read. If None or an empty sequence is provided, all table
@@ -697,6 +689,10 @@ def read_arrays(
       Time ranges to read. When provided as a numpy array, it is expected to
       have shape (n, 2) and contain datetime64[ns] values. If None, the full
       available range is read.
+
+    cluster: optional quasardb.Cluster
+      Active connection to the QuasarDB cluster. Recommended for the new API
+      path and required when `table` is provided as a table name.
 
     Returns:
     --------
@@ -725,8 +721,29 @@ def read_arrays(
     if table is None:
         raise RuntimeError("A table is required.")
 
+    ranges = _coerce_ranges(ranges)
+
+    if isinstance(table, str):
+        if cluster is None:
+            raise RuntimeError("A cluster is required when a table name is provided.")
+        table = table_cache.lookup(table, cluster)
+
     cinfos = _column_infos_by_names(table, columns)
-    return _read_arrays_with_reader(table, cinfos, ranges=ranges)
+    column_names = [cname for (cname, _) in cinfos]
+
+    reader_kwargs: Dict[str, Any] = {"batch_size": 0}
+    if len(column_names) > 0:
+        reader_kwargs["column_names"] = column_names
+    if ranges is not None:
+        reader_kwargs["ranges"] = ranges
+
+    if cluster is not None:
+        reader_kwargs["table_names"] = [table.get_name()]
+        with cluster.reader(**reader_kwargs) as reader:
+            return _read_arrays_with_reader(reader, cinfos)
+
+    with table.reader(**reader_kwargs) as reader:
+        return _read_arrays_with_reader(reader, cinfos)
 
 
 def read_array(
