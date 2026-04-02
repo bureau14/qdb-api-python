@@ -302,9 +302,7 @@ public:
     py::dict legacy_state_;
 };
 
-template <
-    qdb::concepts::writer_push_strategy PushStrategy,
-    qdb::concepts::sleep_strategy SleepStrategy>
+template <qdb::concepts::writer_push_strategy PushStrategy, qdb::concepts::sleep_strategy SleepStrategy>
 static void register_writer(py::module_ & m)
 {
     using PS = PushStrategy;
@@ -332,14 +330,14 @@ static void register_writer(py::module_ & m)
 
     // basic interface
     writer_c.def(py::init([](py::args, py::kwargs) {
-	throw qdb::direct_instantiation_exception{"conn.writer(...)"};
-	return nullptr;
+        throw qdb::direct_instantiation_exception{"conn.writer(...)"};
+        return nullptr;
     }));
 
     writer_c.def_readwrite("_legacy_state", &qdb::writer::legacy_state_);
 
     // push functions
-    writer_c
+    writer_c //
         .def("push", &qdb::writer::push<PS, SS>, "Regular batch push")
         .def("push_async", &qdb::writer::push_async<PS, SS>,
             "Asynchronous batch push that buffers data inside the QuasarDB daemon")
