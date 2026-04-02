@@ -126,10 +126,12 @@ def test_series_read_write(series_with_table):
     (ctype, dtype, series, table) = series_with_table
 
     col = table.column_id_by_index(0)
-    qdbpd.write_series(series, table, col, dtype=dtype)
+    with pytest.warns(DeprecationWarning, match="qdbpd.write_series"):
+        qdbpd.write_series(series, table, col, dtype=dtype)
 
     # Read everything
-    res = qdbpd.read_series(table, col)
+    with pytest.warns(DeprecationWarning, match="qdbpd.read_series"):
+        res = qdbpd.read_series(table, col)
 
     _assert_series_equal(series, res)
 

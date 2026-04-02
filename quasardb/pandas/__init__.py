@@ -94,6 +94,8 @@ def read_series(
     table: Table, col_name: str, ranges: Optional[RangeSet] = None
 ) -> pd.Series:
     """
+    Deprecated compatibility wrapper around qdbnp.read_arrays().
+
     Read a Pandas Timeseries from a single column.
 
     Parameters:
@@ -108,9 +110,15 @@ def read_series(
     ranges : list
       A list of ranges to read, represented as tuples of Numpy datetime64[ns] objects.
     """
+    warnings.warn(
+        "qdbpd.read_series() is deprecated and will be removed in a future version. "
+        "Use qdbnp.read_arrays(..., columns=[col_name], ...) or qdbpd.read_dataframe() instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     logger.info("reading Series from column %s.%s", table.get_name(), col_name)
-    index, values = qdbnp.read_array(table=table, column=col_name, ranges=ranges)
-    return pd.Series(values, index=index)
+    index, values = qdbnp.read_arrays(table=table, columns=[col_name], ranges=ranges)
+    return pd.Series(values[col_name], index=index)
 
 
 def write_series(
@@ -121,6 +129,8 @@ def write_series(
     dtype: Optional[DType] = None,
 ) -> None:
     """
+    Deprecated compatibility wrapper around qdbnp.write_arrays().
+
     Writes a Pandas Timeseries to a single column.
 
     Parameters:
@@ -144,6 +154,12 @@ def write_series(
         infer_types,
         dtype,
     )
+    warnings.warn(
+        "qdbpd.write_series() is deprecated and will be removed in a future version. "
+        "Use qdbnp.write_arrays(...) or qdbpd.write_dataframe() instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
 
     data = None
     index = None
@@ -158,13 +174,14 @@ def write_series(
     assert data is not None
     assert index is not None
 
-    qdbnp.write_array(
-        data=data,
+    qdbnp.write_arrays(
+        {col_name: data},
+        None,
+        table,
         index=index,
-        table=table,
-        column=col_name,
-        dtype=dtype,
+        dtype={col_name: dtype},
         infer_types=infer_types,
+        writer=table.writer(),
     )
 
 

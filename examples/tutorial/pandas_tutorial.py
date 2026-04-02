@@ -39,24 +39,23 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
 
     # column-insert-start
 
-    # The Pandas connector maps QuasarDB's column-oriented API to Pandas Series. As such,
-    # we initialize three Series for each of our three columns.
-    #
-    # Seperately, we generate a numpy array of timestamps. Since our three columns share
-    # the same timestamps, we can reuse this as the index for all our Series.
+    # We can also write a dataframe that contains only a subset of the table's columns.
+    # Separately, we generate a numpy array of timestamps. Since our three columns share
+    # the same timestamps, we can reuse this as the index for all columns.
     timestamps = np.array(
         [np.datetime64("2019-02-01"), np.datetime64("2019-02-02")],
         dtype="datetime64[ns]",
     )
 
-    opens = pd.Series(data=[3.40, 3.50], index=timestamps, dtype=np.float64)
-    closes = pd.Series(data=[3.50, 3.55], index=timestamps, dtype=np.float64)
-    volumes = pd.Series(data=[10000, 7500], index=timestamps, dtype=np.int64)
+    df = pd.DataFrame(
+        data={
+            "open": pd.Series(data=[3.40, 3.50], index=timestamps, dtype=np.float64),
+            "close": pd.Series(data=[3.50, 3.55], index=timestamps, dtype=np.float64),
+            "volume": pd.Series(data=[10000, 7500], index=timestamps, dtype=np.int64),
+        }
+    )
 
-    # We use the write_series function to insert column by column.
-    qdbpd.write_series(opens, t, "open")
-    qdbpd.write_series(closes, t, "close")
-    qdbpd.write_series(volumes, t, "volume")
+    qdbpd.write_dataframe(df, c, t)
 
     # column-insert-end
 
@@ -69,11 +68,10 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
     # In this example, we just use a single interval.
     intervals = [(np.datetime64("2019-02-01", "ns"), np.datetime64("2019-02-02", "ns"))]
 
-    # We can then use the read_series function to read column by column. The objects
-    # returned are regular pd.Series objects.
-    opens = qdbpd.read_series(t, "open", intervals)
-    closes = qdbpd.read_series(t, "close", intervals)
-    volumes = qdbpd.read_series(t, "volume", intervals)
+    # We can then use read_dataframe to fetch only the subset of columns we need.
+    df = qdbpd.read_dataframe(
+        c, t, ranges=intervals, column_names=["open", "close", "volume"]
+    )
 
     # column-get-end
 

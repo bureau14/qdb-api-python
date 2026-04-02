@@ -188,7 +188,8 @@ def test_push_truncate_implicit_range(qdbd_connection, table, many_intervals):
     inserter.push()
 
     # Compare results, should be equal
-    results = qdbnp.read_array(table, tslib._double_col_name(table))
+    idx, cols = qdbnp.read_arrays(table, columns=[tslib._double_col_name(table)])
+    results = (idx, cols[tslib._double_col_name(table)])
 
     np.testing.assert_array_equal(results[0], many_intervals)
     np.testing.assert_array_equal(results[1], doubles)
@@ -198,7 +199,8 @@ def test_push_truncate_implicit_range(qdbd_connection, table, many_intervals):
     inserter.push()
 
     # Compare results, should now have the same data twice
-    results = qdbnp.read_array(table, tslib._double_col_name(table))
+    idx, cols = qdbnp.read_arrays(table, columns=[tslib._double_col_name(table)])
+    results = (idx, cols[tslib._double_col_name(table)])
 
     assert len(results[1]) == 2 * len(doubles)
 
@@ -208,7 +210,8 @@ def test_push_truncate_implicit_range(qdbd_connection, table, many_intervals):
 
     # Verify results, truncating should now make things the same
     # as the beginning again.
-    results = qdbnp.read_array(table, tslib._double_col_name(table))
+    idx, cols = qdbnp.read_arrays(table, columns=[tslib._double_col_name(table)])
+    results = (idx, cols[tslib._double_col_name(table)])
 
     np.testing.assert_array_equal(results[0], many_intervals)
     np.testing.assert_array_equal(results[1], doubles)
@@ -232,7 +235,8 @@ def test_push_truncate_explicit_range(qdbd_connection, table, many_intervals):
 
     # Verify results, truncating should now make things the same
     # as the beginning again.
-    results = qdbnp.read_array(table, tslib._double_col_name(table))
+    idx, cols = qdbnp.read_arrays(table, columns=[tslib._double_col_name(table)])
+    results = (idx, cols[tslib._double_col_name(table)])
 
     np.testing.assert_array_equal(results[0], many_intervals)
     np.testing.assert_array_equal(results[1], doubles)
@@ -245,7 +249,8 @@ def test_push_truncate_explicit_range(qdbd_connection, table, many_intervals):
 
     # Verify results, truncating should now make things the same
     # as the beginning again.
-    results = qdbnp.read_array(table, tslib._double_col_name(table))
+    idx, cols = qdbnp.read_arrays(table, columns=[tslib._double_col_name(table)])
+    results = (idx, cols[tslib._double_col_name(table)])
 
     np.testing.assert_array_equal(results[0], many_intervals[1:])
     np.testing.assert_array_equal(results[1], doubles[1:])

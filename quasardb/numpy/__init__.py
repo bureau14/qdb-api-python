@@ -743,6 +743,16 @@ def read_arrays(
 def read_array(
     table: Optional[Table] = None, column: Optional[str] = None, ranges: Any = None
 ) -> Tuple[NDArrayTime, MaskedArrayAny]:
+    """
+    Deprecated compatibility wrapper around read_arrays().
+    """
+    warnings.warn(
+        "qdbnp.read_array() is deprecated and will be removed in a future version. "
+        "Use qdbnp.read_arrays(..., columns=[column], ...) instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     if table is None:
         raise RuntimeError("A table is required.")
 
@@ -762,6 +772,8 @@ def write_array(
     infer_types: bool = True,
 ) -> None:
     """
+    Deprecated compatibility wrapper around write_arrays().
+
     Write a Numpy array to a single column.
 
     Parameters:
@@ -787,6 +799,12 @@ def write_array(
       conversions, we recommend always setting this to False.
 
     """
+    warnings.warn(
+        "qdbnp.write_array() is deprecated and will be removed in a future version. "
+        "Use qdbnp.write_arrays(...) instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
 
     if table is None:
         raise RuntimeError("A table is required.")
