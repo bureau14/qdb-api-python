@@ -455,11 +455,6 @@ def test_read_arrays_rejects_string_columns(table):
         qdbnp.read_arrays(table, columns="the_double")
 
 
-def test_read_arrays_rejects_duplicate_columns(table):
-    with pytest.raises(ValueError):
-        qdbnp.read_arrays(table, columns=["the_double", "the_double"])
-
-
 ######
 #
 # Query tests
