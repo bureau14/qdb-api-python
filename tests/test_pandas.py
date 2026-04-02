@@ -184,12 +184,13 @@ def test_dataframe_can_read_ranges(
     assert df5.shape[0] == (row_count / 4) * 3
 
 
+@pytest.mark.parametrize("sparsify", conftest.no_sparsify)
 def test_dataframe_can_read_numpy_ranges(
     qdbpd_write_fn, qdbd_connection, df_with_table, start_date, row_count
 ):
-    (_, _, df1, table) = df_with_table
+    (_, dtype, df1, table) = df_with_table
 
-    qdbpd_write_fn(df1, qdbd_connection, table)
+    qdbpd_write_fn(df1, qdbd_connection, table, infer_types=False, dtype=dtype)
 
     offset_25 = start_date + np.timedelta64(int(row_count / 4), "s")
     offset_75 = start_date + (3 * np.timedelta64(int(row_count / 4), "s"))
