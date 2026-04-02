@@ -7,14 +7,14 @@ from quasardb import metrics
 import pytest
 
 
-def test_clear_metrics(qdbd_connection):
+def test_clear_metrics():
     metrics.clear()
 
     totals = metrics.totals()
     assert len(totals) == 0
 
 
-def test_scoped_measure(qdbd_connection):
+def test_scoped_measure():
 
     with metrics.Measure() as measure:
         scoped = measure.get()
