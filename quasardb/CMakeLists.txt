@@ -344,52 +344,71 @@ if(NOT QDB_LINK_STATIC_LIB)
 endif()
 
 set(QDB_FILES
+  batch_column.hpp
   batch_inserter.hpp
   blob.hpp
-  cluster.hpp
   cluster.cpp
+  cluster.hpp
   concepts.hpp
   continuous.cpp
   continuous.hpp
   convert.hpp
+  direct_blob.hpp
+  direct_handle.hpp
+  direct_integer.hpp
+  dispatch.hpp
   double.hpp
-  error.hpp
   entry.hpp
-  handle.hpp
+  error.hpp
   handle.cpp
-  logger.hpp
+  handle.hpp
+  integer.hpp
   logger.cpp
+  logger.hpp
   masked_array.hpp
-  metrics.hpp
   metrics.cpp
-  module.hpp
+  metrics.hpp
   module.cpp
+  module.hpp
   node.hpp
-  numpy.hpp
   numpy.cpp
+  numpy.hpp
   object_tracker.hpp
   options.hpp
+  perf.hpp
   properties.cpp
   properties.hpp
-  query.hpp
+  pytypes.hpp
   query.cpp
+  query.hpp
   reader.cpp
   reader.hpp
+  reader_fwd.hpp
+  remove_cvref.hpp
   string.hpp
   table.cpp
   table.hpp
+  table_fwd.hpp
   tag.hpp
   timestamp.hpp
   traits.hpp
+  ts_iterator.hpp
   utils.cpp
   utils.hpp
   version.hpp
   writer.hpp
+  writer_fwd.hpp
+  convert/array.hpp
+  convert/point.hpp
+  convert/range.hpp
+  convert/unicode.hpp
+  convert/util.hpp
+  convert/value.hpp
   detail/invoke.hpp
-  detail/retry.hpp
-  detail/retry.cpp
-  detail/sleep.hpp
   detail/qdb_resource.hpp
+  detail/retry.cpp
+  detail/retry.hpp
+  detail/sleep.hpp
   detail/ts_column.hpp
   detail/writer.cpp
   detail/writer.hpp
@@ -397,6 +416,7 @@ set(QDB_FILES
   utils/ostream.hpp
   utils/permutation.hpp
   utils/stable_sort.hpp
+  utils/unzip_view.hpp
 )
 
 set(QDB_TEST_FILES "")

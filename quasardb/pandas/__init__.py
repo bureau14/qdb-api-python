@@ -179,7 +179,7 @@ def write_series(
     assert data is not None
     assert index is not None
 
-    return qdbnp.write_array(
+    qdbnp.write_array(
         data=data,
         index=index,
         table=table,
@@ -209,10 +209,10 @@ def query(
 
     index : str | None, default None
         Column to use as index.  When None a synthetic index is created and
-        named “$index”.
+        named "$index".
 
     blobs, numpy
-        DEPRECATED – no longer used.  Supplying a non-default value raises a
+        DEPRECATED - no longer used.  Supplying a non-default value raises a
         DeprecationWarning and the argument is ignored.
     """
     # ------------------------------------------------------------------ deprecations

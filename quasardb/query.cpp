@@ -124,6 +124,13 @@ static py::handle coerce_point(qdb_point_result_t p, bool parse_blob)
 
     case qdb_query_result_timestamp:
         return qdb::numpy::datetime64(p.payload.timestamp.value);
+
+    case qdb_query_result_array_double:
+    case qdb_query_result_array_int64:
+    case qdb_query_result_array_blob:
+    case qdb_query_result_array_timestamp:
+    case qdb_query_result_array_string:
+        break;
     }
 
     throw std::runtime_error("Unable to cast QuasarDB type to Python type");

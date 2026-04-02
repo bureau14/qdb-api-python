@@ -433,7 +433,7 @@ def _coerce_data(
 
 
 def _probe_length(
-    xs: Union[Dict[Any, NDArrayAny], Iterable[NDArrayAny]]
+    xs: Union[Dict[Any, NDArrayAny], Iterable[NDArrayAny]],
 ) -> Optional[int]:
     """
     Returns the length of the first non-null array in `xs`, or None if all arrays
@@ -499,7 +499,7 @@ def _ensure_list(
 
 
 def _coerce_retries(
-    retries: Optional[Union[int, quasardb.RetryOptions]]
+    retries: Optional[Union[int, quasardb.RetryOptions]],
 ) -> quasardb.RetryOptions:
     if retries is None:
         return quasardb.RetryOptions()
@@ -807,7 +807,7 @@ def write_arrays(
       Defaults to `Transactional`.
 
     truncate: optional bool
-      **DEPRECATED** – Use `push_mode=WriterPushMode.Truncate` instead.
+      **DEPRECATED** - Use `push_mode=WriterPushMode.Truncate` instead.
       Truncate (also referred to as upsert) the data in-place. Will detect time range to truncate
       from the time range inside the dataframe.
 
@@ -817,7 +817,7 @@ def write_arrays(
       Time range to truncate from the time range inside the dataframe.
 
     _async: optional bool
-      **DEPRECATED** – Use `push_mode=WriterPushMode.Async` instead.
+      **DEPRECATED** - Use `push_mode=WriterPushMode.Async` instead.
       If true, uses asynchronous insertion API where commits are buffered server-side and
       acknowledged before they are written to disk. If you insert to the same table from
       multiple processes, setting this to True may improve performance.
@@ -825,7 +825,7 @@ def write_arrays(
       Defaults to False.
 
     fast: optional bool
-      **DEPRECATED** – Use `push_mode=WriterPushMode.Fast` instead.
+      **DEPRECATED** - Use `push_mode=WriterPushMode.Fast` instead.
       Whether to use 'fast push'. If you incrementally add small batches of data to table,
       you may see better performance if you set this to True.
 

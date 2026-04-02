@@ -64,7 +64,7 @@ namespace detail
 
         case qdb_ts_column_uninitialized:
             throw qdb::not_implemented_exception(
-                "Internal error: invalid data type: unintialized column "
+                "Internal error: invalid data type: uninitialized column "
                 "type returned from bulk reader");
         };
 
@@ -207,8 +207,8 @@ void register_reader(py::module_ & m)
     // basic interface
     reader_c
         .def(py::init([](py::args, py::kwargs) {
-	    throw qdb::direct_instantiation_exception{"conn.reader(...)"};
-	    return nullptr;
+            throw qdb::direct_instantiation_exception{"conn.reader(...)"};
+            return nullptr;
         }))
         .def("get_batch_size", &qdb::reader::get_batch_size)
         .def("__enter__", &qdb::reader::enter)
