@@ -746,98 +746,6 @@ def read_arrays(
         return _read_arrays_with_reader(reader, cinfos)
 
 
-def read_array(
-    table: Optional[Table] = None, column: Optional[str] = None, ranges: Any = None
-) -> Tuple[NDArrayTime, MaskedArrayAny]:
-    """
-    Deprecated compatibility wrapper around read_arrays().
-
-    Reads a single column and returns its shared timestamp index together with
-    the column data as a masked array.
-    """
-    warnings.warn(
-        "qdbnp.read_array() is deprecated and will be removed in a future version. "
-        "Use qdbnp.read_arrays(..., columns=[column], ...) instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-
-    if table is None:
-        raise RuntimeError("A table is required.")
-
-    if column is None:
-        raise RuntimeError("A column is required.")
-
-    idx, data = read_arrays(table=table, columns=[column], ranges=ranges)
-    return idx, data[column]
-
-
-def write_array(
-    data: Any = None,
-    index: Optional[NDArrayTime] = None,
-    table: Optional[Table] = None,
-    column: Optional[str] = None,
-    dtype: Optional[DType] = None,
-    infer_types: bool = True,
-) -> None:
-    """
-    Deprecated compatibility wrapper around write_arrays().
-
-    Write a Numpy array to a single column.
-
-    Parameters:
-    -----------
-
-    data: np.array
-      Numpy array with a dtype that is compatible with the column's type.
-
-    index: np.array
-      Numpy array with a datetime64[ns] dtype that will be used as the
-      $timestamp axis for the data to be stored.
-
-    dtype: optional np.dtype
-      If provided, ensures the data array is converted to this dtype before
-      insertion.
-
-    infer_types: optional bool
-      If true, when necessary will attempt to convert the data and index array
-      to the best type for the column. For example, if you provide float64 data
-      while the column's type is int64, it will automatically convert the data.
-
-      Defaults to True. For production use cases where you want to avoid implicit
-      conversions, we recommend always setting this to False.
-
-    """
-    warnings.warn(
-        "qdbnp.write_array() is deprecated and will be removed in a future version. "
-        "Use qdbnp.write_arrays(...) instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-
-    if table is None:
-        raise RuntimeError("A table is required.")
-
-    if column is None:
-        raise RuntimeError("A column is required.")
-
-    if data is None:
-        raise RuntimeError("A data numpy array is required.")
-
-    if index is None:
-        raise RuntimeError("An index numpy timestamp array is required.")
-
-    write_arrays(
-        {column: data},
-        None,
-        table,
-        dtype={column: dtype},
-        index=index,
-        infer_types=infer_types,
-        writer=table.writer(),
-    )
-
-
 def write_arrays(
     data: Any,
     cluster: Optional[quasardb.Cluster],
@@ -1244,3 +1152,6 @@ def query(
     xs = cluster.query_numpy(query)
 
     return _xform_query_results(xs, index, dict)
+
+
+from ._deprecated import read_array, write_array

@@ -90,6 +90,15 @@ _dtype_map: Dict[Any, quasardb.ColumnType] = {
 TableLike = Union[str, Table]
 
 
+def _warn_deprecated_api(name: str, replacement: str, stacklevel: int = 2) -> None:
+    warnings.warn(
+        f"{name} is deprecated and will be removed in a future version. "
+        f"Use {replacement} instead.",
+        DeprecationWarning,
+        stacklevel=stacklevel,
+    )
+
+
 def read_series(
     table: Table, col_name: str, ranges: Optional[RangeSet] = None
 ) -> pd.Series:
@@ -111,11 +120,9 @@ def read_series(
       Time ranges to read. When provided as a numpy array, it is expected to
       have shape (n, 2) and contain datetime64[ns] values.
     """
-    warnings.warn(
-        "qdbpd.read_series() is deprecated and will be removed in a future version. "
-        "Use qdbnp.read_arrays(..., columns=[col_name], ...) or qdbpd.read_dataframe() instead.",
-        DeprecationWarning,
-        stacklevel=2,
+    _warn_deprecated_api(
+        "qdbpd.read_series()",
+        "qdbnp.read_arrays(..., columns=[col_name], ...) or qdbpd.read_dataframe()",
     )
     logger.info("reading Series from column %s.%s", table.get_name(), col_name)
     index, values = qdbnp.read_arrays(table=table, columns=[col_name], ranges=ranges)
@@ -155,11 +162,9 @@ def write_series(
         infer_types,
         dtype,
     )
-    warnings.warn(
-        "qdbpd.write_series() is deprecated and will be removed in a future version. "
-        "Use qdbnp.write_arrays(...) or qdbpd.write_dataframe() instead.",
-        DeprecationWarning,
-        stacklevel=2,
+    _warn_deprecated_api(
+        "qdbpd.write_series()",
+        "qdbnp.write_arrays(...) or qdbpd.write_dataframe()",
     )
 
     data = None
