@@ -42,8 +42,6 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
     # column-insert-start
 
     # We can write a dataframe that contains only a subset of the table's columns.
-    # Separately, we generate a numpy array of timestamps. Since our three columns share
-    # the same timestamps, we can reuse this as the index for all columns.
     timestamps = np.array(
         [np.datetime64("2019-02-01"), np.datetime64("2019-02-02")],
         dtype="datetime64[ns]",
