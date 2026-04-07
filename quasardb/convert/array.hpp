@@ -186,8 +186,8 @@ struct convert_array<From, To>
 
     [[nodiscard]] constexpr inline auto operator()() const noexcept
     {
-        auto xform = [](value_type const & x) -> delegate_value_type {
-            if (To::is_null(x))
+        auto xform = [](From const & x) -> delegate_value_type {
+            if (traits::is_null(x))
             {
                 return Delegate::null_value();
             }
