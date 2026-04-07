@@ -43,4 +43,8 @@ def test_blob_object_array_recode_roundtrip_masked_values():
 def test_blob_object_array_recode_roundtrip_empty_bytes():
     values = np.array([b"", b"beta", b"", b"delta"], dtype=np.object_)
     result = _blob_recode(values)
-    assert_indexed_arrays_equal((result[0], values), result)
+    expected = ma.masked_array(
+        data=np.array([None, b"beta", None, b"delta"], dtype=np.object_),
+        mask=[True, False, True, False],
+    )
+    assert_indexed_arrays_equal((result[0], expected), result)
