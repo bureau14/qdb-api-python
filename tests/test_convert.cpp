@@ -79,7 +79,7 @@ struct array_recode_cdtype_dispatch;
         {                                                                        \
             auto tmp  = convert::point_array<DTYPE, VALUE_TYPE>(input);          \
             auto tmp2 = convert::point_array<VALUE_TYPE, DTYPE>(tmp);            \
-            output    = input;                                                   \
+            output    = std::move(tmp2);                                         \
         }                                                                        \
     };
 
