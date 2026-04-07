@@ -500,10 +500,24 @@ public:
     template <concepts::dtype Dtype>
     static qdb::mask masked_null(py::array const & xs)
     {
-        using value_type = typename Dtype::value_type;
-
         py::array_t<bool> ret{ShapeContainer{xs.size()}};
         bool * p_ret = static_cast<bool *>(ret.mutable_data());
+
+        if constexpr (std::is_same_v<Dtype, traits::pyobject_dtype>)
+        {
+            auto begin = static_cast<PyObject * const *>(xs.data());
+            auto end   = begin + xs.size();
+
+            // NumPy object arrays store raw PyObject * values, not py::object wrappers.
+            for (auto cur = begin; cur != end; ++cur, ++p_ret)
+            {
+                *p_ret = (*cur == nullptr) || (*cur == Py_None);
+            }
+
+            return mask::of_array(py::cast<py::array>(ret));
+        }
+
+        using value_type = typename Dtype::value_type;
 
         // The step_size is `1` for all fixed-width dtypes, but in case
         // of variable width dtypes, is, well, variable.
