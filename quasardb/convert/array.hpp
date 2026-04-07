@@ -186,17 +186,17 @@ struct convert_array<From, To>
 
     [[nodiscard]] constexpr inline auto operator()() const noexcept
     {
-        auto xform = [](From const & x) -> delegate_value_type {
-            if (traits::is_null(x))
+        auto xform = [](delegate_value_type const & x) -> value_type {
+            if (Delegate::is_null(x))
             {
-                return Delegate::null_value();
+                return To::null_value();
             }
             else
             {
-                return static_cast<delegate_value_type>(x);
+                return static_cast<value_type>(x);
             }
         };
-        return ranges::views::transform(xform) | delegate();
+        return delegate() | ranges::views::transform(xform);
     };
 };
 
