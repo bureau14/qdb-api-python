@@ -42,7 +42,6 @@ namespace detail
             xs = convert::masked_array<double, traits::float64_dtype>(
                 ranges::views::counted(column.data.doubles, data.row_count));
             break;
-        case qdb_ts_column_symbol:
         case qdb_ts_column_string:
             xs = convert::masked_array<qdb_string_t, traits::unicode_dtype>(
                 ranges::views::counted(column.data.strings, data.row_count));
@@ -55,6 +54,13 @@ namespace detail
             xs = convert::masked_array<qdb_timespec_t, traits::datetime64_ns_dtype>(
                 ranges::views::counted(column.data.timestamps, data.row_count));
             break;
+
+        case qdb_ts_column_symbol:
+            // This should not happen, as "symbol" is just an internal representation, and symbols
+            // are exposed to the user as strings. If this actually happens, it indicates either
+            // a bug in the bulk reader *or* a memory corruption.
+            throw qdb::not_implemented_exception(
+                "Internal error: invalid data type: symbol column type returned from bulk reader");
 
         case qdb_ts_column_uninitialized:
             throw qdb::not_implemented_exception(
