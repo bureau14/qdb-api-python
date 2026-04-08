@@ -184,6 +184,22 @@ struct convert_array<From, To>
 
     static constexpr convert_array<From, Delegate> const delegate{};
 
+#if 1
+    [[nodiscard]] constexpr inline auto operator()() const noexcept
+    {
+        auto xform = [](value_type const & x) -> delegate_value_type {
+            if (To::is_null(x))
+            {
+                return Delegate::null_value();
+            }
+            else
+            {
+                return static_cast<delegate_value_type>(x);
+            }
+        };
+        return ranges::views::transform(xform) | delegate();
+    };
+#else
     [[nodiscard]] constexpr inline auto operator()() const noexcept
     {
         auto xform = [](delegate_value_type const & x) -> value_type {
@@ -198,6 +214,7 @@ struct convert_array<From, To>
         };
         return delegate() | ranges::views::transform(xform);
     };
+#endif
 };
 
 }; // namespace qdb::convert::detail
