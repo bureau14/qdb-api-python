@@ -170,7 +170,6 @@ def _coerce_dtype(
                     "Forced dtype provided for column '%s' = %s, but that column is not found in the table. Skipping...",
                     k,
                 )
-                continue
 
             i = offsets[k]
             dtype_[i] = dt
