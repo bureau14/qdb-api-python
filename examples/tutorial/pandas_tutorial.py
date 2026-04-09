@@ -28,9 +28,7 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
 
     # bulk-read-start
 
-    ranges = np.array(
-        [(np.datetime64("2019-02-01", "ns"), np.datetime64("2019-02-02", "ns"))]
-    )
+    ranges = [(np.datetime64("2019-02-01", "ns"), np.datetime64("2019-02-02", "ns"))]
     t = c.table("stocks")
 
     # The `read_dataframe` function provides a performance-efficient mechanism to read data
@@ -38,44 +36,6 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
     df = qdbpd.read_dataframe(c, t, ranges=ranges)
 
     # bulk-read-end
-
-    # column-insert-start
-
-    # We can write a dataframe that contains only a subset of the table's columns.
-    timestamps = np.array(
-        [np.datetime64("2019-02-01"), np.datetime64("2019-02-02")],
-        dtype="datetime64[ns]",
-    )
-
-    df = pd.DataFrame(
-        data={
-            "open": pd.Series(data=[3.40, 3.50], index=timestamps, dtype=np.float64),
-            "close": pd.Series(data=[3.50, 3.55], index=timestamps, dtype=np.float64),
-            "volume": pd.Series(data=[10000, 7500], index=timestamps, dtype=np.int64),
-        }
-    )
-
-    qdbpd.write_dataframe(df, c, t)
-
-    # column-insert-end
-
-    # column-get-start
-
-    # We first prepare the intervals we want to select data from, that is, a list of
-    # timeranges. An interval is defined as a tuple of start time (inclusive) and end
-    # time (exclusive).
-    #
-    # In this example, we just use a single interval.
-    intervals = np.array(
-        [(np.datetime64("2019-02-01", "ns"), np.datetime64("2019-02-02", "ns"))]
-    )
-
-    # We can then use read_dataframe to fetch only the subset of columns we need.
-    df = qdbpd.read_dataframe(
-        c, t, ranges=intervals, column_names=["open", "close", "volume"]
-    )
-
-    # column-get-end
 
     # query-start
 

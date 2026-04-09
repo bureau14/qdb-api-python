@@ -41,13 +41,6 @@ def _generate_string_ts(start_time, count):
     return (dates, values)
 
 
-def _check_ts_results(results, generated, count):
-    assert len(results) == 2
-
-    np.testing.assert_array_equal(results[0][:count], generated[0][:count])
-    np.testing.assert_array_equal(results[1][:count], generated[1][:count])
-
-
 def test_column_info_repr(column_name):
     double = quasardb.ColumnInfo(quasardb.ColumnType.Double, column_name)
     blob = quasardb.ColumnInfo(quasardb.ColumnType.Blob, column_name)

@@ -1,7 +1,6 @@
 # import-start
 import json
 import quasardb
-import quasardb.numpy as qdbnp
 import numpy as np
 
 # import-end
@@ -136,55 +135,6 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
             do_something_async_with(batch)
 
     # bulk-read-end
-
-    # column-insert-start
-
-    # Our API is built on top of numpy, and provides zero-copy integration with native
-    # numpy arrays. As such, we first prepare three different arrays for each of our three
-    # columns:
-    opens = np.array([3.40, 3.50], dtype=np.float64)
-    closes = np.array([3.50, 3.55], dtype=np.float64)
-    volumes = np.array([10000, 7500], dtype=np.int64)
-
-    # Separately, we generate a numpy array of timestamps. Since our three columns share
-    # the same timestamps, we can reuse this array for all of them, but this is not required.
-    timestamps = np.array(
-        [np.datetime64("2019-02-01"), np.datetime64("2019-02-02")],
-        dtype="datetime64[ns]",
-    )
-
-    # When inserting, we provide the value arrays and timestamp arrays using the
-    # numpy helper functions.
-    qdbnp.write_arrays(
-        {"open": opens, "close": closes, "volume": volumes},
-        c,
-        t,
-        index=timestamps,
-        infer_types=False,
-    )
-
-    # column-insert-end
-
-    # column-get-start
-
-    # We first prepare the intervals we want to select data from, that is, a list of
-    # timeranges. An interval is defined as a tuple of start time (inclusive) and end
-    # time (exclusive).
-    #
-    # In this example, we just use a single interval.
-    intervals = np.array(
-        [(np.datetime64("2019-02-01", "ns"), np.datetime64("2019-02-02", "ns"))]
-    )
-
-    # As with insertion, our API works with native numpy arrays and returns the results as such.
-    (timestamps, columns) = qdbnp.read_arrays(
-        t, columns=["open", "close", "volume"], ranges=intervals, cluster=c
-    )
-    opens = columns["open"]
-    closes = columns["close"]
-    volumes = columns["volume"]
-
-    # column-get-end
 
     # query-start
 
