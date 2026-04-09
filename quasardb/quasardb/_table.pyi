@@ -5,6 +5,7 @@ import typing
 from typing import Any, Optional, Union
 
 from quasardb.quasardb._reader import Reader
+from quasardb.quasardb._writer import Writer
 from quasardb.typing import MaskedArrayAny, NDArrayAny, NDArrayTime, RangeSet
 
 from ._entry import Entry
@@ -118,6 +119,7 @@ class Table(Entry):
         batch_size: int = 0,
         ranges: RangeSet = [],
     ) -> Reader: ...
+    def writer(self) -> Writer: ...
     def retrieve_metadata(self) -> None: ...
     def string_get_ranges(
         self, column: str, ranges: Optional[RangeSet] = None
