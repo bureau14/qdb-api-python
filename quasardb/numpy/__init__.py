@@ -717,7 +717,7 @@ def _concat_masked(xs: List[MaskedArrayAny]) -> MaskedArrayAny:
     return ma.concatenate(xs)
 
 
-def _clean_batch(batch: Dict[str, MaskedArrayAny]) -> IndexedMaskedArrays:
+def _reader_batch_to_arrays(batch: Dict[str, MaskedArrayAny]) -> IndexedMaskedArrays:
     assert "$timestamp" in batch
 
     idx = batch["$timestamp"]
@@ -860,7 +860,7 @@ def stream_arrays(
     kwargs["table_names"] = [coerce_table_name_fn(x) for x in tables]
     with conn.reader(**kwargs) as reader:
         for batch in reader:
-            yield _clean_batch(batch)
+            yield _reader_batch_to_arrays(batch)
 
 
 def write_arrays(
