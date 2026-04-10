@@ -250,10 +250,9 @@ def stream_dataframes(
     ranges: Optional[RangeSet] = None,
 ) -> Iterator[pd.DataFrame]:
     """
-    Read a Pandas Dataframe from a QuasarDB Timeseries table. Returns a generator with dataframes of size `batch_size`, which is useful
-    when traversing a large dataset which does not fit into memory.
-
-    Accepts the same parameters as `stream_dataframes`.
+    Read Pandas DataFrames from one or more QuasarDB tables. Returns a generator
+    with dataframes of size `batch_size`, which is useful when traversing a
+    large dataset which does not fit into memory.
 
     Parameters:
     -----------
@@ -279,36 +278,14 @@ def stream_dataframes(
       Defaults to the entire table.
 
     """
-    # Sanitize batch_size
-    if batch_size is None:
-        batch_size = 2**16
-    elif not isinstance(batch_size, int):
-        raise TypeError(
-            "batch_size should be an integer, but got: {} with value {}".format(
-                type(batch_size), str(batch_size)
-            )
-        )
-
-    kwargs: Dict[str, Any] = {"batch_size": batch_size}
-
-    if column_names:
-        kwargs["column_names"] = column_names
-
-    if ranges:
-        kwargs["ranges"] = ranges
-
-    coerce_table_name_fn = lambda x: x if isinstance(x, str) else x.get_name()
-    kwargs["table_names"] = [coerce_table_name_fn(x) for x in tables]
-
-    with conn.reader(**kwargs) as reader:
-        for batch in reader:
-            # We always expect the timestamp column, and set this as the index
-            assert "$timestamp" in batch
-
-            idx = pd.Index(batch.pop("$timestamp"), copy=False, name="$timestamp")
-            df = pd.DataFrame(batch, index=idx)
-
-            yield df
+    for idx, xs in qdbnp.stream_arrays(
+        conn,
+        tables,
+        batch_size=batch_size,
+        column_names=column_names,
+        ranges=ranges,
+    ):
+        yield pd.DataFrame(xs, index=pd.Index(idx, copy=False, name="$timestamp"))
 
 
 def stream_dataframe(

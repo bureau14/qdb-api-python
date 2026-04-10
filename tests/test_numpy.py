@@ -361,7 +361,7 @@ def test_read_arrays_reads_all_columns_when_columns_empty(qdbd_connection, table
         },
     )
 
-    idx, xs = qdbnp.read_arrays(table=table, columns=[])
+    idx, xs = qdbnp.read_arrays(qdbd_connection, [table], column_names=[])
 
     np.testing.assert_array_equal(idx, index)
     assert list(xs.keys()) == [c.name for c in table.list_columns()]
@@ -404,7 +404,13 @@ def test_read_arrays_reads_selected_columns_with_ranges(qdbd_connection, table):
     columns = [tslib._double_col_name(table), tslib._int64_col_name(table)]
     ranges = [(index[1], index[2] + np.timedelta64(1, "ns"))]
 
-    idx, xs = qdbnp.read_arrays(table=table, columns=columns, ranges=ranges)
+    idx, xs = qdbnp.read_arrays(
+        qdbd_connection,
+        [table],
+        batch_size=1,
+        column_names=columns,
+        ranges=ranges,
+    )
 
     np.testing.assert_array_equal(idx, index[1:3])
     assert list(xs.keys()) == columns
@@ -434,14 +440,17 @@ def test_read_arrays_accepts_numpy_ranges(qdbd_connection, table):
 
     ranges = np.array([(index[1], index[2] + np.timedelta64(1, "ns"))])
     idx, xs = qdbnp.read_arrays(
-        table=table, columns=[tslib._double_col_name(table)], ranges=ranges
+        qdbd_connection,
+        [table],
+        column_names=[tslib._double_col_name(table)],
+        ranges=ranges,
     )
 
     np.testing.assert_array_equal(idx, index[1:3])
     np.testing.assert_array_equal(xs[tslib._double_col_name(table)], doubles[1:3])
 
 
-def test_read_arrays_supports_cluster_with_table_object(qdbd_connection, table):
+def test_read_arrays_supports_table_object(qdbd_connection, table):
     index = np.array(
         [
             np.datetime64("2017-01-01T00:00:00", "ns"),
@@ -461,16 +470,16 @@ def test_read_arrays_supports_cluster_with_table_object(qdbd_connection, table):
     )
 
     idx, xs = qdbnp.read_arrays(
-        table=table,
-        columns=[tslib._double_col_name(table)],
-        cluster=qdbd_connection,
+        qdbd_connection,
+        [table],
+        column_names=[tslib._double_col_name(table)],
     )
 
     np.testing.assert_array_equal(idx, index)
     np.testing.assert_array_equal(xs[tslib._double_col_name(table)], doubles)
 
 
-def test_read_arrays_supports_cluster_with_table_name(qdbd_connection, table):
+def test_read_arrays_supports_table_name(qdbd_connection, table):
     index = np.array(
         [
             np.datetime64("2017-01-01T00:00:00", "ns"),
@@ -490,23 +499,55 @@ def test_read_arrays_supports_cluster_with_table_name(qdbd_connection, table):
     )
 
     idx, xs = qdbnp.read_arrays(
-        table=table.get_name(),
-        columns=[tslib._double_col_name(table)],
-        cluster=qdbd_connection,
+        qdbd_connection,
+        [table.get_name()],
+        column_names=[tslib._double_col_name(table)],
     )
 
     np.testing.assert_array_equal(idx, index)
     np.testing.assert_array_equal(xs[tslib._double_col_name(table)], doubles)
 
 
-def test_read_arrays_rejects_string_columns(table):
+def test_read_arrays_rejects_string_column_names(qdbd_connection, table):
     with pytest.raises(TypeError):
-        qdbnp.read_arrays(table=table, columns="the_double")
+        qdbnp.read_arrays(qdbd_connection, [table], column_names="the_double")
 
 
-def test_read_arrays_rejects_table_name_without_cluster(table):
-    with pytest.raises(RuntimeError):
-        qdbnp.read_arrays(table=table.get_name(), columns=["the_double"])
+def test_stream_arrays_reads_batched_results(qdbd_connection, table):
+    index = np.array(
+        [
+            np.datetime64("2017-01-01T00:00:00", "ns"),
+            np.datetime64("2017-01-01T00:00:01", "ns"),
+            np.datetime64("2017-01-01T00:00:02", "ns"),
+        ],
+        dtype=np.dtype("datetime64[ns]"),
+    )
+    doubles = np.array([1.0, 2.0, 3.0], dtype=np.float64)
+
+    qdbnp.write_arrays(
+        {tslib._double_col_name(table): doubles},
+        qdbd_connection,
+        table,
+        index=index,
+        infer_types=False,
+        dtype={tslib._double_col_name(table): doubles.dtype},
+    )
+
+    xs = list(
+        qdbnp.stream_arrays(
+            qdbd_connection,
+            [table],
+            batch_size=1,
+            column_names=[tslib._double_col_name(table)],
+        )
+    )
+
+    assert len(xs) == 3
+    np.testing.assert_array_equal(np.concatenate([idx for idx, _ in xs]), index)
+    np.testing.assert_array_equal(
+        ma.concatenate([batch[tslib._double_col_name(table)] for _, batch in xs]),
+        doubles,
+    )
 
 
 ######

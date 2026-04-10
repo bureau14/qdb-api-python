@@ -31,14 +31,17 @@ from __future__ import annotations
 import logging
 import time
 import warnings
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Type, Union
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple, Type, Union
 
 import quasardb
-import quasardb.table_cache as table_cache
-from quasardb.quasardb import Table, Writer
-from quasardb.typing import DType, MaskedArrayAny, NDArrayAny, NDArrayTime
+from quasardb.quasardb import Cluster, Table, Writer
+from quasardb.typing import DType, MaskedArrayAny, NDArrayAny, NDArrayTime, RangeSet
 
 logger = logging.getLogger("quasardb.numpy")
+
+
+TableLike = Union[str, Table]
+IndexedMaskedArrays = Tuple[NDArrayTime, Dict[str, MaskedArrayAny]]
 
 
 class NumpyRequired(ImportError):
@@ -705,26 +708,6 @@ def write_array(
     write_with[ctype](column, index, data)
 
 
-def _column_infos_by_names(
-    table: Table, columns: Optional[Sequence[str]]
-) -> List[Tuple[str, quasardb.ColumnType]]:
-    infos = table.list_columns()
-
-    if columns is None or len(columns) == 0:
-        return [(cinfo.name, cinfo.type) for cinfo in infos]
-
-    if isinstance(columns, str):
-        raise TypeError("columns is expected to be a sequence of column names, got str")
-
-    by_name = {cinfo.name: (cinfo.name, cinfo.type) for cinfo in infos}
-    missing = [column for column in columns if column not in by_name]
-    if missing:
-        raise KeyError("Column not found: {}".format(missing[0]))
-
-    # Preserve explicit request order.
-    return [by_name[column] for column in columns]
-
-
 def _concat_masked(xs: List[MaskedArrayAny]) -> MaskedArrayAny:
     if len(xs) == 0:
         return ma.masked_array(np.array([]))
@@ -734,53 +717,31 @@ def _concat_masked(xs: List[MaskedArrayAny]) -> MaskedArrayAny:
     return ma.concatenate(xs)
 
 
-def _empty_masked_for_ctype(ctype: quasardb.ColumnType) -> MaskedArrayAny:
-    return ma.masked_array(np.array([], dtype=_best_dtype_for_ctype(ctype)))
+def _clean_batch(batch: Dict[str, MaskedArrayAny]) -> IndexedMaskedArrays:
+    assert "$timestamp" in batch
+
+    idx = batch["$timestamp"]
+    xs = {cname: values for (cname, values) in batch.items() if cname != "$timestamp"}
+
+    return idx, xs
 
 
-def _coerce_ranges(ranges: Any) -> Any:
-    if ranges is None:
-        return None
-
-    if isinstance(ranges, np.ndarray):
-        if ranges.ndim != 2 or ranges.shape[1] != 2:
-            raise TypeError(
-                "ranges numpy array is expected to have shape (n, 2), got {}".format(
-                    ranges.shape
-                )
-            )
-
-        return [(ranges[i, 0], ranges[i, 1]) for i in range(ranges.shape[0])]
-
-    return ranges
-
-
-def _read_arrays_with_reader(
-    reader: Any,
-    cinfos: List[Tuple[str, quasardb.ColumnType]],
-) -> Tuple[NDArrayTime, Dict[str, MaskedArrayAny]]:
-    column_names = [cname for (cname, _) in cinfos]
-
+def _concat_array_batches(xs: Iterable[IndexedMaskedArrays]) -> IndexedMaskedArrays:
     idx_batches: List[NDArrayTime] = []
-    value_batches: Dict[str, List[MaskedArrayAny]] = {
-        cname: [] for cname in column_names
-    }
+    value_batches: Dict[str, List[MaskedArrayAny]] = {}
 
-    for batch in reader:
-        idx_batches.append(batch["$timestamp"])
+    for idx, batch in xs:
+        idx_batches.append(idx)
 
-        for cname in column_names:
-            value_batches[cname].append(batch[cname])
+        for cname, values in batch.items():
+            value_batches.setdefault(cname, []).append(values)
 
     if len(idx_batches) == 0:
-        return (
-            np.array([], dtype=np.dtype("datetime64[ns]")),
-            {cname: _empty_masked_for_ctype(ctype) for (cname, ctype) in cinfos},
-        )
+        raise ValueError("No array batches to concatenate")
 
     if len(idx_batches) == 1:
         return idx_batches[0], {
-            cname: value_batches[cname][0] for cname in column_names
+            cname: batches[0] for cname, batches in value_batches.items()
         }
 
     return np.concatenate(idx_batches), {
@@ -789,25 +750,30 @@ def _read_arrays_with_reader(
 
 
 def read_arrays(
-    cluster: Optional[quasardb.Cluster] = None,
-    table: Optional[Union[str, Table]] = None,
-    columns: Optional[Sequence[str]] = None,
-    ranges: Any = None,
-) -> Tuple[NDArrayTime, Dict[str, MaskedArrayAny]]:
+    conn: Cluster,
+    tables: List[TableLike],
+    *,
+    batch_size: Optional[int] = 2**16,
+    column_names: Optional[Sequence[str]] = None,
+    ranges: Optional[RangeSet] = None,
+) -> IndexedMaskedArrays:
     """
     Read any number of columns from a table as numpy masked arrays.
 
     Parameters:
     -----------
 
-    cluster: optional quasardb.Cluster
-      Active connection to the QuasarDB cluster.
-      Required when `table` is provided as a table name.
+    conn: quasardb.Cluster
+      Connection to the QuasarDB database.
 
-    table: quasardb.Table or str
-      Table object or table name to read from.
+    tables : list[str | quasardb.Table]
+      QuasarDB tables to read, as a list of strings or quasardb table objects.
 
-    columns: optional sequence[str]
+    batch_size : int
+      The amount of rows to fetch in a single read operation. If unset, uses 2^16
+      (65536) rows as batch size by default.
+
+    column_names: optional sequence[str]
       Column names to read.
       If None or an empty sequence is provided, all table columns are read.
 
@@ -828,44 +794,73 @@ def read_arrays(
 
     Read all columns:
 
-    >>> idx, cols = qdbnp.read_arrays(table=my_table, columns=[])
+    >>> idx, cols = qdbnp.read_arrays(conn, [my_table], column_names=[])
 
     Read a subset of columns for a given time range:
 
     >>> idx, cols = qdbnp.read_arrays(
-    ...     table=my_table,
-    ...     columns=["open", "close"],
+    ...     conn,
+    ...     [my_table],
+    ...     column_names=["open", "close"],
     ...     ranges=[(start, end)],
     ... )
     >>> opens = cols["open"]
     >>> closes = cols["close"]
     """
-    if table is None:
-        raise RuntimeError("A table is required.")
+    xs = stream_arrays(
+        conn,
+        tables,
+        batch_size=batch_size,
+        column_names=column_names,
+        ranges=ranges,
+    )
 
-    ranges = _coerce_ranges(ranges)
+    try:
+        return _concat_array_batches(xs)
+    except ValueError as e:
+        logger.error(
+            "Error while concatenating arrays. This can happen if result set is empty. Returning empty arrays. Error: %s",
+            e,
+        )
+        return np.array([], dtype=np.dtype("datetime64[ns]")), {}
 
-    if isinstance(table, str):
-        if cluster is None:
-            raise RuntimeError("A cluster is required when a table name is provided.")
-        table = table_cache.lookup(table, cluster)
 
-    cinfos = _column_infos_by_names(table, columns)
-    column_names = [cname for (cname, _) in cinfos]
+def stream_arrays(
+    conn: Cluster,
+    tables: List[TableLike],
+    *,
+    batch_size: Optional[int] = 2**16,
+    column_names: Optional[Sequence[str]] = None,
+    ranges: Optional[RangeSet] = None,
+) -> Iterator[IndexedMaskedArrays]:
+    """
+    Read one or more tables as numpy masked arrays. Returns a generator with
+    indexed batches of size `batch_size`, which is useful when traversing a
+    large dataset which does not fit into memory.
+    """
+    # Sanitize batch_size
+    if batch_size is None:
+        batch_size = 2**16
+    elif not isinstance(batch_size, int):
+        raise TypeError(
+            "batch_size should be an integer, but got: {} with value {}".format(
+                type(batch_size), str(batch_size)
+            )
+        )
 
-    reader_kwargs: Dict[str, Any] = {"batch_size": 0}
-    if len(column_names) > 0:
-        reader_kwargs["column_names"] = column_names
-    if ranges is not None:
-        reader_kwargs["ranges"] = ranges
+    kwargs: Dict[str, Any] = {"batch_size": batch_size}
 
-    if cluster is not None:
-        reader_kwargs["table_names"] = [table.get_name()]
-        with cluster.reader(**reader_kwargs) as reader:
-            return _read_arrays_with_reader(reader, cinfos)
+    if column_names:
+        kwargs["column_names"] = column_names
 
-    with table.reader(**reader_kwargs) as reader:
-        return _read_arrays_with_reader(reader, cinfos)
+    if ranges:
+        kwargs["ranges"] = ranges
+
+    coerce_table_name_fn = lambda x: x if isinstance(x, str) else x.get_name()
+    kwargs["table_names"] = [coerce_table_name_fn(x) for x in tables]
+    with conn.reader(**kwargs) as reader:
+        for batch in reader:
+            yield _clean_batch(batch)
 
 
 def write_arrays(
