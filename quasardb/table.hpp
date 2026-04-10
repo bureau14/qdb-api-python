@@ -34,7 +34,6 @@
 #include "masked_array.hpp"
 #include "reader_fwd.hpp"
 #include "table_fwd.hpp"
-#include "writer_fwd.hpp"
 #include "detail/ts_column.hpp"
 
 namespace qdb
@@ -163,8 +162,6 @@ public:
         std::vector<std::string> const & column_names, //
         std::size_t batch_size,                        //
         std::vector<py::tuple> const & ranges) const;
-
-    qdb::writer_ptr writer() const;
 
     /**
      * Returns true if this table has a TTL assigned.
@@ -353,7 +350,6 @@ static inline void register_table(Module & m)
             py::arg("column_names") = std::vector<std::string>{}, //
             py::arg("batch_size")   = std::size_t{0},             //
             py::arg("ranges")       = std::vector<py::tuple>{})
-        .def("writer", &qdb::table::writer)
 
         .def("subscribe", &qdb::table::subscribe)
         .def("erase_ranges", &qdb::table::erase_ranges)

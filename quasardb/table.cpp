@@ -5,7 +5,6 @@
 #include "reader.hpp"
 #include "traits.hpp"
 #include "convert/point.hpp"
-#include "writer.hpp"
 #include <memory> // for make_unique
 
 namespace qdb
@@ -263,11 +262,5 @@ qdb::reader_ptr table::reader(                     //
     std::vector<std::string> table_names{get_name()};
     return std::make_unique<qdb::reader>(_handle, table_names, column_names, batch_size, ranges);
 };
-
-qdb::writer_ptr table::writer() const
-{
-    _handle->check_open();
-    return std::make_unique<qdb::writer>(_handle);
-}
 
 }; // namespace qdb
