@@ -31,7 +31,18 @@ from __future__ import annotations
 import logging
 import time
 import warnings
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple, Type, Union
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
+)
 
 import quasardb
 from quasardb.quasardb import Cluster, Table, Writer
