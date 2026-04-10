@@ -45,6 +45,7 @@ from typing import (
 )
 
 import quasardb
+import quasardb.table_cache as table_cache
 from quasardb.quasardb import Cluster, Table, Writer
 from quasardb.typing import DType, MaskedArrayAny, NDArrayAny, NDArrayTime, RangeSet
 
