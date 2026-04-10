@@ -758,7 +758,7 @@ def read_arrays(
     ranges: Optional[RangeSet] = None,
 ) -> IndexedMaskedArrays:
     """
-    Read any number of columns from a table as numpy masked arrays.
+    Read any number of columns from tables as numpy masked arrays.
 
     Parameters:
     -----------
@@ -777,9 +777,8 @@ def read_arrays(
       Column names to read.
       If None or an empty sequence is provided, all table columns are read.
 
-    ranges: optional list[tuple] or numpy.ndarray
-      Time ranges to read. When provided as a numpy array, it is expected to
-      have shape (n, 2) and contain datetime64[ns] values.
+    ranges: optional list[tuple]
+      Time ranges to read.
       If None, the full available range is read.
 
     Returns:
