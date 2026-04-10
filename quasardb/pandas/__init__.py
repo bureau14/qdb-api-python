@@ -250,9 +250,8 @@ def stream_dataframes(
     ranges: Optional[RangeSet] = None,
 ) -> Iterator[pd.DataFrame]:
     """
-    Read Pandas DataFrames from one or more QuasarDB tables. Returns a generator
-    with dataframes of size `batch_size`, which is useful when traversing a
-    large dataset which does not fit into memory.
+    Read a Pandas Dataframe from a QuasarDB Timeseries table. Returns a generator with dataframes of size `batch_size`, which is useful
+    when traversing a large dataset which does not fit into memory.
 
     Parameters:
     -----------
