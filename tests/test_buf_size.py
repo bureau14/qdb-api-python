@@ -50,7 +50,7 @@ def test_client_query_buf_size_error(qdbd_settings, table, many_intervals):
         # doubles, blobs, strings, integers, timestamps =
         # batchlib._test_with_table(
         batchlib._test_with_table(
-            inserter, table, many_intervals, batchlib._regular_push
+            conn, inserter, table, many_intervals, batchlib._regular_push
         )
 
         res = conn.query('select * from "' + table.get_name() + '"')

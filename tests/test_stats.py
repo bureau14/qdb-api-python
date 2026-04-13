@@ -16,7 +16,11 @@ def _write_data(conn, table):
     # doubles, blobs, strings, integers, timestamps, symbols =
     # batchlib._test_with_table(
     _, _, _, _, _, _ = batchlib._test_with_table(
-        inserter, table, conftest.create_many_intervals(), batchlib._regular_push
+        conn,
+        inserter,
+        table,
+        conftest.create_many_intervals(),
+        batchlib._regular_push,
     )
 
 
