@@ -28,7 +28,7 @@ def _unicode_to_object_array(xs):
     return ma.masked_array(data=data, mask=mask)
 
 
-def _read_single_array(conn, table, column, *, ranges=None):
+def _read_single_column(conn, table, column, *, ranges=None):
     idx, xs = qdbnp.read_arrays(
         conn,
         [table],
@@ -38,7 +38,7 @@ def _read_single_array(conn, table, column, *, ranges=None):
     return idx, xs[column]
 
 
-def _write_single_array(
+def _write_single_column(
     conn, table, column, data, index, *, dtype=None, infer_types=True, **kwargs
 ):
     payload = {column: data}
@@ -62,7 +62,7 @@ def _write_single_array(
 #
 ###
 #
-# Single-column read/write tests now go through the batched array API.
+# Single-column read/write tests go through the batched array API.
 #
 ######
 
@@ -76,7 +76,7 @@ def test_array_read_write_native_dtypes(array_with_index_and_table, qdbd_connect
     (ctype, dtype, data, index, table) = array_with_index_and_table
 
     col = table.column_id_by_index(0)
-    _write_single_array(
+    _write_single_column(
         qdbd_connection,
         table,
         col,
@@ -86,7 +86,7 @@ def test_array_read_write_native_dtypes(array_with_index_and_table, qdbd_connect
         infer_types=False,
     )
 
-    res = _read_single_array(qdbd_connection, table, col)
+    res = _read_single_column(qdbd_connection, table, col)
 
     assert_indexed_arrays_equal((index, data), res)
 
@@ -102,9 +102,9 @@ def test_array_read_write_inferrable_dtypes(
     (ctype, dtype, data, index, table) = array_with_index_and_table
 
     col = table.column_id_by_index(0)
-    _write_single_array(qdbd_connection, table, col, data, index, infer_types=True)
+    _write_single_column(qdbd_connection, table, col, data, index, infer_types=True)
 
-    res = _read_single_array(qdbd_connection, table, col)
+    res = _read_single_column(qdbd_connection, table, col)
     assert_indexed_arrays_equal((index, data), res)
 
 
@@ -128,7 +128,7 @@ def test_arrays_read_write_native_dtypes(array_with_index_and_table, qdbd_connec
         push_mode=quasardb.WriterPushMode.Truncate,
     )
 
-    res = _read_single_array(qdbd_connection, table, col)
+    res = _read_single_column(qdbd_connection, table, col)
 
     assert_indexed_arrays_equal((index, data), res)
 
@@ -148,7 +148,7 @@ def test_arrays_read_write_inferrable_dtypes(
     col = table.column_id_by_index(0)
     qdbnp.write_arrays([data], qdbd_connection, table, index=index, infer_types=True)
 
-    res = _read_single_array(qdbd_connection, table, col)
+    res = _read_single_column(qdbd_connection, table, col)
     assert_indexed_arrays_equal((index, data), res)
 
 
@@ -172,7 +172,7 @@ def test_arrays_read_write_data_as_dict(array_with_index_and_table, qdbd_connect
         push_mode=quasardb.WriterPushMode.Truncate,
     )
 
-    res = _read_single_array(qdbd_connection, table, col)
+    res = _read_single_column(qdbd_connection, table, col)
 
     assert_indexed_arrays_equal((index, data), res)
 
@@ -197,7 +197,7 @@ def test_provide_index_as_dict(array_with_index_and_table, qdbd_connection):
         truncate=True,
     )
 
-    res = _read_single_array(qdbd_connection, table, col)
+    res = _read_single_column(qdbd_connection, table, col)
 
     assert_indexed_arrays_equal((index, data), res)
 
@@ -295,7 +295,7 @@ def test_arrays_deduplicate(
             dtype=dtype,
             infer_types=False,
         )
-        return _read_single_array(qdbd_connection, table, col)
+        return _read_single_column(qdbd_connection, table, col)
 
     res1 = _do_write_read(data1)
     assert_indexed_arrays_equal((index, data1), res1)
@@ -346,7 +346,7 @@ def test_string_array_returns_unicode(array_with_index_and_table, qdbd_connectio
     col = table.column_id_by_index(0)
     qdbnp.write_arrays([data], qdbd_connection, table, index=index)
 
-    (idx, xs) = _read_single_array(qdbd_connection, table, col)
+    (idx, xs) = _read_single_column(qdbd_connection, table, col)
     assert qdbnp.dtypes_equal(xs.dtype, np.dtype("unicode"))
 
 
@@ -769,7 +769,7 @@ def test_regression_sc11333(qdbd_connection, table_name, start_date, row_count):
     for i in range(len(cols)):
         col = cols[i]
 
-        res = _read_single_array(qdbd_connection, t, col)
+        res = _read_single_column(qdbd_connection, t, col)
         assert_indexed_arrays_equal((idx, data[i]), res)
 
 
@@ -781,7 +781,7 @@ def test_write_through_flag(arrays_with_index_and_table, qdbd_connection):
         [data[0]], qdbd_connection, table, index=index, write_through=True
     )
 
-    res = _read_single_array(qdbd_connection, table, col)
+    res = _read_single_column(qdbd_connection, table, col)
     assert_indexed_arrays_equal((index, data[0]), res)
 
 
