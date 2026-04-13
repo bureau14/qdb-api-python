@@ -102,9 +102,7 @@ point_inserter_by_type = {
 }
 
 
-def _insert_points(
-    value_type, conn, table, start_time=None, intervals=None, points=10
-):
+def _insert_points(value_type, conn, table, start_time=None, intervals=None, points=10):
     if start_time is None:
         assert intervals is not None
         start_time = tslib._start_time(intervals)
