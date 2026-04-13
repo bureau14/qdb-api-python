@@ -108,34 +108,31 @@ def read_series(
     ranges : list
       A list of ranges to read, represented as tuples of Numpy datetime64[ns] objects.
     """
-    read_with = {
-        quasardb.ColumnType.Double: table.double_get_ranges,
-        quasardb.ColumnType.Blob: table.blob_get_ranges,
-        quasardb.ColumnType.String: table.string_get_ranges,
-        quasardb.ColumnType.Int64: table.int64_get_ranges,
-        quasardb.ColumnType.Timestamp: table.timestamp_get_ranges,
-        quasardb.ColumnType.Symbol: table.string_get_ranges,
-    }
-
-    kwargs: Dict[str, Any] = {"column": col_name}
-
-    if ranges is not None:
-        kwargs["ranges"] = ranges
-
-    # Dispatch based on column type
     t = table.column_type_by_id(col_name)
 
     logger.info(
         "reading Series from column %s.%s with type %s", table.get_name(), col_name, t
     )
 
-    res = (read_with[t])(**kwargs)
+    reader_kwargs: Dict[str, Any] = {"column_names": [col_name]}
+    if ranges is not None:
+        reader_kwargs["ranges"] = ranges
 
-    return pd.Series(res[1], index=res[0])
+    with table.reader(**reader_kwargs) as reader:
+        try:
+            idx, xs = qdbnp._concat_array_batches(
+                qdbnp._reader_batch_to_arrays(batch) for batch in reader
+            )
+        except ValueError:
+            idx = np.array([], dtype=np.dtype("datetime64[ns]"))
+            xs = {}
+
+    return pd.Series(xs.get(col_name, np.array([], dtype=object)), index=idx)
 
 
 def write_series(
     series: pd.Series,
+    cluster: Cluster,
     table: Table,
     col_name: str,
     infer_types: bool = True,
@@ -150,6 +147,9 @@ def write_series(
     series : pandas.Series
       Pandas Series, with a numpy.datetime64[ns] as index. Underlying data will be attempted
       to be transformed to appropriate QuasarDB type.
+
+    cluster : quasardb.Cluster
+      Active connection to the QuasarDB cluster.
 
     table : quasardb.Timeseries
       QuasarDB Timeseries table object, e.g. qdb_cluster.table('my_table')
@@ -179,12 +179,12 @@ def write_series(
     assert data is not None
     assert index is not None
 
-    qdbnp.write_array(
-        data=data,
-        index=index,
+    qdbnp.write_arrays(
+        data={col_name: data},
+        cluster=cluster,
         table=table,
-        column=col_name,
-        dtype=dtype,
+        index=index,
+        dtype={col_name: dtype} if dtype is not None else None,
         infer_types=infer_types,
     )
 
