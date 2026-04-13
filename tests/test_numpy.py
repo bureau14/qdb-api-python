@@ -60,10 +60,6 @@ def _write_single_column(
 #
 # Array tests
 #
-###
-#
-# Single-column read/write tests go through the batched array API.
-#
 ######
 
 
