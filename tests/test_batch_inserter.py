@@ -81,6 +81,21 @@ def _set_batch_inserter_data(inserter, intervals, data, start=0):
         inserter.set_string(5, symbols[i])
 
 
+def _assert_results(conn, table, intervals, data):
+    (doubles, integers, blobs, strings, timestamps, symbols) = data
+
+    whole_range = (intervals[0], intervals[-1:][0] + np.timedelta64(2, "s"))
+    idx, xs = _read_all_columns(conn, table, ranges=[whole_range])
+
+    np.testing.assert_array_equal(idx, intervals)
+    np.testing.assert_array_equal(xs[tslib._double_col_name(table)], doubles)
+    np.testing.assert_array_equal(xs[tslib._blob_col_name(table)], blobs)
+    np.testing.assert_array_equal(xs[tslib._string_col_name(table)], strings)
+    np.testing.assert_array_equal(xs[tslib._int64_col_name(table)], integers)
+    np.testing.assert_array_equal(xs[tslib._ts_col_name(table)], timestamps)
+    np.testing.assert_array_equal(xs[tslib._symbol_col_name(table)], symbols)
+
+
 def _read_column(conn, table, column, *, ranges=None):
     idx, xs = qdbnp.read_arrays(
         conn,
@@ -101,21 +116,6 @@ def _read_all_columns(conn, table, *, ranges=None):
         tslib._symbol_col_name(table),
     ]
     return qdbnp.read_arrays(conn, [table], column_names=column_names, ranges=ranges)
-
-
-def _assert_results(conn, table, intervals, data):
-    (doubles, integers, blobs, strings, timestamps, symbols) = data
-
-    whole_range = (intervals[0], intervals[-1:][0] + np.timedelta64(2, "s"))
-    idx, xs = _read_all_columns(conn, table, ranges=[whole_range])
-
-    np.testing.assert_array_equal(idx, intervals)
-    np.testing.assert_array_equal(xs[tslib._double_col_name(table)], doubles)
-    np.testing.assert_array_equal(xs[tslib._blob_col_name(table)], blobs)
-    np.testing.assert_array_equal(xs[tslib._string_col_name(table)], strings)
-    np.testing.assert_array_equal(xs[tslib._int64_col_name(table)], integers)
-    np.testing.assert_array_equal(xs[tslib._ts_col_name(table)], timestamps)
-    np.testing.assert_array_equal(xs[tslib._symbol_col_name(table)], symbols)
 
 
 def _test_with_table(
