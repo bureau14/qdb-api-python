@@ -28,48 +28,79 @@ def _unicode_to_object_array(xs):
     return ma.masked_array(data=data, mask=mask)
 
 
+def _read_single_column(conn, table, column, *, ranges=None):
+    idx, xs = qdbnp.read_arrays(
+        conn,
+        [table],
+        column_names=[column],
+        ranges=ranges,
+    )
+    return idx, xs[column]
+
+
+def _write_single_column(
+    conn, table, column, data, index, *, dtype=None, infer_types=True, **kwargs
+):
+    payload = {column: data}
+    if dtype is not None:
+        dtype = {column: dtype}
+
+    return qdbnp.write_arrays(
+        payload,
+        conn,
+        table,
+        index=index,
+        dtype=dtype,
+        infer_types=infer_types,
+        **kwargs,
+    )
+
+
 ######
 #
 # Array tests
-#
-###
-#
-# The 'array' functions operate on just a single array. They use the column-oriented
-# APIs, `qdb_ts_*_insert` under the hood.
 #
 ######
 
 
 @conftest.override_cdtypes("native")
-def test_array_read_write_native_dtypes(array_with_index_and_table):
+def test_array_read_write_native_dtypes(array_with_index_and_table, qdbd_connection):
     """
-    * qdbnp.write_array()
-    * => qdb_ts_*_insert
+    * qdbnp.write_arrays()
     * => no conversion
     """
     (ctype, dtype, data, index, table) = array_with_index_and_table
 
     col = table.column_id_by_index(0)
-    qdbnp.write_array(data, index, table, column=col, dtype=dtype, infer_types=False)
+    _write_single_column(
+        qdbd_connection,
+        table,
+        col,
+        data,
+        index,
+        dtype=dtype,
+        infer_types=False,
+    )
 
-    res = qdbnp.read_array(table, col)
+    res = _read_single_column(qdbd_connection, table, col)
 
     assert_indexed_arrays_equal((index, data), res)
 
 
 @conftest.override_cdtypes("inferrable")
-def test_array_read_write_inferrable_dtypes(array_with_index_and_table):
+def test_array_read_write_inferrable_dtypes(
+    array_with_index_and_table, qdbd_connection
+):
     """
-    * qdbnp.write_array()
-    * => qdb_ts_*_insert
+    * qdbnp.write_arrays()
     * => conversion in python
     """
     (ctype, dtype, data, index, table) = array_with_index_and_table
 
     col = table.column_id_by_index(0)
-    qdbnp.write_array(data, index, table, column=col, infer_types=True)
+    _write_single_column(qdbd_connection, table, col, data, index, infer_types=True)
 
-    res = qdbnp.read_array(table, col)
+    res = _read_single_column(qdbd_connection, table, col)
     assert_indexed_arrays_equal((index, data), res)
 
 
@@ -93,7 +124,7 @@ def test_arrays_read_write_native_dtypes(array_with_index_and_table, qdbd_connec
         push_mode=quasardb.WriterPushMode.Truncate,
     )
 
-    res = qdbnp.read_array(table, col)
+    res = _read_single_column(qdbd_connection, table, col)
 
     assert_indexed_arrays_equal((index, data), res)
 
@@ -113,7 +144,7 @@ def test_arrays_read_write_inferrable_dtypes(
     col = table.column_id_by_index(0)
     qdbnp.write_arrays([data], qdbd_connection, table, index=index, infer_types=True)
 
-    res = qdbnp.read_array(table, col)
+    res = _read_single_column(qdbd_connection, table, col)
     assert_indexed_arrays_equal((index, data), res)
 
 
@@ -137,7 +168,7 @@ def test_arrays_read_write_data_as_dict(array_with_index_and_table, qdbd_connect
         push_mode=quasardb.WriterPushMode.Truncate,
     )
 
-    res = qdbnp.read_array(table, col)
+    res = _read_single_column(qdbd_connection, table, col)
 
     assert_indexed_arrays_equal((index, data), res)
 
@@ -162,7 +193,7 @@ def test_provide_index_as_dict(array_with_index_and_table, qdbd_connection):
         truncate=True,
     )
 
-    res = qdbnp.read_array(table, col)
+    res = _read_single_column(qdbd_connection, table, col)
 
     assert_indexed_arrays_equal((index, data), res)
 
@@ -260,7 +291,7 @@ def test_arrays_deduplicate(
             dtype=dtype,
             infer_types=False,
         )
-        return qdbnp.read_array(table, col)
+        return _read_single_column(qdbd_connection, table, col)
 
     res1 = _do_write_read(data1)
     assert_indexed_arrays_equal((index, data1), res1)
@@ -311,7 +342,7 @@ def test_string_array_returns_unicode(array_with_index_and_table, qdbd_connectio
     col = table.column_id_by_index(0)
     qdbnp.write_arrays([data], qdbd_connection, table, index=index)
 
-    (idx, xs) = qdbnp.read_array(table, col)
+    (idx, xs) = _read_single_column(qdbd_connection, table, col)
     assert qdbnp.dtypes_equal(xs.dtype, np.dtype("unicode"))
 
 
@@ -734,7 +765,7 @@ def test_regression_sc11333(qdbd_connection, table_name, start_date, row_count):
     for i in range(len(cols)):
         col = cols[i]
 
-        res = qdbnp.read_array(t, col)
+        res = _read_single_column(qdbd_connection, t, col)
         assert_indexed_arrays_equal((idx, data[i]), res)
 
 
@@ -746,7 +777,7 @@ def test_write_through_flag(arrays_with_index_and_table, qdbd_connection):
         [data[0]], qdbd_connection, table, index=index, write_through=True
     )
 
-    res = qdbnp.read_array(table, col)
+    res = _read_single_column(qdbd_connection, table, col)
     assert_indexed_arrays_equal((index, data[0]), res)
 
 
