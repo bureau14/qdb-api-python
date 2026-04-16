@@ -8,6 +8,7 @@ from time import sleep
 import pytest
 import quasardb
 import numpy as np
+import quasardb.numpy as qdbnp
 
 
 def _generate_data(count, start=np.datetime64("2017-01-01", "ns")):
@@ -396,31 +397,38 @@ def _set_batch_writer_data(writer, table, intervals, data, start=0):
         writer.set_string(5, symbols[i])
 
 
-def _assert_results(table, intervals, data):
+def _read_column(conn, table, column, *, ranges=None):
+    idx, xs = qdbnp.read_arrays(
+        conn,
+        [table],
+        column_names=[column],
+        ranges=ranges,
+    )
+    return idx, xs[column]
+
+
+def _read_all_columns(conn, table, *, ranges=None):
+    column_names = [
+        tslib._double_col_name(table),
+        tslib._blob_col_name(table),
+        tslib._string_col_name(table),
+        tslib._int64_col_name(table),
+        tslib._ts_col_name(table),
+        tslib._symbol_col_name(table),
+    ]
+    return qdbnp.read_arrays(conn, [table], column_names=column_names, ranges=ranges)
+
+
+def _assert_results(conn, table, intervals, data):
     (doubles, integers, blobs, strings, timestamps, symbols) = data
 
     whole_range = (intervals[0], intervals[-1:][0] + np.timedelta64(2, "s"))
-    results = table.double_get_ranges(tslib._double_col_name(table), [whole_range])
+    idx, xs = _read_all_columns(conn, table, ranges=[whole_range])
 
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], doubles)
-
-    results = table.blob_get_ranges(tslib._blob_col_name(table), [whole_range])
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], blobs)
-
-    results = table.string_get_ranges(tslib._string_col_name(table), [whole_range])
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], strings)
-
-    results = table.int64_get_ranges(tslib._int64_col_name(table), [whole_range])
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], integers)
-
-    results = table.timestamp_get_ranges(tslib._ts_col_name(table), [whole_range])
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], timestamps)
-
-    results = table.string_get_ranges(tslib._symbol_col_name(table), [whole_range])
-    np.testing.assert_array_equal(results[0], intervals)
-    np.testing.assert_array_equal(results[1], symbols)
+    np.testing.assert_array_equal(idx, intervals)
+    np.testing.assert_array_equal(xs[tslib._double_col_name(table)], doubles)
+    np.testing.assert_array_equal(xs[tslib._blob_col_name(table)], blobs)
+    np.testing.assert_array_equal(xs[tslib._string_col_name(table)], strings)
+    np.testing.assert_array_equal(xs[tslib._int64_col_name(table)], integers)
+    np.testing.assert_array_equal(xs[tslib._ts_col_name(table)], timestamps)
+    np.testing.assert_array_equal(xs[tslib._symbol_col_name(table)], symbols)
