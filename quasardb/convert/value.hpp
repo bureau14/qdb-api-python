@@ -571,10 +571,29 @@ struct value_converter<py::bytes, qdb_blob_t>
     }
 };
 
+#if 1
 template <>
 struct value_converter<traits::pyobject_dtype, qdb_blob_t>
     : public value_converter<py::bytes, qdb_blob_t>
 {};
+#else template <>
+struct value_converter<traits::pyobject_dtype, qdb_blob_t>
+{
+    using dtype = traits::pyobject_dtype;
+
+    value_converter<py::bytes, qdb_blob_t> delegate_{};
+
+    inline qdb_blob_t operator()(py::object const & x) const
+    {
+        if (dtype::is_null(x))
+        {
+            return traits::null_value<qdb_blob_t>();
+        }
+
+        return delegate_(py::cast<py::bytes>(x));
+    }
+};
+#endif
 
 template <>
 struct value_converter<qdb_blob_t, py::bytes>
