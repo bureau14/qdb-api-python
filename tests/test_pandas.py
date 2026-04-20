@@ -93,47 +93,6 @@ def gen_df(start_time, count, step=1, unit="D"):
     )
 
 
-def gen_series(start_time, count):
-    idx = pd.date_range(start_time, periods=count, freq="s")
-
-    return {
-        "the_double": pd.Series(np.random.uniform(-100.0, 100.0, count), index=idx),
-        "the_int64": pd.Series(np.random.randint(-100, 100, count), index=idx),
-        "the_blob": pd.Series(
-            np.array(
-                list(np.random.bytes(np.random.randint(16, 32)) for i in range(count)),
-                "O",
-            ),
-            index=idx,
-        ),
-        "the_string": pd.Series(
-            np.array([("content_" + str(item)) for item in range(count)], "U"),
-            index=idx,
-        ),
-        "the_ts": pd.Series(
-            np.array(
-                [(start_time + np.timedelta64(i, "s")) for i in range(count)]
-            ).astype("datetime64[ns]"),
-            index=idx,
-        ),
-        "the_symbol": pd.Series(
-            np.array([("symbol_" + str(item)) for item in range(count)], "U"), index=idx
-        ),
-    }
-
-
-def test_series_read_write(series_with_table):
-    (ctype, dtype, series, table) = series_with_table
-
-    col = table.column_id_by_index(0)
-    qdbpd.write_series(series, table, col, dtype=dtype)
-
-    # Read everything
-    res = qdbpd.read_series(table, col)
-
-    _assert_series_equal(series, res)
-
-
 def test_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
     (_, _, df1, table) = df_with_table
     qdbpd_write_fn(df1, qdbd_connection, table)

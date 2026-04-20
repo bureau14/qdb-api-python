@@ -10,6 +10,7 @@ import conftest
 
 import quasardb
 import quasardb.numpy as qdbnp
+import test_table as tslib
 from utils import assert_indexed_arrays_equal, assert_ma_equal
 
 logger = logging.getLogger("test-numpy")
@@ -27,48 +28,79 @@ def _unicode_to_object_array(xs):
     return ma.masked_array(data=data, mask=mask)
 
 
+def _read_single_column(conn, table, column, *, ranges=None):
+    idx, xs = qdbnp.read_arrays(
+        conn,
+        [table],
+        column_names=[column],
+        ranges=ranges,
+    )
+    return idx, xs[column]
+
+
+def _write_single_column(
+    conn, table, column, data, index, *, dtype=None, infer_types=True, **kwargs
+):
+    payload = {column: data}
+    if dtype is not None:
+        dtype = {column: dtype}
+
+    return qdbnp.write_arrays(
+        payload,
+        conn,
+        table,
+        index=index,
+        dtype=dtype,
+        infer_types=infer_types,
+        **kwargs,
+    )
+
+
 ######
 #
 # Array tests
-#
-###
-#
-# The 'array' functions operate on just a single array. They use the column-oriented
-# APIs, `qdb_ts_*_insert` under the hood.
 #
 ######
 
 
 @conftest.override_cdtypes("native")
-def test_array_read_write_native_dtypes(array_with_index_and_table):
+def test_array_read_write_native_dtypes(array_with_index_and_table, qdbd_connection):
     """
-    * qdbnp.write_array()
-    * => qdb_ts_*_insert
+    * qdbnp.write_arrays()
     * => no conversion
     """
     (ctype, dtype, data, index, table) = array_with_index_and_table
 
     col = table.column_id_by_index(0)
-    qdbnp.write_array(data, index, table, column=col, dtype=dtype, infer_types=False)
+    _write_single_column(
+        qdbd_connection,
+        table,
+        col,
+        data,
+        index,
+        dtype=dtype,
+        infer_types=False,
+    )
 
-    res = qdbnp.read_array(table, col)
+    res = _read_single_column(qdbd_connection, table, col)
 
     assert_indexed_arrays_equal((index, data), res)
 
 
 @conftest.override_cdtypes("inferrable")
-def test_array_read_write_inferrable_dtypes(array_with_index_and_table):
+def test_array_read_write_inferrable_dtypes(
+    array_with_index_and_table, qdbd_connection
+):
     """
-    * qdbnp.write_array()
-    * => qdb_ts_*_insert
+    * qdbnp.write_arrays()
     * => conversion in python
     """
     (ctype, dtype, data, index, table) = array_with_index_and_table
 
     col = table.column_id_by_index(0)
-    qdbnp.write_array(data, index, table, column=col, infer_types=True)
+    _write_single_column(qdbd_connection, table, col, data, index, infer_types=True)
 
-    res = qdbnp.read_array(table, col)
+    res = _read_single_column(qdbd_connection, table, col)
     assert_indexed_arrays_equal((index, data), res)
 
 
@@ -92,7 +124,7 @@ def test_arrays_read_write_native_dtypes(array_with_index_and_table, qdbd_connec
         push_mode=quasardb.WriterPushMode.Truncate,
     )
 
-    res = qdbnp.read_array(table, col)
+    res = _read_single_column(qdbd_connection, table, col)
 
     assert_indexed_arrays_equal((index, data), res)
 
@@ -112,7 +144,7 @@ def test_arrays_read_write_inferrable_dtypes(
     col = table.column_id_by_index(0)
     qdbnp.write_arrays([data], qdbd_connection, table, index=index, infer_types=True)
 
-    res = qdbnp.read_array(table, col)
+    res = _read_single_column(qdbd_connection, table, col)
     assert_indexed_arrays_equal((index, data), res)
 
 
@@ -136,7 +168,7 @@ def test_arrays_read_write_data_as_dict(array_with_index_and_table, qdbd_connect
         push_mode=quasardb.WriterPushMode.Truncate,
     )
 
-    res = qdbnp.read_array(table, col)
+    res = _read_single_column(qdbd_connection, table, col)
 
     assert_indexed_arrays_equal((index, data), res)
 
@@ -161,7 +193,7 @@ def test_provide_index_as_dict(array_with_index_and_table, qdbd_connection):
         truncate=True,
     )
 
-    res = qdbnp.read_array(table, col)
+    res = _read_single_column(qdbd_connection, table, col)
 
     assert_indexed_arrays_equal((index, data), res)
 
@@ -259,7 +291,7 @@ def test_arrays_deduplicate(
             dtype=dtype,
             infer_types=False,
         )
-        return qdbnp.read_array(table, col)
+        return _read_single_column(qdbd_connection, table, col)
 
     res1 = _do_write_read(data1)
     assert_indexed_arrays_equal((index, data1), res1)
@@ -310,8 +342,258 @@ def test_string_array_returns_unicode(array_with_index_and_table, qdbd_connectio
     col = table.column_id_by_index(0)
     qdbnp.write_arrays([data], qdbd_connection, table, index=index)
 
-    (idx, xs) = qdbnp.read_array(table, col)
+    (idx, xs) = _read_single_column(qdbd_connection, table, col)
     assert qdbnp.dtypes_equal(xs.dtype, np.dtype("unicode"))
+
+
+def test_read_arrays_reads_all_columns_when_columns_empty(qdbd_connection, table):
+    index = np.array(
+        [
+            np.datetime64("2017-01-01T00:00:00", "ns"),
+            np.datetime64("2017-01-01T00:00:01", "ns"),
+            np.datetime64("2017-01-01T00:00:02", "ns"),
+        ],
+        dtype=np.dtype("datetime64[ns]"),
+    )
+    doubles = np.array([1.0, 2.0, 3.0], dtype=np.float64)
+    blobs = np.array([b"a\x00b", b"cd", b"ef"], dtype=np.object_)
+    strings = np.array(["content_0", "content_1", "content_2"], dtype=np.dtype("U"))
+    integers = np.array([10, 11, 12], dtype=np.int64)
+    timestamps = np.array(
+        [
+            np.datetime64("2017-01-02T00:00:00", "ns"),
+            np.datetime64("2017-01-02T00:00:01", "ns"),
+            np.datetime64("2017-01-02T00:00:02", "ns"),
+        ],
+        dtype=np.dtype("datetime64[ns]"),
+    )
+    symbols = np.array(["sym_0", "sym_1", "sym_2"], dtype=np.dtype("U"))
+
+    qdbnp.write_arrays(
+        {
+            tslib._double_col_name(table): doubles,
+            tslib._blob_col_name(table): blobs,
+            tslib._string_col_name(table): strings,
+            tslib._int64_col_name(table): integers,
+            tslib._ts_col_name(table): timestamps,
+            tslib._symbol_col_name(table): symbols,
+        },
+        qdbd_connection,
+        table,
+        index=index,
+        infer_types=False,
+        dtype={
+            tslib._double_col_name(table): doubles.dtype,
+            tslib._blob_col_name(table): blobs.dtype,
+            tslib._string_col_name(table): strings.dtype,
+            tslib._int64_col_name(table): integers.dtype,
+            tslib._ts_col_name(table): timestamps.dtype,
+            tslib._symbol_col_name(table): symbols.dtype,
+        },
+    )
+
+    idx, xs = qdbnp.read_arrays(qdbd_connection, [table], column_names=[])
+
+    np.testing.assert_array_equal(idx, index)
+    assert list(xs.keys()) == ["$table"] + [c.name for c in table.list_columns()]
+    np.testing.assert_array_equal(
+        xs["$table"], np.array([table.get_name()] * len(index))
+    )
+    np.testing.assert_array_equal(xs[tslib._double_col_name(table)], doubles)
+    np.testing.assert_array_equal(xs[tslib._blob_col_name(table)], blobs)
+    np.testing.assert_array_equal(xs[tslib._string_col_name(table)], strings)
+    np.testing.assert_array_equal(xs[tslib._int64_col_name(table)], integers)
+    np.testing.assert_array_equal(xs[tslib._ts_col_name(table)], timestamps)
+    np.testing.assert_array_equal(xs[tslib._symbol_col_name(table)], symbols)
+
+
+def test_read_arrays_reads_selected_columns_with_ranges(qdbd_connection, table):
+    index = np.array(
+        [
+            np.datetime64("2017-01-01T00:00:00", "ns"),
+            np.datetime64("2017-01-01T00:00:01", "ns"),
+            np.datetime64("2017-01-01T00:00:02", "ns"),
+            np.datetime64("2017-01-01T00:00:03", "ns"),
+        ],
+        dtype=np.dtype("datetime64[ns]"),
+    )
+    doubles = np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float64)
+    integers = np.array([10, 11, 12, 13], dtype=np.int64)
+
+    qdbnp.write_arrays(
+        {
+            tslib._double_col_name(table): doubles,
+            tslib._int64_col_name(table): integers,
+        },
+        qdbd_connection,
+        table,
+        index=index,
+        infer_types=False,
+        dtype={
+            tslib._double_col_name(table): doubles.dtype,
+            tslib._int64_col_name(table): integers.dtype,
+        },
+    )
+
+    columns = [tslib._double_col_name(table), tslib._int64_col_name(table)]
+    ranges = [(index[1], index[2] + np.timedelta64(1, "ns"))]
+
+    idx, xs = qdbnp.read_arrays(
+        qdbd_connection,
+        [table],
+        batch_size=1,
+        column_names=columns,
+        ranges=ranges,
+    )
+
+    np.testing.assert_array_equal(idx, index[1:3])
+    assert list(xs.keys()) == ["$table"] + columns
+    np.testing.assert_array_equal(
+        xs["$table"], np.array([table.get_name()] * len(index[1:3]))
+    )
+    np.testing.assert_array_equal(xs[tslib._double_col_name(table)], doubles[1:3])
+    np.testing.assert_array_equal(xs[tslib._int64_col_name(table)], integers[1:3])
+
+
+def test_read_arrays_accepts_ranges(qdbd_connection, table):
+    index = np.array(
+        [
+            np.datetime64("2017-01-01T00:00:00", "ns"),
+            np.datetime64("2017-01-01T00:00:01", "ns"),
+            np.datetime64("2017-01-01T00:00:02", "ns"),
+        ],
+        dtype=np.dtype("datetime64[ns]"),
+    )
+    doubles = np.array([1.0, 2.0, 3.0], dtype=np.float64)
+
+    qdbnp.write_arrays(
+        {tslib._double_col_name(table): doubles},
+        qdbd_connection,
+        table,
+        index=index,
+        infer_types=False,
+        dtype={tslib._double_col_name(table): doubles.dtype},
+    )
+
+    ranges = [(index[1], index[2] + np.timedelta64(1, "ns"))]
+    idx, xs = qdbnp.read_arrays(
+        qdbd_connection,
+        [table],
+        column_names=[tslib._double_col_name(table)],
+        ranges=ranges,
+    )
+
+    np.testing.assert_array_equal(idx, index[1:3])
+    np.testing.assert_array_equal(
+        xs["$table"], np.array([table.get_name()] * len(index[1:3]))
+    )
+    np.testing.assert_array_equal(xs[tslib._double_col_name(table)], doubles[1:3])
+
+
+def test_read_arrays_supports_table_object(qdbd_connection, table):
+    index = np.array(
+        [
+            np.datetime64("2017-01-01T00:00:00", "ns"),
+            np.datetime64("2017-01-01T00:00:01", "ns"),
+        ],
+        dtype=np.dtype("datetime64[ns]"),
+    )
+    doubles = np.array([1.0, 2.0], dtype=np.float64)
+
+    qdbnp.write_arrays(
+        {tslib._double_col_name(table): doubles},
+        qdbd_connection,
+        table,
+        index=index,
+        infer_types=False,
+        dtype={tslib._double_col_name(table): doubles.dtype},
+    )
+
+    idx, xs = qdbnp.read_arrays(
+        qdbd_connection,
+        [table],
+        column_names=[tslib._double_col_name(table)],
+    )
+
+    np.testing.assert_array_equal(idx, index)
+    np.testing.assert_array_equal(
+        xs["$table"], np.array([table.get_name()] * len(index))
+    )
+    np.testing.assert_array_equal(xs[tslib._double_col_name(table)], doubles)
+
+
+def test_read_arrays_supports_table_name(qdbd_connection, table):
+    index = np.array(
+        [
+            np.datetime64("2017-01-01T00:00:00", "ns"),
+            np.datetime64("2017-01-01T00:00:01", "ns"),
+        ],
+        dtype=np.dtype("datetime64[ns]"),
+    )
+    doubles = np.array([1.0, 2.0], dtype=np.float64)
+
+    qdbnp.write_arrays(
+        {tslib._double_col_name(table): doubles},
+        qdbd_connection,
+        table,
+        index=index,
+        infer_types=False,
+        dtype={tslib._double_col_name(table): doubles.dtype},
+    )
+
+    idx, xs = qdbnp.read_arrays(
+        qdbd_connection,
+        [table.get_name()],
+        column_names=[tslib._double_col_name(table)],
+    )
+
+    np.testing.assert_array_equal(idx, index)
+    np.testing.assert_array_equal(
+        xs["$table"], np.array([table.get_name()] * len(index))
+    )
+    np.testing.assert_array_equal(xs[tslib._double_col_name(table)], doubles)
+
+
+def test_read_arrays_rejects_string_column_names(qdbd_connection, table):
+    with pytest.raises(TypeError):
+        qdbnp.read_arrays(qdbd_connection, [table], column_names="the_double")
+
+
+def test_stream_arrays_reads_batched_results(qdbd_connection, table):
+    index = np.array(
+        [
+            np.datetime64("2017-01-01T00:00:00", "ns"),
+            np.datetime64("2017-01-01T00:00:01", "ns"),
+            np.datetime64("2017-01-01T00:00:02", "ns"),
+        ],
+        dtype=np.dtype("datetime64[ns]"),
+    )
+    doubles = np.array([1.0, 2.0, 3.0], dtype=np.float64)
+
+    qdbnp.write_arrays(
+        {tslib._double_col_name(table): doubles},
+        qdbd_connection,
+        table,
+        index=index,
+        infer_types=False,
+        dtype={tslib._double_col_name(table): doubles.dtype},
+    )
+
+    xs = list(
+        qdbnp.stream_arrays(
+            qdbd_connection,
+            [table],
+            batch_size=1,
+            column_names=[tslib._double_col_name(table)],
+        )
+    )
+
+    assert len(xs) == 3
+    np.testing.assert_array_equal(np.concatenate([idx for idx, _ in xs]), index)
+    np.testing.assert_array_equal(
+        ma.concatenate([batch[tslib._double_col_name(table)] for _, batch in xs]),
+        doubles,
+    )
 
 
 ######
@@ -483,7 +765,7 @@ def test_regression_sc11333(qdbd_connection, table_name, start_date, row_count):
     for i in range(len(cols)):
         col = cols[i]
 
-        res = qdbnp.read_array(t, col)
+        res = _read_single_column(qdbd_connection, t, col)
         assert_indexed_arrays_equal((idx, data[i]), res)
 
 
@@ -495,7 +777,7 @@ def test_write_through_flag(arrays_with_index_and_table, qdbd_connection):
         [data[0]], qdbd_connection, table, index=index, write_through=True
     )
 
-    res = qdbnp.read_array(table, col)
+    res = _read_single_column(qdbd_connection, table, col)
     assert_indexed_arrays_equal((index, data[0]), res)
 
 

@@ -31,14 +31,29 @@ from __future__ import annotations
 import logging
 import time
 import warnings
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Type, Union
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
+)
 
 import quasardb
 import quasardb.table_cache as table_cache
-from quasardb.quasardb import Table, Writer
-from quasardb.typing import DType, MaskedArrayAny, NDArrayAny, NDArrayTime
+from quasardb.quasardb import Cluster, Table, Writer
+from quasardb.typing import DType, MaskedArrayAny, NDArrayAny, NDArrayTime, RangeSet
 
 logger = logging.getLogger("quasardb.numpy")
+
+
+TableLike = Union[str, Table]
+IndexedMaskedArrays = Tuple[NDArrayTime, Dict[str, MaskedArrayAny]]
 
 
 class NumpyRequired(ImportError):
@@ -583,127 +598,158 @@ def ensure_ma(
     return _ensure_ma(xs, dtype)
 
 
-def read_array(
-    table: Optional[Table] = None, column: Optional[str] = None, ranges: Any = None
-) -> Tuple[NDArrayTime, MaskedArrayAny]:
-    if table is None:
-        raise RuntimeError("A table is required.")
+def _concat_masked(xs: List[MaskedArrayAny]) -> MaskedArrayAny:
+    if len(xs) == 0:
+        return ma.masked_array(np.array([]))
+    if len(xs) == 1:
+        return xs[0]
 
-    if column is None:
-        raise RuntimeError("A column is required.")
+    return ma.concatenate(xs)
 
-    kwargs: Dict[str, Any] = {"column": column}
 
-    if ranges is not None:
-        kwargs["ranges"] = ranges
+def _reader_batch_to_arrays(batch: Dict[str, MaskedArrayAny]) -> IndexedMaskedArrays:
+    assert "$timestamp" in batch
 
-    read_with = {
-        quasardb.ColumnType.Double: table.double_get_ranges,
-        quasardb.ColumnType.Blob: table.blob_get_ranges,
-        quasardb.ColumnType.String: table.string_get_ranges,
-        quasardb.ColumnType.Symbol: table.string_get_ranges,
-        quasardb.ColumnType.Int64: table.int64_get_ranges,
-        quasardb.ColumnType.Timestamp: table.timestamp_get_ranges,
+    idx = batch["$timestamp"]
+    xs = {cname: values for (cname, values) in batch.items() if cname != "$timestamp"}
+
+    return idx, xs
+
+
+def _concat_array_batches(xs: Iterable[IndexedMaskedArrays]) -> IndexedMaskedArrays:
+    idx_batches: List[NDArrayTime] = []
+    value_batches: Dict[str, List[MaskedArrayAny]] = {}
+
+    for idx, batch in xs:
+        idx_batches.append(idx)
+
+        for cname, values in batch.items():
+            value_batches.setdefault(cname, []).append(values)
+
+    if len(idx_batches) == 0:
+        raise ValueError("No array batches to concatenate")
+
+    if len(idx_batches) == 1:
+        return idx_batches[0], {
+            cname: batches[0] for cname, batches in value_batches.items()
+        }
+
+    return np.concatenate(idx_batches), {
+        cname: _concat_masked(batches) for (cname, batches) in value_batches.items()
     }
 
-    ctype = table.column_type_by_id(column)
 
-    fn = read_with[ctype]
-    return fn(**kwargs)
-
-
-def write_array(
-    data: Any = None,
-    index: Optional[NDArrayTime] = None,
-    table: Optional[Table] = None,
-    column: Optional[str] = None,
-    dtype: Optional[DType] = None,
-    infer_types: bool = True,
-) -> None:
+def read_arrays(
+    conn: Cluster,
+    tables: List[TableLike],
+    *,
+    batch_size: Optional[int] = 2**16,
+    column_names: Optional[Sequence[str]] = None,
+    ranges: Optional[RangeSet] = None,
+) -> IndexedMaskedArrays:
     """
-    Write a Numpy array to a single column.
+    Read any number of columns from tables as numpy masked arrays.
 
     Parameters:
     -----------
 
-    data: np.array
-      Numpy array with a dtype that is compatible with the column's type.
+    conn: quasardb.Cluster
+      Connection to the QuasarDB database.
 
-    index: np.array
-      Numpy array with a datetime64[ns] dtype that will be used as the
-      $timestamp axis for the data to be stored.
+    tables : list[str | quasardb.Table]
+      QuasarDB tables to read, as a list of strings or quasardb table objects.
 
-    dtype: optional np.dtype
-      If provided, ensures the data array is converted to this dtype before
-      insertion.
+    batch_size : int
+      The amount of rows to fetch in a single read operation. If unset, uses 2^16
+      (65536) rows as batch size by default.
 
-    infer_types: optional bool
-      If true, when necessary will attempt to convert the data and index array
-      to the best type for the column. For example, if you provide float64 data
-      while the column's type is int64, it will automatically convert the data.
+    column_names: optional sequence[str]
+      Column names to read.
+      If None or an empty sequence is provided, all table columns are read.
 
-      Defaults to True. For production use cases where you want to avoid implicit
-      conversions, we recommend always setting this to False.
+    ranges: optional list[tuple]
+      Time ranges to read.
+      If None, the full available range is read.
 
+    Returns:
+    --------
+
+    tuple[numpy.ndarray, dict[str, numpy.ma.MaskedArray]]
+      A pair consisting of the shared timestamp index and a mapping of column
+      names to masked arrays.
+
+    Examples:
+    ---------
+
+    Read all columns:
+
+    >>> idx, cols = qdbnp.read_arrays(conn, [my_table], column_names=[])
+
+    Read a subset of columns for a given time range:
+
+    >>> idx, cols = qdbnp.read_arrays(
+    ...     conn,
+    ...     [my_table],
+    ...     column_names=["open", "close"],
+    ...     ranges=[(start, end)],
+    ... )
+    >>> opens = cols["open"]
+    >>> closes = cols["close"]
     """
-
-    if table is None:
-        raise RuntimeError("A table is required.")
-
-    if column is None:
-        raise RuntimeError("A column is required.")
-
-    if data is None:
-        raise RuntimeError("A data numpy array is required.")
-
-    if index is None:
-        raise RuntimeError("An index numpy timestamp array is required.")
-
-    data = ensure_ma(data, dtype=dtype)
-    ctype = table.column_type_by_id(column)
-
-    # We try to reuse some of the other functions, which assume array-like
-    # shapes for column info and data. It's a bit hackish, but actually works
-    # well.
-    #
-    # We should probably generalize this block of code with the same found in
-    # write_arrays().
-
-    cinfos = [(column, ctype)]
-    dtype_: List[Optional[DType]] = [dtype]
-
-    dtype_ = _coerce_dtype(dtype_, cinfos)
-
-    if infer_types is True:
-        dtype_ = _add_desired_dtypes(dtype_, cinfos)
-
-    # data_ = an array of [data]
-    data_ = [data]
-    data_ = _coerce_data(data_, dtype_)
-    _validate_dtypes(data_, cinfos)
-
-    # No functions that assume array-of-data anymore, let's put it back
-    data = data_[0]
-
-    # Dispatch to the correct function
-    write_with = {
-        quasardb.ColumnType.Double: table.double_insert,
-        quasardb.ColumnType.Blob: table.blob_insert,
-        quasardb.ColumnType.String: table.string_insert,
-        quasardb.ColumnType.Symbol: table.string_insert,
-        quasardb.ColumnType.Int64: table.int64_insert,
-        quasardb.ColumnType.Timestamp: table.timestamp_insert,
-    }
-
-    logger.info(
-        "Writing array (%d rows of dtype %s) to columns %s.%s (type %s)",
-        len(data),
-        data.dtype,
-        table.get_name(),
-        column,
-        ctype,
+    xs = stream_arrays(
+        conn,
+        tables,
+        batch_size=batch_size,
+        column_names=column_names,
+        ranges=ranges,
     )
-    write_with[ctype](column, index, data)
+
+    try:
+        return _concat_array_batches(xs)
+    except ValueError as e:
+        logger.error(
+            "Error while concatenating arrays. This can happen if result set is empty. Returning empty arrays. Error: %s",
+            e,
+        )
+        return np.array([], dtype=np.dtype("datetime64[ns]")), {}
+
+
+def stream_arrays(
+    conn: Cluster,
+    tables: List[TableLike],
+    *,
+    batch_size: Optional[int] = 2**16,
+    column_names: Optional[Sequence[str]] = None,
+    ranges: Optional[RangeSet] = None,
+) -> Iterator[IndexedMaskedArrays]:
+    """
+    Read one or more tables as numpy masked arrays. Returns a generator with
+    indexed batches of size `batch_size`, which is useful when traversing a
+    large dataset which does not fit into memory.
+    """
+    # Sanitize batch_size
+    if batch_size is None:
+        batch_size = 2**16
+    elif not isinstance(batch_size, int):
+        raise TypeError(
+            "batch_size should be an integer, but got: {} with value {}".format(
+                type(batch_size), str(batch_size)
+            )
+        )
+
+    kwargs: Dict[str, Any] = {"batch_size": batch_size}
+
+    if column_names:
+        kwargs["column_names"] = column_names
+
+    if ranges:
+        kwargs["ranges"] = ranges
+
+    coerce_table_name_fn = lambda x: x if isinstance(x, str) else x.get_name()
+    kwargs["table_names"] = [coerce_table_name_fn(x) for x in tables]
+    with conn.reader(**kwargs) as reader:
+        for batch in reader:
+            yield _reader_batch_to_arrays(batch)
 
 
 def write_arrays(

@@ -15,7 +15,7 @@ def test_bench_double_series(qdbd_connection, table, many_intervals, benchmark):
     # doubles, blobs, strings, integers, timestamps, symbols =
     # batchlib._test_with_table(
     _, _, _, _, _, _ = batchlib._test_with_table(
-        inserter, table, many_intervals, batchlib._regular_push
+        qdbd_connection, inserter, table, many_intervals, batchlib._regular_push
     )
 
     benchmark(qdbpd.read_series, table, "the_double")
@@ -28,7 +28,7 @@ def test_bench_blob_series(qdbd_connection, table, many_intervals, benchmark):
     # doubles, blobs, strings, integers, timestamps, symbols =
     # batchlib._test_with_table(
     _, _, _, _, _, _ = batchlib._test_with_table(
-        inserter, table, many_intervals, batchlib._regular_push
+        qdbd_connection, inserter, table, many_intervals, batchlib._regular_push
     )
 
     benchmark(qdbpd.read_series, table, "the_blob")
@@ -41,7 +41,7 @@ def test_bench_string_series(qdbd_connection, table, many_intervals, benchmark):
     # doubles, blobs, strings, integers, timestamps, symbols =
     # batchlib._test_with_table(
     _, _, _, _, _, _ = batchlib._test_with_table(
-        inserter, table, many_intervals, batchlib._regular_push
+        qdbd_connection, inserter, table, many_intervals, batchlib._regular_push
     )
 
     benchmark(qdbpd.read_series, table, "the_string")
@@ -54,7 +54,7 @@ def test_bench_int64_series(qdbd_connection, table, many_intervals, benchmark):
     # doubles, blobs, strings, integers, timestamps, symbols =
     # batchlib._test_with_table(
     _, _, _, _, _, _ = batchlib._test_with_table(
-        inserter, table, many_intervals, batchlib._regular_push
+        qdbd_connection, inserter, table, many_intervals, batchlib._regular_push
     )
 
     benchmark(qdbpd.read_series, table, "the_int64")
@@ -67,7 +67,7 @@ def test_bench_timestamp_series(qdbd_connection, table, many_intervals, benchmar
     # doubles, blobs, strings, integers, timestamps, symbols =
     # batchlib._test_with_table(
     _, _, _, _, _, _ = batchlib._test_with_table(
-        inserter, table, many_intervals, batchlib._regular_push
+        qdbd_connection, inserter, table, many_intervals, batchlib._regular_push
     )
 
     benchmark(qdbpd.read_series, table, "the_ts")
@@ -80,7 +80,7 @@ def test_bench_symbol_series(qdbd_connection, table, many_intervals, benchmark):
     # doubles, blobs, strings, integers, timestamps, symbols =
     # batchlib._test_with_table(
     _, _, _, _, _, _ = batchlib._test_with_table(
-        inserter, table, many_intervals, batchlib._regular_push
+        qdbd_connection, inserter, table, many_intervals, batchlib._regular_push
     )
 
     benchmark(qdbpd.read_series, table, "the_symbol")

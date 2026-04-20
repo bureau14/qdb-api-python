@@ -90,105 +90,6 @@ _dtype_map: Dict[Any, quasardb.ColumnType] = {
 TableLike = Union[str, Table]
 
 
-def read_series(
-    table: Table, col_name: str, ranges: Optional[RangeSet] = None
-) -> pd.Series:
-    """
-    Read a Pandas Timeseries from a single column.
-
-    Parameters:
-    -----------
-
-    table : quasardb.Timeseries
-      QuasarDB Timeseries table object, e.g. qdb_cluster.table('my_table')
-
-    col_name : str
-      Name of the column to read.
-
-    ranges : list
-      A list of ranges to read, represented as tuples of Numpy datetime64[ns] objects.
-    """
-    read_with = {
-        quasardb.ColumnType.Double: table.double_get_ranges,
-        quasardb.ColumnType.Blob: table.blob_get_ranges,
-        quasardb.ColumnType.String: table.string_get_ranges,
-        quasardb.ColumnType.Int64: table.int64_get_ranges,
-        quasardb.ColumnType.Timestamp: table.timestamp_get_ranges,
-        quasardb.ColumnType.Symbol: table.string_get_ranges,
-    }
-
-    kwargs: Dict[str, Any] = {"column": col_name}
-
-    if ranges is not None:
-        kwargs["ranges"] = ranges
-
-    # Dispatch based on column type
-    t = table.column_type_by_id(col_name)
-
-    logger.info(
-        "reading Series from column %s.%s with type %s", table.get_name(), col_name, t
-    )
-
-    res = (read_with[t])(**kwargs)
-
-    return pd.Series(res[1], index=res[0])
-
-
-def write_series(
-    series: pd.Series,
-    table: Table,
-    col_name: str,
-    infer_types: bool = True,
-    dtype: Optional[DType] = None,
-) -> None:
-    """
-    Writes a Pandas Timeseries to a single column.
-
-    Parameters:
-    -----------
-
-    series : pandas.Series
-      Pandas Series, with a numpy.datetime64[ns] as index. Underlying data will be attempted
-      to be transformed to appropriate QuasarDB type.
-
-    table : quasardb.Timeseries
-      QuasarDB Timeseries table object, e.g. qdb_cluster.table('my_table')
-
-    col_name : str
-      Column name to store data in.
-    """
-
-    logger.debug(
-        "write_series, table=%s, col_name=%s, infer_types=%s, dtype=%s",
-        table.get_name(),
-        col_name,
-        infer_types,
-        dtype,
-    )
-
-    data = None
-    index = None
-
-    data = ma.masked_array(series.to_numpy(copy=False), mask=series.isna())
-
-    if infer_types is True:
-        index = series.index.to_numpy("datetime64[ns]", copy=False)
-    else:
-        index = series.index.to_numpy(copy=False)
-
-    assert data is not None
-    assert index is not None
-
-    qdbnp.write_array(
-        data=data,
-        index=index,
-        table=table,
-        column=col_name,
-        dtype=dtype,
-        infer_types=infer_types,
-    )
-
-
 def query(
     cluster: Cluster,
     query: str,
@@ -253,8 +154,6 @@ def stream_dataframes(
     Read a Pandas Dataframe from a QuasarDB Timeseries table. Returns a generator with dataframes of size `batch_size`, which is useful
     when traversing a large dataset which does not fit into memory.
 
-    Accepts the same parameters as `stream_dataframes`.
-
     Parameters:
     -----------
 
@@ -279,36 +178,14 @@ def stream_dataframes(
       Defaults to the entire table.
 
     """
-    # Sanitize batch_size
-    if batch_size is None:
-        batch_size = 2**16
-    elif not isinstance(batch_size, int):
-        raise TypeError(
-            "batch_size should be an integer, but got: {} with value {}".format(
-                type(batch_size), str(batch_size)
-            )
-        )
-
-    kwargs: Dict[str, Any] = {"batch_size": batch_size}
-
-    if column_names:
-        kwargs["column_names"] = column_names
-
-    if ranges:
-        kwargs["ranges"] = ranges
-
-    coerce_table_name_fn = lambda x: x if isinstance(x, str) else x.get_name()
-    kwargs["table_names"] = [coerce_table_name_fn(x) for x in tables]
-
-    with conn.reader(**kwargs) as reader:
-        for batch in reader:
-            # We always expect the timestamp column, and set this as the index
-            assert "$timestamp" in batch
-
-            idx = pd.Index(batch.pop("$timestamp"), copy=False, name="$timestamp")
-            df = pd.DataFrame(batch, index=idx)
-
-            yield df
+    for idx, xs in qdbnp.stream_arrays(
+        conn,
+        tables,
+        batch_size=batch_size,
+        column_names=column_names,
+        ranges=ranges,
+    ):
+        yield pd.DataFrame(xs, index=pd.Index(idx, copy=False, name="$timestamp"))
 
 
 def stream_dataframe(
