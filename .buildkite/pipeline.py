@@ -36,16 +36,16 @@ _LINUX = dict(
     # cxx_compiler="/usr/local/gcc13/bin/g++",
     # asm_compiler="/usr/local/bin/yasm",
     # ccache="/usr/local/bin/ccache",
-    docker_image="bureau14/builder:rhel7",
+    # docker_image="bureau14/builder:rhel7",
     # docker_volumes=("/var/lib/ccache:/var/lib/ccache",),
 )
 _WIN = dict(
-    asm_compiler="C:\\yasm\\yasm-1.3.0-win64.exe",
+    # asm_compiler="C:\\yasm\\yasm-1.3.0-win64.exe",
     # ccache="C:\\ccache\\ccache.exe",
 )
 _MACOS = dict(
-    c_compiler="/usr/local/clang21/bin/clang",
-    cxx_compiler="/usr/local/clang21/bin/clang++",
+    # c_compiler="/usr/local/clang21/bin/clang",
+    # cxx_compiler="/usr/local/clang21/bin/clang++",
     # ccache="/opt/local/bin/ccache",
 )
 _OS_OVERLAY = {"linux": _LINUX, "windows": _WIN, "macos": _MACOS}
@@ -81,18 +81,12 @@ GLOBAL_ENV: dict[str, str] = {
     # ),
     # "CCACHE_RESHARE": "true",
     "AWS_DEFAULT_REGION": "eu-west-1",
-    "QDB_ENCRYPT_TRAFFIC": "1",
     "PYTHON_EXECUTABLE": "/usr/bin/python3",
     "PYTHON_CMD": "python3",
 }
 
 STEP_ENV: dict[str, dict[str, str]] = {
-    # "build_docker": {},
-    # "start_services": {
-    # },
-    # "test": {
-    # },
-    # "stop_services": {},
+        "test": {"QDB_ENCRYPT_TRAFFIC": "1",},
 }
 
 OS_ENV: dict[str, dict[str, str]] = {
@@ -167,7 +161,7 @@ def generate_pipeline() -> Pipeline:
                 dependency_slug = p.slug("release")
                 
                 # TODO: this is just for testing
-                git_ref = "refs/heads/artifact-dependency"
+                git_ref = "refs/heads/sc-18547/buildkite"
                 build_id = os.environ.get("BUILDKITE_BUILD_ID", "local")
                 tvars = {"slug": slug, "queue": f"{p.queue_os}-{p.arch}", "build_id": build_id, "dependency_slug": dependency_slug, "ref": git_ref}
 
