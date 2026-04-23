@@ -165,7 +165,9 @@ def generate_pipeline() -> Pipeline:
                 slug = p.slug(bt.lower()) + f"-py{py.replace('.', '')}"
                 # We want to use only release builds as dependencies
                 dependency_slug = p.slug("release")
-
+                
+                # TODO: this is just for testing
+                git_ref = "refs/heads/artifact-dependency"
                 build_id = os.environ.get("BUILDKITE_BUILD_ID", "local")
                 tvars = {"slug": slug, "queue": f"{p.queue_os}-{p.arch}", "build_id": build_id, "dependency_slug": dependency_slug, "ref": git_ref}
 
