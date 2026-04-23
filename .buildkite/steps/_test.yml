@@ -25,7 +25,7 @@ plugins:
       download:
         project_id: "quasardb"
         variant: "{dependency_slug}"
-        ref: "{ref}"
+        git_ref: "{ref}"
         output-dir: "qdb"
         extract: true
         clean: true
