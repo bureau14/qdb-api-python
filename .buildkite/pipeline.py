@@ -43,8 +43,8 @@ PLATFORMS: list[Platform] = [
     dataclasses.replace(p, **_OS_OVERLAY.get(p.os, {}))
     for p in select_platforms(
         "linux-amd64-core2",
-        # "linux-aarch64",
-        # "windows-amd64-core2",
+        "linux-aarch64",
+        "windows-amd64-core2",
         # "macos-aarch64",
     )
 ]
