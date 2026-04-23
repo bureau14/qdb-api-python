@@ -32,22 +32,12 @@ STEPS_DIR = Path(__file__).parent / "steps"
 
 # Quasardb-specific toolchain overlays on top of shared infrastructure platforms.
 _LINUX = dict(
-    # c_compiler="/usr/local/gcc13/bin/gcc",
-    # cxx_compiler="/usr/local/gcc13/bin/g++",
-    # asm_compiler="/usr/local/bin/yasm",
-    # ccache="/usr/local/bin/ccache",
-    # docker_image="bureau14/builder:rhel7",
-    # docker_volumes=("/var/lib/ccache:/var/lib/ccache",),
 )
 _WIN = dict(
-    # asm_compiler="C:\\yasm\\yasm-1.3.0-win64.exe",
-    # ccache="C:\\ccache\\ccache.exe",
 )
 _MACOS = dict(
-    # c_compiler="/usr/local/clang21/bin/clang",
-    # cxx_compiler="/usr/local/clang21/bin/clang++",
-    # ccache="/opt/local/bin/ccache",
 )
+
 _OS_OVERLAY = {"linux": _LINUX, "windows": _WIN, "macos": _MACOS}
 PLATFORMS: list[Platform] = [
     dataclasses.replace(p, **_OS_OVERLAY.get(p.os, {}))
@@ -55,8 +45,7 @@ PLATFORMS: list[Platform] = [
         "linux-amd64-core2",
         # "linux-amd64-haswell",
         # "linux-aarch64",
-        # "windows-amd64-core2",
-        # "windows-amd64-haswell",
+        "windows-amd64-core2",
         # "macos-aarch64",
     )
 ]
@@ -147,6 +136,27 @@ def _set_artifact_plugin_defaults(step: dict, vars: dict[str, str]) -> None:
                     if key not in config:
                         config[key] = vars[key]
 
+def _apply_docker_compose(
+    step: dict,
+    config: dict[str, str] = {},
+) -> None:
+    DOCKER_COMPOSE_PLUGIN_VERSION="v5.12.1"
+
+
+    docker_plugin = {
+        f"docker-compose#{DOCKER_COMPOSE_PLUGIN_VERSION}": {
+            "run": "pypa",
+            "config": "docker/docker-compose.yml",
+            "propagate-environment": True,
+            "propagate-uid-gid": True,
+            **config,
+        },
+    }
+    existing = step.get("plugins", [])
+    step["plugins"] = [docker_plugin] + existing
+
+
+
 def generate_pipeline() -> Pipeline:
     """Load templates, expand across platforms × build_types, overlay env and docker."""
     pipeline = Pipeline()
@@ -162,15 +172,19 @@ def generate_pipeline() -> Pipeline:
                 
                 # TODO: this is just for testing
                 git_ref = "refs/heads/sc-18547/buildkite"
-                build_id = os.environ.get("BUILDKITE_BUILD_ID", "local")
-                tvars = {"slug": slug, "queue": f"{p.queue_os}-{p.arch}", "build_id": build_id, "dependency_slug": dependency_slug, "ref": git_ref}
+                #
+                tvars = {"slug": slug, "queue": f"{p.queue_os}-{p.arch}", "dependency_slug": dependency_slug, "ref": git_ref}
 
-                # 1. Run tests
                 step = load_template(STEPS_DIR / "_test.yml", **tvars)
                 env = _env(p, "test", bt)
                 env.update(step.get("env") or {})
                 env.update({"PYTHON_VERSION": py})
+                if p.os == "windows":
+                    env["PYTHON_CMD"] = r"C:\Python3.14-64\python.exe"
+                    env["PYTHON_EXECUTABLE"] = r"C:\Python3.14-64\python.exe"
                 step["env"] = env
+                if p.os == "linux":
+                    _apply_docker_compose(step)
                 pipeline.add_step(CommandStep.from_dict(step))
 
     return pipeline

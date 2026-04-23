@@ -16,8 +16,6 @@ commands:
 
 plugins:
   - docker-compose#v5.12.1:
-      run: pypa
-      config: docker/docker-compose.yml
       propagate-environment: true
       propagate-uid-gid: true
 
