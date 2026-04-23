@@ -45,5 +45,11 @@ PYTHON_BINDIR="/opt/python/${PARSED}/bin/"
 echo 'export PATH='$PYTHON_BINDIR':$PATH' | tee -a ~/.bashrc
 PATH=$PYTHON_BINDIR:$PATH
 
+# Symlink to /usr/local/bin so it's available in non-interactive shells
+ln -sf ${PYTHON_BINDIR}/python /usr/local/bin/python
+ln -sf ${PYTHON_BINDIR}/python3 /usr/local/bin/python3
+ln -sf ${PYTHON_BINDIR}/pip /usr/local/bin/pip
+ln -sf ${PYTHON_BINDIR}/pip3 /usr/local/bin/pip3
+
 # Install dependencies
 python3 --version && pip3 install --upgrade pip setuptools wheel
