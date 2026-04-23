@@ -75,7 +75,7 @@ OS_ENV: dict[str, dict[str, str]] = {
     # "linux": {"CCACHE_DIR": "/var/lib/ccache"},
     # "freebsd": {},
     # "macos": {},
-    # "windows": {"CCACHE_COMPILERCHECK": ""},
+    # "windows": {},
 }
 
 OS_STEP_ENV: dict[str, dict[str, str]] = {
@@ -84,6 +84,7 @@ OS_STEP_ENV: dict[str, dict[str, str]] = {
 
 CPU_ENV: dict[str, dict[str, str]] = {
     # "core2": {"QDB_CPU_ARCHITECTURE_CORE2": "ON"},
+    "aarch64": {"ARCH": "aarch64"},
 }
 
 
@@ -140,11 +141,10 @@ def _get_agent_python_env(step: dict, platform: Platform, python_version: str) -
     # TODO (igor)
     # we can rely on referencing env variables instead of hardcoding paths per version and platform
     # we need to update agents first to support this
-    python_version_path = python_version.replace('.', '')
     if platform.os == "windows":
         return {
-            "PYTHON_EXECUTABLE": f"C:\\Python{python_version_path}-64\\python.exe",
-            "PYTHON_CMD": f"C:\\Python{python_version_path}-64\\python.exe",
+            "PYTHON_EXECUTABLE": f"C:\\Python{python_version}-64\\python.exe",
+            "PYTHON_CMD": f"C:\\Python{python_version}-64\\python.exe",
         }
     elif platform.os == "macos":
         return {
