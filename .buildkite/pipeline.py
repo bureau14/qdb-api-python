@@ -44,7 +44,7 @@ PLATFORMS: list[Platform] = [
     for p in select_platforms(
         "linux-amd64-core2",
         # "linux-aarch64",
-        "windows-amd64-core2",
+        # "windows-amd64-core2",
         # "macos-aarch64",
     )
 ]
@@ -191,7 +191,7 @@ def generate_pipeline() -> Pipeline:
                 git_ref_dep = "refs/heads/sc-18547/buildkite"
                 #
                 tvars = {"slug": slug, "queue": f"{p.queue_os}-{p.arch}", "dependency_slug": dependency_slug, "ref": git_ref_dep}
-                artifact_upload_vars = {"variant": slug, "ref": git_ref}
+                artifact_upload_vars = {"variant": slug, "git-ref": git_ref}
                 plugin_steps = {"upload", "promote"}
 
                 step = load_template(STEPS_DIR / "_test.yml", **tvars)
