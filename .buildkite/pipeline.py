@@ -43,7 +43,6 @@ PLATFORMS: list[Platform] = [
     dataclasses.replace(p, **_OS_OVERLAY.get(p.os, {}))
     for p in select_platforms(
         "linux-amd64-core2",
-        # "linux-amd64-haswell",
         # "linux-aarch64",
         "windows-amd64-core2",
         # "macos-aarch64",
@@ -63,12 +62,6 @@ PYTHON_VERSIONS = [
 
 # Environment variable layering: global → step → os → os+step → platform compilers.
 GLOBAL_ENV: dict[str, str] = {
-    # "CCACHE_COMPILERCHECK": "%compiler% -dumpmachine; %compiler% -dumpversion",
-    # "CCACHE_REMOTE_STORAGE": (
-    #     "http://ccache.cicd.intra.quasar.ai/"
-    #     "|connect-timeout=1000|operation-timeout=30000|keep-alive=true"
-    # ),
-    # "CCACHE_RESHARE": "true",
     "AWS_DEFAULT_REGION": "eu-west-1",
     "PYTHON_EXECUTABLE": "/usr/bin/python3",
     "PYTHON_CMD": "python3",
@@ -119,7 +112,7 @@ def _get_git_ref() -> str:
     return ref
 
 
-def _set_artifact_plugin_defaults(step: dict, vars: dict[str, str]) -> None:
+def _set_artifact_plugin_defaults(step: dict, vars: dict[str, str], plugin_steps: set[str] = None) -> None:
     """
     Goes through list of plugins and fills in defaults for qdb-artifacts plugin if present.
     Doesn't overwrite existing keys, only fills in missing ones from provided dict.
@@ -131,10 +124,34 @@ def _set_artifact_plugin_defaults(step: dict, vars: dict[str, str]) -> None:
         if plugin_name.startswith("bureau14/qdb-artifacts#"):
             plugin_config = plugin_dict[plugin_name]
 
-            for config in plugin_config.values():
-                for key in vars:
-                    if key not in config:
-                        config[key] = vars[key]
+
+            if plugin_steps is None:
+                plugin_steps = set(plugin_config.keys())
+
+            for plugin_step, config in plugin_config.items():
+                if plugin_step in plugin_steps:
+                    for key in vars:
+                        if key not in config:
+                            config[key] = vars[key]
+
+def _get_agent_python_env(step: dict, platform: Platform, python_version: str) -> dict[str, str]:
+    env = step.get("env", {})
+
+    # TODO (igor)
+    # we can rely on referencing env variables instead of hardcoding paths per version and platform
+    # we need to update agents first to support this
+    python_version_path = python_version.replace('.', '')
+    if platform.os == "windows":
+        return {
+            "PYTHON_EXECUTABLE": f"C:\\Python{python_version_path}-64\\python.exe",
+            "PYTHON_CMD": f"C:\\Python{python_version_path}-64\\python.exe",
+        }
+    elif platform.os == "macos":
+        return {
+            "PYTHON_EXECUTABLE": f"/opt/local/bin/python{python_version}",
+            "PYTHON_CMD": f"/opt/local/bin/python{python_version}"
+        }
+    return {}
 
 def _apply_docker_compose(
     step: dict,
@@ -171,20 +188,21 @@ def generate_pipeline() -> Pipeline:
                 dependency_slug = p.slug("release")
                 
                 # TODO: this is just for testing
-                git_ref = "refs/heads/sc-18547/buildkite"
+                git_ref_dep = "refs/heads/sc-18547/buildkite"
                 #
-                tvars = {"slug": slug, "queue": f"{p.queue_os}-{p.arch}", "dependency_slug": dependency_slug, "ref": git_ref}
+                tvars = {"slug": slug, "queue": f"{p.queue_os}-{p.arch}", "dependency_slug": dependency_slug, "ref": git_ref_dep}
+                artifact_upload_vars = {"variant": slug, "ref": git_ref}
+                plugin_steps = {"upload", "promote"}
 
                 step = load_template(STEPS_DIR / "_test.yml", **tvars)
                 env = _env(p, "test", bt)
                 env.update(step.get("env") or {})
                 env.update({"PYTHON_VERSION": py})
-                if p.os == "windows":
-                    env["PYTHON_CMD"] = r"C:\Python3.14-64\python.exe"
-                    env["PYTHON_EXECUTABLE"] = r"C:\Python3.14-64\python.exe"
+                env.update(_get_agent_python_env(step, p, py))
                 step["env"] = env
                 if p.os == "linux":
                     _apply_docker_compose(step)
+                _set_artifact_plugin_defaults(step, artifact_upload_vars, plugin_steps)
                 pipeline.add_step(CommandStep.from_dict(step))
 
     return pipeline

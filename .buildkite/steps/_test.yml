@@ -15,10 +15,6 @@ commands:
   - "scripts/teamcity/10.build.sh"  
 
 plugins:
-  - docker-compose#v5.12.1:
-      propagate-environment: true
-      propagate-uid-gid: true
-
   - bureau14/qdb-artifacts#artifact-dependency:
       download:
         project_id: "quasardb"
@@ -33,8 +29,4 @@ plugins:
           - "*-utils.tar.zst!*"
       upload:
         files: "dist/*"
-        variant: "{slug}"
-        git_ref: "{ref}"
-      promote:
-        variant: "{slug}"
-        git_ref: "{ref}"
+      promote: {}
