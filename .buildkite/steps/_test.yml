@@ -1,0 +1,39 @@
+agents:
+  queue: "default-{queue}"
+
+label: "Test ({slug})"
+key: "test-{slug}"
+
+commands:
+  - "echo \"+++ Start Services\""
+  - "scripts/tests/setup/start-services.sh"
+  - "echo \"+++ Run Tests\""
+  - "scripts/teamcity/20.test.sh"
+  - "echo \"+++ Run build\""
+  - "scripts/teamcity/10.build.sh"  
+  - "echo \"+++ Stop Services\""
+  - "scripts/tests/setup/stop-services.sh"
+
+plugins:
+  - docker-compose#v5.12.1:
+      run: pypa
+      config: docker/docker-compose.yml
+      propagate-environment: true
+      propagate-uid-gid: true
+
+  - bureau14/qdb-artifacts#artifact-dependency:
+      download:
+        project_id: "quasardb"
+        variant: "{dependency_slug}"
+        ref: "{ref}"
+        output-dir: "qdb"
+        extract: true
+        clean: true
+        files:
+          - "*-c-api.tar.zst!*"
+          - "*-server.tar.zst!*"
+          - "*-utils.tar.zst!*"
+      upload:
+        files: "dist/*"
+      promote:
+        step: "{slug}"
