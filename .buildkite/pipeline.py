@@ -133,9 +133,7 @@ def _set_artifact_plugin_defaults(
                             config[key] = vars_per_step[plugin_step][key]
 
 
-def _get_agent_python_env(
-    platform: Platform, python_version: str
-) -> dict[str, str]:
+def _get_agent_python_env(platform: Platform, python_version: str) -> dict[str, str]:
     """
     Returns environment variables to set for Python executable on the agent, based on platform and python version.
     Applies to Windows and macOS where we have multiple Python versions installed in different locations.
@@ -169,6 +167,19 @@ def _apply_docker_compose(
     }
     existing = step.get("plugins", [])
     step["plugins"] = [docker_plugin] + existing
+
+
+def _apply_doc_command(step: dict, platform: Platform) -> None:
+    """
+    Adds a command to the step to generate documentation using pdoc to linux-amd64-core2 platform builds.
+    """
+    if platform.os == "linux" and platform.arch == "amd64" and platform.cpu == "core2":
+        doc_commands = [
+            'echo "+++ Build documentation"',
+            "bash scripts/teamcity/30.doc.sh",
+        ]
+        existing_commands = step.get("commands", [])
+        existing_commands += doc_commands
 
 
 def generate_pipeline() -> Pipeline:
@@ -216,6 +227,7 @@ def generate_pipeline() -> Pipeline:
                 if p.os == "linux":
                     _apply_docker_compose(step, compose_config)
                 _set_artifact_plugin_defaults(step, artifact_vars_per_step)
+                _apply_doc_command(step, p)
 
                 # add step to group
                 group_name = p.slug(bt.lower()).replace("-", " ").title()
