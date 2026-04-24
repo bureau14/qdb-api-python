@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 import os
 
-from buildkite_sdk import CommandStep, Pipeline
+from buildkite_sdk import Pipeline, GroupStep
 
 sys.path.insert(0, str(Path(__file__).parent / "tools"))
 from qdb_pipeline import (
@@ -171,6 +171,7 @@ def generate_pipeline() -> Pipeline:
     """Load templates, expand across platforms × build_types, overlay env and docker."""
     pipeline = Pipeline()
     git_ref = _get_git_ref()
+    key_per_group = {}
 
     for p in PLATFORMS:
         for bt in BUILD_TYPES:
@@ -207,7 +208,17 @@ def generate_pipeline() -> Pipeline:
                 if p.os == "linux":
                     _apply_docker_compose(step, compose_config)
                 _set_artifact_plugin_defaults(step, artifact_vars_per_step)
-                pipeline.add_step(CommandStep.from_dict(step))
+                
+                # group builds by platform and build type
+                # we will see if it improves readability of the pipeline view in the UI
+                group_name = p.slug(bt.lower()).replace("-", " ").title()
+                if group_name not in key_per_group:
+                    key_per_group[group_name] = []
+                key_per_group[group_name].append(step)
+
+    for group, steps in key_per_group.items():
+        group_step = GroupStep(group=group, steps=steps)
+        pipeline.add_step(group_step)
 
     return pipeline
 
