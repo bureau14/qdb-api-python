@@ -83,7 +83,6 @@ OS_STEP_ENV: dict[str, dict[str, str]] = {
 }
 
 CPU_ENV: dict[str, dict[str, str]] = {
-    # "core2": {"QDB_CPU_ARCHITECTURE_CORE2": "ON"},
     "aarch64": {"ARCH": "aarch64"},
 }
 
@@ -136,11 +135,12 @@ def _set_artifact_plugin_defaults(step: dict, vars: dict[str, str], plugin_steps
                             config[key] = vars[key]
 
 def _get_agent_python_env(step: dict, platform: Platform, python_version: str) -> dict[str, str]:
-    env = step.get("env", {})
-
-    # TODO (igor)
-    # we can rely on referencing env variables instead of hardcoding paths per version and platform
-    # we need to update agents first to support this
+    """
+    Returns environment variables to set for Python executable on the agent, based on platform and python version.
+    Applies to Windows and macOS where we have multiple Python versions installed in different locations.
+    """
+    # XXX (igor)
+    # we can rely on referencing env variables instead of hardcoded paths but we need to update agents first to support this
     if platform.os == "windows":
         return {
             "PYTHON_EXECUTABLE": f"C:\\Python{python_version}-64\\python.exe",
@@ -162,9 +162,6 @@ def _apply_docker_compose(
 
     docker_plugin = {
         f"docker-compose#{DOCKER_COMPOSE_PLUGIN_VERSION}": {
-            "run": "pypa",
-            "config": "docker/docker-compose.yml",
-            "propagate-environment": True,
             "propagate-uid-gid": True,
             **config,
         },
@@ -194,6 +191,12 @@ def generate_pipeline() -> Pipeline:
                 artifact_upload_vars = {"variant": slug, "git-ref": git_ref}
                 plugin_steps = {"upload", "promote"}
 
+                compose_config = {
+                    "run": "pypa",
+                    "config": "docker/docker-compose.yml",
+                    "propagate-environment": True,
+                }
+
                 step = load_template(STEPS_DIR / "_test.yml", **tvars)
                 env = _env(p, "test", bt)
                 env.update(step.get("env") or {})
@@ -201,7 +204,7 @@ def generate_pipeline() -> Pipeline:
                 env.update(_get_agent_python_env(step, p, py))
                 step["env"] = env
                 if p.os == "linux":
-                    _apply_docker_compose(step)
+                    _apply_docker_compose(step, compose_config)
                 _set_artifact_plugin_defaults(step, artifact_upload_vars, plugin_steps)
                 pipeline.add_step(CommandStep.from_dict(step))
 
