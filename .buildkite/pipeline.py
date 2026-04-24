@@ -31,12 +31,9 @@ from qdb_pipeline import (
 STEPS_DIR = Path(__file__).parent / "steps"
 
 # Quasardb-specific toolchain overlays on top of shared infrastructure platforms.
-_LINUX = dict(
-)
-_WIN = dict(
-)
-_MACOS = dict(
-)
+_LINUX = dict()
+_WIN = dict()
+_MACOS = dict()
 
 _OS_OVERLAY = {"linux": _LINUX, "windows": _WIN, "macos": _MACOS}
 PLATFORMS: list[Platform] = [
@@ -63,24 +60,26 @@ PYTHON_VERSIONS = [
 # Environment variable layering: global → step → os → os+step → platform compilers.
 GLOBAL_ENV: dict[str, str] = {
     "AWS_DEFAULT_REGION": "eu-west-1",
-    "PYTHON_EXECUTABLE": "/usr/bin/python3",
-    "PYTHON_CMD": "python3",
+    "JUNIT_XML_FILE": "build/test/pytest.xml",
+    "QDB_ENCRYPT_TRAFFIC": "1",
 }
 
-STEP_ENV: dict[str, dict[str, str]] = {
-        "test": {"QDB_ENCRYPT_TRAFFIC": "1",},
-}
+STEP_ENV: dict[str, dict[str, str]] = {}
 
 OS_ENV: dict[str, dict[str, str]] = {
-    "linux": {},
-    "freebsd": {},
+    "linux": {
+        "PYTHON_EXECUTABLE": "/usr/bin/python3",
+        "PYTHON_CMD": "python3",
+    },
+    "freebsd": {
+        "PYTHON_EXECUTABLE": "/usr/bin/python3",
+        "PYTHON_CMD": "python3",
+    },
     "macos": {},
     "windows": {},
 }
 
-OS_STEP_ENV: dict[str, dict[str, str]] = {
-
-}
+OS_STEP_ENV: dict[str, dict[str, str]] = {}
 
 CPU_ENV: dict[str, dict[str, str]] = {
     "aarch64": {"ARCH": "aarch64"},
@@ -99,6 +98,7 @@ def _env(p: Platform, step_name: str, build_type: str) -> dict[str, str]:
         platform=p,
     )
 
+
 def _get_git_ref() -> str:
     branch = os.environ.get("BUILDKITE_BRANCH")
     tag = os.environ.get("BUILDKITE_TAG")
@@ -112,7 +112,9 @@ def _get_git_ref() -> str:
     return ref
 
 
-def _set_artifact_plugin_defaults(step: dict, vars_per_step: dict[str, dict[str, str]]) -> None:
+def _set_artifact_plugin_defaults(
+    step: dict, vars_per_step: dict[str, dict[str, str]]
+) -> None:
     """
     Goes through list of plugins and fills in defaults for qdb-artifacts plugin if present.
     Doesn't overwrite existing keys, only fills in missing ones from provided dict.
@@ -130,7 +132,10 @@ def _set_artifact_plugin_defaults(step: dict, vars_per_step: dict[str, dict[str,
                         if key not in config:
                             config[key] = vars_per_step[plugin_step][key]
 
-def _get_agent_python_env(step: dict, platform: Platform, python_version: str) -> dict[str, str]:
+
+def _get_agent_python_env(
+    platform: Platform, python_version: str
+) -> dict[str, str]:
     """
     Returns environment variables to set for Python executable on the agent, based on platform and python version.
     Applies to Windows and macOS where we have multiple Python versions installed in different locations.
@@ -145,16 +150,16 @@ def _get_agent_python_env(step: dict, platform: Platform, python_version: str) -
     elif platform.os == "macos":
         return {
             "PYTHON_EXECUTABLE": f"/opt/local/bin/python{python_version}",
-            "PYTHON_CMD": f"/opt/local/bin/python{python_version}"
+            "PYTHON_CMD": f"/opt/local/bin/python{python_version}",
         }
     return {}
+
 
 def _apply_docker_compose(
     step: dict,
     config: dict[str, str] = {},
 ) -> None:
-    DOCKER_COMPOSE_PLUGIN_VERSION="v5.12.1"
-
+    DOCKER_COMPOSE_PLUGIN_VERSION = "v5.12.1"
 
     docker_plugin = {
         f"docker-compose#{DOCKER_COMPOSE_PLUGIN_VERSION}": {
@@ -166,12 +171,11 @@ def _apply_docker_compose(
     step["plugins"] = [docker_plugin] + existing
 
 
-
 def generate_pipeline() -> Pipeline:
     """Load templates, expand across platforms × build_types, overlay env and docker."""
     pipeline = Pipeline()
     git_ref = _get_git_ref()
-    key_per_group = {}
+    group_steps = {}
 
     for p in PLATFORMS:
         for bt in BUILD_TYPES:
@@ -185,13 +189,17 @@ def generate_pipeline() -> Pipeline:
                 # TODO: this is just for testing
                 git_ref_dep = "refs/heads/sc-18547/buildkite"
                 #
-                tvars = {"slug": slug, "queue": f"{p.queue_os}-{p.arch}", "name": slug.replace("-", " ").title()}
+                tvars = {
+                    "slug": slug,
+                    "queue": f"{p.queue_os}-{p.arch}",
+                    "name": slug.replace("-", " ").title(),
+                }
 
                 artifact_vars_per_step = {
                     "upload": {"variant": slug, "git-ref": git_ref},
                     "promote": {"variant": slug, "git-ref": git_ref},
                     "download": {"variant": dependency_slug, "git-ref": git_ref_dep},
-                    }
+                }
 
                 compose_config = {
                     "run": "pypa",
@@ -203,20 +211,20 @@ def generate_pipeline() -> Pipeline:
                 env = _env(p, "test", bt)
                 env.update(step.get("env") or {})
                 env.update({"PYTHON_VERSION": py})
-                env.update(_get_agent_python_env(step, p, py))
+                env.update(_get_agent_python_env(p, py))
                 step["env"] = env
                 if p.os == "linux":
                     _apply_docker_compose(step, compose_config)
                 _set_artifact_plugin_defaults(step, artifact_vars_per_step)
-                
-                # group builds by platform and build type
-                # we will see if it improves readability of the pipeline view in the UI
-                group_name = p.slug(bt.lower()).replace("-", " ").title()
-                if group_name not in key_per_group:
-                    key_per_group[group_name] = []
-                key_per_group[group_name].append(step)
 
-    for group, steps in key_per_group.items():
+                # add step to group
+                group_name = p.slug(bt.lower()).replace("-", " ").title()
+                if group_name not in group_steps:
+                    group_steps[group_name] = []
+                group_steps[group_name].append(step)
+
+    # create groups and add to pipeline
+    for group, steps in group_steps.items():
         group_step = GroupStep(group=group, steps=steps)
         pipeline.add_step(group_step)
 
