@@ -1,7 +1,7 @@
 agents:
   queue: "default-{queue}"
 
-label: "{build_type} Python {python_version} ({slug})"
+label: "{name} ({slug})"
 key: "build-{slug}"
 
 commands:

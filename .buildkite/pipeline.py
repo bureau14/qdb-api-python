@@ -52,11 +52,11 @@ PLATFORMS: list[Platform] = [
 BUILD_TYPES = ["Release", "Debug"]
 
 PYTHON_VERSIONS = [
-    # "3.9",
-    # "3.10",
-    # "3.11",
-    # "3.12",
-    # "3.13",
+    "3.9",
+    "3.10",
+    "3.11",
+    "3.12",
+    "3.13",
     "3.14",
 ]
 
@@ -184,7 +184,7 @@ def generate_pipeline() -> Pipeline:
                 # TODO: this is just for testing
                 git_ref_dep = "refs/heads/sc-18547/buildkite"
                 #
-                tvars = {"slug": slug, "queue": f"{p.queue_os}-{p.arch}", "build_type": bt, "python_version": py}
+                tvars = {"slug": slug, "queue": f"{p.queue_os}-{p.arch}", "name": slug.replace("-", " ").title()}
 
                 artifact_vars_per_step = {
                     "upload": {"variant": slug, "git-ref": git_ref},
