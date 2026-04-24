@@ -10,13 +10,13 @@ key: "build-{slug}"
 
 commands:
   - echo \"+++ Start Services\"
-  - scripts/tests/setup/start-services.sh
+  - bash scripts/tests/setup/start-services.sh
   - echo \"+++ Run Tests\"
-  - scripts/teamcity/20.test.sh
+  - bash scripts/teamcity/20.test.sh
   - echo \"+++ Stop Services\"
-  - scripts/tests/setup/stop-services.sh
+  - bash scripts/tests/setup/stop-services.sh
   - echo \"+++ Run build\"
-  - scripts/teamcity/10.build.sh
+  - bash scripts/teamcity/10.build.sh
 
 plugins:
   - bureau14/qdb-artifacts#artifact-dependency:

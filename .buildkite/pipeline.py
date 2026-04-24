@@ -176,7 +176,7 @@ def _apply_doc_command(step: dict, platform: Platform) -> None:
     if platform.os == "linux" and platform.arch == "amd64" and platform.cpu == "core2":
         doc_commands = [
             'echo "+++ Build documentation"',
-            "scripts/teamcity/30.doc.sh",
+            "bash scripts/teamcity/30.doc.sh",
         ]
         existing_commands = step.get("commands", [])
         existing_commands += doc_commands
