@@ -45,11 +45,11 @@ PLATFORMS: list[Platform] = [
         "linux-amd64-core2",
         "linux-aarch64",
         "windows-amd64-core2",
-        # "macos-aarch64",
+        "macos-aarch64",
     )
 ]
 
-BUILD_TYPES = ["Release"]  # Temp
+BUILD_TYPES = ["Release", "Debug"]
 
 PYTHON_VERSIONS = [
     # "3.9",
@@ -72,14 +72,14 @@ STEP_ENV: dict[str, dict[str, str]] = {
 }
 
 OS_ENV: dict[str, dict[str, str]] = {
-    # "linux": {"CCACHE_DIR": "/var/lib/ccache"},
-    # "freebsd": {},
-    # "macos": {},
-    # "windows": {},
+    "linux": {},
+    "freebsd": {},
+    "macos": {},
+    "windows": {},
 }
 
 OS_STEP_ENV: dict[str, dict[str, str]] = {
-    # "linux/build": {"QDB_ENABLE_API_DOCS": "ON"},
+
 }
 
 CPU_ENV: dict[str, dict[str, str]] = {
@@ -112,7 +112,7 @@ def _get_git_ref() -> str:
     return ref
 
 
-def _set_artifact_plugin_defaults(step: dict, vars: dict[str, str], plugin_steps: set[str] = None) -> None:
+def _set_artifact_plugin_defaults(step: dict, vars_per_step: dict[str, dict[str, str]]) -> None:
     """
     Goes through list of plugins and fills in defaults for qdb-artifacts plugin if present.
     Doesn't overwrite existing keys, only fills in missing ones from provided dict.
@@ -124,15 +124,11 @@ def _set_artifact_plugin_defaults(step: dict, vars: dict[str, str], plugin_steps
         if plugin_name.startswith("bureau14/qdb-artifacts#"):
             plugin_config = plugin_dict[plugin_name]
 
-
-            if plugin_steps is None:
-                plugin_steps = set(plugin_config.keys())
-
             for plugin_step, config in plugin_config.items():
-                if plugin_step in plugin_steps:
-                    for key in vars:
+                if plugin_step in vars_per_step.keys():
+                    for key in vars_per_step[plugin_step]:
                         if key not in config:
-                            config[key] = vars[key]
+                            config[key] = vars_per_step[plugin_step][key]
 
 def _get_agent_python_env(step: dict, platform: Platform, python_version: str) -> dict[str, str]:
     """
@@ -181,15 +177,20 @@ def generate_pipeline() -> Pipeline:
             for py in PYTHON_VERSIONS:
                 # TODO update slug logic in the submodule
                 slug = p.slug(bt.lower()) + f"-py{py.replace('.', '')}"
-                # We want to use only release builds as dependencies
+
+                # We want to use Release QuasarDB binaries for building debug Python API
                 dependency_slug = p.slug("release")
-                
+
                 # TODO: this is just for testing
                 git_ref_dep = "refs/heads/sc-18547/buildkite"
                 #
-                tvars = {"slug": slug, "queue": f"{p.queue_os}-{p.arch}", "dependency_slug": dependency_slug, "ref": git_ref_dep}
-                artifact_upload_vars = {"variant": slug, "git-ref": git_ref}
-                plugin_steps = {"upload", "promote"}
+                tvars = {"slug": slug, "queue": f"{p.queue_os}-{p.arch}", "build_type": bt, "python_version": py}
+
+                artifact_vars_per_step = {
+                    "upload": {"variant": slug, "git-ref": git_ref},
+                    "promote": {"variant": slug, "git-ref": git_ref},
+                    "download": {"variant": dependency_slug, "git-ref": git_ref_dep},
+                    }
 
                 compose_config = {
                     "run": "pypa",
@@ -197,7 +198,7 @@ def generate_pipeline() -> Pipeline:
                     "propagate-environment": True,
                 }
 
-                step = load_template(STEPS_DIR / "_test.yml", **tvars)
+                step = load_template(STEPS_DIR / "_build.yml", **tvars)
                 env = _env(p, "test", bt)
                 env.update(step.get("env") or {})
                 env.update({"PYTHON_VERSION": py})
@@ -205,7 +206,7 @@ def generate_pipeline() -> Pipeline:
                 step["env"] = env
                 if p.os == "linux":
                     _apply_docker_compose(step, compose_config)
-                _set_artifact_plugin_defaults(step, artifact_upload_vars, plugin_steps)
+                _set_artifact_plugin_defaults(step, artifact_vars_per_step)
                 pipeline.add_step(CommandStep.from_dict(step))
 
     return pipeline

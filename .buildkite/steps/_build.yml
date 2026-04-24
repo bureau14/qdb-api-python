@@ -1,8 +1,8 @@
 agents:
   queue: "default-{queue}"
 
-label: "Test ({slug})"
-key: "test-{slug}"
+label: "{build_type} Python {python_version} ({slug})"
+key: "build-{slug}"
 
 commands:
   - echo \"+++ Start Services\"
@@ -18,8 +18,6 @@ plugins:
   - bureau14/qdb-artifacts#artifact-dependency:
       download:
         project_id: "quasardb"
-        variant: "{dependency_slug}"
-        git_ref: "{ref}"
         output-dir: "qdb"
         extract: true
         clean: true
@@ -28,5 +26,9 @@ plugins:
           - "*-server.tar.zst!*"
           - "*-utils.tar.zst!*"
       upload:
-        files: "dist/*"
+        files:
+          - "dist/quasardb*.whl"
+          - "dist/quasardb*.tar.gz"
+          - "dist/doc.tar.gz"
+          - "dist/quasardb*.egg"
       promote: {}
