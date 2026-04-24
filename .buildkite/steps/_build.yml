@@ -1,6 +1,11 @@
 agents:
   queue: "default-{queue}"
 
+retry:
+  automatic:
+    - signal_reason: agent_stop
+      limit: 3
+
 label: "{name} ({slug})"
 key: "build-{slug}"
 
