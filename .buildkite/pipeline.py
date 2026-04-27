@@ -142,7 +142,7 @@ def _apply_docker_compose(
 
     docker_plugin = {
         f"docker-compose#{DOCKER_COMPOSE_PLUGIN_VERSION}": {
-            # "propagate-uid-gid": True,
+            "propagate-uid-gid": True,
             **config,
         },
     }
@@ -219,7 +219,6 @@ def generate_pipeline() -> Pipeline:
                     "run": "pypa",
                     "config": "docker/docker-compose.yml",
                     "propagate-environment": True,
-                    # "chown": True,
                 }
 
                 step = load_template(STEPS_DIR / "_build.yml", **tvars)
