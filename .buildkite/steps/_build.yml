@@ -19,7 +19,7 @@ commands:
   - bash scripts/teamcity/10.build.sh
 
 plugins:
-  - bureau14/qdb-artifacts#artifact-dependency:
+  - bureau14/qdb-artifacts#more-selective-uploads:
       download:
         project_id: "quasardb"
         output-dir: "qdb"
