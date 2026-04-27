@@ -14,6 +14,6 @@ RUN groupadd -g 929 builder && useradd -m -s /bin/bash -u 929 -g 929 builder
 
 USER builder
 
-ADD set-python-version.sh /home/builder/set-python-version.sh
+ADD --chown builder:builder set-python-version.sh /home/builder/set-python-version.sh
 RUN bash /home/builder/set-python-version.sh 3.14 \
     && rm /home/builder/set-python-version.sh
