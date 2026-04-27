@@ -14,7 +14,6 @@ from __future__ import annotations
 import dataclasses
 import sys
 from pathlib import Path
-import os
 
 from buildkite_sdk import Pipeline, GroupStep
 
@@ -42,9 +41,9 @@ PLATFORMS: list[Platform] = [
     dataclasses.replace(p, **_OS_OVERLAY.get(p.os, {}))
     for p in select_platforms(
         "linux-amd64-core2",
-        "linux-aarch64",
-        "windows-amd64-core2",
-        "macos-aarch64",
+        # "linux-aarch64",
+        # "windows-amd64-core2",
+        # "macos-aarch64",
     )
 ]
 
@@ -148,9 +147,6 @@ def generate_pipeline() -> Pipeline:
                 # We want to use Release QuasarDB binaries when building Python API (debug and release)
                 dependency_slug = p.slug("release")
 
-                # TODO: this is just for testing, remove later
-                git_ref_dep = "refs/heads/sc-18547/buildkite"
-                #
                 tvars = {
                     "slug": slug,
                     "queue": f"{p.queue_os}-{p.arch}",
@@ -160,13 +156,13 @@ def generate_pipeline() -> Pipeline:
                 artifact_vars_per_step = {
                     "upload": {"variant": slug, "git-ref": git_ref},
                     "promote": {"variant": slug, "git-ref": git_ref},
-                    "download": {"variant": dependency_slug, "git-ref": git_ref_dep},
+                    "download": {"variant": dependency_slug, "git-ref": "refs/heads/sc-18547/buildkite"},
                 }
 
                 compose_config = {
                     "run": "pypa",
                     "config": "docker/docker-compose.yml",
-                    "propagate-environment": True,
+                    "propagate-uid-gid": True,
                 }
 
                 step = load_template(STEPS_DIR / "_build.yml", **tvars)
@@ -176,7 +172,7 @@ def generate_pipeline() -> Pipeline:
                 env.update(_get_agent_python_env(p, py))
                 step["env"] = env
                 if p.os == "linux":
-                    apply_docker_compose(step, compose_config)
+                    apply_docker_compose(step, config=compose_config)
                 set_artifact_plugin_options(step, artifact_vars_per_step)
                 _apply_doc_command(step, p)
 
