@@ -22,6 +22,6 @@ RUN useradd --comment "$COMMENT" --home-dir $HOME --create-home --system --uid $
 
 USER builder
 
-ADD --chown=builder:builder set-python-version.sh /home/builder/set-python-version.sh
-RUN bash /home/builder/set-python-version.sh ${PYTHON_VERSION} \
-    && rm /home/builder/set-python-version.sh
+ADD --chown=$USERNAME:$USERNAME set-python-version.sh /home/$USERNAME/set-python-version.sh
+RUN bash /home/${USERNAME}/set-python-version.sh ${PYTHON_VERSION} \
+    && rm /home/${USERNAME}/set-python-version.sh
