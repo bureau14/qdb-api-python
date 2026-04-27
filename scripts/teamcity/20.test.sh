@@ -10,6 +10,15 @@ set -u -x
 
 PYTHON="${PYTHON_CMD:-python3}"
 
+
+echo "Print User and Path info for debugging purposes"
+echo "Current user: $(whoami)"
+echo "Current user ID: $(id -u)"
+echo "Current PATH: $PATH"
+echo "Python executable: $(which ${PYTHON})"
+echo "Python version: $(${PYTHON} --version)"
+
+
 ###
 # NOTE(leon):
 ###
