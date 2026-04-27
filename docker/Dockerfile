@@ -6,7 +6,7 @@ FROM quay.io/pypa/$PLATFORM:${TAG}
 
 ARG PYTHON_VERSION
 
-# We need to ensure that the builder user has the same UID and GID as the host buildkite agent to use the propagate-uid-gid feature of the docker plugin.
+# We need to ensure that the container user has the same UID and GID as the host buildkite agent to use the `propagate-uid-gid` feature of the docker plugin.
 # The default UID, GID matches the default UID, GID of the buildkite agent on the host, if needed can be overridden
 ARG USER_ID=929
 ARG GROUP_ID=929
