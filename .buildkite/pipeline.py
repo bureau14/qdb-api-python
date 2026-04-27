@@ -21,11 +21,13 @@ from buildkite_sdk import Pipeline, GroupStep
 sys.path.insert(0, str(Path(__file__).parent / "tools"))
 from qdb_pipeline import (
     Platform,
-    apply_docker,
+    apply_docker_compose,
     load_template,
     merge_env,
     select_platforms,
     validate_pipeline,
+    get_git_ref,
+    set_artifact_plugin_options,
 )  # noqa: E402
 
 STEPS_DIR = Path(__file__).parent / "steps"
@@ -99,58 +101,6 @@ def _env(p: Platform, step_name: str, build_type: str) -> dict[str, str]:
     )
 
 
-def _get_git_ref() -> str:
-    branch = os.environ.get("BUILDKITE_BRANCH")
-    tag = os.environ.get("BUILDKITE_TAG")
-    if not branch and not tag:
-        raise ValueError(
-            "BUILDKITE_BRANCH and BUILDKITE_TAG are both empty — are we running inside a Buildkite job?"
-        )
-
-    ref = f"refs/tags/{tag}" if tag else f"refs/heads/{branch}"
-
-    return ref
-
-### Pending move to qdb-cicd-tools
-
-def _set_artifact_plugin_defaults(
-    step: dict, vars_per_step: dict[str, dict[str, str]]
-) -> None:
-    """
-    Goes through list of plugins and fills in defaults for qdb-artifacts plugin if present.
-    Doesn't overwrite existing keys, only fills in missing ones from provided dict.
-    """
-    plugins = step.get("plugins", {})
-
-    for plugin_dict in plugins:
-        plugin_name = list(plugin_dict.keys())[0]
-        if plugin_name.startswith("bureau14/qdb-artifacts#"):
-            plugin_config = plugin_dict[plugin_name]
-
-            for plugin_step, config in plugin_config.items():
-                if plugin_step in vars_per_step.keys():
-                    for key in vars_per_step[plugin_step]:
-                        if key not in config:
-                            config[key] = vars_per_step[plugin_step][key]
-
-
-def _apply_docker_compose(
-    step: dict,
-    config: dict[str, str] = {},
-) -> None:
-    DOCKER_COMPOSE_PLUGIN_VERSION = "v5.12.1"
-
-    docker_plugin = {
-        f"docker-compose#{DOCKER_COMPOSE_PLUGIN_VERSION}": {
-            "propagate-uid-gid": True,
-            **config,
-        },
-    }
-    existing = step.get("plugins", [])
-    step["plugins"] = [docker_plugin] + existing
-
-###
-
 def _get_agent_python_env(platform: Platform, python_version: str) -> dict[str, str]:
     """
     Returns environment variables to set for Python executable on the agent, based on platform and python version.
@@ -187,15 +137,13 @@ def _apply_doc_command(step: dict, platform: Platform) -> None:
 def generate_pipeline() -> Pipeline:
     """Load templates, expand across platforms × build_types, overlay env and docker."""
     pipeline = Pipeline()
-    git_ref = _get_git_ref()
+    git_ref = get_git_ref()
     group_steps = {}
 
     for p in PLATFORMS:
         for bt in BUILD_TYPES:
             for py in PYTHON_VERSIONS:
-                # TODO update slug logic in the submodule
-                slug = p.slug(bt.lower()) + f"-py{py.replace('.', '')}"
-                # slug = p.slug(bt.lower(), py.replace('.', ''))
+                slug = p.slug(bt.lower(), f"py{py.replace('.', '')}")
 
                 # We want to use Release QuasarDB binaries when building Python API (debug and release)
                 dependency_slug = p.slug("release")
@@ -228,8 +176,8 @@ def generate_pipeline() -> Pipeline:
                 env.update(_get_agent_python_env(p, py))
                 step["env"] = env
                 if p.os == "linux":
-                    _apply_docker_compose(step, compose_config)
-                _set_artifact_plugin_defaults(step, artifact_vars_per_step)
+                    apply_docker_compose(step, compose_config)
+                set_artifact_plugin_options(step, artifact_vars_per_step)
                 _apply_doc_command(step, p)
 
                 # add step to group
