@@ -32,6 +32,7 @@ function relabel_wheel {
     else
         # ${AUDITWHEEL_PLAT} is defined in manylinux base docker image
         ${VENV_PYTHON} -m auditwheel repair "$wheel" --plat "$AUDITWHEEL_PLAT" -w dist/
+        rm "$wheel"
     fi
 }
 

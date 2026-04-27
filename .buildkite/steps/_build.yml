@@ -30,5 +30,7 @@ plugins:
           - "*-server.tar.zst!*"
           - "*-utils.tar.zst!*"
       upload:
-        files: "dist/*"
+        files:
+          - "dist/quasardb-*manylinux*.whl"
+          - "dist/doc.tar.gz"
       promote: {}
