@@ -111,6 +111,7 @@ def _get_git_ref() -> str:
 
     return ref
 
+### Pending move to qdb-cicd-tools
 
 def _set_artifact_plugin_defaults(
     step: dict, vars_per_step: dict[str, dict[str, str]]
@@ -133,6 +134,23 @@ def _set_artifact_plugin_defaults(
                             config[key] = vars_per_step[plugin_step][key]
 
 
+def _apply_docker_compose(
+    step: dict,
+    config: dict[str, str] = {},
+) -> None:
+    DOCKER_COMPOSE_PLUGIN_VERSION = "v5.12.1"
+
+    docker_plugin = {
+        f"docker-compose#{DOCKER_COMPOSE_PLUGIN_VERSION}": {
+            "propagate-uid-gid": True,
+            **config,
+        },
+    }
+    existing = step.get("plugins", [])
+    step["plugins"] = [docker_plugin] + existing
+
+###
+
 def _get_agent_python_env(platform: Platform, python_version: str) -> dict[str, str]:
     """
     Returns environment variables to set for Python executable on the agent, based on platform and python version.
@@ -151,22 +169,6 @@ def _get_agent_python_env(platform: Platform, python_version: str) -> dict[str, 
             "PYTHON_CMD": f"/opt/local/bin/python{python_version}",
         }
     return {}
-
-
-def _apply_docker_compose(
-    step: dict,
-    config: dict[str, str] = {},
-) -> None:
-    DOCKER_COMPOSE_PLUGIN_VERSION = "v5.12.1"
-
-    docker_plugin = {
-        f"docker-compose#{DOCKER_COMPOSE_PLUGIN_VERSION}": {
-            "propagate-uid-gid": True,
-            **config,
-        },
-    }
-    existing = step.get("plugins", [])
-    step["plugins"] = [docker_plugin] + existing
 
 
 def _apply_doc_command(step: dict, platform: Platform) -> None:
@@ -193,11 +195,12 @@ def generate_pipeline() -> Pipeline:
             for py in PYTHON_VERSIONS:
                 # TODO update slug logic in the submodule
                 slug = p.slug(bt.lower()) + f"-py{py.replace('.', '')}"
+                # slug = p.slug(bt.lower(), py.replace('.', ''))
 
-                # We want to use Release QuasarDB binaries for building debug Python API
+                # We want to use Release QuasarDB binaries when building Python API (debug and release)
                 dependency_slug = p.slug("release")
 
-                # TODO: this is just for testing
+                # TODO: this is just for testing, remove later
                 git_ref_dep = "refs/heads/sc-18547/buildkite"
                 #
                 tvars = {
