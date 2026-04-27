@@ -142,7 +142,7 @@ def _apply_docker_compose(
 
     docker_plugin = {
         f"docker-compose#{DOCKER_COMPOSE_PLUGIN_VERSION}": {
-            "propagate-uid-gid": True,
+            # "propagate-uid-gid": True,
             **config,
         },
     }
