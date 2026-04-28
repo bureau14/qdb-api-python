@@ -20,8 +20,8 @@ RUN yum install lsof -y
 RUN groupadd --gid $GROUP_ID $USERNAME
 RUN useradd --comment "$COMMENT" --home-dir $HOME --create-home --system --uid $USER_ID --gid $GROUP_ID $USERNAME
 
-USER builder
+USER $USERNAME
 
-ADD --chown=$USERNAME:$USERNAME set-python-version.sh /home/$USERNAME/set-python-version.sh
-RUN bash /home/${USERNAME}/set-python-version.sh ${PYTHON_VERSION} \
-    && rm /home/${USERNAME}/set-python-version.sh
+ADD --chown=$USERNAME:$USERNAME set-python-version.sh ${HOME}/set-python-version.sh
+RUN bash ${HOME}/set-python-version.sh ${PYTHON_VERSION} \
+    && rm ${HOME}/set-python-version.sh
