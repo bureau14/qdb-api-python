@@ -16,7 +16,7 @@
     <build-runners>
       <runner id="RUNNER_53" name="Build container" type="DockerCommand">
         <parameters>
-          <param name="command.args" value="--build-arg PYTHON_VERSION=%python_version%" />
+          <param name="command.args" value="--build-arg PYTHON_VERSION=%python_version% --build-arg USER_ID=1001 --build-arg GROUP_ID=1001" />
           <param name="docker.command.type" value="build" />
           <param name="docker.image.namesAndTags" value="build:%build.vcs.number%-%python_version%" />
           <param name="docker.push.remove.image" value="true" />
