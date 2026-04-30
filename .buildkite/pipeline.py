@@ -40,8 +40,8 @@ _OS_OVERLAY = {"linux": _LINUX, "windows": _WIN, "macos": _MACOS}
 PLATFORMS: list[Platform] = [
     dataclasses.replace(p, **_OS_OVERLAY.get(p.os, {}))
     for p in select_platforms(
-        "linux-amd64-core2",
-        "linux-aarch64",
+        # "linux-amd64-core2",
+        # "linux-aarch64",
         "windows-amd64-core2",
         "macos-aarch64",
     )
@@ -154,7 +154,7 @@ def generate_pipeline() -> Pipeline:
                 artifact_vars_per_step = {
                     "upload": {"variant": slug, "git-ref": git_ref},
                     "promote": {"variant": slug, "git-ref": git_ref},
-                    "download": {"variant": dependency_slug, "git-ref": git_ref},
+                    "download": {"variant": dependency_slug, "git-ref": "refs/heads/sc-18547/buildkite"},
                 }
 
                 compose_config = {
