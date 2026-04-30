@@ -105,17 +105,15 @@ def _get_agent_python_env(platform: Platform, python_version: str) -> dict[str, 
     Returns environment variables to set for Python executable on the agent, based on platform and python version.
     Applies to Windows and macOS where we have multiple Python versions installed in different locations.
     """
-    # XXX (igor)
-    # we can rely on referencing env variables instead of hardcoded paths but we need to update agents first to support this
+    python_version_slug = python_version.replace(".", "")
     if platform.os == "windows":
         return {
-            "PYTHON_EXECUTABLE": f"C:\\Python{python_version}-64\\python.exe",
-            "PYTHON_CMD": f"C:\\Python{python_version}-64\\python.exe",
+            "PYTHON_EXECUTABLE": f"$$QDB_CICD_AGENT_PYTHON_{python_version_slug}_64_EXE",
+            "PYTHON_CMD": f"$$QDB_CICD_AGENT_PYTHON_{python_version_slug}_64_EXE",
         }
     elif platform.os == "macos":
         return {
-            "PYTHON_EXECUTABLE": f"/opt/local/bin/python{python_version}",
-            "PYTHON_CMD": f"/opt/local/bin/python{python_version}",
+            "PYTHON_EXECUTABLE": f"$$QDB_CICD_AGENT_PYTHON_{python_version_slug}_PATH",
         }
     return {}
 
