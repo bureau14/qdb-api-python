@@ -1,1 +1,1 @@
-teamcity/30.doc.sh
+../teamcity/30.doc.sh

@@ -1,1 +1,1 @@
-teamcity/00.common.sh
+../teamcity/00.common.sh

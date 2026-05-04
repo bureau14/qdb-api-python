@@ -1,1 +1,1 @@
-teamcity/10.build.sh
+../teamcity/10.build.sh

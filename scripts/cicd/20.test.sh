@@ -1,1 +1,1 @@
-teamcity/20.test.sh
+../teamcity/20.test.sh
