@@ -1,1 +1,0 @@
-../teamcity/10.build.sh

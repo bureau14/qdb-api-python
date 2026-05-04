@@ -1,1 +1,0 @@
-../teamcity/00.common.sh

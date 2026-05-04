@@ -1,1 +1,0 @@
-../teamcity/20.test.sh
