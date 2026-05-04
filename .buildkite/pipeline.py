@@ -156,7 +156,7 @@ def generate_pipeline() -> Pipeline:
                     "promote": {"variant": slug, "git-ref": git_ref},
                     "download": {
                         "variant": dependency_slug,
-                        "git-ref": git_ref,
+                        "git-ref": "refs/heads/sc-18547/buildkite",
                     },
                 }
 
