@@ -21,7 +21,7 @@ commands:
 plugins:
   - bureau14/qdb-artifacts#master:
       download:
-        project_id: "quasardb"
+        project_id: "quasardb-build"
         output-dir: "qdb"
         extract: true
         clean: true
@@ -33,4 +33,5 @@ plugins:
         files:
           - "dist/quasardb-*.whl"
           - "dist/doc.tar.gz"
+        base_dir: "dist"
       promote: {}
