@@ -130,6 +130,56 @@ def _apply_doc_command(step: dict, platform: Platform) -> None:
         existing_commands = step.get("commands", [])
         existing_commands += doc_commands
 
+def set_artifact_plugin_options(step: dict, vars_per_step: dict[str, dict]) -> None:
+    """
+    Updates qdb-artifacts plugin configurations. 
+    Supports flat step configs (upload/promote) and nested project lists (download).
+    """
+    plugins = step.get("plugins", [])
+
+    for plugin_dict in plugins:
+        plugin_name = next(iter(plugin_dict))
+        if not plugin_name.startswith("bureau14/qdb-artifacts#"):
+            continue
+
+        plugin_config = plugin_dict[plugin_name]
+
+        for step_name, defaults in vars_per_step.items():
+            if step_name not in plugin_config:
+                continue
+
+            config_section = plugin_config[step_name]
+
+            project_overrides = defaults.get("by_project", {})
+            global_defaults = {k: v for k, v in defaults.items() if k != "by_project"}
+            
+            # Handle download step which has list of nested project dicts, each can need different overrides
+            # For example, the download step might look like:
+            # download:
+            #   projects:
+            #     - project_id: 123
+            #      - project_id: 456
+            # And we want different variant for each project, but they should all inherit the same git-ref default
+            # For this we introduce `by_project` parameter in `vars_per_step` which maps project_id to specific overrides, while the top-level keys in `vars_per_step` are applied as defaults to all projects if not overridden.
+            # This way we can have both global defaults and project-specific overrides in a clean way.
+            if "projects" in config_section:
+                for project in config_section["projects"]:
+                    pid = project.get("project_id")
+                    
+                    # Apply specific project overrides
+                    if pid in project_overrides:
+                        for k, v in project_overrides[pid].items():
+                            project.setdefault(k, v)
+                    
+                    # Apply general defaults (like git-ref)
+                    for k, v in global_defaults.items():
+                        project.setdefault(k, v)
+            
+            # We also need to handle the case where the step config is not nested (like upload/promote), in which case we just apply the defaults directly to the step config
+            else:
+                for k, v in global_defaults.items():
+                    config_section.setdefault(k, v)
+
 
 def generate_pipeline() -> Pipeline:
     """Load templates, expand across platforms × build_types, overlay env and docker."""
@@ -156,7 +206,7 @@ def generate_pipeline() -> Pipeline:
                     "promote": {"variant": slug, "git-ref": git_ref},
                     "download": {
                         "variant": dependency_slug,
-                        "git-ref": git_ref,
+                        "git-ref": git_ref,     
                     },
                 }
 
