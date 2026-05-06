@@ -166,5 +166,5 @@ then
 fi
 
 pushd tests
-exec ${VENV_PYTHON} -m pytest ${TEST_OPTS}
+${VENV_PYTHON} -m pytest ${TEST_OPTS}
 popd
