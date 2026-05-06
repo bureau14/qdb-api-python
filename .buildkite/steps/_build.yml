@@ -12,14 +12,10 @@ commands:
   # - echo \"+++ Start Services\"
   # - bash scripts/tests/setup/start-services.sh
   - echo \"+++ Run Tests\"
-  - bash scripts/cicd/20.test.sh || true
+  - bash scripts/cicd/20.test.sh -s test_stats.py
   - ls -la tests/build/test/
   # - echo \"+++ Run build\"
   # - bash scripts/cicd/10.build.sh
-
-wait: ~
-
-continue_on_failure: true
 
 plugins:
   - bureau14/qdb-artifacts#master:
