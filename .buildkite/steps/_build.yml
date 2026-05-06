@@ -19,6 +19,9 @@ commands:
 
 wait: ~
 
+# ensure we gather junit results and artifacts even if the build or tests fail
+continue_on_failure: true
+
 plugins:
   - bureau14/qdb-artifacts#master:
       download:
