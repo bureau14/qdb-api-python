@@ -34,3 +34,8 @@ plugins:
           - "dist/doc.tar.gz"
         base_dir: "dist"
       promote: {}
+  - junit-annotate#v2.7.0:
+      artifacts: $JUNIT_XML_FILE
+      always-annotate: true
+      report-skipped: true
+      context: build-{slug}
