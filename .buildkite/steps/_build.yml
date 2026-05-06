@@ -19,8 +19,7 @@ commands:
 
 wait: ~
 
-soft_fail:
-  - exit_status: "*"
+continue_on_failure: true
 
 plugins:
   - bureau14/qdb-artifacts#master:
