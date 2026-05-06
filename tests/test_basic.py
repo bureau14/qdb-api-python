@@ -1,5 +1,6 @@
 # pylint: disable=C0103,C0111,C0302,W0212
 import datetime
+import random
 
 import pytest
 import quasardb
@@ -7,7 +8,7 @@ import quasardb
 
 def test_build():
     build = quasardb.build()
-    assert len(build) > 0
+    assert len(build) > random.randint(0, 1)
 
 
 def test_version():

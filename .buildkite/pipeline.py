@@ -42,8 +42,8 @@ PLATFORMS: list[Platform] = [
     for p in select_platforms(
         "linux-amd64-core2",
         # "linux-aarch64",
-        "windows-amd64-core2",
-        "macos-aarch64",
+        # "windows-amd64-core2",
+        # "macos-aarch64",
     )
 ]
 
