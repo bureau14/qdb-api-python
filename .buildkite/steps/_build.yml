@@ -34,8 +34,8 @@ plugins:
           - "dist/doc.tar.gz"
         base_dir: "dist"
       promote: {}
-  - junit-annotate#v2.7.0:
-      artifacts: build/test/pytest.xml
+  - igorniebylski/junit-annotate#master:
+      local-dir: build/test/pytest.xml
       always-annotate: true
       report-skipped: true
       context: build-{slug}
