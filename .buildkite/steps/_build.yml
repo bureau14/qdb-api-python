@@ -16,6 +16,8 @@ commands:
   - echo \"+++ Run build\"
   - bash scripts/cicd/10.build.sh
 
+wait: ~
+
 plugins:
   - bureau14/qdb-artifacts#master:
       download:
@@ -35,7 +37,7 @@ plugins:
         base_dir: "dist"
       promote: {}
   - igorniebylski/junit-annotate#master:
-      local-dir: test-results/pytest.xml
+      local-artifacts: test-results/pytest.xml
       always-annotate: true
       report-skipped: true
       context: build-{slug}
