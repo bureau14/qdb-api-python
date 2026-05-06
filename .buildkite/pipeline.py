@@ -54,14 +54,14 @@ PYTHON_VERSIONS = [
     # "3.10",
     # "3.11",
     # "3.12",
-    # "3.13",
+    "3.13",
     "3.14",
 ]
 
 # Environment variable layering: global → step → os → os+step → platform compilers.
 GLOBAL_ENV: dict[str, str] = {
     "AWS_DEFAULT_REGION": "eu-west-1",
-    "JUNIT_XML_FILE": "test-results/pytest.xml",
+    "JUNIT_XML_FILE": "build/test/pytest.xml",
     "QDB_ENCRYPT_TRAFFIC": "1",
 }
 
@@ -175,7 +175,7 @@ def generate_pipeline() -> Pipeline:
                 if p.os == "linux":
                     apply_docker_compose(step, config=compose_config)
                 set_artifact_plugin_options(step, artifact_vars_per_step)
-                _apply_doc_command(step, p)
+                # _apply_doc_command(step, p)
 
                 # add step to group
                 group_name = p.slug(bt.lower()).replace("-", " ").title()

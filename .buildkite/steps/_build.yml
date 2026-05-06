@@ -38,7 +38,7 @@ plugins:
         base_dir: "dist"
       promote: {}
   - igorniebylski/junit-annotate#master:
-      local-artifacts: test-results/pytest.xml
+      local-artifacts: tests/build/test/pytest.xml
       always-annotate: true
       report-skipped: true
       # context: build-{slug}
