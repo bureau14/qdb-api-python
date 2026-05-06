@@ -35,7 +35,7 @@ plugins:
         base_dir: "dist"
       promote: {}
   - junit-annotate#v2.7.0:
-      artifacts: $JUNIT_XML_FILE
+      artifacts: build/test/pytest.xml
       always-annotate: true
       report-skipped: true
       context: build-{slug}
