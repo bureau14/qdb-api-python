@@ -61,7 +61,7 @@ PYTHON_VERSIONS = [
 # Environment variable layering: global → step → os → os+step → platform compilers.
 GLOBAL_ENV: dict[str, str] = {
     "AWS_DEFAULT_REGION": "eu-west-1",
-    "JUNIT_XML_FILE": "build/test/pytest.xml",
+    "JUNIT_XML_FILE": "test-results/pytest.xml",
     "QDB_ENCRYPT_TRAFFIC": "1",
 }
 
