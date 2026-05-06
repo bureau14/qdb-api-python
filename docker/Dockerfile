@@ -15,7 +15,7 @@ ARG HOME=/home/${USERNAME}
 ARG COMMENT=builder
 
 # Install packages required for running start-services inside the container
-RUN yum install lsof -y
+RUN yum install lsof procps -y
 
 RUN groupadd --gid $GROUP_ID $USERNAME
 RUN useradd --comment "$COMMENT" --home-dir $HOME --create-home --system --uid $USER_ID --gid $GROUP_ID $USERNAME

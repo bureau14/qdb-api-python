@@ -13,24 +13,24 @@ commands:
   - bash scripts/tests/setup/start-services.sh
   - echo \"+++ Run Tests\"
   - bash scripts/cicd/20.test.sh
-  - echo \"+++ Stop Services\"
-  - bash scripts/tests/setup/stop-services.sh
   - echo \"+++ Run build\"
   - bash scripts/cicd/10.build.sh
 
 plugins:
   - bureau14/qdb-artifacts#master:
       download:
-        project_id: "quasardb"
-        output-dir: "qdb"
-        extract: true
         clean: true
-        files:
-          - "*-c-api.tar.zst!*"
-          - "*-server.tar.zst!*"
-          - "*-utils.tar.zst!*"
+        projects:
+          - project_id: "quasardb-build"
+            output-dir: "qdb"
+            extract: true
+            files:
+              - "*-c-api.tar.zst!*"
+              - "*-server.tar.zst!*"
+              - "*-utils.tar.zst!*"
       upload:
         files:
           - "dist/quasardb-*.whl"
           - "dist/doc.tar.gz"
+        base_dir: "dist"
       promote: {}
