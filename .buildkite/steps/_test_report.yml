@@ -1,7 +1,7 @@
 agents:
   queue: "default-debian-amd64"
 
-label: ":bar_chart: Full test report"
+label: ":bar_chart: Test report"
 key: "full-test-report"
 
 command: "true"
@@ -14,9 +14,8 @@ depends_on:
 
 plugins:
   - bureau14/qdb-test-report#sc-19015/buildkite-test-report:
-      report_id: pytest
       scope: full
-      title: "PyTest full report"
+      title: "Full test report"
       platforms:
         - name: linux-core2-release-py314
           path: results/linux-core2-release-py314
