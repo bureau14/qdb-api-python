@@ -188,6 +188,9 @@ def generate_pipeline() -> Pipeline:
         group_step = GroupStep(group=group, steps=steps)
         pipeline.add_step(group_step)
 
+    step = load_template(STEPS_DIR / "_test_report.yml")
+    pipeline.add_step(step)
+
     return pipeline
 
 

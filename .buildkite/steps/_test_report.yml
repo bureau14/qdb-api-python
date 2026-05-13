@@ -1,0 +1,24 @@
+agents:
+  queue: "default-debian-amd64"
+
+label: ":bar_chart: Full test report"
+key: "full-test-report"
+
+command: ~
+
+allow_dependency_failure: true
+
+depends_on:
+  - "build-linux-core2-release-py314"
+  - "build-linux-core2-release-py313"
+
+plugins:
+  - bureau14/qdb-test-report#sc-19015/buildkite-test-report:
+      report_id: pytest
+      scope: full
+      title: "PyTest full report"
+      platforms:
+        - name: linux-core2-release-py314
+          path: collected-results/linux-core2-release-py314
+        - name: linux-core2-release-py313
+          path: collected-results/linux-core2-release-py313
