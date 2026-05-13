@@ -35,8 +35,8 @@ plugins:
           - "dist/doc.tar.gz"
         base_dir: "dist"
       promote: {}
-  - bureau14/qdb-test-report#sc-19015/buildkite-test-report-plugin:
-      report_id: {slug}
+  - bureau14/qdb-test-report#sc-19015/buildkite-test-report:
+      report_id: pytest
       scope: job
       variant: {slug}
       title: "PyTest {slug}"
