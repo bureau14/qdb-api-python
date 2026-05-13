@@ -19,6 +19,6 @@ plugins:
       title: "PyTest full report"
       platforms:
         - name: linux-core2-release-py314
-          path: collected-results/linux-core2-release-py314
+          path: results/linux-core2-release-py314
         - name: linux-core2-release-py313
-          path: collected-results/linux-core2-release-py313
+          path: results/linux-core2-release-py313
