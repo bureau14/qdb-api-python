@@ -4,7 +4,7 @@ agents:
 label: ":bar_chart: Full test report"
 key: "full-test-report"
 
-command: true
+command: "true"
 
 allow_dependency_failure: true
 
