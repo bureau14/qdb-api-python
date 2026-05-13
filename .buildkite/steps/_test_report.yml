@@ -11,6 +11,11 @@ allow_dependency_failure: true
 depends_on:
   - "build-linux-core2-release-py314"
   - "build-linux-core2-release-py313"
+  - "build-linux-aarch64-release-py314"
+  - "build-linux-aarch64-release-py313"
+  - "build-windows-core2-release-py314"
+  - "build-windows-core2-release-py313"
+  - "build-macos-aarch64-release-py314"
 
 plugins:
   - bureau14/qdb-test-report#sc-19015/buildkite-test-report:
@@ -21,3 +26,13 @@ plugins:
           path: results/linux-core2-release-py314
         - name: linux-core2-release-py313
           path: results/linux-core2-release-py313
+        - name: linux-aarch64-release-py314
+          path: results/linux-aarch64-release-py314
+        - name: linux-aarch64-release-py313
+          path: results/linux-aarch64-release-py313
+        - name: windows-core2-release-py314
+          path: results/windows-core2-release-py314
+        - name: windows-core2-release-py313
+          path: results/windows-core2-release-py313
+        - name: macos-aarch64-release-py314
+          path: results/macos-aarch64-release-py314
