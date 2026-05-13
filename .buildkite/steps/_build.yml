@@ -35,8 +35,11 @@ plugins:
           - "dist/doc.tar.gz"
         base_dir: "dist"
       promote: {}
-  - igorniebylski/junit-annotate#master:
-      local-artifacts: tests/build/test/pytest.xml
-      always-annotate: true
-      report-skipped: true
-      context: build-{slug}
+  - bureau14/qdb-test-report#sc-19015/buildkite-test-report-plugin:
+      report_id: {slug}
+      scope: job
+      variant: {slug}
+      title: "PyTest {slug}"
+      platforms:
+        - name: {slug}
+          path: tests/build/test/pytest.xml
