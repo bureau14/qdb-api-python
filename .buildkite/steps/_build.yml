@@ -34,3 +34,8 @@ plugins:
           - "dist/doc.tar.gz"
         base_dir: "dist"
       promote: {}
+  - bureau14/qdb-test-report#sc-19015/buildkite-test-report:
+      title: "Test report {slug}"
+      job:
+        variant: {slug}
+        junit_reports_path: "tests/build/test/*.xml"

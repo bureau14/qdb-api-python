@@ -1,0 +1,17 @@
+agents:
+  queue: "default-debian-amd64"
+
+label: ":bar_chart: Aggregate test report"
+key: "full-test-report"
+
+command: "true"
+
+allow_dependency_failure: true
+
+depends_on:
+
+plugins:
+  - bureau14/qdb-test-report#sc-19015/buildkite-test-report:
+      title: "Full test report"
+      aggregate:
+        variants:
