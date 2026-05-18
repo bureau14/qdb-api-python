@@ -192,7 +192,7 @@ def generate_pipeline() -> Pipeline:
     
     # Aggregate all test reports
     step = load_template(STEPS_DIR / "_test_report.yml", **tvars)
-    step["depends_on"] = variants
+    step["depends_on"] = [f"build-{variant}" for variant in variants]
     for plugins in step.get("plugins", []):
         for plugin_name, config in plugins.items():
             if plugin_name.startswith("bureau14/qdb-test-report"):
