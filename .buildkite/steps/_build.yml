@@ -38,4 +38,4 @@ plugins:
       title: "Test report {slug}"
       job:
         variant: {slug}
-        junit_reports_path: "tests/build/test/*.xml"
+        junit_input_path: "tests/build/test/*.xml"
