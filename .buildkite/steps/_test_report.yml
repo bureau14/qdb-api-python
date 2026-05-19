@@ -15,5 +15,4 @@ plugins:
       title: "Full test report"
       # Volume of tests is too big - 20k test * 48 variants = ~1M test results, over 150mb html report, we report only failed tests
       only_failures: true
-      aggregate:
-        variants:
+      aggregate: {}
