@@ -34,3 +34,8 @@ plugins:
           - "dist/doc.tar.gz"
         base_dir: "dist"
       promote: {}
+  - bureau14/qdb-test-report#master:
+      title: "Test report {slug}"
+      job:
+        variant: {slug}
+        junit_input_path: "tests/build/test/*.xml"
