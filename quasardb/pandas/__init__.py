@@ -200,7 +200,10 @@ def stream_dataframe(
     Read a single table and return a stream of dataframes. This is a convenience function that wraps around
     `stream_dataframes`.
     """
-    # For backwards compatibility, drop `$table` when the reader returns it.
+    # For backwards compatibility, we drop the `$table` column returned: this is not strictly
+    # necessary, but it also is somewhat reasonable to drop it when we're reading from a single
+    # table, which is the case here.
+    # When a column list is explicitly provided, the reader may not return `$table`.
     clean_df_fn = lambda df: df.drop(columns=["$table"], errors="ignore")
 
     return (
