@@ -447,10 +447,7 @@ def test_read_arrays_reads_selected_columns_with_ranges(qdbd_connection, table):
     )
 
     np.testing.assert_array_equal(idx, index[1:3])
-    assert list(xs.keys()) == ["$table"] + columns
-    np.testing.assert_array_equal(
-        xs["$table"], np.array([table.get_name()] * len(index[1:3]))
-    )
+    assert list(xs.keys()) == columns
     np.testing.assert_array_equal(xs[tslib._double_col_name(table)], doubles[1:3])
     np.testing.assert_array_equal(xs[tslib._int64_col_name(table)], integers[1:3])
 
@@ -484,9 +481,7 @@ def test_read_arrays_accepts_ranges(qdbd_connection, table):
     )
 
     np.testing.assert_array_equal(idx, index[1:3])
-    np.testing.assert_array_equal(
-        xs["$table"], np.array([table.get_name()] * len(index[1:3]))
-    )
+    assert "$table" not in xs
     np.testing.assert_array_equal(xs[tslib._double_col_name(table)], doubles[1:3])
 
 
@@ -516,9 +511,7 @@ def test_read_arrays_supports_table_object(qdbd_connection, table):
     )
 
     np.testing.assert_array_equal(idx, index)
-    np.testing.assert_array_equal(
-        xs["$table"], np.array([table.get_name()] * len(index))
-    )
+    assert "$table" not in xs
     np.testing.assert_array_equal(xs[tslib._double_col_name(table)], doubles)
 
 
@@ -548,9 +541,7 @@ def test_read_arrays_supports_table_name(qdbd_connection, table):
     )
 
     np.testing.assert_array_equal(idx, index)
-    np.testing.assert_array_equal(
-        xs["$table"], np.array([table.get_name()] * len(index))
-    )
+    assert "$table" not in xs
     np.testing.assert_array_equal(xs[tslib._double_col_name(table)], doubles)
 
 
