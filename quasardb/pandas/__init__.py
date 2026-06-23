@@ -203,7 +203,7 @@ def stream_dataframe(
     # For backwards compatibility, we drop the `$table` column returned: this is not strictly
     # necessary, but it also is somewhat reasonable to drop it when we're reading from a single
     # table, which is the case here.
-    clean_df_fn = lambda df: df.drop(columns=["$table"])
+    clean_df_fn = lambda df: df.drop(columns=["$table"]) if not column_names else df
 
     return (
         clean_df_fn(df)
