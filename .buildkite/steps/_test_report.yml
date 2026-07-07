@@ -13,6 +13,4 @@ depends_on:
 plugins:
   - bureau14/qdb-test-report#master:
       title: "Full test report"
-      # Volume of tests is huge - 20k test * 48 variants = ~1M test results, over 150mb html report, we report only failed tests in this case
-      only_failures: true
       aggregate: {}
