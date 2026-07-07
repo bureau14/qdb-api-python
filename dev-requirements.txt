@@ -6,9 +6,10 @@
 # Python 3.9 needs the final NumPy 1.x release.
 numpy <= 2.0.0; python_version == "3.9"
 
-# NumPy 2.1+ dropped Python 3.9. Let pip choose the newest NumPy 2.x release
+# NumPy 2.1+ dropped Python 3.9.
 numpy >= 2.0.1; python_version >= "3.10"
 
+# Pandas release compatible with all build targets
 pandas >= 2.3.3; python_version >= "3.9"
 
 ## Any environment
