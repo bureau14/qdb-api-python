@@ -193,12 +193,11 @@ def generate_pipeline() -> Pipeline:
     for group, steps in group_steps.items():
         group_step = GroupStep(group=group, steps=steps)
         pipeline.add_step(group_step)
-    
+
     # Aggregate all test reports
     step = load_template(STEPS_DIR / "_test_report.yml", **tvars)
     step["depends_on"] = [f"build-{variant}" for variant in variants]
     pipeline.add_step(CommandStep.from_dict(step))
-
 
     return pipeline
 
