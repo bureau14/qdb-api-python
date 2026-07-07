@@ -3,13 +3,12 @@
 # FreeBSD), and there are some conflicting requirements. For example, Numpy
 # doesn't have any version that works on both Python 3.6 and Python 3.10.
 
-# Python 3.9 needs the final NumPy 1.x release.
-numpy <= 2.0.0; python_version == "3.9"
+# Last version to support Python 3.9
+numpy < 2.1.0; python_version == "3.9"
+# NumPy 2.1+ dropped Python 3.9
+numpy >= 2.0.1; python_version >= "3.9"
 
-# NumPy 2.1+ dropped Python 3.9.
-numpy >= 2.0.1; python_version >= "3.10"
-
-# Pandas release compatible with all build targets
+# First pandas release compatible with Python 3.9 - 3.14
 pandas >= 2.3.3; python_version >= "3.9"
 
 ## Any environment
