@@ -1,0 +1,41 @@
+agents:
+  queue: "{queue}"
+
+retry:
+  automatic:
+      limit: 3
+
+label: "{name} ({slug})"
+key: "build-{slug}"
+
+commands:
+  - echo \"+++ Start Services\"
+  - bash scripts/tests/setup/start-services.sh
+  - echo \"+++ Run Tests\"
+  - bash scripts/cicd/20.test.sh
+  - echo \"+++ Run build\"
+  - bash scripts/cicd/10.build.sh
+
+plugins:
+  - bureau14/qdb-artifacts#master:
+      download:
+        clean: true
+        projects:
+          - project_id: "quasardb-build"
+            output-dir: "qdb"
+            extract: true
+            files:
+              - "*-c-api.tar.zst!*"
+              - "*-server.tar.zst!*"
+              - "*-utils.tar.zst!*"
+      upload:
+        files:
+          - "dist/quasardb-*.whl"
+          - "dist/doc.tar.gz"
+        base_dir: "dist"
+      promote: {}
+  - bureau14/qdb-test-report#master:
+      title: "Test report {slug}"
+      job:
+        variant: {slug}
+        junit_input_path: "tests/build/test/*.xml"
