@@ -1,0 +1,11 @@
+services:
+  pypa:
+     build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - PYTHON_VERSION=${PYTHON_VERSION}
+        - ARCH=${ARCH-x86_64}
+     volumes:
+      - ../:/workdir
+     working_dir: /workdir
