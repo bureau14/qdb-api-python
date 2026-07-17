@@ -180,7 +180,7 @@ public:
 
     inline metadata get_metadata() const
     {
-        qdb_entry_metadata_t md;
+        qdb_entry_metadata_t md{};
 
         qdb::qdb_throw_if_error(*_handle, qdb_get_metadata(*_handle, _alias.c_str(), &md));
 
