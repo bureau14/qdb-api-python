@@ -26,9 +26,7 @@ def test_write_dataframe_creates_table_lazily(qdbd_connection, entry_name):
         np.array(["2020-01-01T00:00:00"], dtype="datetime64[ns]"),
         name="$timestamp",
     )
-    expected = pd.DataFrame(
-        {column_name: np.array([42], dtype="int64")}, index=index
-    )
+    expected = pd.DataFrame({column_name: np.array([42], dtype="int64")}, index=index)
 
     qdbpd.write_dataframe(
         expected,

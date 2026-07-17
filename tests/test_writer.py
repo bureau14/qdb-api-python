@@ -109,9 +109,7 @@ def test_create_tables_mode_does_not_modify_incompatible_table(
     qdbd_connection, entry_name
 ):
     existing_table = qdbd_connection.table(entry_name)
-    existing_table.create(
-        [quasardb.ColumnInfo(quasardb.ColumnType.String, "value")]
-    )
+    existing_table.create([quasardb.ColumnInfo(quasardb.ColumnType.String, "value")])
 
     local_table = qdbd_connection.table(
         entry_name,
