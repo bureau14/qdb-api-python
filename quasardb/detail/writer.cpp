@@ -293,9 +293,6 @@ void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
 {
     assert(kwargs.contains(batch_creation_mode::kw_creation_mode));
 
-    // By default no flags are set
-    qdb_exp_batch_creation_mode_t ret = qdb_exp_batch_dont_create;
-
     return py::cast<qdb_exp_batch_creation_mode_t>(kwargs[batch_creation_mode::kw_creation_mode]);
 }
 
