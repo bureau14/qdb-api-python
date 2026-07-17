@@ -175,6 +175,7 @@ private:
 
         // Ensure some default variables that are set
         kwargs = detail::batch_push_flags::ensure(kwargs);
+        kwargs = detail::batch_creation_mode::ensure(kwargs);
 
         std::vector<qdb_ts_range_t> truncate_ranges{};
 
@@ -203,7 +204,8 @@ private:
             truncate_ranges_ = truncate_ranges.data();
         }
 
-        int cur = 0;
+        auto creation_mode = detail::batch_creation_mode::from_kwargs(kwargs);
+        int cur            = 0;
 
         for (auto pos = idx.begin(); pos != idx.end(); ++pos)
         {
@@ -215,7 +217,8 @@ private:
                 options.mode,           //
                 deduplicate_options,    //
                 truncate_ranges_,       //
-                batch_table);
+                batch_table,            //
+                creation_mode);
 
             if (batch_table.data.column_count == 0) [[unlikely]]
             {
