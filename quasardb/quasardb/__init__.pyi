@@ -36,7 +36,7 @@ from ._string import String
 from ._table import ColumnInfo, ColumnType, IndexedColumnInfo, Table
 from ._tag import Tag
 from ._timestamp import Timestamp
-from ._writer import Writer, WriterData, WriterPushMode
+from ._writer import Writer, WriterCreationMode, WriterData, WriterPushMode
 
 __all__ = [
     "BatchColumnInfo",
@@ -79,6 +79,7 @@ __all__ = [
     "Tag",
     "Timestamp",
     "Writer",
+    "WriterCreationMode",
     "WriterData",
     "WriterPushMode",
     "metrics",

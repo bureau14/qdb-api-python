@@ -11,11 +11,122 @@ import numpy as np
 import quasardb.numpy as qdbnp
 
 
+def _make_local_creation_table(qdbd_connection, table_name):
+    columns = [
+        quasardb.ColumnInfo(quasardb.ColumnType.Int64, "value"),
+        quasardb.ColumnInfo(
+            quasardb.ColumnType.Symbol, "symbol", "writer_creation_symbols"
+        ),
+    ]
+    shard_size = datetime.timedelta(days=1)
+    ttl = datetime.timedelta(days=7)
+
+    table = qdbd_connection.table(table_name, columns, shard_size, ttl)
+    return table, columns, shard_size, ttl
+
+
 def _generate_data(count, start=np.datetime64("2017-01-01", "ns")):
     integers = np.random.randint(-100, 100, count)
     timestamps = tslib._generate_dates(start + np.timedelta64("1", "D"), count)
 
     return (integers, timestamps)
+
+
+@pytest.mark.parametrize(
+    "creation_mode",
+    [None, quasardb.WriterCreationMode.DontCreate],
+    ids=["default", "dont-create"],
+)
+def test_missing_table_is_not_created(qdbd_connection, entry_name, creation_mode):
+    table, _, _, _ = _make_local_creation_table(qdbd_connection, entry_name)
+    writer = qdbd_connection.writer()
+
+    writer.start_row(table, np.datetime64("2020-01-01T00:00:00", "ns"))
+    writer.set_int64(0, 42)
+    writer.set_string(1, "forty-two")
+
+    push_options = {}
+    if creation_mode is not None:
+        push_options["creation_mode"] = creation_mode
+
+    with pytest.raises(quasardb.AliasNotFoundError):
+        writer.push(**push_options)
+
+    with pytest.raises(quasardb.AliasNotFoundError):
+        qdbd_connection.table(entry_name).list_columns()
+
+
+def test_create_tables_mode_creates_missing_table(qdbd_connection, entry_name):
+    table, expected_columns, shard_size, ttl = _make_local_creation_table(
+        qdbd_connection, entry_name
+    )
+    writer = qdbd_connection.writer()
+    timestamp = np.datetime64("now", "ns")
+
+    writer.start_row(table, timestamp)
+    writer.set_int64(0, 42)
+    writer.set_string(1, "forty-two")
+    writer.push(creation_mode=quasardb.WriterCreationMode.CreateTables)
+
+    created_table = qdbd_connection.table(entry_name)
+    actual_columns = created_table.list_columns()
+
+    assert len(actual_columns) == len(expected_columns)
+    for actual, expected in zip(actual_columns, expected_columns):
+        assert actual.name == expected.name
+        assert actual.type == expected.type
+        assert actual.symtable == expected.symtable
+
+    assert created_table.get_shard_size() == shard_size
+    assert created_table.get_ttl() == ttl
+
+    rows = qdbd_connection.query(
+        'SELECT "$timestamp","value","symbol" FROM "{}"'.format(entry_name)
+    )
+    assert len(rows) == 1
+    assert rows[0]["$timestamp"] == timestamp
+    assert rows[0]["value"] == 42
+    assert rows[0]["symbol"] == "forty-two"
+
+
+def test_create_tables_mode_uses_existing_table(qdbd_connection, table):
+    writer = qdbd_connection.writer()
+    timestamp = np.datetime64("2020-01-01T00:00:00", "ns")
+
+    writer.start_row(table, timestamp)
+    writer.set_int64(3, 42)
+    writer.push(creation_mode=quasardb.WriterCreationMode.CreateTables)
+
+    rows = qdbd_connection.query(
+        'SELECT "$timestamp","the_int64" FROM "{}"'.format(table.get_name())
+    )
+    assert len(rows) == 1
+    assert rows[0]["$timestamp"] == timestamp
+    assert rows[0]["the_int64"] == 42
+
+
+def test_create_tables_mode_does_not_modify_incompatible_table(
+    qdbd_connection, entry_name
+):
+    existing_table = qdbd_connection.table(entry_name)
+    existing_table.create(
+        [quasardb.ColumnInfo(quasardb.ColumnType.String, "value")]
+    )
+
+    local_table = qdbd_connection.table(
+        entry_name,
+        [quasardb.ColumnInfo(quasardb.ColumnType.Int64, "value")],
+    )
+    writer = qdbd_connection.writer()
+    writer.start_row(local_table, np.datetime64("2020-01-01T00:00:00", "ns"))
+    writer.set_int64(0, 42)
+
+    writer.push(creation_mode=quasardb.WriterCreationMode.CreateTables)
+
+    actual_columns = existing_table.list_columns()
+    assert len(actual_columns) == 1
+    assert actual_columns[0].name == "value"
+    assert actual_columns[0].type == quasardb.ColumnType.String
 
 
 def test_incorrect_type_double(qdbd_connection, table):

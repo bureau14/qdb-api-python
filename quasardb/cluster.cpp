@@ -111,6 +111,16 @@ qdb::table_ptr cluster::table(const std::string & alias)
     return qdb::make_table_ptr(_handle, alias);
 }
 
+qdb::table_ptr cluster::table(const std::string & alias,
+    const std::vector<detail::column_info> & columns,
+    std::chrono::milliseconds shard_size,
+    std::chrono::milliseconds ttl)
+{
+    check_open();
+
+    return qdb::make_table_ptr(_handle, alias, columns, shard_size, ttl);
+}
+
 void register_cluster(py::module_ & m)
 {
     namespace py = pybind11;
@@ -152,8 +162,36 @@ void register_cluster(py::module_ & m)
         .def("integer", &qdb::cluster::integer)
         .def("double", &qdb::cluster::double_)
         .def("timestamp", &qdb::cluster::timestamp)
-        .def("ts", &qdb::cluster::table)
-        .def("table", &qdb::cluster::table)
+        .def("ts",
+            [](qdb::cluster & self, const std::string & alias) { return self.table(alias); },
+            py::arg("alias"))
+        .def("ts",
+            [](qdb::cluster & self,
+                const std::string & alias,
+                const std::vector<qdb::detail::column_info> & columns,
+                std::chrono::milliseconds shard_size,
+                std::chrono::milliseconds ttl) {
+                return self.table(alias, columns, shard_size, ttl);
+            },
+            py::arg("alias"),
+            py::arg("columns"),
+            py::arg("shard_size") = std::chrono::hours{24},
+            py::arg("ttl")        = std::chrono::milliseconds::zero())
+        .def("table",
+            [](qdb::cluster & self, const std::string & alias) { return self.table(alias); },
+            py::arg("alias"))
+        .def("table",
+            [](qdb::cluster & self,
+                const std::string & alias,
+                const std::vector<qdb::detail::column_info> & columns,
+                std::chrono::milliseconds shard_size,
+                std::chrono::milliseconds ttl) {
+                return self.table(alias, columns, shard_size, ttl);
+            },
+            py::arg("alias"),
+            py::arg("columns"),
+            py::arg("shard_size") = std::chrono::hours{24},
+            py::arg("ttl")        = std::chrono::milliseconds::zero())
         .def("ts_batch", &qdb::cluster::inserter)
         .def("inserter", &qdb::cluster::inserter)
         .def("reader", &qdb::cluster::reader,

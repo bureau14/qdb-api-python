@@ -16,6 +16,32 @@ ROW_COUNT = 1000
 logger = logging.getLogger("test-pandas")
 
 
+def test_write_dataframe_creates_table_lazily(qdbd_connection, entry_name):
+    column_name = "value"
+    table = qdbd_connection.table(
+        entry_name,
+        [quasardb.ColumnInfo(quasardb.ColumnType.Int64, column_name)],
+    )
+    index = pd.Index(
+        np.array(["2020-01-01T00:00:00"], dtype="datetime64[ns]"),
+        name="$timestamp",
+    )
+    expected = pd.DataFrame(
+        {column_name: np.array([42], dtype="int64")}, index=index
+    )
+
+    qdbpd.write_dataframe(
+        expected,
+        qdbd_connection,
+        table,
+        infer_types=False,
+        creation_mode=quasardb.WriterCreationMode.CreateTables,
+    )
+
+    actual = qdbpd.read_dataframe(qdbd_connection, table)
+    _assert_df_equal(expected, actual)
+
+
 def _to_numpy_masked(xs):
     data = xs.to_numpy()
     mask = xs.isna()

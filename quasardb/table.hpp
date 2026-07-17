@@ -35,6 +35,7 @@
 #include "reader_fwd.hpp"
 #include "table_fwd.hpp"
 #include "detail/ts_column.hpp"
+#include <utility>
 
 namespace qdb
 {
@@ -48,6 +49,22 @@ public:
     {
         _cache_metadata();
     }
+
+    /**
+     * Creates a table handle with local metadata, without creating or looking up the table.
+     * The writer uses this metadata when lazy table creation is explicitly enabled.
+     */
+    table(handle_ptr h,
+        std::string a,
+        std::vector<detail::column_info> columns,
+        std::chrono::milliseconds shard_size,
+        std::chrono::milliseconds ttl)
+        : entry{h, a}
+        , _has_indexed_columns(false)
+        , _columns{std::move(columns)}
+        , _ttl{ttl}
+        , _shard_size{shard_size}
+    {}
 
 public:
     std::string repr() const
@@ -272,6 +289,16 @@ private:
 static inline table_ptr make_table_ptr(handle_ptr handle, std::string table_name)
 {
     return std::make_unique<table>(handle, table_name);
+}
+
+static inline table_ptr make_table_ptr(handle_ptr handle,
+    std::string table_name,
+    std::vector<detail::column_info> columns,
+    std::chrono::milliseconds shard_size,
+    std::chrono::milliseconds ttl)
+{
+    return std::make_unique<table>(
+        handle, std::move(table_name), std::move(columns), shard_size, ttl);
 }
 
 template <typename Module>

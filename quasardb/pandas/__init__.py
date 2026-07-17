@@ -309,6 +309,7 @@ def write_dataframes(
         Union[DType, Dict[str, Optional[DType]], List[Optional[DType]]]
     ] = None,
     push_mode: Optional[quasardb.WriterPushMode] = None,
+    creation_mode: Optional[quasardb.WriterCreationMode] = None,
     _async: bool = False,
     fast: bool = False,
     truncate: Union[bool, Range] = False,
@@ -341,6 +342,11 @@ def write_dataframes(
 
     shard_size: optional datetime.timedelta
       The shard size of the timeseries you wish to create when `create` is True.
+
+    creation_mode: optional quasardb.WriterCreationMode
+      Controls whether missing tables may be created during the writer push. Lazy creation
+      requires a table object initialized with an explicit local schema. The existing `create`
+      option remains eager and is unchanged.
     """
 
     # If dfs is a dict, we convert it to a list of tuples.
@@ -396,6 +402,7 @@ def write_dataframes(
         index=None,
         dtype=dtype,
         push_mode=push_mode,
+        creation_mode=creation_mode,
         _async=_async,
         fast=fast,
         truncate=truncate,
@@ -422,6 +429,7 @@ def write_dataframe(
         Union[DType, Dict[str, Optional[DType]], List[Optional[DType]]]
     ] = None,
     push_mode: Optional[quasardb.WriterPushMode] = None,
+    creation_mode: Optional[quasardb.WriterCreationMode] = None,
     _async: bool = False,
     fast: bool = False,
     truncate: Union[bool, Range] = False,
@@ -446,6 +454,7 @@ def write_dataframe(
         shard_size=shard_size,
         dtype=dtype,
         push_mode=push_mode,
+        creation_mode=creation_mode,
         _async=_async,
         fast=fast,
         truncate=truncate,
@@ -472,6 +481,7 @@ def write_pinned_dataframe(
         Union[DType, Dict[str, Optional[DType]], List[Optional[DType]]]
     ] = None,
     push_mode: Optional[quasardb.WriterPushMode] = None,
+    creation_mode: Optional[quasardb.WriterCreationMode] = None,
     _async: bool = False,
     fast: bool = False,
     truncate: Union[bool, Range] = False,
@@ -500,6 +510,7 @@ def write_pinned_dataframe(
         shard_size=shard_size,
         dtype=dtype,
         push_mode=push_mode,
+        creation_mode=creation_mode,
         _async=_async,
         fast=fast,
         truncate=truncate,

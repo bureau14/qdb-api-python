@@ -762,6 +762,7 @@ def write_arrays(
     index: Optional[NDArrayTime] = None,
     # TODO: Set the default push_mode after removing _async, fast and truncate
     push_mode: Optional[quasardb.WriterPushMode] = None,
+    creation_mode: Optional[quasardb.WriterCreationMode] = None,
     _async: bool = False,
     fast: bool = False,
     truncate: Union[bool, Tuple[Any, ...]] = False,
@@ -852,6 +853,11 @@ def write_arrays(
 
       Defaults to `Transactional`.
 
+    creation_mode: optional quasardb.WriterCreationMode
+      Controls whether missing tables may be created during the push. `CreateTables` requires
+      a table object initialized with an explicit local schema. When omitted, tables must already
+      exist, preserving the previous behavior.
+
     truncate: optional bool
       **DEPRECATED** - Use `push_mode=WriterPushMode.Truncate` instead.
       Truncate (also referred to as upsert) the data in-place. Will detect time range to truncate
@@ -904,6 +910,12 @@ def write_arrays(
         table = None
 
     _type_check(push_mode, "push_mode", target_type=quasardb.WriterPushMode)
+    if creation_mode is not None:
+        _type_check(
+            creation_mode,
+            "creation_mode",
+            target_type=quasardb.WriterCreationMode,
+        )
     deprecation_stacklevel = kwargs.pop("deprecation_stacklevel", 1) + 1
 
     if isinstance(truncate, tuple):
@@ -1028,6 +1040,8 @@ def write_arrays(
     push_kwargs["write_through"] = write_through
     push_kwargs["retries"] = retries
     push_kwargs["push_mode"] = push_mode
+    if creation_mode is not None:
+        push_kwargs["creation_mode"] = creation_mode
     if truncate_range:
         push_kwargs["range"] = truncate_range
 

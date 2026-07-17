@@ -198,6 +198,9 @@ private:
         std::vector<qdb_exp_batch_push_table_t> batch;
         batch.assign(idx.size(), qdb_exp_batch_push_table_t());
 
+        std::vector<qdb_exp_batch_push_table_schema_t> table_schemas;
+        std::vector<qdb_exp_batch_push_table_schema_t const *> table_schema_ptrs;
+
         qdb_ts_range_t * truncate_ranges_{nullptr};
         if (truncate_ranges.empty() == false) [[unlikely]]
         {
@@ -205,13 +208,19 @@ private:
         }
 
         auto creation_mode = detail::batch_creation_mode::from_kwargs(kwargs);
-        int cur            = 0;
+        if (creation_mode == qdb_exp_batch_create_tables)
+        {
+            table_schemas.resize(idx.size());
+            table_schema_ptrs.resize(idx.size());
+        }
+
+        std::size_t cur = 0;
 
         for (auto pos = idx.begin(); pos != idx.end(); ++pos)
         {
             std::string const & table_name      = pos->first;
             detail::staged_table & staged_table = pos->second;
-            auto & batch_table                  = batch.at(cur++);
+            auto & batch_table                  = batch.at(cur);
 
             staged_table.prepare_batch( //
                 options.mode,           //
@@ -219,6 +228,13 @@ private:
                 truncate_ranges_,       //
                 batch_table,            //
                 creation_mode);
+
+            if (creation_mode == qdb_exp_batch_create_tables)
+            {
+                auto & table_schema = table_schemas.at(cur);
+                staged_table.prepare_table_schema(table_schema);
+                table_schema_ptrs.at(cur) = &table_schema;
+            }
 
             if (batch_table.data.column_count == 0) [[unlikely]]
             {
@@ -229,11 +245,14 @@ private:
             _logger.debug("Pushing %d rows with %d columns in %s using %s push mode",
                 batch_table.data.row_count, batch_table.data.column_count, table_name,
                 detail::batch_push_mode::to_string(options.mode));
+
+            ++cur;
         }
 
         _do_push<PushStrategy, SleepStrategy>(         //
             options,                                   //
             batch,                                     //
+            table_schema_ptrs,                         //
             PushStrategy::from_kwargs(kwargs),         //
             detail::retry_options::from_kwargs(kwargs) //
         );                                             //
@@ -244,10 +263,14 @@ private:
         concepts::sleep_strategy SleepStrategy>      //
     void _do_push(qdb_exp_batch_options_t const & options,
         std::vector<qdb_exp_batch_push_table_t> const & batch,
+        std::vector<qdb_exp_batch_push_table_schema_t const *> & table_schemas,
         PushStrategy push_strategy,
         detail::retry_options const & retry_options)
     {
         qdb_error_t err{qdb_e_ok};
+
+        qdb_exp_batch_push_table_schema_t const ** table_schemas_ =
+            table_schemas.empty() ? nullptr : table_schemas.data();
 
         {
             // Make sure to measure the time it takes to do the actual push.
@@ -259,7 +282,7 @@ private:
                 *_handle,        //
                 &options,        //
                 batch.data(),    //
-                nullptr,         //
+                table_schemas_,  //
                 batch.size());   //
         }
 
@@ -285,7 +308,7 @@ private:
             // left and the next sleep duration.
             _logger.warn("Retrying push operation, retries left: %d", retry_options.retries_left);
             return _do_push<PushStrategy, SleepStrategy>(
-                options, batch, push_strategy, retry_options.next());
+                options, batch, table_schemas, push_strategy, retry_options.next());
         }
 
         qdb::qdb_throw_if_error(*_handle, err);
@@ -327,6 +350,11 @@ static void register_writer(py::module_ & m)
         .value("Fast", qdb_exp_batch_push_fast)
         .value("Truncate", qdb_exp_batch_push_truncate)
         .value("Async", qdb_exp_batch_push_async);
+
+    py::enum_<qdb_exp_batch_creation_mode_t>{
+        m, "WriterCreationMode", py::arithmetic(), "Table creation mode"}
+        .value("DontCreate", qdb_exp_batch_dont_create)
+        .value("CreateTables", qdb_exp_batch_create_tables);
 
     // And the actual pinned writer
     auto writer_c = py::class_<qdb::writer>{m, "Writer"};

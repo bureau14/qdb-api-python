@@ -160,6 +160,8 @@ public:
     staged_table(qdb::table const & table)
         : _logger("quasardb.writer")
         , _table_name(table.get_name())
+        , _shard_size(table.get_shard_size())
+        , _ttl(table.get_ttl())
     {
         _column_infos = table.list_columns();
 
@@ -184,7 +186,11 @@ public:
 
     std::vector<qdb_exp_batch_push_column_t> const & prepare_columns();
 
+    std::vector<qdb_exp_batch_push_column_schema_t> const & prepare_column_schema();
+
     void prepare_table_data(qdb_exp_batch_push_table_data_t & table_data);
+
+    void prepare_table_schema(qdb_exp_batch_push_table_schema_t & table_schema);
 
     void prepare_batch(qdb_exp_batch_push_mode_t mode,
         detail::deduplicate_options const & deduplicate_options,
@@ -228,6 +234,7 @@ public:
         _table_name.clear();
         _column_infos.clear();
         _columns_data.clear();
+        _column_schema.clear();
     }
 
     inline qdb_ts_range_t time_range() const
@@ -257,6 +264,11 @@ private:
     std::vector<any_column> _columns;
 
     std::vector<qdb_exp_batch_push_column_t> _columns_data;
+
+    // Only for lazy table creation, we need to provide the column schema to the server.
+    std::vector<qdb_exp_batch_push_column_schema_t> _column_schema;
+    std::chrono::milliseconds _shard_size;
+    std::chrono::milliseconds _ttl;
 };
 
 /**

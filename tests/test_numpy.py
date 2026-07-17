@@ -16,6 +16,32 @@ from utils import assert_indexed_arrays_equal, assert_ma_equal
 logger = logging.getLogger("test-numpy")
 
 
+def test_write_arrays_creates_table_lazily(qdbd_connection, entry_name):
+    column_name = "value"
+    table = qdbd_connection.table(
+        entry_name,
+        [quasardb.ColumnInfo(quasardb.ColumnType.Int64, column_name)],
+    )
+    index = np.array(["2020-01-01T00:00:00"], dtype="datetime64[ns]")
+    values = np.array([42], dtype="int64")
+
+    _write_single_column(
+        qdbd_connection,
+        table,
+        column_name,
+        values,
+        index,
+        infer_types=False,
+        creation_mode=quasardb.WriterCreationMode.CreateTables,
+    )
+
+    actual_index, actual_values = _read_single_column(
+        qdbd_connection, table, column_name
+    )
+    np.testing.assert_array_equal(actual_index, index)
+    np.testing.assert_array_equal(actual_values, values)
+
+
 def _unicode_to_object_array(xs):
     assert ma.isMA(xs)
     assert xs.dtype.kind == "U"

@@ -207,6 +207,27 @@ std::vector<qdb_exp_batch_push_column_t> const & staged_table::prepare_columns()
     return _columns_data;
 }
 
+std::vector<qdb_exp_batch_push_column_schema_t> const & staged_table::prepare_column_schema()
+{
+    _column_schema.clear();
+    _column_schema.reserve(_column_infos.size());
+
+    for (std::size_t index = 0; index < _column_infos.size(); ++index)
+    {
+        detail::column_info const & column_info = _column_infos[index];
+
+        qdb_exp_batch_push_column_schema_t column{};
+        column.column_type = column_info.type;
+        column.index       = static_cast<qdb_ts_column_index_t>(index);
+        column.symtable    = column_info.symtable.empty() ? nullptr : column_info.symtable.c_str();
+        column.name        = column_info.name.c_str();
+
+        _column_schema.push_back(column);
+    }
+
+    return _column_schema;
+}
+
 void staged_table::prepare_table_data(qdb_exp_batch_push_table_data_t & table_data)
 {
     table_data.row_count  = _index.size();
@@ -215,6 +236,18 @@ void staged_table::prepare_table_data(qdb_exp_batch_push_table_data_t & table_da
     const auto & columns    = prepare_columns();
     table_data.columns      = columns.data();
     table_data.column_count = columns.size();
+}
+
+void staged_table::prepare_table_schema(qdb_exp_batch_push_table_schema_t & table_schema)
+{
+    table_schema.shard_size = static_cast<qdb_duration_t>(_shard_size.count());
+    table_schema.ttl        = (_ttl == std::chrono::milliseconds::zero())
+                                  ? qdb_ttl_disabled
+                                  : static_cast<qdb_duration_t>(_ttl.count());
+
+    const auto & columns      = prepare_column_schema();
+    table_schema.columns      = columns.data();
+    table_schema.column_count = columns.size();
 }
 
 void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
