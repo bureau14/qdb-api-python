@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 from types import TracebackType
-from typing import Any, Optional, Type, overload
+from typing import Any, Optional, Type
 
 from ..typing import MaskedArrayAny, RangeSet
 from ._batch_column import BatchColumnInfo
@@ -92,32 +92,28 @@ class Cluster:
     def string(self, alias: str) -> String: ...
     def suffix_count(self, suffix: str) -> int: ...
     def suffix_get(self, suffix: str, max_count: int) -> list[str]: ...
-    @overload
     def table(self, alias: str) -> Table: ...
-    @overload
-    def table(
+    def table_from_schema(
         self,
         alias: str,
         columns: list[ColumnInfo],
         shard_size: datetime.timedelta = datetime.timedelta(days=1),
         ttl: datetime.timedelta = datetime.timedelta(0),
-    ) -> Table: ...
+    ) -> Table:
+        """
+        Create a table handle from a local schema without accessing the server.
+
+        If the alias already exists, columns, shard size, and TTL must match the
+        existing table. The Python API does not verify this before the push.
+        """
+        ...
     def tag(self, alias: str) -> Tag: ...
     def tidy_memory(self) -> None: ...
     def timestamp(self, alias: str) -> Timestamp: ...
     def trim_all(
         self, pause: datetime.timedelta, timeout: datetime.timedelta
     ) -> None: ...
-    @overload
     def ts(self, alias: str) -> Table: ...
-    @overload
-    def ts(
-        self,
-        alias: str,
-        columns: list[ColumnInfo],
-        shard_size: datetime.timedelta = datetime.timedelta(days=1),
-        ttl: datetime.timedelta = datetime.timedelta(0),
-    ) -> Table: ...
     def ts_batch(self, column_info_list: list[BatchColumnInfo]) -> TimeSeriesBatch: ...
     def uri(self) -> str: ...
     def wait_for_compaction(self) -> None: ...

@@ -855,8 +855,17 @@ def write_arrays(
 
     creation_mode: optional quasardb.WriterCreationMode
       Controls whether missing tables may be created during the push. `CreateTables` requires
-      a table object initialized with an explicit local schema. When omitted, tables must already
-      exist, preserving the previous behavior.
+      a table object initialized with `cluster.table_from_schema()`. This factory does not access
+      the server. If the alias already exists, its columns, shard size, and TTL must match the
+      local schema. The Python API does not verify this before the push. When omitted, tables must
+      already exist, preserving the previous behavior.
+
+      Example::
+
+        table = cluster.table_from_schema(
+            "prices",
+            [quasardb.ColumnInfo(quasardb.ColumnType.Double, "value")],
+        )
 
     truncate: optional bool
       **DEPRECATED** - Use `push_mode=WriterPushMode.Truncate` instead.
@@ -970,7 +979,15 @@ def write_arrays(
         if isinstance(table_, str):
             table_ = table_cache.lookup(table_, cluster)
 
-        cinfos = [(x.name, x.type) for x in table_.list_columns()]
+        try:
+            cinfos = [(x.name, x.type) for x in table_.list_columns()]
+        except quasardb.AliasNotFoundError as exc:
+            if creation_mode == quasardb.WriterCreationMode.CreateTables:
+                raise quasardb.InvalidArgumentError(
+                    "WriterCreationMode.CreateTables requires a missing table to be "
+                    "initialized with cluster.table_from_schema(...)."
+                ) from exc
+            raise
         dtype_ = _coerce_dtype(dtype, cinfos)
 
         assert type(dtype_) is list

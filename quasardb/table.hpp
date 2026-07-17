@@ -51,8 +51,8 @@ public:
     }
 
     /**
-     * Creates a table handle with local metadata, without creating or looking up the table.
-     * The writer uses this metadata when lazy table creation is explicitly enabled.
+     * Creates a table handle from a local schema without accessing the server.
+     * The schema, shard size, and TTL are assumed to match an existing table with the same alias.
      */
     table(handle_ptr h,
         std::string a,
@@ -291,7 +291,7 @@ static inline table_ptr make_table_ptr(handle_ptr handle, std::string table_name
     return std::make_unique<table>(handle, table_name);
 }
 
-static inline table_ptr make_table_ptr(handle_ptr handle,
+static inline table_ptr make_table_ptr_from_schema(handle_ptr handle,
     std::string table_name,
     std::vector<detail::column_info> columns,
     std::chrono::milliseconds shard_size,

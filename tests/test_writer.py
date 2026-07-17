@@ -21,7 +21,7 @@ def _make_local_creation_table(qdbd_connection, table_name):
     shard_size = datetime.timedelta(days=1)
     ttl = datetime.timedelta(days=7)
 
-    table = qdbd_connection.table(table_name, columns, shard_size, ttl)
+    table = qdbd_connection.table_from_schema(table_name, columns, shard_size, ttl)
     return table, columns, shard_size, ttl
 
 
@@ -90,10 +90,16 @@ def test_create_tables_mode_creates_missing_table(qdbd_connection, entry_name):
 
 
 def test_create_tables_mode_uses_existing_table(qdbd_connection, table):
+    local_table = qdbd_connection.table_from_schema(
+        table.get_name(),
+        table.list_columns(),
+        table.get_shard_size(),
+        table.get_ttl(),
+    )
     writer = qdbd_connection.writer()
     timestamp = np.datetime64("2020-01-01T00:00:00", "ns")
 
-    writer.start_row(table, timestamp)
+    writer.start_row(local_table, timestamp)
     writer.set_int64(3, 42)
     writer.push(creation_mode=quasardb.WriterCreationMode.CreateTables)
 
@@ -105,26 +111,44 @@ def test_create_tables_mode_uses_existing_table(qdbd_connection, table):
     assert rows[0]["the_int64"] == 42
 
 
-def test_create_tables_mode_does_not_modify_incompatible_table(
-    qdbd_connection, entry_name
+def test_create_tables_mode_handles_mixed_batch(
+    qdbd_connection, table, random_identifier
 ):
-    existing_table = qdbd_connection.table(entry_name)
-    existing_table.create([quasardb.ColumnInfo(quasardb.ColumnType.String, "value")])
-
-    local_table = qdbd_connection.table(
-        entry_name,
-        [quasardb.ColumnInfo(quasardb.ColumnType.Int64, "value")],
+    existing_table = qdbd_connection.table_from_schema(
+        table.get_name(),
+        table.list_columns(),
+        table.get_shard_size(),
+        table.get_ttl(),
+    )
+    missing_table, _, _, _ = _make_local_creation_table(
+        qdbd_connection, random_identifier
     )
     writer = qdbd_connection.writer()
-    writer.start_row(local_table, np.datetime64("2020-01-01T00:00:00", "ns"))
-    writer.set_int64(0, 42)
+    timestamp = np.datetime64("now", "ns")
 
+    writer.start_row(existing_table, timestamp)
+    writer.set_int64(3, 42)
+    writer.start_row(missing_table, timestamp)
+    writer.set_int64(0, 7)
+    writer.set_string(1, "seven")
     writer.push(creation_mode=quasardb.WriterCreationMode.CreateTables)
 
-    actual_columns = existing_table.list_columns()
-    assert len(actual_columns) == 1
-    assert actual_columns[0].name == "value"
-    assert actual_columns[0].type == quasardb.ColumnType.String
+    existing_rows = qdbd_connection.query(
+        'SELECT "$timestamp","the_int64" FROM "{}"'.format(table.get_name())
+    )
+    missing_rows = qdbd_connection.query(
+        'SELECT "$timestamp","value","symbol" FROM "{}"'.format(
+            missing_table.get_name()
+        )
+    )
+
+    assert len(existing_rows) == 1
+    assert existing_rows[0]["$timestamp"] == timestamp
+    assert existing_rows[0]["the_int64"] == 42
+    assert len(missing_rows) == 1
+    assert missing_rows[0]["$timestamp"] == timestamp
+    assert missing_rows[0]["value"] == 7
+    assert missing_rows[0]["symbol"] == "seven"
 
 
 def test_incorrect_type_double(qdbd_connection, table):

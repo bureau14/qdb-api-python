@@ -198,6 +198,8 @@ private:
         std::vector<qdb_exp_batch_push_table_t> batch;
         batch.assign(idx.size(), qdb_exp_batch_push_table_t());
 
+        // table_schemas owns the table schema structs, while staged_tables owns the column
+        // schemas and strings they reference. Both remain alive for the push and its retries.
         std::vector<qdb_exp_batch_push_table_schema_t> table_schemas;
         std::vector<qdb_exp_batch_push_table_schema_t const *> table_schema_ptrs;
 

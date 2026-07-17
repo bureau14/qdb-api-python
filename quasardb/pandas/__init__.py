@@ -345,8 +345,17 @@ def write_dataframes(
 
     creation_mode: optional quasardb.WriterCreationMode
       Controls whether missing tables may be created during the writer push. Lazy creation
-      requires a table object initialized with an explicit local schema. The existing `create`
-      option remains eager and is unchanged.
+      requires a table object initialized with `cluster.table_from_schema()`. This factory does
+      not access the server. If the alias already exists, its columns, shard size, and TTL must
+      match the local schema. The Python API does not verify this before the push. The existing
+      `create` option remains eager and is unchanged.
+
+      Example::
+
+        table = cluster.table_from_schema(
+            "prices",
+            [quasardb.ColumnInfo(quasardb.ColumnType.Double, "value")],
+        )
     """
 
     # If dfs is a dict, we convert it to a list of tuples.
@@ -374,7 +383,15 @@ def write_dataframes(
         if create:
             _create_table_from_df(df, table, shard_size)
 
-        cinfos = [(x.name, x.type) for x in table.list_columns()]
+        try:
+            cinfos = [(x.name, x.type) for x in table.list_columns()]
+        except quasardb.AliasNotFoundError as exc:
+            if creation_mode == quasardb.WriterCreationMode.CreateTables:
+                raise quasardb.InvalidArgumentError(
+                    "WriterCreationMode.CreateTables requires a missing table to be "
+                    "initialized with cluster.table_from_schema(...)."
+                ) from exc
+            raise
 
         if not df.index.is_monotonic_increasing:
             logger.warning(

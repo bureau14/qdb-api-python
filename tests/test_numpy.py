@@ -18,7 +18,7 @@ logger = logging.getLogger("test-numpy")
 
 def test_write_arrays_creates_table_lazily(qdbd_connection, entry_name):
     column_name = "value"
-    table = qdbd_connection.table(
+    table = qdbd_connection.table_from_schema(
         entry_name,
         [quasardb.ColumnInfo(quasardb.ColumnType.Int64, column_name)],
     )
@@ -40,6 +40,24 @@ def test_write_arrays_creates_table_lazily(qdbd_connection, entry_name):
     )
     np.testing.assert_array_equal(actual_index, index)
     np.testing.assert_array_equal(actual_values, values)
+
+
+def test_write_arrays_create_tables_requires_local_schema(qdbd_connection, entry_name):
+    column_name = "value"
+    table = qdbd_connection.table(entry_name)
+    index = np.array(["2020-01-01T00:00:00"], dtype="datetime64[ns]")
+    values = np.array([42], dtype="int64")
+
+    with pytest.raises(quasardb.InvalidArgumentError, match="table_from_schema"):
+        _write_single_column(
+            qdbd_connection,
+            table,
+            column_name,
+            values,
+            index,
+            infer_types=False,
+            creation_mode=quasardb.WriterCreationMode.CreateTables,
+        )
 
 
 def _unicode_to_object_array(xs):
