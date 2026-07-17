@@ -48,9 +48,7 @@ def test_write_dataframe_create_tables_requires_local_schema(
         np.array(["2020-01-01T00:00:00"], dtype="datetime64[ns]"),
         name="$timestamp",
     )
-    dataframe = pd.DataFrame(
-        {column_name: np.array([42], dtype="int64")}, index=index
-    )
+    dataframe = pd.DataFrame({column_name: np.array([42], dtype="int64")}, index=index)
 
     with pytest.raises(quasardb.InvalidArgumentError, match="table_from_schema"):
         qdbpd.write_dataframe(

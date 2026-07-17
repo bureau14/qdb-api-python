@@ -123,15 +123,31 @@ def test_create_tables_mode_handles_mixed_batch(
     missing_table, _, _, _ = _make_local_creation_table(
         qdbd_connection, random_identifier
     )
-    writer = qdbd_connection.writer()
     timestamp = np.datetime64("now", "ns")
+    index = np.array([timestamp], dtype="datetime64[ns]")
 
-    writer.start_row(existing_table, timestamp)
-    writer.set_int64(3, 42)
-    writer.start_row(missing_table, timestamp)
-    writer.set_int64(0, 7)
-    writer.set_string(1, "seven")
-    writer.push(creation_mode=quasardb.WriterCreationMode.CreateTables)
+    qdbnp.write_arrays(
+        [
+            (
+                existing_table,
+                {
+                    "$timestamp": index,
+                    "the_int64": np.array([42], dtype="int64"),
+                },
+            ),
+            (
+                missing_table,
+                {
+                    "$timestamp": index,
+                    "value": np.array([7], dtype="int64"),
+                    "symbol": np.array(["seven"], dtype="U"),
+                },
+            ),
+        ],
+        qdbd_connection,
+        infer_types=False,
+        creation_mode=quasardb.WriterCreationMode.CreateTables,
+    )
 
     existing_rows = qdbd_connection.query(
         'SELECT "$timestamp","the_int64" FROM "{}"'.format(table.get_name())
