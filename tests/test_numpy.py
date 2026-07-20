@@ -49,7 +49,7 @@ def test_write_arrays_creates_table_lazily(qdbd_connection, entry_name):
 def test_write_arrays_does_not_create_table_without_schema(qdbd_connection, entry_name):
     column_name = "value"
     table = qdbd_connection.table(entry_name)
-    index = np.array(["2020-01-01T00:00:00"], dtype="datetime64[ns]")
+    index = np.array([np.datetime64("now", "ns")], dtype="datetime64[ns]")
     values = np.array([42], dtype="int64")
 
     with pytest.raises(quasardb.AliasNotFoundError):
