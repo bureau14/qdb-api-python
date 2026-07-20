@@ -127,6 +127,9 @@ venv*/
 # mypy
 .mypy_cache/
 
+# MSVC
+/.vs
+
 # Visual Studio Code
 .vscode/*
 !.vscode/settings.json
