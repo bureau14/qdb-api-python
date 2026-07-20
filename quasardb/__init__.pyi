@@ -40,6 +40,7 @@ from quasardb.quasardb import (
     never_expires,
     version,
 )
+from quasardb.table_schema import TableSchema
 
 __all__ = [
     "AliasAlreadyExistsError",
@@ -62,6 +63,7 @@ __all__ = [
     "NotImplementedError",
     "OutOfBoundsError",
     "RetryOptions",
+    "TableSchema",
     "TryAgainError",
     "UninitializedError",
     "WriterCreationMode",
