@@ -170,7 +170,7 @@ def _coerce_dtype(
         # Conveniently look up column index by label
         offsets: Dict[str, int] = {}
         for i in range(len(columns)):
-            (cname, _) = columns[i]
+            cname, _ = columns[i]
             offsets[cname] = i
 
         # Now convert the provided dtype dict to a list that matches
@@ -221,7 +221,7 @@ def _add_desired_dtypes(
     for i in range(len(dtype)):
         # No dtype explicitly provided by the user, otherwise we don't touch it
         if dtype[i] is None:
-            (cname, ctype) = columns[i]
+            cname, ctype = columns[i]
             dtype_ = _best_dtype_for_ctype(ctype)
             logger.debug(
                 "using default dtype '%s' for column '%s' with type %s",
@@ -500,7 +500,7 @@ def _ensure_list(
     ret = list()
 
     for i in range(len(cinfos)):
-        (cname, ctype) = cinfos[i]
+        cname, ctype = cinfos[i]
 
         xs_ = None
         if cname in xs:
@@ -923,10 +923,10 @@ def write_arrays(
     _type_check(push_mode, "push_mode", target_type=quasardb.WriterPushMode)
     if create_schemas is not None:
         _type_check(create_schemas, "create_schemas", target_type=dict)
-        for schema_alias, schema in create_schemas.items():
+        for schema_alias, configured_schema in create_schemas.items():
             _type_check(schema_alias, "create_schemas key", target_type=str)
             _type_check(
-                schema,
+                configured_schema,
                 "create_schemas value",
                 target_type=quasardb.TableSchema,
             )
@@ -981,9 +981,7 @@ def write_arrays(
 
     for table_, data_ in data:
         table_alias = table_ if isinstance(table_, str) else table_.get_name()
-        schema = (
-            create_schemas.get(table_alias) if create_schemas is not None else None
-        )
+        schema = create_schemas.get(table_alias) if create_schemas is not None else None
 
         if schema is not None:
             table_ = cluster.table_from_schema(

@@ -237,7 +237,7 @@ def read_dataframe(
     # as stream_dataframe is a generator there is no easy way to check for this condition without evaluation
     # the most simple way is to catch the ValueError and return an empty DataFrame
     try:
-        return pd.concat(dfs, copy=False)  #  type: ignore[call-overload]
+        return pd.concat(dfs, copy=False)  # type: ignore[call-overload]
     except ValueError as e:
         logger.error(
             "Error while concatenating dataframes. This can happen if result set is empty. Returning empty dataframe. Error: %s",
@@ -261,7 +261,7 @@ def _extract_columns(
     # Grab all columns from the DataFrame in the order of table columns,
     # put None if not present in df.
     for i in range(len(cinfos)):
-        (cname, _) = cinfos[i]
+        cname, _ = cinfos[i]
 
         if cname in df.columns:
             arr = df[cname].array
@@ -349,19 +349,19 @@ def write_dataframes(
             )
         )
     if create_schemas is not None:
-        for schema_alias, schema in create_schemas.items():
+        for schema_alias, configured_schema in create_schemas.items():
             if not isinstance(schema_alias, str):
                 raise quasardb.InvalidArgumentError(
                     "Invalid 'create_schemas' key type, expected: str, got: {}".format(
                         type(schema_alias)
                     )
                 )
-            if not isinstance(schema, quasardb.TableSchema):
+            if not isinstance(configured_schema, quasardb.TableSchema):
                 raise quasardb.InvalidArgumentError(
                     (
                         "Invalid 'create_schemas' value type, expected: "
                         "TableSchema, got: {}"
-                    ).format(type(schema))
+                    ).format(type(configured_schema))
                 )
 
     data_by_table = []
@@ -370,9 +370,7 @@ def write_dataframes(
         assert isinstance(df, pd.DataFrame)
 
         table_alias = table if isinstance(table, str) else table.get_name()
-        schema = (
-            create_schemas.get(table_alias) if create_schemas is not None else None
-        )
+        schema = create_schemas.get(table_alias) if create_schemas is not None else None
         if schema is not None:
             cinfos = [(column.name, column.type) for column in schema.columns]
         else:
@@ -519,5 +517,3 @@ def write_pinned_dataframe(
         retries=retries,
         **kwargs,
     )
-
-
