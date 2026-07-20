@@ -113,7 +113,6 @@ def test_write_dataframe_does_not_create_table_without_schema(
     [
         {"create": True},
         {"shard_size": timedelta(days=1)},
-        {"creation_mode": quasardb.WriterCreationMode.CreateTables},
     ],
 )
 def test_write_dataframe_rejects_removed_creation_arguments(

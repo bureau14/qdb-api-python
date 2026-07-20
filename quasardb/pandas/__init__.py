@@ -273,7 +273,7 @@ def _extract_columns(
 def write_dataframes(
     dfs: Union[
         Dict[TableLike, pd.DataFrame],
-        List[Tuple[TableLike, pd.DataFrame]],
+        List[tuple[TableLike, pd.DataFrame]],
     ],
     cluster: quasardb.Cluster,
     *,
@@ -296,7 +296,7 @@ def write_dataframes(
     **kwargs: Any,
 ) -> List[Table]:
     """
-    Store dataframes into tables. Any additional parameters not documented here
+    Store dataframes into a table. Any additional parameters not documented here
     are passed to numpy.write_arrays(). Please consult the pydoc of that function
     for additional accepted parameters.
 
@@ -331,7 +331,7 @@ def write_dataframes(
     if isinstance(dfs, dict):
         dfs = list(dfs.items())
 
-    removed_creation_arguments = {"create", "shard_size", "creation_mode"}
+    removed_creation_arguments = {"create", "shard_size"}
     unsupported_arguments = removed_creation_arguments.intersection(kwargs)
     if unsupported_arguments:
         argument = sorted(unsupported_arguments)[0]

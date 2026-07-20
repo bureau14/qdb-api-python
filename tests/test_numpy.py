@@ -46,9 +46,7 @@ def test_write_arrays_creates_table_lazily(qdbd_connection, entry_name):
     assert created_table.get_ttl() == schema.ttl
 
 
-def test_write_arrays_does_not_create_table_without_schema(
-    qdbd_connection, entry_name
-):
+def test_write_arrays_does_not_create_table_without_schema(qdbd_connection, entry_name):
     column_name = "value"
     table = qdbd_connection.table(entry_name)
     index = np.array(["2020-01-01T00:00:00"], dtype="datetime64[ns]")
@@ -62,16 +60,6 @@ def test_write_arrays_does_not_create_table_without_schema(
             values,
             index,
             infer_types=False,
-        )
-
-
-def test_write_arrays_rejects_public_creation_mode(qdbd_connection, entry_name):
-    with pytest.raises(TypeError, match="create_schemas"):
-        qdbnp.write_arrays(
-            {},
-            qdbd_connection,
-            table=entry_name,
-            creation_mode=quasardb.WriterCreationMode.CreateTables,
         )
 
 

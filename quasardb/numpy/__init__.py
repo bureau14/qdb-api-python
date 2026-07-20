@@ -802,7 +802,7 @@ def write_arrays(
       Either a string or a reference to a QuasarDB Timeseries table object.
       For example, 'my_table' or cluster.table('my_table') are both valid values.
 
-      Defaults to None.
+      Defaults to False.
 
     index: optional np.array with dtype datetime64[ns]
       Optionally explicitly provide an array as the $timestamp index. If not provided,
@@ -920,11 +920,6 @@ def write_arrays(
         data = [(table, data)]
         table = None
 
-    if "creation_mode" in kwargs:
-        raise TypeError(
-            "write_arrays() no longer accepts 'creation_mode'; use 'create_schemas' instead"
-        )
-
     _type_check(push_mode, "push_mode", target_type=quasardb.WriterPushMode)
     if create_schemas is not None:
         _type_check(create_schemas, "create_schemas", target_type=dict)
@@ -976,7 +971,7 @@ def write_arrays(
     if not push_mode:
         push_mode = quasardb.WriterPushMode.Transactional
 
-    # Prepare data for the writer.
+    # Create batch column info from dataframe
     if writer is None:
         writer = cluster.writer()
 
