@@ -170,7 +170,7 @@ def _coerce_dtype(
         # Conveniently look up column index by label
         offsets: Dict[str, int] = {}
         for i in range(len(columns)):
-            cname, _ = columns[i]
+            (cname, _) = columns[i]
             offsets[cname] = i
 
         # Now convert the provided dtype dict to a list that matches
@@ -221,7 +221,7 @@ def _add_desired_dtypes(
     for i in range(len(dtype)):
         # No dtype explicitly provided by the user, otherwise we don't touch it
         if dtype[i] is None:
-            cname, ctype = columns[i]
+            (cname, ctype) = columns[i]
             dtype_ = _best_dtype_for_ctype(ctype)
             logger.debug(
                 "using default dtype '%s' for column '%s' with type %s",
@@ -500,7 +500,7 @@ def _ensure_list(
     ret = list()
 
     for i in range(len(cinfos)):
-        cname, ctype = cinfos[i]
+        (cname, ctype) = cinfos[i]
 
         xs_ = None
         if cname in xs:

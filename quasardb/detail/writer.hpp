@@ -449,7 +449,7 @@ struct batch_push_flags
     static py::kwargs ensure(py::kwargs kwargs);
 
     /**
-     * Returns the creation mode, throws an error if the creation mode is not set.
+     * Returns the push mode, throws error if push mode is not set.
      */
     static qdb_uint_t from_kwargs(py::kwargs const & kwargs);
 };

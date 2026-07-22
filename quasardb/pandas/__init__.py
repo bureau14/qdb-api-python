@@ -237,7 +237,7 @@ def read_dataframe(
     # as stream_dataframe is a generator there is no easy way to check for this condition without evaluation
     # the most simple way is to catch the ValueError and return an empty DataFrame
     try:
-        return pd.concat(dfs, copy=False)  # type: ignore[call-overload]
+        return pd.concat(dfs, copy=False)  #  type: ignore[call-overload]
     except ValueError as e:
         logger.error(
             "Error while concatenating dataframes. This can happen if result set is empty. Returning empty dataframe. Error: %s",
@@ -261,7 +261,7 @@ def _extract_columns(
     # Grab all columns from the DataFrame in the order of table columns,
     # put None if not present in df.
     for i in range(len(cinfos)):
-        cname, _ = cinfos[i]
+        (cname, _) = cinfos[i]
 
         if cname in df.columns:
             arr = df[cname].array
