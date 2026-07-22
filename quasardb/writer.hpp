@@ -353,8 +353,7 @@ static void register_writer(py::module_ & m)
         .value("Truncate", qdb_exp_batch_push_truncate)
         .value("Async", qdb_exp_batch_push_async);
 
-    py::enum_<qdb_exp_batch_creation_mode_t>{
-        m, "WriterCreationMode", py::arithmetic(), "Table creation mode"}
+    py::enum_<qdb_exp_batch_creation_mode_t>{m, "WriterCreationMode", "Table creation mode"}
         .value("DontCreate", qdb_exp_batch_dont_create)
         .value("CreateTables", qdb_exp_batch_create_tables);
 
