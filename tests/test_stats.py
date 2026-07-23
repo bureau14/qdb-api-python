@@ -30,7 +30,7 @@ def _has_stats(conn):
     uid_stats = node_stats["by_uid"]
 
     # The actual check happens here: we expect at least 1 per-uid statistic
-    return len(uid_stats.keys()) > 0
+    return any(all(expected in xs for expected in _expected_user_stats) for xs in uid_stats.values())
 
 
 def _ensure_stats(conn, table):
@@ -40,8 +40,9 @@ def _ensure_stats(conn, table):
     max_polls = 10
     n = 0
 
+    _write_data(conn, table)
+
     while _has_stats(conn) is False:
-        _write_data(conn, table)
         sleep(1)
 
         n = n + 1
@@ -58,8 +59,6 @@ _expected_user_stats = [
     "requests.successes_count",
     "requests.in_bytes",
     "requests.out_bytes",
-    "perf.ts.table_insert.deserialization.total_ns",
-    "perf.ts.table_insert.processing.total_ns",
 ]
 
 # Same, but cumulative stats.
@@ -68,8 +67,6 @@ _expected_cumulative_stats = [
     "requests.successes_count",
     "requests.in_bytes",
     "requests.out_bytes",
-    "perf.ts.buffered_table_insert.deserialization.total_ns",
-    "perf.ts.buffered_table_insert.processing.total_ns",
 ]
 
 
