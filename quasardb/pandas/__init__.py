@@ -374,7 +374,7 @@ def write_dataframes(
         if schema is not None:
             cinfos = [(column.name, column.type) for column in schema.columns]
         else:
-            if isinstance(table, str) or create_schemas is not None:
+            if isinstance(table, str):
                 table = table_cache.lookup(table_alias, cluster)
             cinfos = [(x.name, x.type) for x in table.list_columns()]
 

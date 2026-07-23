@@ -990,7 +990,7 @@ def write_arrays(
                 schema.shard_size,
                 schema.ttl,
             )
-        elif isinstance(table_, str) or create_schemas is not None:
+        elif isinstance(table_, str):
             table_ = table_cache.lookup(table_alias, cluster)
 
         cinfos = [(x.name, x.type) for x in table_.list_columns()]

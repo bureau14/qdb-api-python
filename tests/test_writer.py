@@ -32,6 +32,66 @@ def _generate_data(count, start=np.datetime64("2017-01-01", "ns")):
     return (integers, timestamps)
 
 
+def test_local_creation_table_normalizes_explicit_timestamp(
+    qdbd_connection, entry_name
+):
+    columns = [
+        quasardb.ColumnInfo(quasardb.ColumnType.Timestamp, "$timestamp"),
+        quasardb.ColumnInfo(quasardb.ColumnType.Int64, "value"),
+    ]
+    table = qdbd_connection.table_from_schema(
+        entry_name,
+        columns,
+        datetime.timedelta(days=1),
+        datetime.timedelta(0),
+    )
+
+    local_columns = table.list_columns()
+    assert len(local_columns) == 1
+    assert local_columns[0].name == "value"
+    assert local_columns[0].type == quasardb.ColumnType.Int64
+
+    timestamp = np.datetime64("2020-01-01T00:00:00", "ns")
+    qdbnp.write_arrays(
+        {"$timestamp": np.array([timestamp]), "value": np.array([42], dtype="int64")},
+        qdbd_connection,
+        table,
+        infer_types=False,
+        creation_mode=quasardb.WriterCreationMode.CreateTables,
+    )
+
+    created_columns = qdbd_connection.table(entry_name).list_columns()
+    assert len(created_columns) == 1
+    assert created_columns[0].name == "value"
+    assert created_columns[0].type == quasardb.ColumnType.Int64
+
+
+@pytest.mark.parametrize(
+    "columns",
+    [
+        [
+            quasardb.ColumnInfo(quasardb.ColumnType.Double, "$timestamp"),
+            quasardb.ColumnInfo(quasardb.ColumnType.Int64, "value"),
+        ],
+        [
+            quasardb.ColumnInfo(quasardb.ColumnType.Int64, "value"),
+            quasardb.ColumnInfo(quasardb.ColumnType.Timestamp, "$timestamp"),
+        ],
+    ],
+    ids=["wrong-type", "wrong-position"],
+)
+def test_local_creation_table_rejects_invalid_timestamp(
+    qdbd_connection, entry_name, columns
+):
+    with pytest.raises(quasardb.InvalidArgumentError):
+        qdbd_connection.table_from_schema(
+            entry_name,
+            columns,
+            datetime.timedelta(days=1),
+            datetime.timedelta(0),
+        )
+
+
 @pytest.mark.parametrize(
     "creation_mode",
     [None, quasardb.WriterCreationMode.DontCreate],

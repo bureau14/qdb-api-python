@@ -108,6 +108,27 @@ def test_write_dataframe_does_not_create_table_without_schema(
         )
 
 
+def test_write_dataframe_preserves_explicit_table_with_create_schemas(
+    monkeypatch, qdbd_connection, df_with_table, random_identifier
+):
+    (_, _, dataframe, table) = df_with_table
+    unused_schema = quasardb.TableSchema(
+        columns=[quasardb.ColumnInfo(quasardb.ColumnType.Int64, "unused")],
+    )
+
+    def unexpected_lookup(*_args, **_kwargs):
+        raise AssertionError("Explicit Table must not be replaced by a cache lookup")
+
+    monkeypatch.setattr(qdbpd.table_cache, "lookup", unexpected_lookup)
+
+    qdbpd.write_dataframe(
+        dataframe,
+        qdbd_connection,
+        table,
+        create_schemas={random_identifier: unused_schema},
+    )
+
+
 @pytest.mark.parametrize(
     "removed_argument",
     [

@@ -42,6 +42,18 @@ namespace qdb
 
 class table : public entry
 {
+private:
+    static std::vector<detail::column_info> normalize_local_schema(
+        std::vector<detail::column_info> columns)
+    {
+        if (detail::find_timestamp_column(columns))
+        {
+            columns.erase(columns.begin());
+        }
+
+        return columns;
+    }
+
 public:
     table(handle_ptr h, std::string a)
         : entry{h, a}
@@ -62,7 +74,7 @@ public:
         : entry{h, a}
         , _has_indexed_columns(false)
         , _has_local_schema(true)
-        , _columns{std::move(columns)}
+        , _columns{normalize_local_schema(std::move(columns))}
         , _ttl{ttl}
         , _shard_size{shard_size}
     {}
