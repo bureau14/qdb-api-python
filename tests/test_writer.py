@@ -174,12 +174,7 @@ def test_create_tables_mode_uses_existing_table(qdbd_connection, table):
 def test_create_tables_mode_handles_mixed_batch(
     qdbd_connection, table, random_identifier
 ):
-    existing_table = qdbd_connection.table_from_schema(
-        table.get_name(),
-        table.list_columns(),
-        table.get_shard_size(),
-        table.get_ttl(),
-    )
+    existing_table = qdbd_connection.table(table.get_name())
     missing_table, _, _, _ = _make_local_creation_table(
         qdbd_connection, random_identifier
     )
