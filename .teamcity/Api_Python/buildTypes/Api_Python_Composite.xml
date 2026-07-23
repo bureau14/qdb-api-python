@@ -10,7 +10,7 @@
     <vcs-settings>
       <vcs-entry-ref root-id="QdbApiPython" />
     </vcs-settings>
-    <build-triggers>
+    <!-- <build-triggers>
       <build-trigger id="TRIGGER_2" type="vcsTrigger">
         <parameters>
           <param name="branchFilter" value="+:&lt;default&gt;" />
@@ -18,7 +18,7 @@
           <param name="quietPeriodMode" value="DO_NOT_USE" />
         </parameters>
       </build-trigger>
-    </build-triggers>
+    </build-triggers> -->
     <build-extensions>
       <extension id="BUILD_EXT_1" type="notifications">
         <parameters>
