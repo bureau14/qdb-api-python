@@ -4,7 +4,7 @@ import conftest
 import quasardb
 import pytest
 
-import test_batch_inserter as batchlib
+import utils
 
 
 # Don't use `qdbd_connection` fixture, as it's module-scoped (for perf reasons)
@@ -45,13 +45,7 @@ def test_get_cluster_max_in_buf(qdbd_connection):
 def test_client_query_buf_size_error(qdbd_settings, table, many_intervals):
     with conftest.create_qdbd_connection(qdbd_settings) as conn:
         # First insert some data
-        inserter = conn.inserter(batchlib._make_inserter_info(table))
-
-        # doubles, blobs, strings, integers, timestamps =
-        # batchlib._test_with_table(
-        batchlib._test_with_table(
-            conn, inserter, table, many_intervals, batchlib._regular_push
-        )
+        utils._test_with_table(conn, table, many_intervals)
 
         res = conn.query('select * from "' + table.get_name() + '"')
 

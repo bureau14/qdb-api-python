@@ -4,24 +4,14 @@ import pytest
 import quasardb
 import quasardb.stats as qdbst
 
-import test_batch_inserter as batchlib
 import conftest
+import utils
 
 _has_stats = False
 
 
 def _write_data(conn, table):
-    inserter = conn.inserter(batchlib._make_inserter_info(table))
-
-    # doubles, blobs, strings, integers, timestamps, symbols =
-    # batchlib._test_with_table(
-    _, _, _, _, _, _ = batchlib._test_with_table(
-        conn,
-        inserter,
-        table,
-        conftest.create_many_intervals(),
-        batchlib._regular_push,
-    )
+    utils._test_with_table(conn, table, conftest.create_many_intervals())
 
 
 def _has_stats(conn):

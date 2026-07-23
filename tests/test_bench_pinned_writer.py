@@ -33,63 +33,6 @@ def make_tables(qdbd_connection):
     return table_creation_time, tables
 
 
-def make_batch_columns():
-    batch_columns = [
-        quasardb.BatchColumnInfo(
-            "table_{}".format(tbl_idx), "col_{}".format(col_idx), 1
-        )
-        for tbl_idx in range(table_count)
-        for col_idx in range(column_count)
-    ]
-    return batch_columns
-
-
-@pytest.mark.skip(reason="Skip unless you're benching the pinned writer")
-def test_batch_insert(qdbd_connection):
-    table_creation_time, _ = make_tables(qdbd_connection)
-
-    inserter_creation_start = time.time()
-    batch_columns = make_batch_columns()
-    inserter = qdbd_connection.inserter(batch_columns)
-    inserter_creation_time = time.time() - inserter_creation_start
-
-    print(f"{__name__}:")
-    print(f"  - {table_count} table(s)")
-    print(f"  - {column_count} column(s) per table")
-    print(f"  - {row_count} row(s)")
-    print(f"  - table creation:     {table_creation_time}s")
-    print(f"  - inserters creation: {inserter_creation_time}s")
-
-    total_insertion_start = time.time()
-    bulk_writing_start = time.time()
-    bulk_start_row_time = 0.0
-
-    for row_index in range(row_count):
-        ts = int(time.time() * 1.0e9)
-        bulk_start_row_start = time.time()
-        inserter.start_row(ts)
-        bulk_start_row_time = bulk_start_row_time + (time.time() - bulk_start_row_start)
-        tbl_idx = row_index % table_count
-        for col_idx in range(column_count):
-            inserter.set_int64(
-                tbl_idx * column_count + col_idx, int(row_index + random.random())
-            )
-
-    bulk_writing_time = time.time() - bulk_writing_start
-    bulk_insert_start = time.time()
-    inserter.push()
-    bulk_insert_time = time.time() - bulk_insert_start
-    total_insertion_time = time.time() - total_insertion_start
-
-    res = qdbd_connection.query("SELECT count(col_0) FROM FIND(tag='test_tag')")
-    print(f"Results:")
-    print(f"  - batch start row:     {bulk_start_row_time}s")
-    print(f"  - batch set values:    {bulk_writing_time}s")
-    print(f"  - batch insert values: {bulk_insert_time}s")
-    print(f"  - total insert time:   {total_insertion_time}s")
-    print(f"  - rows inserted: {res[0]}")
-
-
 @pytest.mark.skip(reason="Skip unless you're benching the pinned writer")
 def test_pinned_writer(qdbd_connection):
     table_creation_time, tables = make_tables(qdbd_connection)
