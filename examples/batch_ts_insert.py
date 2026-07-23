@@ -40,6 +40,7 @@ import locale
 import numpy as np
 
 import quasardb
+import quasardb.numpy as qdbnp
 
 STOCK_COLUMN = "stock_id"
 OPEN_COLUMN = "open"
@@ -104,47 +105,27 @@ def generate_points(points_count):
     return (dates, stock_ids, prices, volumes)
 
 
-def batch_ts_columns(ts_name, prealloc_size):
-    return (
-        quasardb.BatchColumnInfo(ts_name, STOCK_COLUMN, prealloc_size),
-        quasardb.BatchColumnInfo(ts_name, OPEN_COLUMN, prealloc_size),
-        quasardb.BatchColumnInfo(ts_name, CLOSE_COLUMN, prealloc_size),
-        quasardb.BatchColumnInfo(ts_name, HIGH_COLUMN, prealloc_size),
-        quasardb.BatchColumnInfo(ts_name, LOW_COLUMN, prealloc_size),
-        quasardb.BatchColumnInfo(ts_name, VOLUME_COLUMN, prealloc_size),
-    )
-
-
 def calculate_minute_bar(prices):
     # Takes all prices for a single minute, and calculate OHLC
     return (prices[0], prices[-1], np.amax(prices), np.amin(prices))
 
 
 def bulk_insert(q, ts_names, dates, stock_ids, prices, volumes):
-    # We generate a flattened list of columns for each timeseries; for example,
-    # for 2 columns for 4 timeseries each, we have 8 columns.
-    columns = [
-        column
-        for nested in (batch_ts_columns(ts_name, len(dates)) for ts_name in ts_names)
-        for column in nested
-    ]
+    bars = np.array([calculate_minute_bar(price) for price in prices])
+    table_batches = []
 
-    batch_inserter = q.ts_batch(columns)
-    for i in range(len(stock_ids)):
-        # We use the known layout of column (2 for each timeseries, alternating with
-        # STOCK_COLUMN and PRICE_COLUMN) to set the values.
-        for j in range(0, len(ts_names) * 6, 6):
-            (o, c, h, l) = calculate_minute_bar(prices[i])
+    for ts_name in ts_names:
+        data = {
+            STOCK_COLUMN: stock_ids,
+            OPEN_COLUMN: bars[:, 0],
+            CLOSE_COLUMN: bars[:, 1],
+            HIGH_COLUMN: bars[:, 2],
+            LOW_COLUMN: bars[:, 3],
+            VOLUME_COLUMN: volumes,
+        }
+        table_batches.append((ts_name, data))
 
-            batch_inserter.start_row(dates[i])
-            batch_inserter.set_int64(j, stock_ids[i])  # set stock_id
-            batch_inserter.set_double(j + 1, o)  # open
-            batch_inserter.set_double(j + 2, c)  # close
-            batch_inserter.set_double(j + 3, h)  # high
-            batch_inserter.set_double(j + 4, l)  # low
-            batch_inserter.set_int64(j + 5, volumes[i])  # low
-
-    batch_inserter.push()
+    qdbnp.write_arrays(table_batches, q, index=dates, infer_types=False)
 
 
 def make_it_so(q, points_count):

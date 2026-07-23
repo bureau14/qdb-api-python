@@ -1,6 +1,7 @@
 # import-start
 import json
 import quasardb
+import quasardb.numpy as qdbnp
 import numpy as np
 
 # import-end
@@ -79,41 +80,21 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
 
     # batch-insert-start
 
-    # We need to tell the batch inserter which columns we plan to insert. Note
-    # how we give it a hint that we expect to insert 2 rows for each of these columns.
-    batch_columns = [
-        quasardb.BatchColumnInfo("stocks", "open", 2),
-        quasardb.BatchColumnInfo("stocks", "close", 2),
-        quasardb.BatchColumnInfo("stocks", "volume", 2),
-    ]
+    # Prepare the data we want to write, keyed by column name.
+    data = {
+        "open": np.array([3.40, 3.50]),
+        "close": np.array([3.50, 3.55]),
+        "volume": np.array([10000, 7500]),
+    }
 
-    # Now that we know which columns we want to insert, we initialize our batch inserter.
-    inserter = c.inserter(batch_columns)
-
-    # Insert the first row: to start a new row, we must provide it with a mandatory
-    # timestamp that all values for this row will share. QuasarDB will use this timestamp
-    # as its primary index.
-    #
-    # QuasarDB only supports nanosecond timestamps, so we must specifically convert our
+    # QuasarDB only supports nanosecond timestamps, so we specifically convert our
     # dates to nanosecond precision.
-    inserter.start_row(np.datetime64("2019-02-01", "ns"))
+    index = np.array(
+        [np.datetime64("2019-02-01", "ns"), np.datetime64("2019-02-02", "ns")]
+    )
 
-    # We now set the values for our columns by their relative offsets: column 0 below
-    # refers to the first column we provide in the batch_columns variable above.
-    inserter.set_double(0, 3.40)
-    inserter.set_double(1, 3.50)
-    inserter.set_int64(2, 10000)
-
-    # We tell the batch inserter to start a new row before we can set the values for the
-    # next row.
-    inserter.start_row(np.datetime64("2019-02-02", "ns"))
-
-    inserter.set_double(0, 3.50)
-    inserter.set_double(1, 3.55)
-    inserter.set_int64(2, 7500)
-
-    # Now that we're done, we push the buffer as one single operation.
-    inserter.push()
+    # Now that we're done, we push the arrays as one single operation.
+    qdbnp.write_arrays(data, c, t, index=index, infer_types=False)
 
     # batch-insert-end
 
