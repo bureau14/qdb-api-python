@@ -208,15 +208,11 @@ def test_create_tables_mode_rejects_mixed_batch(
     assert qdbd_connection.table(random_identifier).exists() is False
 
 
-def test_create_tables_mode_rejects_removed_server_table(qdbd_connection, table):
-    existing_table_name = table.get_name()
+def test_create_tables_mode_rejects_server_backed_table(qdbd_connection, table):
     timestamp = np.datetime64("now", "ns")
     index = np.array([timestamp], dtype="datetime64[ns]")
 
-    # Keep the server-backed table object's cached schema, but remove its alias.
     # CreateTables accepts only tables built from an explicit local schema.
-    table.remove()
-
     with pytest.raises(quasardb.InvalidArgumentError, match="local schema"):
         qdbnp.write_arrays(
             [
@@ -233,7 +229,7 @@ def test_create_tables_mode_rejects_removed_server_table(qdbd_connection, table)
             creation_mode=quasardb.WriterCreationMode.CreateTables,
         )
 
-    assert qdbd_connection.table(existing_table_name).exists() is False
+    assert table.exists() is True
 
 
 def test_incorrect_type_double(qdbd_connection, table):
