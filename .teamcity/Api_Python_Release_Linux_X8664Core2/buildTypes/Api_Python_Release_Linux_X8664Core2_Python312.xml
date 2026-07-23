@@ -17,7 +17,7 @@
       </build-trigger>
     </build-triggers>
     <build-extensions>
-      <extension id="BUILD_EXT_16" type="commit-status-publisher">
+      <!-- <extension id="BUILD_EXT_16" type="commit-status-publisher">
         <parameters>
           <param name="github_authentication_type" value="token" />
           <param name="github_host" value="https://api.github.com" />
@@ -25,7 +25,7 @@
           <param name="secure:github_access_token" value="credentialsJSON:34649ff7-dbc0-4b81-9401-5da2c0db85bc" />
           <param name="vcsRootId" value="QdbApiPython" />
         </parameters>
-      </extension>
+      </extension> -->
       <extension id="BUILD_EXT_17" type="pullRequests">
         <parameters>
           <param name="authenticationType" value="token" />
