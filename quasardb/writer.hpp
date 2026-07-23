@@ -213,29 +213,37 @@ private:
         if (creation_mode == qdb_exp_batch_create_tables)
         {
             table_schemas.resize(idx.size());
-            table_schema_ptrs.resize(idx.size());
+            table_schema_ptrs.resize(idx.size(), nullptr);
         }
 
-        std::size_t cur = 0;
+        bool any_table_creation = false;
+        std::size_t cur         = 0;
 
         for (auto pos = idx.begin(); pos != idx.end(); ++pos)
         {
-            std::string const & table_name      = pos->first;
-            detail::staged_table & staged_table = pos->second;
-            auto & batch_table                  = batch.at(cur);
+            std::string const & table_name                    = pos->first;
+            detail::staged_table & staged_table               = pos->second;
+            auto & batch_table                                = batch.at(cur);
+            qdb_exp_batch_creation_mode_t table_creation_mode = qdb_exp_batch_dont_create;
+
+            if (creation_mode == qdb_exp_batch_create_tables && staged_table.creation_allowed())
+            {
+                table_creation_mode = qdb_exp_batch_create_tables;
+            }
 
             staged_table.prepare_batch( //
                 options.mode,           //
                 deduplicate_options,    //
                 truncate_ranges_,       //
                 batch_table,            //
-                creation_mode);
+                table_creation_mode);
 
-            if (creation_mode == qdb_exp_batch_create_tables)
+            if (table_creation_mode == qdb_exp_batch_create_tables)
             {
                 auto & table_schema = table_schemas.at(cur);
                 staged_table.prepare_table_schema(table_schema);
                 table_schema_ptrs.at(cur) = &table_schema;
+                any_table_creation        = true;
             }
 
             if (batch_table.data.column_count == 0) [[unlikely]]
@@ -249,6 +257,11 @@ private:
                 detail::batch_push_mode::to_string(options.mode));
 
             ++cur;
+        }
+
+        if (any_table_creation == false)
+        {
+            table_schema_ptrs.clear();
         }
 
         _do_push<PushStrategy, SleepStrategy>(         //

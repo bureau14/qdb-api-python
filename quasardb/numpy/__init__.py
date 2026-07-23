@@ -1063,7 +1063,7 @@ def write_arrays(
     push_kwargs["write_through"] = write_through
     push_kwargs["retries"] = retries
     push_kwargs["push_mode"] = push_mode
-    if create_schemas is not None:
+    if create_schemas:
         push_kwargs["creation_mode"] = quasardb.WriterCreationMode.CreateTables
     if truncate_range:
         push_kwargs["range"] = truncate_range

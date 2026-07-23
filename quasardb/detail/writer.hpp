@@ -160,6 +160,7 @@ public:
     staged_table(qdb::table const & table)
         : _logger("quasardb.writer")
         , _table_name(table.get_name())
+        , _creation_allowed(table.has_local_schema())
         , _shard_size(table.get_shard_size())
         , _ttl(table.get_ttl())
     {
@@ -254,6 +255,11 @@ public:
         return _index.empty();
     }
 
+    inline bool creation_allowed() const noexcept
+    {
+        return _creation_allowed;
+    }
+
 private:
 private:
     qdb::logger _logger;
@@ -266,6 +272,7 @@ private:
     std::vector<qdb_exp_batch_push_column_t> _columns_data;
 
     // Only for lazy table creation, we need to provide the column schema to the server.
+    const bool _creation_allowed;
     std::vector<qdb_exp_batch_push_column_schema_t> _column_schema;
     std::chrono::milliseconds _shard_size;
     std::chrono::milliseconds _ttl;

@@ -61,6 +61,7 @@ public:
         std::chrono::milliseconds ttl)
         : entry{h, a}
         , _has_indexed_columns(false)
+        , _has_local_schema(true)
         , _columns{std::move(columns)}
         , _ttl{ttl}
         , _shard_size{shard_size}
@@ -70,6 +71,11 @@ public:
     std::string repr() const
     {
         return "<quasardb.Table name='" + get_name() + "'>";
+    }
+
+    bool has_local_schema() const noexcept
+    {
+        return _has_local_schema;
     }
 
     /**
@@ -279,6 +285,7 @@ public:
 
 private:
     mutable bool _has_indexed_columns;
+    const bool _has_local_schema{false};
     mutable detail::indexed_columns_t _indexed_columns;
 
     mutable std::optional<std::vector<detail::column_info>> _columns;
@@ -297,8 +304,7 @@ static inline table_ptr make_table_ptr_from_schema(handle_ptr handle,
     std::chrono::milliseconds shard_size,
     std::chrono::milliseconds ttl)
 {
-    return std::make_unique<table>(
-        handle, std::move(table_name), std::move(columns), shard_size, ttl);
+    return std::make_unique<table>(handle, std::move(table_name), std::move(columns), shard_size, ttl);
 }
 
 template <typename Module>

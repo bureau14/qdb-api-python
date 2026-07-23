@@ -167,6 +167,47 @@ def test_create_tables_mode_handles_mixed_batch(
     assert missing_rows[0]["symbol"] == "seven"
 
 
+def test_create_tables_mode_does_not_recreate_removed_server_table(
+    qdbd_connection, table, random_identifier
+):
+    existing_table_name = table.get_name()
+    missing_table, _, _, _ = _make_local_creation_table(
+        qdbd_connection, random_identifier
+    )
+    timestamp = np.datetime64("now", "ns")
+    index = np.array([timestamp], dtype="datetime64[ns]")
+
+    # Keep the server-backed table object's cached schema, but remove its alias.
+    # CreateTables must apply only to tables built from an explicit local schema.
+    table.remove()
+
+    with pytest.raises(quasardb.AliasNotFoundError):
+        qdbnp.write_arrays(
+            [
+                (
+                    table,
+                    {
+                        "$timestamp": index,
+                        "the_int64": np.array([42], dtype="int64"),
+                    },
+                ),
+                (
+                    missing_table,
+                    {
+                        "$timestamp": index,
+                        "value": np.array([7], dtype="int64"),
+                        "symbol": np.array(["seven"], dtype="U"),
+                    },
+                ),
+            ],
+            qdbd_connection,
+            infer_types=False,
+            creation_mode=quasardb.WriterCreationMode.CreateTables,
+        )
+
+    assert qdbd_connection.table(existing_table_name).exists() is False
+
+
 def test_incorrect_type_double(qdbd_connection, table):
     writer = qdbd_connection.writer()
     writer.start_row(table, np.datetime64("2020-01-01T00:00:00", "ns"))
