@@ -38,13 +38,46 @@ namespace qdb
 {
 namespace py = pybind11;
 
+// Python's datetime C API pointer has translation-unit-local storage. 
+// Initialize the copy used by every inline wrapper before dereferencing it.
+static inline void ensure_datetime_api()
+{
+    if (PyDateTimeAPI == nullptr)
+    {
+        PyDateTime_IMPORT;
+        if (PyDateTimeAPI == nullptr)
+        {
+            throw py::error_already_set();
+        }
+    }
+}
+
+static inline int is_timedelta(PyObject * obj)
+{
+    ensure_datetime_api();
+    return PyDelta_Check(obj);
+}
+
+static inline int is_tzinfo(PyObject * obj)
+{
+    ensure_datetime_api();
+    return PyTZInfo_Check(obj);
+}
+
+static inline int is_datetime(PyObject * obj)
+{
+    ensure_datetime_api();
+    return PyDateTime_Check(obj);
+}
+
 class pytimedelta : public py::object
 {
 public:
-    PYBIND11_OBJECT_DEFAULT(pytimedelta, object, PyDelta_Check);
+    PYBIND11_OBJECT_DEFAULT(pytimedelta, object, is_timedelta);
 
     static pytimedelta from_dsu(py::ssize_t days, py::ssize_t seconds, py::ssize_t usec)
     {
+        ensure_datetime_api();
         return py::reinterpret_steal<pytimedelta>(PyDelta_FromDSU(static_cast<int>(days), static_cast<int>(seconds), static_cast<int>(usec)));
     }
 
@@ -66,7 +99,7 @@ public:
 
 class pytzinfo : public py::object
 {
-    PYBIND11_OBJECT_DEFAULT(pytzinfo, object, PyTZInfo_Check);
+    PYBIND11_OBJECT_DEFAULT(pytzinfo, object, is_tzinfo);
 
     pytimedelta utcoffset(py::object dt) const
     {
@@ -74,7 +107,7 @@ class pytzinfo : public py::object
         return py::reinterpret_borrow<pytimedelta>(fn(dt));
     }
 
-    static pytzinfo utc() noexcept
+    static pytzinfo utc()
     {
 #if (PY_VERSION_HEX < 0x03070000)
 #    pragma message("Python <= 3.6 detected, using slower introspection for UTC timezone lookup")
@@ -83,6 +116,7 @@ class pytzinfo : public py::object
         assert(ret.is_none() == false);
         return py::reinterpret_borrow<pytzinfo>(ret);
 #else
+        ensure_datetime_api();
         PyObject * ret = PyDateTime_TimeZone_UTC;
 #endif
         return py::reinterpret_borrow<pytzinfo>(ret);
@@ -95,7 +129,7 @@ class pytzinfo : public py::object
 class pydatetime : public py::object
 {
 public:
-    PYBIND11_OBJECT_DEFAULT(pydatetime, object, PyDateTime_Check);
+    PYBIND11_OBJECT_DEFAULT(pydatetime, object, is_datetime);
 
     static pydatetime from_date_and_time(int year,
         int month,
@@ -106,6 +140,7 @@ public:
         int microsecond,
         pytzinfo tz = pytzinfo::utc())
     {
+        ensure_datetime_api();
         assert(-32767 <= year && year <= 32767);
         assert(1 <= month && month <= 12);
         assert(1 <= day && day <= 31);
