@@ -261,7 +261,6 @@ public:
     }
 
 private:
-private:
     qdb::logger _logger;
 
     std::string _table_name;
