@@ -312,9 +312,10 @@ def write_dataframes(
 
     create_schemas: optional dict[str, quasardb.TableSchema]
       Schemas of tables that may be created during the writer push, indexed by table alias.
-      Providing this argument enables lazy table creation. Tables without an entry must already
-      exist. If an alias already exists, its columns, shard size, and TTL must match the provided
-      schema. The Python API does not verify this before the push.
+      Providing this argument enables lazy table creation for the entire batch. Every table in
+      the batch must have an entry; mixing tables with and without local schemas is not supported.
+      If an alias already exists, its columns, shard size, and TTL must match the provided schema.
+      The Python API does not verify this before the push.
 
       Example::
 

@@ -108,12 +108,14 @@ def test_write_dataframe_does_not_create_table_without_schema(
         )
 
 
-def test_write_dataframe_preserves_explicit_table_with_create_schemas(
-    monkeypatch, qdbd_connection, df_with_table, random_identifier
+def test_write_dataframe_accepts_explicit_table_with_matching_create_schema(
+    monkeypatch, qdbd_connection, df_with_table
 ):
     (_, _, dataframe, table) = df_with_table
-    unused_schema = quasardb.TableSchema(
-        columns=[quasardb.ColumnInfo(quasardb.ColumnType.Int64, "unused")],
+    schema = quasardb.TableSchema(
+        columns=table.list_columns(),
+        shard_size=table.get_shard_size(),
+        ttl=table.get_ttl(),
     )
 
     def unexpected_lookup(*_args, **_kwargs):
@@ -125,7 +127,7 @@ def test_write_dataframe_preserves_explicit_table_with_create_schemas(
         dataframe,
         qdbd_connection,
         table,
-        create_schemas={random_identifier: unused_schema},
+        create_schemas={table.get_name(): schema},
     )
 
 

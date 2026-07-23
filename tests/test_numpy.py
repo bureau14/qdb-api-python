@@ -63,14 +63,16 @@ def test_write_arrays_does_not_create_table_without_schema(qdbd_connection, entr
         )
 
 
-def test_write_arrays_preserves_explicit_table_with_create_schemas(
-    monkeypatch, qdbd_connection, table, random_identifier
+def test_write_arrays_accepts_explicit_table_with_matching_create_schema(
+    monkeypatch, qdbd_connection, table
 ):
     column_name = tslib._int64_col_name(table)
     index = np.array(["2020-01-01T00:00:00"], dtype="datetime64[ns]")
     values = np.array([42], dtype="int64")
-    unused_schema = quasardb.TableSchema(
-        columns=[quasardb.ColumnInfo(quasardb.ColumnType.Int64, "unused")],
+    schema = quasardb.TableSchema(
+        columns=table.list_columns(),
+        shard_size=table.get_shard_size(),
+        ttl=table.get_ttl(),
     )
 
     def unexpected_lookup(*_args, **_kwargs):
@@ -85,8 +87,37 @@ def test_write_arrays_preserves_explicit_table_with_create_schemas(
         values,
         index,
         infer_types=False,
-        create_schemas={random_identifier: unused_schema},
+        create_schemas={table.get_name(): schema},
     )
+
+
+def test_write_arrays_rejects_partial_create_schemas(qdbd_connection, entry_name):
+    first_table_name = "{}_first".format(entry_name)
+    second_table_name = "{}_second".format(entry_name)
+    column_name = "value"
+    schema = quasardb.TableSchema(
+        columns=[quasardb.ColumnInfo(quasardb.ColumnType.Int64, column_name)],
+    )
+    index = np.array(["2020-01-01T00:00:00"], dtype="datetime64[ns]")
+    values = np.array([42], dtype="int64")
+    data = {
+        "$timestamp": index,
+        column_name: values,
+    }
+
+    with pytest.raises(quasardb.InvalidArgumentError, match=second_table_name):
+        qdbnp.write_arrays(
+            [
+                (first_table_name, data),
+                (second_table_name, data),
+            ],
+            qdbd_connection,
+            infer_types=False,
+            create_schemas={first_table_name: schema},
+        )
+
+    assert qdbd_connection.table(first_table_name).exists() is False
+    assert qdbd_connection.table(second_table_name).exists() is False
 
 
 def _unicode_to_object_array(xs):

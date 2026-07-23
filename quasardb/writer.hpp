@@ -198,10 +198,10 @@ private:
         std::vector<qdb_exp_batch_push_table_t> batch;
         batch.assign(idx.size(), qdb_exp_batch_push_table_t());
 
-        // table_schemas owns the table schema structs, while staged_tables owns the column
-        // schemas and strings they reference. Both remain alive for the push and its retries.
+        // table_schemas owns a contiguous array of table schema structs,
+        // while staged_tables owns the column schemas and strings they reference.
+        // Both remain alive for the push and its retries.
         std::vector<qdb_exp_batch_push_table_schema_t> table_schemas;
-        std::vector<qdb_exp_batch_push_table_schema_t const *> table_schema_ptrs;
 
         qdb_ts_range_t * truncate_ranges_{nullptr};
         if (truncate_ranges.empty() == false) [[unlikely]]
@@ -213,11 +213,9 @@ private:
         if (creation_mode == qdb_exp_batch_create_tables)
         {
             table_schemas.resize(idx.size());
-            table_schema_ptrs.resize(idx.size(), nullptr);
         }
 
-        bool any_table_creation = false;
-        std::size_t cur         = 0;
+        std::size_t cur = 0;
 
         for (auto pos = idx.begin(); pos != idx.end(); ++pos)
         {
@@ -226,8 +224,14 @@ private:
             auto & batch_table                                = batch.at(cur);
             qdb_exp_batch_creation_mode_t table_creation_mode = qdb_exp_batch_dont_create;
 
-            if (creation_mode == qdb_exp_batch_create_tables && staged_table.creation_allowed())
+            if (creation_mode == qdb_exp_batch_create_tables)
             {
+                if (staged_table.creation_allowed() == false)
+                {
+                    throw qdb::invalid_argument_exception{"Writer creation mode requires a local "
+                                                          "schema for every table in the batch."};
+                }
+
                 table_creation_mode = qdb_exp_batch_create_tables;
             }
 
@@ -242,8 +246,6 @@ private:
             {
                 auto & table_schema = table_schemas.at(cur);
                 staged_table.prepare_table_schema(table_schema);
-                table_schema_ptrs.at(cur) = &table_schema;
-                any_table_creation        = true;
             }
 
             if (batch_table.data.column_count == 0) [[unlikely]]
@@ -259,15 +261,10 @@ private:
             ++cur;
         }
 
-        if (any_table_creation == false)
-        {
-            table_schema_ptrs.clear();
-        }
-
         _do_push<PushStrategy, SleepStrategy>(         //
             options,                                   //
             batch,                                     //
-            table_schema_ptrs,                         //
+            table_schemas,                             //
             PushStrategy::from_kwargs(kwargs),         //
             detail::retry_options::from_kwargs(kwargs) //
         );                                             //
@@ -278,14 +275,16 @@ private:
         concepts::sleep_strategy SleepStrategy>      //
     void _do_push(qdb_exp_batch_options_t const & options,
         std::vector<qdb_exp_batch_push_table_t> const & batch,
-        std::vector<qdb_exp_batch_push_table_schema_t const *> & table_schemas,
+        std::vector<qdb_exp_batch_push_table_schema_t> const & table_schemas,
         PushStrategy push_strategy,
         detail::retry_options const & retry_options)
     {
         qdb_error_t err{qdb_e_ok};
 
-        qdb_exp_batch_push_table_schema_t const ** table_schemas_ =
+        qdb_exp_batch_push_table_schema_t const * table_schemas_data =
             table_schemas.empty() ? nullptr : table_schemas.data();
+        qdb_exp_batch_push_table_schema_t const ** table_schemas_ =
+            table_schemas.empty() ? nullptr : &table_schemas_data;
 
         {
             // Make sure to measure the time it takes to do the actual push.

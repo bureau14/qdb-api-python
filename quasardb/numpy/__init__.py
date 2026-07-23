@@ -855,9 +855,10 @@ def write_arrays(
 
     create_schemas: optional dict[str, quasardb.TableSchema]
       Schemas of tables that may be created during the writer push, indexed by table alias.
-      Providing this argument enables lazy table creation. Tables without an entry must already
-      exist. If an alias already exists, its columns, shard size, and TTL must match the provided
-      schema. The Python API does not verify this before the push.
+      Providing this argument enables lazy table creation for the entire batch. Every table in
+      the batch must have an entry; mixing tables with and without local schemas is not supported.
+      If an alias already exists, its columns, shard size, and TTL must match the provided schema.
+      The Python API does not verify this before the push.
 
       Example::
 
@@ -981,6 +982,13 @@ def write_arrays(
 
     for table_, data_ in data:
         table_alias = table_ if isinstance(table_, str) else table_.get_name()
+        if create_schemas and table_alias not in create_schemas:
+            raise quasardb.InvalidArgumentError(
+                "Invalid 'create_schemas': missing schema for table '{}'".format(
+                    table_alias
+                )
+            )
+
         schema = create_schemas.get(table_alias) if create_schemas is not None else None
 
         if schema is not None:

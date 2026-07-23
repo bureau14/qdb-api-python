@@ -171,7 +171,7 @@ def test_create_tables_mode_uses_existing_table(qdbd_connection, table):
     assert rows[0]["the_int64"] == 42
 
 
-def test_create_tables_mode_handles_mixed_batch(
+def test_create_tables_mode_rejects_mixed_batch(
     qdbd_connection, table, random_identifier
 ):
     existing_table = qdbd_connection.table(table.get_name())
@@ -181,66 +181,11 @@ def test_create_tables_mode_handles_mixed_batch(
     timestamp = np.datetime64("now", "ns")
     index = np.array([timestamp], dtype="datetime64[ns]")
 
-    qdbnp.write_arrays(
-        [
-            (
-                existing_table,
-                {
-                    "$timestamp": index,
-                    "the_int64": np.array([42], dtype="int64"),
-                },
-            ),
-            (
-                missing_table,
-                {
-                    "$timestamp": index,
-                    "value": np.array([7], dtype="int64"),
-                    "symbol": np.array(["seven"], dtype="U"),
-                },
-            ),
-        ],
-        qdbd_connection,
-        infer_types=False,
-        creation_mode=quasardb.WriterCreationMode.CreateTables,
-    )
-
-    existing_rows = qdbd_connection.query(
-        'SELECT "$timestamp","the_int64" FROM "{}"'.format(table.get_name())
-    )
-    missing_rows = qdbd_connection.query(
-        'SELECT "$timestamp","value","symbol" FROM "{}"'.format(
-            missing_table.get_name()
-        )
-    )
-
-    assert len(existing_rows) == 1
-    assert existing_rows[0]["$timestamp"] == timestamp
-    assert existing_rows[0]["the_int64"] == 42
-    assert len(missing_rows) == 1
-    assert missing_rows[0]["$timestamp"] == timestamp
-    assert missing_rows[0]["value"] == 7
-    assert missing_rows[0]["symbol"] == "seven"
-
-
-def test_create_tables_mode_does_not_recreate_removed_server_table(
-    qdbd_connection, table, random_identifier
-):
-    existing_table_name = table.get_name()
-    missing_table, _, _, _ = _make_local_creation_table(
-        qdbd_connection, random_identifier
-    )
-    timestamp = np.datetime64("now", "ns")
-    index = np.array([timestamp], dtype="datetime64[ns]")
-
-    # Keep the server-backed table object's cached schema, but remove its alias.
-    # CreateTables must apply only to tables built from an explicit local schema.
-    table.remove()
-
-    with pytest.raises(quasardb.AliasNotFoundError):
+    with pytest.raises(quasardb.InvalidArgumentError, match="local schema"):
         qdbnp.write_arrays(
             [
                 (
-                    table,
+                    existing_table,
                     {
                         "$timestamp": index,
                         "the_int64": np.array([42], dtype="int64"),
@@ -252,6 +197,34 @@ def test_create_tables_mode_does_not_recreate_removed_server_table(
                         "$timestamp": index,
                         "value": np.array([7], dtype="int64"),
                         "symbol": np.array(["seven"], dtype="U"),
+                    },
+                ),
+            ],
+            qdbd_connection,
+            infer_types=False,
+            creation_mode=quasardb.WriterCreationMode.CreateTables,
+        )
+
+    assert qdbd_connection.table(random_identifier).exists() is False
+
+
+def test_create_tables_mode_rejects_removed_server_table(qdbd_connection, table):
+    existing_table_name = table.get_name()
+    timestamp = np.datetime64("now", "ns")
+    index = np.array([timestamp], dtype="datetime64[ns]")
+
+    # Keep the server-backed table object's cached schema, but remove its alias.
+    # CreateTables accepts only tables built from an explicit local schema.
+    table.remove()
+
+    with pytest.raises(quasardb.InvalidArgumentError, match="local schema"):
+        qdbnp.write_arrays(
+            [
+                (
+                    table,
+                    {
+                        "$timestamp": index,
+                        "the_int64": np.array([42], dtype="int64"),
                     },
                 ),
             ],
