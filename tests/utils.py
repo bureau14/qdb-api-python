@@ -12,7 +12,7 @@ def _generate_data(count, start=np.datetime64("2017-01-01", "ns")):
     )
     strings = np.array([("content_" + str(item)) for item in range(count)])
     timestamps = np.array(
-        [(start + np.timedelta64(1, "D") + np.timedelta64(i, "s")) for i in range(count)]
+        [start + np.timedelta64(1, "D") + np.timedelta64(i, "s") for i in range(count)]
     ).astype("datetime64[ns]")
     symbols = np.array([("symbol_" + str(item)) for item in range(count)])
 
@@ -77,7 +77,7 @@ def _test_with_table(conn, table, intervals, data=None, push_mode=None):
         table,
         index=intervals,
         infer_types=False,
-        **kwargs
+        **kwargs,
     )
 
     _assert_results(conn, table, intervals, data)

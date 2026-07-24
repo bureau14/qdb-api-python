@@ -30,7 +30,10 @@ def _has_stats(conn):
     uid_stats = node_stats["by_uid"]
 
     # The actual check happens here: we expect at least 1 per-uid statistic
-    return bool(uid_stats) and all(all(expected in xs for expected in _expected_user_stats) for xs in uid_stats.values())
+    return bool(uid_stats) and all(
+        all(expected in xs for expected in _expected_user_stats)
+        for xs in uid_stats.values()
+    )
 
 
 def _ensure_stats(conn, table):
@@ -85,7 +88,6 @@ def _validate_stats_dict(xs):
 
         # Everything that's not a NONE unit (i.e. not a label) should be an int
         if x["unit"] != qdbst.Unit.NONE:
-
             assert isinstance(x["value"], int)
 
 
