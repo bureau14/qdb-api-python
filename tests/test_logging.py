@@ -4,6 +4,7 @@ import quasardb
 import logging
 import time
 import numpy as np
+import quasardb.numpy as qdbnp
 
 
 @pytest.mark.skip(reason="Works, but flaky")
@@ -58,13 +59,13 @@ def test_invalid_utf8_logs_qdb3361(qdbd_connection, caplog):
     col = quasardb.ColumnInfo(quasardb.ColumnType.Double, "the_double")
     table.create([col])
 
-    batchcol = [quasardb.BatchColumnInfo(tablename, "the_double", 10)]
-    inserter = qdbd_connection.inserter(batchcol)
-
-    inserter.start_row(np.datetime64("2020-01-01", "ns"))
-    inserter.set_double(0, 1.234)
-
-    inserter.push()
+    qdbnp.write_arrays(
+        {"the_double": np.array([1.234])},
+        qdbd_connection,
+        table,
+        index=np.array([np.datetime64("2020-01-01", "ns")]),
+        infer_types=False,
+    )
     time.sleep(4)
 
     # This call right here triggers the 'bad' logs to be flushed into the python

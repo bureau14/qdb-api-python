@@ -4,24 +4,14 @@ import pytest
 import quasardb
 import quasardb.stats as qdbst
 
-import test_batch_inserter as batchlib
 import conftest
+import utils
 
 _has_stats = False
 
 
 def _write_data(conn, table):
-    inserter = conn.inserter(batchlib._make_inserter_info(table))
-
-    # doubles, blobs, strings, integers, timestamps, symbols =
-    # batchlib._test_with_table(
-    _, _, _, _, _, _ = batchlib._test_with_table(
-        conn,
-        inserter,
-        table,
-        conftest.create_many_intervals(),
-        batchlib._regular_push,
-    )
+    utils._test_with_table(conn, table, conftest.create_many_intervals())
 
 
 def _has_stats(conn):
@@ -40,7 +30,10 @@ def _has_stats(conn):
     uid_stats = node_stats["by_uid"]
 
     # The actual check happens here: we expect at least 1 per-uid statistic
-    return len(uid_stats.keys()) > 0
+    return bool(uid_stats) and all(
+        all(expected in xs for expected in _expected_user_stats)
+        for xs in uid_stats.values()
+    )
 
 
 def _ensure_stats(conn, table):
@@ -50,8 +43,9 @@ def _ensure_stats(conn, table):
     max_polls = 10
     n = 0
 
+    _write_data(conn, table)
+
     while _has_stats(conn) is False:
-        _write_data(conn, table)
         sleep(1)
 
         n = n + 1
@@ -68,8 +62,6 @@ _expected_user_stats = [
     "requests.successes_count",
     "requests.in_bytes",
     "requests.out_bytes",
-    "perf.ts.table_insert.deserialization.total_ns",
-    "perf.ts.table_insert.processing.total_ns",
 ]
 
 # Same, but cumulative stats.
@@ -78,8 +70,6 @@ _expected_cumulative_stats = [
     "requests.successes_count",
     "requests.in_bytes",
     "requests.out_bytes",
-    "perf.ts.buffered_table_insert.deserialization.total_ns",
-    "perf.ts.buffered_table_insert.processing.total_ns",
 ]
 
 
@@ -98,7 +88,6 @@ def _validate_stats_dict(xs):
 
         # Everything that's not a NONE unit (i.e. not a label) should be an int
         if x["unit"] != qdbst.Unit.NONE:
-
             assert isinstance(x["value"], int)
 
 
