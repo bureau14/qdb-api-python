@@ -152,8 +152,6 @@ void register_cluster(py::module_ & m)
         .def("timestamp", &qdb::cluster::timestamp)
         .def("ts", &qdb::cluster::table)
         .def("table", &qdb::cluster::table)
-        .def("ts_batch", &qdb::cluster::inserter)
-        .def("inserter", &qdb::cluster::inserter)
         .def("reader", &qdb::cluster::reader,                     //
             py::arg("table_names"),                               //
             py::kw_only(),                                        //
