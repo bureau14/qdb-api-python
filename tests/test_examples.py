@@ -12,14 +12,5 @@ def test_tutorial_python():
     import tutorial.python
 
 
-def test_tutorial_pandas_tutorial(qdbd_connection):
-    stocks = qdbd_connection.table("stocks")
-    stocks.create(
-        [
-            quasardb.ColumnInfo(quasardb.ColumnType.Double, "open"),
-            quasardb.ColumnInfo(quasardb.ColumnType.Double, "close"),
-            quasardb.ColumnInfo(quasardb.ColumnType.Int64, "volume"),
-        ]
-    )
-
+def test_tutorial_pandas_tutorial():
     import tutorial.pandas_tutorial

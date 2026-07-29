@@ -30,11 +30,10 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Union
 
 import quasardb
 import quasardb.numpy as qdbnp
-import quasardb.table_cache as table_cache
 from quasardb.quasardb import Cluster, Table, Writer
 from quasardb.typing import DType, MaskedArrayAny, Range, RangeSet
 
@@ -246,26 +245,24 @@ def read_dataframe(
         return pd.DataFrame()
 
 
-def _extract_columns(
-    df: pd.DataFrame, cinfos: List[Tuple[str, quasardb.ColumnType]]
-) -> Dict[str, MaskedArrayAny]:
+def _extract_columns(df: pd.DataFrame) -> Dict[str, MaskedArrayAny]:
     """
-    Converts dataframe to a number of numpy arrays, one for each column.
+    Convert string-named dataframe columns to numpy masked arrays.
 
-    Arrays will be indexed by relative offset, in the same order as the table's columns.
-    If a table column is not present in the dataframe, it it have a None entry.
-    If a dataframe column is not present in the table, it will be ommitted.
+    Schema validation, column ordering, and handling of missing or additional
+    columns are delegated to numpy.write_arrays().
     """
     ret: Dict[str, MaskedArrayAny] = {}
 
-    # Grab all columns from the DataFrame in the order of table columns,
-    # put None if not present in df.
-    for i in range(len(cinfos)):
-        (cname, _) = cinfos[i]
+    for column_name in df.columns:
+        if not isinstance(column_name, str):
+            continue
 
-        if cname in df.columns:
-            arr = df[cname].array
-            ret[cname] = ma.masked_array(arr.to_numpy(copy=False), mask=arr.isna())
+        array = df[column_name].array
+        ret[column_name] = ma.masked_array(
+            array.to_numpy(copy=False),
+            mask=array.isna(),
+        )
 
     return ret
 
@@ -348,15 +345,6 @@ def write_dataframes(
     for table, df in dfs:
         assert isinstance(df, pd.DataFrame)
 
-        table_alias = table if isinstance(table, str) else table.get_name()
-        schema = create_schemas.get(table_alias) if create_schemas is not None else None
-        if schema is not None:
-            cinfos = [(column.name, column.type) for column in schema.columns]
-        else:
-            if isinstance(table, str):
-                table = table_cache.lookup(table_alias, cluster)
-            cinfos = [(x.name, x.type) for x in table.list_columns()]
-
         if not df.index.is_monotonic_increasing:
             logger.warning(
                 "dataframe index is unsorted, resorting dataframe based on index"
@@ -368,7 +356,7 @@ def write_dataframes(
         # pandas has the bad habit of wanting to cast data to different types if your data
         # is sparse, most notably forcing sparse integer arrays to floating points.
 
-        data = _extract_columns(df, cinfos)
+        data = _extract_columns(df)
         data["$timestamp"] = ma.masked_array(
             df.index.to_numpy(copy=False, dtype="datetime64[ns]")
         )  # We cast to masked_array to enforce typing compliance

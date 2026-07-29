@@ -89,6 +89,38 @@ def test_write_dataframes_creates_tables_from_multiple_schemas(
     )
 
 
+def test_write_dataframes_rejects_partial_create_schemas(
+    qdbd_connection, entry_name
+):
+    first_table_name = "{}_first".format(entry_name)
+    second_table_name = "{}_second".format(entry_name)
+    column_name = "value"
+    schema = quasardb.TableSchema(
+        columns=[quasardb.ColumnInfo(quasardb.ColumnType.Int64, column_name)],
+    )
+    dataframe = pd.DataFrame(
+        {column_name: np.array([42], dtype="int64")},
+        index=pd.Index(
+            np.array(["2020-01-01T00:00:00"], dtype="datetime64[ns]"),
+            name="$timestamp",
+        ),
+    )
+
+    with pytest.raises(quasardb.InvalidArgumentError, match=second_table_name):
+        qdbpd.write_dataframes(
+            [
+                (first_table_name, dataframe),
+                (second_table_name, dataframe),
+            ],
+            qdbd_connection,
+            create_schemas={first_table_name: schema},
+            infer_types=False,
+        )
+
+    assert qdbd_connection.table(first_table_name).exists() is False
+    assert qdbd_connection.table(second_table_name).exists() is False
+
+
 def test_write_dataframe_does_not_create_table_without_schema(
     qdbd_connection, entry_name
 ):
@@ -121,7 +153,7 @@ def test_write_dataframe_accepts_explicit_table_with_matching_create_schema(
     def unexpected_lookup(*_args, **_kwargs):
         raise AssertionError("Explicit Table must not be replaced by a cache lookup")
 
-    monkeypatch.setattr(qdbpd.table_cache, "lookup", unexpected_lookup)
+    monkeypatch.setattr(qdbpd.qdbnp.table_cache, "lookup", unexpected_lookup)
 
     qdbpd.write_dataframe(
         dataframe,
