@@ -1,8 +1,6 @@
 import datetime
 
 from . import metrics
-from ._batch_column import BatchColumnInfo
-from ._batch_inserter import TimeSeriesBatch
 from ._blob import Blob
 from ._cluster import Cluster
 from ._continuous import QueryContinuous
@@ -39,8 +37,6 @@ from ._timestamp import Timestamp
 from ._writer import Writer, WriterData, WriterPushMode
 
 __all__ = [
-    "BatchColumnInfo",
-    "TimeSeriesBatch",
     "Blob",
     "Cluster",
     "QueryContinuous",

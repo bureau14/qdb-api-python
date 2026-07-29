@@ -165,8 +165,6 @@ void register_cluster(py::module_ & m)
             "Create a table handle from a local schema without accessing the server. "
             "If the alias already exists, columns, shard size, and TTL must match the existing "
             "table. The Python API does not verify this before the push.")
-        .def("ts_batch", &qdb::cluster::inserter)
-        .def("inserter", &qdb::cluster::inserter)
         .def("reader", &qdb::cluster::reader,                     //
             py::arg("table_names"),                               //
             py::kw_only(),                                        //

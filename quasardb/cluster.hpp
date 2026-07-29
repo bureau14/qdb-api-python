@@ -30,7 +30,6 @@
  */
 #pragma once
 
-#include "batch_inserter.hpp"
 #include "blob.hpp"
 #include "continuous.hpp"
 #include "double.hpp"
@@ -253,15 +252,7 @@ public:
         return make_reader_ptr(_handle, table_names, column_names, batch_size, ranges);
     }
 
-    // the batch_inserter_ptr is non-copyable
-    qdb::batch_inserter_ptr inserter(const std::vector<batch_column_info> & ci)
-    {
-        check_open();
-
-        return std::make_unique<qdb::batch_inserter>(_handle, ci);
-    }
-
-    // the batch_inserter_ptr is non-copyable
+    // the writer_ptr is non-copyable
     qdb::writer_ptr writer()
     {
         check_open();
@@ -269,7 +260,7 @@ public:
         return std::make_unique<qdb::writer>(_handle);
     }
 
-    // the batch_inserter_ptr is non-copyable
+    // the writer_ptr is non-copyable
     qdb::writer_ptr pinned_writer()
     {
         check_open();

@@ -1,6 +1,6 @@
 # pylint: disable=C0103,C0111,C0302,W0212
 import numpy as np
-import test_batch_inserter as batchlib
+import utils
 import time
 import multiprocessing
 from sys import platform
@@ -52,12 +52,10 @@ def test_subscribe_single_table(qdbd_connection, table, many_intervals):
     # 4. Insert new data
     # 5. Repeat step 3 again
 
-    inserter = qdbd_connection.inserter(batchlib._make_inserter_info(table))
-
     xs = table.subscribe(qdbd_connection)
 
-    doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
-        qdbd_connection, inserter, table, many_intervals, batchlib._regular_push
+    doubles, blobs, strings, integers, timestamps, symbols = utils._test_with_table(
+        qdbd_connection, table, many_intervals
     )
 
     time.sleep(4)
@@ -91,8 +89,8 @@ def test_subscribe_single_table(qdbd_connection, table, many_intervals):
     for x in many_intervals:
         many_intervals_.append(x + np.timedelta64(365, "D"))
 
-    doubles, blobs, strings, integers, timestamps, symbols = batchlib._test_with_table(
-        qdbd_connection, inserter, table, many_intervals_, batchlib._regular_push
+    doubles, blobs, strings, integers, timestamps, symbols = utils._test_with_table(
+        qdbd_connection, table, many_intervals_
     )
 
     # Note that we only reset `offset`; since we just inserted exactly double
