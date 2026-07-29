@@ -38,6 +38,7 @@ namespace qdb
 {
 
 class table;
+class table_schema;
 using table_ptr = std::unique_ptr<table>;
 
 }; // namespace qdb

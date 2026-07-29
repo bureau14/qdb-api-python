@@ -17,7 +17,7 @@ from ._perf import Perf
 from ._properties import Properties
 from ._reader import Reader
 from ._string import String
-from ._table import ColumnInfo, Table
+from ._table import Table, TableSchema
 from ._tag import Tag
 from ._timestamp import Timestamp
 from ._writer import Writer
@@ -96,9 +96,7 @@ class Cluster:
     def table_from_schema(
         self,
         alias: str,
-        columns: list[ColumnInfo],
-        shard_size: datetime.timedelta = datetime.timedelta(days=1),
-        ttl: datetime.timedelta = datetime.timedelta(0),
+        schema: TableSchema,
     ) -> Table: ...
     def tag(self, alias: str) -> Tag: ...
     def tidy_memory(self) -> None: ...

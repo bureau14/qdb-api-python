@@ -34,7 +34,9 @@
 #include "masked_array.hpp"
 #include "reader_fwd.hpp"
 #include "table_fwd.hpp"
+#include "table_schema.hpp"
 #include "detail/ts_column.hpp"
+#include <optional>
 #include <utility>
 
 namespace qdb
@@ -43,15 +45,14 @@ namespace qdb
 class table : public entry
 {
 private:
-    static std::vector<detail::column_info> normalize_local_schema(
-        std::vector<detail::column_info> columns)
+    static table_schema normalize_local_schema(table_schema schema)
     {
-        if (detail::find_timestamp_column(columns))
+        if (detail::find_timestamp_column(schema.columns))
         {
-            columns.erase(columns.begin());
+            schema.columns.erase(schema.columns.begin());
         }
 
-        return columns;
+        return schema;
     }
 
 public:
@@ -66,17 +67,13 @@ public:
      * Creates a table handle from a local schema without accessing the server.
      * The schema, shard size, and TTL are assumed to match an existing table with the same alias.
      */
-    table(handle_ptr h,
-        std::string a,
-        std::vector<detail::column_info> columns,
-        std::chrono::milliseconds shard_size,
-        std::chrono::milliseconds ttl)
+    table(handle_ptr h, std::string a, table_schema schema)
         : entry{h, a}
         , _has_indexed_columns(false)
-        , _has_local_schema(true)
-        , _columns{normalize_local_schema(std::move(columns))}
-        , _ttl{ttl}
-        , _shard_size{shard_size}
+        , _local_schema{normalize_local_schema(std::move(schema))}
+        , _columns{_local_schema->columns}
+        , _ttl{_local_schema->ttl}
+        , _shard_size{_local_schema->shard_size}
     {}
 
 public:
@@ -85,9 +82,9 @@ public:
         return "<quasardb.Table name='" + get_name() + "'>";
     }
 
-    bool has_local_schema() const noexcept
+    std::optional<table_schema> const & local_schema() const noexcept
     {
-        return _has_local_schema;
+        return _local_schema;
     }
 
     /**
@@ -297,7 +294,7 @@ public:
 
 private:
     mutable bool _has_indexed_columns;
-    const bool _has_local_schema{false};
+    const std::optional<table_schema> _local_schema;
     mutable detail::indexed_columns_t _indexed_columns;
 
     mutable std::optional<std::vector<detail::column_info>> _columns;
@@ -310,13 +307,10 @@ static inline table_ptr make_table_ptr(handle_ptr handle, std::string table_name
     return std::make_unique<table>(handle, table_name);
 }
 
-static inline table_ptr make_table_ptr_from_schema(handle_ptr handle,
-    std::string table_name,
-    std::vector<detail::column_info> columns,
-    std::chrono::milliseconds shard_size,
-    std::chrono::milliseconds ttl)
+static inline table_ptr make_table_ptr_from_schema(
+    handle_ptr handle, std::string table_name, table_schema schema)
 {
-    return std::make_unique<table>(handle, std::move(table_name), std::move(columns), shard_size, ttl);
+    return std::make_unique<table>(handle, std::move(table_name), std::move(schema));
 }
 
 template <typename Module>

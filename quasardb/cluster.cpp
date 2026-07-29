@@ -111,14 +111,11 @@ qdb::table_ptr cluster::table(const std::string & alias)
     return qdb::make_table_ptr(_handle, alias);
 }
 
-qdb::table_ptr cluster::table_from_schema(const std::string & alias,
-    const std::vector<detail::column_info> & columns,
-    std::chrono::milliseconds shard_size,
-    std::chrono::milliseconds ttl)
+qdb::table_ptr cluster::table_from_schema(const std::string & alias, table_schema const & schema)
 {
     check_open();
 
-    return qdb::make_table_ptr_from_schema(_handle, alias, columns, shard_size, ttl);
+    return qdb::make_table_ptr_from_schema(_handle, alias, schema);
 }
 
 void register_cluster(py::module_ & m)
@@ -162,11 +159,9 @@ void register_cluster(py::module_ & m)
         .def("timestamp", &qdb::cluster::timestamp)
         .def("ts", &qdb::cluster::table)
         .def("table", &qdb::cluster::table)
-        .def("table_from_schema", &qdb::cluster::table_from_schema,    //
-            py::arg("alias"),                                          //
-            py::arg("columns"),                                        //
-            py::arg("shard_size") = std::chrono::hours{24},            //
-            py::arg("ttl")        = std::chrono::milliseconds::zero(), //
+        .def("table_from_schema", &qdb::cluster::table_from_schema, //
+            py::arg("alias"),                                       //
+            py::arg("schema"),                                      //
             "Create a table handle from a local schema without accessing the server. "
             "If the alias already exists, columns, shard size, and TTL must match the existing "
             "table. The Python API does not verify this before the push.")

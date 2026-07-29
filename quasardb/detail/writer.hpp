@@ -37,6 +37,7 @@
 #include "../logger.hpp"
 #include "../table.hpp"
 #include "retry.hpp"
+#include <optional>
 #include <variant>
 #include <vector>
 
@@ -160,9 +161,7 @@ public:
     staged_table(qdb::table const & table)
         : _logger("quasardb.writer")
         , _table_name(table.get_name())
-        , _creation_allowed(table.has_local_schema())
-        , _shard_size(table.get_shard_size())
-        , _ttl(table.get_ttl())
+        , _table_schema(table.local_schema())
     {
         _column_infos = table.list_columns();
 
@@ -186,8 +185,6 @@ public:
         std::size_t index, masked_array_t<traits::datetime64_ns_dtype> const & xs);
 
     std::vector<qdb_exp_batch_push_column_t> const & prepare_columns();
-
-    std::vector<qdb_exp_batch_push_column_schema_t> const & prepare_column_schema();
 
     void prepare_table_data(qdb_exp_batch_push_table_data_t & table_data);
 
@@ -235,7 +232,7 @@ public:
         _table_name.clear();
         _column_infos.clear();
         _columns_data.clear();
-        _column_schema.clear();
+        _table_schema.reset();
     }
 
     inline qdb_ts_range_t time_range() const
@@ -257,7 +254,7 @@ public:
 
     inline bool creation_allowed() const noexcept
     {
-        return _creation_allowed;
+        return _table_schema.has_value();
     }
 
 private:
@@ -270,11 +267,7 @@ private:
 
     std::vector<qdb_exp_batch_push_column_t> _columns_data;
 
-    // Only for lazy table creation, we need to provide the column schema to the server.
-    const bool _creation_allowed;
-    std::vector<qdb_exp_batch_push_column_schema_t> _column_schema;
-    std::chrono::milliseconds _shard_size;
-    std::chrono::milliseconds _ttl;
+    std::optional<qdb::table_schema> _table_schema;
 };
 
 /**

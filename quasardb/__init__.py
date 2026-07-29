@@ -136,6 +136,5 @@ if not "quasardb" in locals():
 
 
 from .extensions import extend_module
-from .table_schema import TableSchema
 
 extend_module(quasardb)

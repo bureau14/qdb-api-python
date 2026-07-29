@@ -3,6 +3,7 @@
 #include "metrics.hpp"
 #include "node.hpp"
 #include "reader.hpp"
+#include "table_schema.hpp"
 #include "writer.hpp"
 #include <functional>
 #include <list>
@@ -87,6 +88,7 @@ PYBIND11_MODULE(quasardb, m)
     qdb::register_metrics(m);
 
     qdb::detail::register_ts_column(m);
+    qdb::register_table_schema(m);
     qdb::detail::register_retry_options(m);
 
     for (const auto & initializer : qdb::initializers())

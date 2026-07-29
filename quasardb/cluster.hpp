@@ -239,10 +239,7 @@ public:
 
     qdb::table_ptr table(const std::string & alias);
 
-    qdb::table_ptr table_from_schema(const std::string & alias,
-        const std::vector<detail::column_info> & columns,
-        std::chrono::milliseconds shard_size = std::chrono::hours{24},
-        std::chrono::milliseconds ttl        = std::chrono::milliseconds::zero());
+    qdb::table_ptr table_from_schema(const std::string & alias, table_schema const & schema);
 
     // the reader_ptr is non-copyable
     qdb::reader_ptr reader(                            //

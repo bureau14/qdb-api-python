@@ -21,7 +21,8 @@ def _make_local_creation_table(qdbd_connection, table_name):
     shard_size = datetime.timedelta(days=1)
     ttl = datetime.timedelta(days=7)
 
-    table = qdbd_connection.table_from_schema(table_name, columns, shard_size, ttl)
+    schema = quasardb.TableSchema(columns, shard_size, ttl)
+    table = qdbd_connection.table_from_schema(table_name, schema)
     return table, columns, shard_size, ttl
 
 
@@ -41,9 +42,11 @@ def test_local_creation_table_normalizes_explicit_timestamp(
     ]
     table = qdbd_connection.table_from_schema(
         entry_name,
-        columns,
-        datetime.timedelta(days=1),
-        datetime.timedelta(0),
+        quasardb.TableSchema(
+            columns,
+            datetime.timedelta(days=1),
+            datetime.timedelta(0),
+        ),
     )
 
     local_columns = table.list_columns()
@@ -86,9 +89,11 @@ def test_local_creation_table_rejects_invalid_timestamp(
     with pytest.raises(quasardb.InvalidArgumentError):
         qdbd_connection.table_from_schema(
             entry_name,
-            columns,
-            datetime.timedelta(days=1),
-            datetime.timedelta(0),
+            quasardb.TableSchema(
+                columns,
+                datetime.timedelta(days=1),
+                datetime.timedelta(0),
+            ),
         )
 
 
@@ -152,9 +157,11 @@ def test_create_tables_mode_creates_missing_table(qdbd_connection, entry_name):
 def test_create_tables_mode_uses_existing_table(qdbd_connection, table):
     local_table = qdbd_connection.table_from_schema(
         table.get_name(),
-        table.list_columns(),
-        table.get_shard_size(),
-        table.get_ttl(),
+        quasardb.TableSchema(
+            table.list_columns(),
+            table.get_shard_size(),
+            table.get_ttl(),
+        ),
     )
     writer = qdbd_connection.writer()
     timestamp = np.datetime64("2020-01-01T00:00:00", "ns")

@@ -33,7 +33,7 @@ from ._query import FindQuery
 from ._reader import Reader
 from ._retry import RetryOptions
 from ._string import String
-from ._table import ColumnInfo, ColumnType, IndexedColumnInfo, Table
+from ._table import ColumnInfo, ColumnType, IndexedColumnInfo, Table, TableSchema
 from ._tag import Tag
 from ._timestamp import Timestamp
 from ._writer import Writer, WriterCreationMode, WriterData, WriterPushMode
@@ -76,6 +76,7 @@ __all__ = [
     "ColumnType",
     "IndexedColumnInfo",
     "Table",
+    "TableSchema",
     "Tag",
     "Timestamp",
     "Writer",

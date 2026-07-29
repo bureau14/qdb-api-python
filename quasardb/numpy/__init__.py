@@ -992,12 +992,7 @@ def write_arrays(
         schema = create_schemas.get(table_alias) if create_schemas is not None else None
 
         if schema is not None:
-            table_ = cluster.table_from_schema(
-                table_alias,
-                schema.columns,
-                schema.shard_size,
-                schema.ttl,
-            )
+            table_ = cluster.table_from_schema(table_alias, schema)
         elif isinstance(table_, str):
             table_ = table_cache.lookup(table_alias, cluster)
 
