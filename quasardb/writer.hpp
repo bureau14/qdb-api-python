@@ -175,7 +175,6 @@ private:
 
         // Ensure some default variables that are set
         kwargs = detail::batch_push_flags::ensure(kwargs);
-        kwargs = detail::batch_creation_mode::ensure(kwargs);
 
         std::vector<qdb_ts_range_t> truncate_ranges{};
 
@@ -191,6 +190,16 @@ private:
         if (idx.empty()) [[unlikely]]
         {
             throw qdb::invalid_argument_exception{"No data written to batch writer."};
+        }
+
+        bool const has_table_schemas = idx.begin()->second.schema() != nullptr;
+        for (auto pos = idx.begin(); pos != idx.end(); ++pos)
+        {
+            if ((pos->second.schema() != nullptr) != has_table_schemas) [[unlikely]]
+            {
+                throw qdb::invalid_argument_exception{
+                    "A writer batch cannot mix tables with and without a local schema."};
+            }
         }
 
         auto deduplicate_options = detail::deduplicate_options::from_kwargs(kwargs);
@@ -209,8 +218,7 @@ private:
             truncate_ranges_ = truncate_ranges.data();
         }
 
-        auto creation_mode = detail::batch_creation_mode::from_kwargs(kwargs);
-        if (creation_mode == qdb_exp_batch_create_tables)
+        if (has_table_schemas)
         {
             table_schemas.resize(idx.size());
         }
@@ -219,34 +227,18 @@ private:
 
         for (auto pos = idx.begin(); pos != idx.end(); ++pos)
         {
-            std::string const & table_name                    = pos->first;
-            detail::staged_table & staged_table               = pos->second;
-            auto & batch_table                                = batch.at(cur);
-            qdb_exp_batch_creation_mode_t table_creation_mode = qdb_exp_batch_dont_create;
-
-            if (creation_mode == qdb_exp_batch_create_tables)
-            {
-                if (staged_table.creation_allowed() == false)
-                {
-                    throw qdb::invalid_argument_exception{"Writer creation mode requires a local "
-                                                          "schema for every table in the batch."};
-                }
-
-                table_creation_mode = qdb_exp_batch_create_tables;
-            }
+            std::string const & table_name      = pos->first;
+            detail::staged_table & staged_table = pos->second;
+            auto & batch_table                  = batch.at(cur);
+            qdb_exp_batch_push_table_schema_t * table_schema =
+                has_table_schemas ? &table_schemas.at(cur) : nullptr;
 
             staged_table.prepare_batch( //
                 options.mode,           //
                 deduplicate_options,    //
                 truncate_ranges_,       //
                 batch_table,            //
-                table_creation_mode);
-
-            if (table_creation_mode == qdb_exp_batch_create_tables)
-            {
-                auto & table_schema = table_schemas.at(cur);
-                staged_table.prepare_table_schema(table_schema);
-            }
+                table_schema);
 
             if (batch_table.data.column_count == 0) [[unlikely]]
             {
@@ -364,10 +356,6 @@ static void register_writer(py::module_ & m)
         .value("Fast", qdb_exp_batch_push_fast)
         .value("Truncate", qdb_exp_batch_push_truncate)
         .value("Async", qdb_exp_batch_push_async);
-
-    py::enum_<qdb_exp_batch_creation_mode_t>{m, "WriterCreationMode", "Table creation mode"}
-        .value("DontCreate", qdb_exp_batch_dont_create)
-        .value("CreateTables", qdb_exp_batch_create_tables);
 
     // And the actual pinned writer
     auto writer_c = py::class_<qdb::writer>{m, "Writer"};

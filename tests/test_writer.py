@@ -60,7 +60,6 @@ def test_local_creation_table_normalizes_explicit_timestamp(
         qdbd_connection,
         table,
         infer_types=False,
-        creation_mode=quasardb.WriterCreationMode.CreateTables,
     )
 
     created_columns = qdbd_connection.table(entry_name).list_columns()
@@ -97,31 +96,7 @@ def test_local_creation_table_rejects_invalid_timestamp(
         )
 
 
-@pytest.mark.parametrize(
-    "creation_mode",
-    [None, quasardb.WriterCreationMode.DontCreate],
-    ids=["default", "dont-create"],
-)
-def test_missing_table_is_not_created(qdbd_connection, entry_name, creation_mode):
-    table, _, _, _ = _make_local_creation_table(qdbd_connection, entry_name)
-    writer = qdbd_connection.writer()
-
-    writer.start_row(table, np.datetime64("2020-01-01T00:00:00", "ns"))
-    writer.set_int64(0, 42)
-    writer.set_string(1, "forty-two")
-
-    push_options = {}
-    if creation_mode is not None:
-        push_options["creation_mode"] = creation_mode
-
-    with pytest.raises(quasardb.AliasNotFoundError):
-        writer.push(**push_options)
-
-    with pytest.raises(quasardb.AliasNotFoundError):
-        qdbd_connection.table(entry_name).list_columns()
-
-
-def test_create_tables_mode_creates_missing_table(qdbd_connection, entry_name):
+def test_local_schema_creates_missing_table(qdbd_connection, entry_name):
     table, expected_columns, shard_size, ttl = _make_local_creation_table(
         qdbd_connection, entry_name
     )
@@ -131,7 +106,7 @@ def test_create_tables_mode_creates_missing_table(qdbd_connection, entry_name):
     writer.start_row(table, timestamp)
     writer.set_int64(0, 42)
     writer.set_string(1, "forty-two")
-    writer.push(creation_mode=quasardb.WriterCreationMode.CreateTables)
+    writer.push()
 
     created_table = qdbd_connection.table(entry_name)
     actual_columns = created_table.list_columns()
@@ -154,7 +129,7 @@ def test_create_tables_mode_creates_missing_table(qdbd_connection, entry_name):
     assert rows[0]["symbol"] == "forty-two"
 
 
-def test_create_tables_mode_uses_existing_table(qdbd_connection, table):
+def test_local_schema_uses_existing_table(qdbd_connection, table):
     local_table = qdbd_connection.table_from_schema(
         table.get_name(),
         quasardb.TableSchema(
@@ -168,7 +143,7 @@ def test_create_tables_mode_uses_existing_table(qdbd_connection, table):
 
     writer.start_row(local_table, timestamp)
     writer.set_int64(3, 42)
-    writer.push(creation_mode=quasardb.WriterCreationMode.CreateTables)
+    writer.push()
 
     rows = qdbd_connection.query(
         'SELECT "$timestamp","the_int64" FROM "{}"'.format(table.get_name())
@@ -178,9 +153,7 @@ def test_create_tables_mode_uses_existing_table(qdbd_connection, table):
     assert rows[0]["the_int64"] == 42
 
 
-def test_create_tables_mode_rejects_mixed_batch(
-    qdbd_connection, table, random_identifier
-):
+def test_local_schema_rejects_mixed_batch(qdbd_connection, table, random_identifier):
     existing_table = qdbd_connection.table(table.get_name())
     missing_table, _, _, _ = _make_local_creation_table(
         qdbd_connection, random_identifier
@@ -188,7 +161,7 @@ def test_create_tables_mode_rejects_mixed_batch(
     timestamp = np.datetime64("now", "ns")
     index = np.array([timestamp], dtype="datetime64[ns]")
 
-    with pytest.raises(quasardb.InvalidArgumentError, match="local schema"):
+    with pytest.raises(quasardb.InvalidArgumentError, match="with and without"):
         qdbnp.write_arrays(
             [
                 (
@@ -209,34 +182,9 @@ def test_create_tables_mode_rejects_mixed_batch(
             ],
             qdbd_connection,
             infer_types=False,
-            creation_mode=quasardb.WriterCreationMode.CreateTables,
         )
 
     assert qdbd_connection.table(random_identifier).exists() is False
-
-
-def test_create_tables_mode_rejects_server_backed_table(qdbd_connection, table):
-    timestamp = np.datetime64("now", "ns")
-    index = np.array([timestamp], dtype="datetime64[ns]")
-
-    # CreateTables accepts only tables built from an explicit local schema.
-    with pytest.raises(quasardb.InvalidArgumentError, match="local schema"):
-        qdbnp.write_arrays(
-            [
-                (
-                    table,
-                    {
-                        "$timestamp": index,
-                        "the_int64": np.array([42], dtype="int64"),
-                    },
-                ),
-            ],
-            qdbd_connection,
-            infer_types=False,
-            creation_mode=quasardb.WriterCreationMode.CreateTables,
-        )
-
-    assert table.exists() is True
 
 
 def test_incorrect_type_double(qdbd_connection, table):

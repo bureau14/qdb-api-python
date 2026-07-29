@@ -45,14 +45,6 @@ class WriterPushMode:
     @property
     def value(self) -> int: ...
 
-class WriterCreationMode:
-    DontCreate: WriterCreationMode  # value = <WriterCreationMode.DontCreate: 0>
-    CreateTables: WriterCreationMode  # value = <WriterCreationMode.CreateTables: 1>
-    @property
-    def name(self) -> str: ...
-    @property
-    def value(self) -> int: ...
-
 class Writer:
     def push(
         self,
@@ -63,7 +55,6 @@ class Writer:
         deduplicate: str,
         retries: int,
         range: Range,
-        creation_mode: WriterCreationMode = WriterCreationMode.DontCreate,
         **kwargs: Any,
     ) -> None: ...
     def push_fast(
@@ -74,7 +65,6 @@ class Writer:
         deduplicate: str,
         retries: int,
         range: Range,
-        creation_mode: WriterCreationMode = WriterCreationMode.DontCreate,
         **kwargs: Any,
     ) -> None:
         """Deprecated: Use `writer.push()` instead."""
@@ -87,7 +77,6 @@ class Writer:
         deduplicate: str,
         retries: int,
         range: Range,
-        creation_mode: WriterCreationMode = WriterCreationMode.DontCreate,
         **kwargs: Any,
     ) -> None:
         """Deprecated: Use `writer.push()` instead."""
@@ -100,7 +89,6 @@ class Writer:
         deduplicate: str,
         retries: int,
         range: Range,
-        creation_mode: WriterCreationMode = WriterCreationMode.DontCreate,
         **kwargs: Any,
     ) -> None:
         """Deprecated: Use `writer.push()` instead3."""
