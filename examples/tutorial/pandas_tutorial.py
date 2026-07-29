@@ -19,10 +19,7 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
     )
     df = pd.DataFrame(data=data, index=timestamps)
 
-    # By providing the create=True parameter, we explicitly tell the Pandas connector to
-    # create a new table based on the schema
-    # of the DataFrame.
-    qdbpd.write_dataframe(df, c, "stocks", create=True)
+    qdbpd.write_dataframe(df, c, "stocks")
 
     # batch-insert-end
 
