@@ -343,28 +343,6 @@ def write_dataframes(
             ).format(argument)
         )
 
-    if create_schemas is not None and not isinstance(create_schemas, dict):
-        raise quasardb.InvalidArgumentError(
-            "Invalid 'create_schemas' type, expected: dict, got: {}".format(
-                type(create_schemas)
-            )
-        )
-    if create_schemas is not None:
-        for schema_alias, configured_schema in create_schemas.items():
-            if not isinstance(schema_alias, str):
-                raise quasardb.InvalidArgumentError(
-                    "Invalid 'create_schemas' key type, expected: str, got: {}".format(
-                        type(schema_alias)
-                    )
-                )
-            if not isinstance(configured_schema, quasardb.TableSchema):
-                raise quasardb.InvalidArgumentError(
-                    (
-                        "Invalid 'create_schemas' value type, expected: "
-                        "TableSchema, got: {}"
-                    ).format(type(configured_schema))
-                )
-
     data_by_table = []
 
     for table, df in dfs:
