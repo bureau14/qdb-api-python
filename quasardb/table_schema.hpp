@@ -82,7 +82,7 @@ public:
         return *this;
     }
 
-    void prepare(qdb_exp_batch_push_table_schema_t & table_schema) const
+    void prepare(qdb_exp_batch_push_table_schema_t & table_schema)
     {
         _column_schema.clear();
         _column_schema.reserve(columns.size());
@@ -114,7 +114,7 @@ public:
     std::chrono::milliseconds ttl;
 
 private:
-    mutable std::vector<qdb_exp_batch_push_column_schema_t> _column_schema;
+    std::vector<qdb_exp_batch_push_column_schema_t> _column_schema;
 };
 
 template <typename Module>
