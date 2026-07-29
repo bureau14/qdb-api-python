@@ -91,6 +91,66 @@ def test_write_arrays_accepts_explicit_table_with_matching_create_schema(
     )
 
 
+@pytest.mark.parametrize(
+    ("schema_columns", "column_data"),
+    [
+        (
+            [quasardb.ColumnInfo(quasardb.ColumnType.Double, "value")],
+            {"value": np.array([1.5], dtype="float64")},
+        ),
+        (
+            [quasardb.ColumnInfo(quasardb.ColumnType.Int64, "other")],
+            {"other": np.array([42], dtype="int64")},
+        ),
+        (
+            [
+                quasardb.ColumnInfo(quasardb.ColumnType.Int64, "value"),
+                quasardb.ColumnInfo(quasardb.ColumnType.Double, "extra"),
+            ],
+            {
+                "value": np.array([42], dtype="int64"),
+                "extra": np.array([1.5], dtype="float64"),
+            },
+        ),
+    ],
+    ids=["column-type", "column-name", "additional-column"],
+)
+def test_write_arrays_rejects_create_schema_mismatch(
+    qdbd_connection, entry_name, schema_columns, column_data
+):
+    column_name = "value"
+    table = qdbd_connection.table(entry_name)
+    table.create(
+        [quasardb.ColumnInfo(quasardb.ColumnType.Int64, column_name)]
+    )
+    schema = quasardb.TableSchema(
+        columns=schema_columns,
+        shard_size=table.get_shard_size(),
+        ttl=table.get_ttl(),
+    )
+    data = {
+        "$timestamp": np.array(
+            ["2020-01-01T00:00:00"],
+            dtype="datetime64[ns]",
+        ),
+        **column_data,
+    }
+
+    with pytest.raises(quasardb.Error):
+        qdbnp.write_arrays(
+            data,
+            qdbd_connection,
+            entry_name,
+            create_schemas={entry_name: schema},
+            infer_types=False,
+        )
+
+    rows = qdbd_connection.query(
+        'SELECT "$timestamp","{}" FROM "{}"'.format(column_name, entry_name)
+    )
+    assert len(rows) == 0
+
+
 def test_write_arrays_rejects_partial_create_schemas(qdbd_connection, entry_name):
     first_table_name = "{}_first".format(entry_name)
     second_table_name = "{}_second".format(entry_name)

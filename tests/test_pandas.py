@@ -163,6 +163,44 @@ def test_write_dataframe_accepts_explicit_table_with_matching_create_schema(
     )
 
 
+def test_write_dataframe_rejects_create_schema_mismatch(
+    qdbd_connection, entry_name
+):
+    column_name = "value"
+    table = qdbd_connection.table(entry_name)
+    table.create(
+        [quasardb.ColumnInfo(quasardb.ColumnType.Int64, column_name)]
+    )
+    schema = quasardb.TableSchema(
+        columns=[
+            quasardb.ColumnInfo(quasardb.ColumnType.Double, column_name),
+        ],
+        shard_size=table.get_shard_size(),
+        ttl=table.get_ttl(),
+    )
+    dataframe = pd.DataFrame(
+        {column_name: np.array([1.5], dtype="float64")},
+        index=pd.Index(
+            np.array(["2020-01-01T00:00:00"], dtype="datetime64[ns]"),
+            name="$timestamp",
+        ),
+    )
+
+    with pytest.raises(quasardb.Error):
+        qdbpd.write_dataframe(
+            dataframe,
+            qdbd_connection,
+            entry_name,
+            create_schemas={entry_name: schema},
+            infer_types=False,
+        )
+
+    rows = qdbd_connection.query(
+        'SELECT "$timestamp","{}" FROM "{}"'.format(column_name, entry_name)
+    )
+    assert len(rows) == 0
+
+
 @pytest.mark.parametrize(
     "removed_argument",
     [
