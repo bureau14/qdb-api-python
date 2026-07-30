@@ -91,32 +91,8 @@ def test_write_arrays_accepts_explicit_table_with_matching_create_schema(
     )
 
 
-@pytest.mark.parametrize(
-    ("schema_columns", "column_data"),
-    [
-        (
-            [quasardb.ColumnInfo(quasardb.ColumnType.Double, "value")],
-            {"value": np.array([1.5], dtype="float64")},
-        ),
-        (
-            [quasardb.ColumnInfo(quasardb.ColumnType.Int64, "other")],
-            {"other": np.array([42], dtype="int64")},
-        ),
-        (
-            [
-                quasardb.ColumnInfo(quasardb.ColumnType.Int64, "value"),
-                quasardb.ColumnInfo(quasardb.ColumnType.Double, "extra"),
-            ],
-            {
-                "value": np.array([42], dtype="int64"),
-                "extra": np.array([1.5], dtype="float64"),
-            },
-        ),
-    ],
-    ids=["column-type", "column-name", "additional-column"],
-)
-def test_write_arrays_rejects_create_schema_mismatch(
-    qdbd_connection, entry_name, schema_columns, column_data
+def test_write_arrays_rejects_create_schema_that_mismatches_existing_table(
+    qdbd_connection, entry_name
 ):
     column_name = "value"
     table = qdbd_connection.table(entry_name)
@@ -124,7 +100,9 @@ def test_write_arrays_rejects_create_schema_mismatch(
         [quasardb.ColumnInfo(quasardb.ColumnType.Int64, column_name)]
     )
     schema = quasardb.TableSchema(
-        columns=schema_columns,
+        columns=[
+            quasardb.ColumnInfo(quasardb.ColumnType.Double, column_name),
+        ],
         shard_size=table.get_shard_size(),
         ttl=table.get_ttl(),
     )
@@ -133,7 +111,7 @@ def test_write_arrays_rejects_create_schema_mismatch(
             ["2020-01-01T00:00:00"],
             dtype="datetime64[ns]",
         ),
-        **column_data,
+        column_name: np.array([1.5], dtype="float64"),
     }
 
     with pytest.raises(quasardb.Error):

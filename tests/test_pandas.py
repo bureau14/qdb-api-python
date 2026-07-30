@@ -163,42 +163,41 @@ def test_write_dataframe_accepts_explicit_table_with_matching_create_schema(
     )
 
 
-def test_write_dataframe_rejects_create_schema_mismatch(
-    qdbd_connection, entry_name
+def test_write_dataframe_passes_create_schemas_to_numpy(
+    monkeypatch, qdbd_connection, entry_name
 ):
     column_name = "value"
-    table = qdbd_connection.table(entry_name)
-    table.create(
-        [quasardb.ColumnInfo(quasardb.ColumnType.Int64, column_name)]
-    )
     schema = quasardb.TableSchema(
         columns=[
-            quasardb.ColumnInfo(quasardb.ColumnType.Double, column_name),
+            quasardb.ColumnInfo(quasardb.ColumnType.Int64, column_name),
         ],
-        shard_size=table.get_shard_size(),
-        ttl=table.get_ttl(),
     )
+    create_schemas = {entry_name: schema}
     dataframe = pd.DataFrame(
-        {column_name: np.array([1.5], dtype="float64")},
+        {column_name: np.array([42], dtype="int64")},
         index=pd.Index(
             np.array(["2020-01-01T00:00:00"], dtype="datetime64[ns]"),
             name="$timestamp",
         ),
     )
+    captured_kwargs = {}
 
-    with pytest.raises(quasardb.Error):
-        qdbpd.write_dataframe(
-            dataframe,
-            qdbd_connection,
-            entry_name,
-            create_schemas={entry_name: schema},
-            infer_types=False,
-        )
+    def capture_write_arrays(*_args, **kwargs):
+        captured_kwargs.update(kwargs)
+        return []
 
-    rows = qdbd_connection.query(
-        'SELECT "$timestamp","{}" FROM "{}"'.format(column_name, entry_name)
+    monkeypatch.setattr(qdbpd.qdbnp, "write_arrays", capture_write_arrays)
+
+    result = qdbpd.write_dataframe(
+        dataframe,
+        qdbd_connection,
+        entry_name,
+        create_schemas=create_schemas,
+        infer_types=False,
     )
-    assert len(rows) == 0
+
+    assert result == []
+    assert captured_kwargs["create_schemas"] is create_schemas
 
 
 @pytest.mark.parametrize(
