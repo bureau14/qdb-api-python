@@ -96,9 +96,7 @@ def test_write_arrays_rejects_create_schema_that_mismatches_existing_table(
 ):
     column_name = "value"
     table = qdbd_connection.table(entry_name)
-    table.create(
-        [quasardb.ColumnInfo(quasardb.ColumnType.Int64, column_name)]
-    )
+    table.create([quasardb.ColumnInfo(quasardb.ColumnType.Int64, column_name)])
     schema = quasardb.TableSchema(
         columns=[
             quasardb.ColumnInfo(quasardb.ColumnType.Double, column_name),

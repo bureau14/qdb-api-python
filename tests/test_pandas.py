@@ -89,9 +89,7 @@ def test_write_dataframes_creates_tables_from_multiple_schemas(
     )
 
 
-def test_write_dataframes_rejects_partial_create_schemas(
-    qdbd_connection, entry_name
-):
+def test_write_dataframes_rejects_partial_create_schemas(qdbd_connection, entry_name):
     first_table_name = "{}_first".format(entry_name)
     second_table_name = "{}_second".format(entry_name)
     column_name = "value"
