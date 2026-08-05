@@ -34,13 +34,27 @@
 #include "masked_array.hpp"
 #include "reader_fwd.hpp"
 #include "table_fwd.hpp"
+#include "table_schema.hpp"
 #include "detail/ts_column.hpp"
+#include <optional>
+#include <utility>
 
 namespace qdb
 {
 
 class table : public entry
 {
+private:
+    static table_schema normalize_local_schema(table_schema schema)
+    {
+        if (detail::find_timestamp_column(schema.columns))
+        {
+            schema.columns.erase(schema.columns.begin());
+        }
+
+        return schema;
+    }
+
 public:
     table(handle_ptr h, std::string a)
         : entry{h, a}
@@ -49,10 +63,28 @@ public:
         _cache_metadata();
     }
 
+    /**
+     * Creates a table handle from a local schema without accessing the server.
+     * The schema, shard size, and TTL are assumed to match an existing table with the same alias.
+     */
+    table(handle_ptr h, std::string a, table_schema schema)
+        : entry{h, a}
+        , _has_indexed_columns(false)
+        , _local_schema{normalize_local_schema(std::move(schema))}
+        , _columns{_local_schema->columns}
+        , _ttl{_local_schema->ttl}
+        , _shard_size{_local_schema->shard_size}
+    {}
+
 public:
     std::string repr() const
     {
         return "<quasardb.Table name='" + get_name() + "'>";
+    }
+
+    std::optional<table_schema> const & local_schema() const noexcept
+    {
+        return _local_schema;
     }
 
     /**
@@ -262,6 +294,7 @@ public:
 
 private:
     mutable bool _has_indexed_columns;
+    const std::optional<table_schema> _local_schema;
     mutable detail::indexed_columns_t _indexed_columns;
 
     mutable std::optional<std::vector<detail::column_info>> _columns;
@@ -272,6 +305,12 @@ private:
 static inline table_ptr make_table_ptr(handle_ptr handle, std::string table_name)
 {
     return std::make_unique<table>(handle, table_name);
+}
+
+static inline table_ptr make_table_ptr_from_schema(
+    handle_ptr handle, std::string table_name, table_schema schema)
+{
+    return std::make_unique<table>(handle, std::move(table_name), std::move(schema));
 }
 
 template <typename Module>

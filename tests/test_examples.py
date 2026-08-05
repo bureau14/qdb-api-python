@@ -12,5 +12,11 @@ def test_tutorial_python():
     import tutorial.python
 
 
+# This tutorial creates a table explicitly
 def test_tutorial_pandas_tutorial():
     import tutorial.pandas_tutorial
+
+
+# This tutorial creates a table lazily
+def test_tutorial_pandas_lazy_table_creation():
+    import tutorial.pandas_lazy_table_creation

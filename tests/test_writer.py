@@ -11,11 +11,180 @@ import numpy as np
 import quasardb.numpy as qdbnp
 
 
+def _make_local_creation_table(qdbd_connection, table_name):
+    columns = [
+        quasardb.ColumnInfo(quasardb.ColumnType.Int64, "value"),
+        quasardb.ColumnInfo(
+            quasardb.ColumnType.Symbol, "symbol", "writer_creation_symbols"
+        ),
+    ]
+    shard_size = datetime.timedelta(days=1)
+    ttl = datetime.timedelta(days=7)
+
+    schema = quasardb.TableSchema(columns, shard_size, ttl)
+    table = qdbd_connection.table_from_schema(table_name, schema)
+    return table, columns, shard_size, ttl
+
+
 def _generate_data(count, start=np.datetime64("2017-01-01", "ns")):
     integers = np.random.randint(-100, 100, count)
     timestamps = tslib._generate_dates(start + np.timedelta64("1", "D"), count)
 
     return (integers, timestamps)
+
+
+def test_local_creation_table_normalizes_explicit_timestamp(
+    qdbd_connection, entry_name
+):
+    columns = [
+        quasardb.ColumnInfo(quasardb.ColumnType.Timestamp, "$timestamp"),
+        quasardb.ColumnInfo(quasardb.ColumnType.Int64, "value"),
+    ]
+    table = qdbd_connection.table_from_schema(
+        entry_name,
+        quasardb.TableSchema(
+            columns,
+            datetime.timedelta(days=1),
+            datetime.timedelta(0),
+        ),
+    )
+
+    local_columns = table.list_columns()
+    assert len(local_columns) == 1
+    assert local_columns[0].name == "value"
+    assert local_columns[0].type == quasardb.ColumnType.Int64
+
+    timestamp = np.datetime64("2020-01-01T00:00:00", "ns")
+    qdbnp.write_arrays(
+        {"$timestamp": np.array([timestamp]), "value": np.array([42], dtype="int64")},
+        qdbd_connection,
+        table,
+        infer_types=False,
+    )
+
+    created_columns = qdbd_connection.table(entry_name).list_columns()
+    assert len(created_columns) == 1
+    assert created_columns[0].name == "value"
+    assert created_columns[0].type == quasardb.ColumnType.Int64
+
+
+@pytest.mark.parametrize(
+    "columns",
+    [
+        [
+            quasardb.ColumnInfo(quasardb.ColumnType.Double, "$timestamp"),
+            quasardb.ColumnInfo(quasardb.ColumnType.Int64, "value"),
+        ],
+        [
+            quasardb.ColumnInfo(quasardb.ColumnType.Int64, "value"),
+            quasardb.ColumnInfo(quasardb.ColumnType.Timestamp, "$timestamp"),
+        ],
+    ],
+    ids=["wrong-type", "wrong-position"],
+)
+def test_local_creation_table_rejects_invalid_timestamp(
+    qdbd_connection, entry_name, columns
+):
+    with pytest.raises(quasardb.InvalidArgumentError):
+        qdbd_connection.table_from_schema(
+            entry_name,
+            quasardb.TableSchema(
+                columns,
+                datetime.timedelta(days=1),
+                datetime.timedelta(0),
+            ),
+        )
+
+
+def test_local_schema_creates_missing_table(qdbd_connection, entry_name):
+    table, expected_columns, shard_size, ttl = _make_local_creation_table(
+        qdbd_connection, entry_name
+    )
+    writer = qdbd_connection.writer()
+    timestamp = np.datetime64("now", "ns")
+
+    writer.start_row(table, timestamp)
+    writer.set_int64(0, 42)
+    writer.set_string(1, "forty-two")
+    writer.push()
+
+    created_table = qdbd_connection.table(entry_name)
+    actual_columns = created_table.list_columns()
+
+    assert len(actual_columns) == len(expected_columns)
+    for actual, expected in zip(actual_columns, expected_columns):
+        assert actual.name == expected.name
+        assert actual.type == expected.type
+        assert actual.symtable == expected.symtable
+
+    assert created_table.get_shard_size() == shard_size
+    assert created_table.get_ttl() == ttl
+
+    rows = qdbd_connection.query(
+        'SELECT "$timestamp","value","symbol" FROM "{}"'.format(entry_name)
+    )
+    assert len(rows) == 1
+    assert rows[0]["$timestamp"] == timestamp
+    assert rows[0]["value"] == 42
+    assert rows[0]["symbol"] == "forty-two"
+
+
+def test_local_schema_uses_existing_table(qdbd_connection, table):
+    local_table = qdbd_connection.table_from_schema(
+        table.get_name(),
+        quasardb.TableSchema(
+            table.list_columns(),
+            table.get_shard_size(),
+            table.get_ttl(),
+        ),
+    )
+    writer = qdbd_connection.writer()
+    timestamp = np.datetime64("2020-01-01T00:00:00", "ns")
+
+    writer.start_row(local_table, timestamp)
+    writer.set_int64(3, 42)
+    writer.push()
+
+    rows = qdbd_connection.query(
+        'SELECT "$timestamp","the_int64" FROM "{}"'.format(table.get_name())
+    )
+    assert len(rows) == 1
+    assert rows[0]["$timestamp"] == timestamp
+    assert rows[0]["the_int64"] == 42
+
+
+def test_local_schema_rejects_mixed_batch(qdbd_connection, table, random_identifier):
+    existing_table = qdbd_connection.table(table.get_name())
+    missing_table, _, _, _ = _make_local_creation_table(
+        qdbd_connection, random_identifier
+    )
+    timestamp = np.datetime64("now", "ns")
+    index = np.array([timestamp], dtype="datetime64[ns]")
+
+    with pytest.raises(quasardb.InvalidArgumentError, match="with and without"):
+        qdbnp.write_arrays(
+            [
+                (
+                    existing_table,
+                    {
+                        "$timestamp": index,
+                        "the_int64": np.array([42], dtype="int64"),
+                    },
+                ),
+                (
+                    missing_table,
+                    {
+                        "$timestamp": index,
+                        "value": np.array([7], dtype="int64"),
+                        "symbol": np.array(["seven"], dtype="U"),
+                    },
+                ),
+            ],
+            qdbd_connection,
+            infer_types=False,
+        )
+
+    assert qdbd_connection.table(random_identifier).exists() is False
 
 
 def test_incorrect_type_double(qdbd_connection, table):

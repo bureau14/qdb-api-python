@@ -192,10 +192,25 @@ private:
             throw qdb::invalid_argument_exception{"No data written to batch writer."};
         }
 
+        bool const has_table_schemas = idx.begin()->second.schema() != nullptr;
+        for (auto pos = idx.begin(); pos != idx.end(); ++pos)
+        {
+            if ((pos->second.schema() != nullptr) != has_table_schemas) [[unlikely]]
+            {
+                throw qdb::invalid_argument_exception{
+                    "A writer batch cannot mix tables with and without a local schema."};
+            }
+        }
+
         auto deduplicate_options = detail::deduplicate_options::from_kwargs(kwargs);
 
         std::vector<qdb_exp_batch_push_table_t> batch;
         batch.assign(idx.size(), qdb_exp_batch_push_table_t());
+
+        // table_schemas owns a contiguous array of table schema structs,
+        // while staged_tables owns the column schemas and strings they reference.
+        // Both remain alive for the push and its retries.
+        std::vector<qdb_exp_batch_push_table_schema_t> table_schemas;
 
         qdb_ts_range_t * truncate_ranges_{nullptr};
         if (truncate_ranges.empty() == false) [[unlikely]]
@@ -203,19 +218,27 @@ private:
             truncate_ranges_ = truncate_ranges.data();
         }
 
-        int cur = 0;
+        if (has_table_schemas)
+        {
+            table_schemas.resize(idx.size());
+        }
+
+        std::size_t cur = 0;
 
         for (auto pos = idx.begin(); pos != idx.end(); ++pos)
         {
             std::string const & table_name      = pos->first;
             detail::staged_table & staged_table = pos->second;
-            auto & batch_table                  = batch.at(cur++);
+            auto & batch_table                  = batch.at(cur);
+            qdb_exp_batch_push_table_schema_t * table_schema =
+                has_table_schemas ? &table_schemas.at(cur) : nullptr;
 
             staged_table.prepare_batch( //
                 options.mode,           //
                 deduplicate_options,    //
                 truncate_ranges_,       //
-                batch_table);
+                batch_table,            //
+                table_schema);
 
             if (batch_table.data.column_count == 0) [[unlikely]]
             {
@@ -226,11 +249,14 @@ private:
             _logger.debug("Pushing %d rows with %d columns in %s using %s push mode",
                 batch_table.data.row_count, batch_table.data.column_count, table_name,
                 detail::batch_push_mode::to_string(options.mode));
+
+            ++cur;
         }
 
         _do_push<PushStrategy, SleepStrategy>(         //
             options,                                   //
             batch,                                     //
+            table_schemas,                             //
             PushStrategy::from_kwargs(kwargs),         //
             detail::retry_options::from_kwargs(kwargs) //
         );                                             //
@@ -241,10 +267,16 @@ private:
         concepts::sleep_strategy SleepStrategy>      //
     void _do_push(qdb_exp_batch_options_t const & options,
         std::vector<qdb_exp_batch_push_table_t> const & batch,
+        std::vector<qdb_exp_batch_push_table_schema_t> const & table_schemas,
         PushStrategy push_strategy,
         detail::retry_options const & retry_options)
     {
         qdb_error_t err{qdb_e_ok};
+
+        qdb_exp_batch_push_table_schema_t const * table_schemas_data =
+            table_schemas.empty() ? nullptr : table_schemas.data();
+        qdb_exp_batch_push_table_schema_t const ** table_schemas_ =
+            table_schemas.empty() ? nullptr : &table_schemas_data;
 
         {
             // Make sure to measure the time it takes to do the actual push.
@@ -256,7 +288,7 @@ private:
                 *_handle,        //
                 &options,        //
                 batch.data(),    //
-                nullptr,         //
+                table_schemas_,  //
                 batch.size());   //
         }
 
@@ -282,7 +314,7 @@ private:
             // left and the next sleep duration.
             _logger.warn("Retrying push operation, retries left: %d", retry_options.retries_left);
             return _do_push<PushStrategy, SleepStrategy>(
-                options, batch, push_strategy, retry_options.next());
+                options, batch, table_schemas, push_strategy, retry_options.next());
         }
 
         qdb::qdb_throw_if_error(*_handle, err);

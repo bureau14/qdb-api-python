@@ -16,6 +16,146 @@ from utils import assert_indexed_arrays_equal, assert_ma_equal
 logger = logging.getLogger("test-numpy")
 
 
+def test_write_arrays_creates_table_lazily(qdbd_connection, entry_name):
+    column_name = "value"
+    schema = quasardb.TableSchema(
+        columns=[quasardb.ColumnInfo(quasardb.ColumnType.Int64, column_name)],
+        shard_size=timedelta(hours=6),
+        ttl=timedelta(days=7),
+    )
+    index = np.array([np.datetime64("now", "ns")], dtype="datetime64[ns]")
+    values = np.array([42], dtype="int64")
+
+    _write_single_column(
+        qdbd_connection,
+        entry_name,
+        column_name,
+        values,
+        index,
+        infer_types=False,
+        create_schemas={entry_name: schema},
+    )
+
+    actual_index, actual_values = _read_single_column(
+        qdbd_connection, entry_name, column_name
+    )
+    np.testing.assert_array_equal(actual_index, index)
+    np.testing.assert_array_equal(actual_values, values)
+    created_table = qdbd_connection.table(entry_name)
+    assert created_table.get_shard_size() == schema.shard_size
+    assert created_table.get_ttl() == schema.ttl
+
+
+def test_write_arrays_does_not_create_table_without_schema(qdbd_connection, entry_name):
+    column_name = "value"
+    table = qdbd_connection.table(entry_name)
+    index = np.array(["2020-01-01T00:00:00"], dtype="datetime64[ns]")
+    values = np.array([42], dtype="int64")
+
+    with pytest.raises(quasardb.AliasNotFoundError):
+        _write_single_column(
+            qdbd_connection,
+            table,
+            column_name,
+            values,
+            index,
+            infer_types=False,
+        )
+
+
+def test_write_arrays_accepts_explicit_table_with_matching_create_schema(
+    monkeypatch, qdbd_connection, table
+):
+    column_name = tslib._int64_col_name(table)
+    index = np.array(["2020-01-01T00:00:00"], dtype="datetime64[ns]")
+    values = np.array([42], dtype="int64")
+    schema = quasardb.TableSchema(
+        columns=table.list_columns(),
+        shard_size=table.get_shard_size(),
+        ttl=table.get_ttl(),
+    )
+
+    def unexpected_lookup(*_args, **_kwargs):
+        raise AssertionError("Explicit Table must not be replaced by a cache lookup")
+
+    monkeypatch.setattr(qdbnp.table_cache, "lookup", unexpected_lookup)
+
+    _write_single_column(
+        qdbd_connection,
+        table,
+        column_name,
+        values,
+        index,
+        infer_types=False,
+        create_schemas={table.get_name(): schema},
+    )
+
+
+def test_write_arrays_rejects_create_schema_that_mismatches_existing_table(
+    qdbd_connection, entry_name
+):
+    column_name = "value"
+    table = qdbd_connection.table(entry_name)
+    table.create([quasardb.ColumnInfo(quasardb.ColumnType.Int64, column_name)])
+    schema = quasardb.TableSchema(
+        columns=[
+            quasardb.ColumnInfo(quasardb.ColumnType.Double, column_name),
+        ],
+        shard_size=table.get_shard_size(),
+        ttl=table.get_ttl(),
+    )
+    data = {
+        "$timestamp": np.array(
+            ["2020-01-01T00:00:00"],
+            dtype="datetime64[ns]",
+        ),
+        column_name: np.array([1.5], dtype="float64"),
+    }
+
+    with pytest.raises(quasardb.Error):
+        qdbnp.write_arrays(
+            data,
+            qdbd_connection,
+            entry_name,
+            create_schemas={entry_name: schema},
+            infer_types=False,
+        )
+
+    rows = qdbd_connection.query(
+        'SELECT "$timestamp","{}" FROM "{}"'.format(column_name, entry_name)
+    )
+    assert len(rows) == 0
+
+
+def test_write_arrays_rejects_partial_create_schemas(qdbd_connection, entry_name):
+    first_table_name = "{}_first".format(entry_name)
+    second_table_name = "{}_second".format(entry_name)
+    column_name = "value"
+    schema = quasardb.TableSchema(
+        columns=[quasardb.ColumnInfo(quasardb.ColumnType.Int64, column_name)],
+    )
+    index = np.array(["2020-01-01T00:00:00"], dtype="datetime64[ns]")
+    values = np.array([42], dtype="int64")
+    data = {
+        "$timestamp": index,
+        column_name: values,
+    }
+
+    with pytest.raises(quasardb.InvalidArgumentError, match=second_table_name):
+        qdbnp.write_arrays(
+            [
+                (first_table_name, data),
+                (second_table_name, data),
+            ],
+            qdbd_connection,
+            infer_types=False,
+            create_schemas={first_table_name: schema},
+        )
+
+    assert qdbd_connection.table(first_table_name).exists() is False
+    assert qdbd_connection.table(second_table_name).exists() is False
+
+
 def _unicode_to_object_array(xs):
     assert ma.isMA(xs)
     assert xs.dtype.kind == "U"

@@ -54,6 +54,17 @@ class ColumnInfo:
     def __init__(self, type: ColumnType, name: str, symtable: str) -> None: ...
     def __repr__(self) -> str: ...
 
+class TableSchema:
+    columns: list[ColumnInfo]
+    shard_size: datetime.timedelta
+    ttl: datetime.timedelta
+    def __init__(
+        self,
+        columns: list[ColumnInfo],
+        shard_size: datetime.timedelta = ...,
+        ttl: datetime.timedelta = ...,
+    ) -> None: ...
+
 class IndexedColumnInfo:
     @typing.overload
     def __init__(self, type: ColumnType, index: int) -> None: ...

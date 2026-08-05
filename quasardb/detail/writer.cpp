@@ -220,11 +220,22 @@ void staged_table::prepare_table_data(qdb_exp_batch_push_table_data_t & table_da
 void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
     detail::deduplicate_options const & deduplicate_options,
     qdb_ts_range_t * ranges,
-    qdb_exp_batch_push_table_t & batch)
+    qdb_exp_batch_push_table_t & batch,
+    qdb_exp_batch_push_table_schema_t * table_schema)
 {
     batch.name = _table_name.c_str();
 
     prepare_table_data(batch.data);
+    if (table_schema != nullptr)
+    {
+        assert(_table_schema.has_value());
+        _table_schema->prepare(*table_schema);
+    }
+    else
+    {
+        assert(_table_schema.has_value() == false);
+    }
+
     if (mode == qdb_exp_batch_push_truncate)
     {
         batch.truncate_ranges      = ranges;
@@ -235,7 +246,7 @@ void staged_table::prepare_batch(qdb_exp_batch_push_mode_t mode,
     batch.where_duplicate       = nullptr;
     batch.where_duplicate_count = 0;
     batch.deduplication_mode    = qdb_exp_batch_deduplication_mode_disabled;
-    batch.creation              = qdb_exp_batch_dont_create;
+    batch.creation = table_schema == nullptr ? qdb_exp_batch_dont_create : qdb_exp_batch_create_tables;
 
     enum detail::deduplication_mode_t mode_ = deduplicate_options.mode_;
 

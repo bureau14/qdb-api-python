@@ -30,12 +30,10 @@ from __future__ import annotations
 
 import logging
 import warnings
-from datetime import timedelta
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Union
 
 import quasardb
 import quasardb.numpy as qdbnp
-import quasardb.table_cache as table_cache
 from quasardb.quasardb import Cluster, Table, Writer
 from quasardb.typing import DType, MaskedArrayAny, Range, RangeSet
 
@@ -61,30 +59,6 @@ try:
 except ImportError:
     raise PandasRequired("The pandas library is required to handle pandas data formats")
 
-
-# Constant mapping of numpy dtype to QuasarDB column type
-# TODO(leon): support this natively in qdb C api ? we have everything we need
-#             to understand dtypes.
-_dtype_map: Dict[Any, quasardb.ColumnType] = {
-    np.dtype("int64"): quasardb.ColumnType.Int64,
-    np.dtype("int32"): quasardb.ColumnType.Int64,
-    np.dtype("float64"): quasardb.ColumnType.Double,
-    np.dtype("object"): quasardb.ColumnType.String,
-    np.dtype("M8[ns]"): quasardb.ColumnType.Timestamp,
-    np.dtype("datetime64[ns]"): quasardb.ColumnType.Timestamp,
-    "int64": quasardb.ColumnType.Int64,
-    "int32": quasardb.ColumnType.Int64,
-    "float32": quasardb.ColumnType.Double,
-    "float64": quasardb.ColumnType.Double,
-    "timestamp": quasardb.ColumnType.Timestamp,
-    "string": quasardb.ColumnType.String,
-    "bytes": quasardb.ColumnType.Blob,
-    "floating": quasardb.ColumnType.Double,
-    "integer": quasardb.ColumnType.Int64,
-    "bytes": quasardb.ColumnType.Blob,
-    "string": quasardb.ColumnType.String,
-    "datetime64": quasardb.ColumnType.Timestamp,
-}
 
 # Type hint for TableLike parameter
 TableLike = Union[str, Table]
@@ -271,26 +245,24 @@ def read_dataframe(
         return pd.DataFrame()
 
 
-def _extract_columns(
-    df: pd.DataFrame, cinfos: List[Tuple[str, quasardb.ColumnType]]
-) -> Dict[str, MaskedArrayAny]:
+def _extract_columns(df: pd.DataFrame) -> Dict[str, MaskedArrayAny]:
     """
-    Converts dataframe to a number of numpy arrays, one for each column.
+    Convert string-named dataframe columns to numpy masked arrays.
 
-    Arrays will be indexed by relative offset, in the same order as the table's columns.
-    If a table column is not present in the dataframe, it it have a None entry.
-    If a dataframe column is not present in the table, it will be ommitted.
+    Schema validation, column ordering, and handling of missing or additional
+    columns are delegated to numpy.write_arrays().
     """
     ret: Dict[str, MaskedArrayAny] = {}
 
-    # Grab all columns from the DataFrame in the order of table columns,
-    # put None if not present in df.
-    for i in range(len(cinfos)):
-        (cname, _) = cinfos[i]
+    for column_name in df.columns:
+        if not isinstance(column_name, str):
+            continue
 
-        if cname in df.columns:
-            arr = df[cname].array
-            ret[cname] = ma.masked_array(arr.to_numpy(copy=False), mask=arr.isna())
+        array = df[column_name].array
+        ret[column_name] = ma.masked_array(
+            array.to_numpy(copy=False),
+            mask=array.isna(),
+        )
 
     return ret
 
@@ -302,8 +274,7 @@ def write_dataframes(
     ],
     cluster: quasardb.Cluster,
     *,
-    create: bool = False,
-    shard_size: Optional[timedelta] = None,
+    create_schemas: Optional[Dict[str, quasardb.TableSchema]] = None,
     # numpy.write_arrays passthrough options
     dtype: Optional[
         Union[DType, Dict[str, Optional[DType]], List[Optional[DType]]]
@@ -336,39 +307,43 @@ def write_dataframes(
     cluster: quasardb.Cluster
       Active connection to the QuasarDB cluster
 
-    create: optional bool
-      Whether to create the table. Defaults to False.
+    create_schemas: optional dict[str, quasardb.TableSchema]
+      Schemas of tables that may be created during the writer push, indexed by table alias.
+      Providing this argument enables lazy table creation for the entire batch. Every table in
+      the batch must have an entry; mixing tables with and without local schemas is not supported.
+      If an alias already exists, its columns, shard size, and TTL must match the provided schema.
+      The Python API does not verify this before the push.
 
-    shard_size: optional datetime.timedelta
-      The shard size of the timeseries you wish to create when `create` is True.
+      Example::
+
+        create_schemas = {
+            "prices": quasardb.TableSchema(
+                columns=[
+                    quasardb.ColumnInfo(quasardb.ColumnType.Double, "value"),
+                ],
+            ),
+        }
     """
 
     # If dfs is a dict, we convert it to a list of tuples.
     if isinstance(dfs, dict):
         dfs = list(dfs.items())
 
-    if shard_size is not None and create == False:
-        raise ValueError("Invalid argument: shard size provided while create is False")
-
-    # If the tables are provided as strings, we look them up.
-    dfs_ = []
-    for table, df in dfs:
-        if isinstance(table, str):
-            table = table_cache.lookup(table, cluster)
-
-        dfs_.append((table, df))
+    removed_creation_arguments = {"create", "shard_size"}
+    unsupported_arguments = removed_creation_arguments.intersection(kwargs)
+    if unsupported_arguments:
+        argument = sorted(unsupported_arguments)[0]
+        raise TypeError(
+            (
+                "Pandas write functions no longer accept '{}'; "
+                "use 'create_schemas' instead"
+            ).format(argument)
+        )
 
     data_by_table = []
 
-    for table, df in dfs_:
-        logger.debug("quasardb.pandas.write_dataframe, create = %s", create)
+    for table, df in dfs:
         assert isinstance(df, pd.DataFrame)
-
-        # Create table if requested
-        if create:
-            _create_table_from_df(df, table, shard_size)
-
-        cinfos = [(x.name, x.type) for x in table.list_columns()]
 
         if not df.index.is_monotonic_increasing:
             logger.warning(
@@ -381,7 +356,7 @@ def write_dataframes(
         # pandas has the bad habit of wanting to cast data to different types if your data
         # is sparse, most notably forcing sparse integer arrays to floating points.
 
-        data = _extract_columns(df, cinfos)
+        data = _extract_columns(df)
         data["$timestamp"] = ma.masked_array(
             df.index.to_numpy(copy=False, dtype="datetime64[ns]")
         )  # We cast to masked_array to enforce typing compliance
@@ -396,6 +371,7 @@ def write_dataframes(
         index=None,
         dtype=dtype,
         push_mode=push_mode,
+        create_schemas=create_schemas,
         _async=_async,
         fast=fast,
         truncate=truncate,
@@ -415,8 +391,7 @@ def write_dataframe(
     cluster: quasardb.Cluster,
     table: TableLike,
     *,
-    create: bool = False,
-    shard_size: Optional[timedelta] = None,
+    create_schemas: Optional[Dict[str, quasardb.TableSchema]] = None,
     # numpy.write_arrays passthrough options
     dtype: Optional[
         Union[DType, Dict[str, Optional[DType]], List[Optional[DType]]]
@@ -442,8 +417,7 @@ def write_dataframe(
     return write_dataframes(
         [(table, df)],
         cluster,
-        create=create,
-        shard_size=shard_size,
+        create_schemas=create_schemas,
         dtype=dtype,
         push_mode=push_mode,
         _async=_async,
@@ -465,8 +439,7 @@ def write_pinned_dataframe(
     cluster: quasardb.Cluster,
     table: TableLike,
     *,
-    create: bool = False,
-    shard_size: Optional[timedelta] = None,
+    create_schemas: Optional[Dict[str, quasardb.TableSchema]] = None,
     # numpy.write_arrays passthrough options
     dtype: Optional[
         Union[DType, Dict[str, Optional[DType]], List[Optional[DType]]]
@@ -496,8 +469,7 @@ def write_pinned_dataframe(
         df,
         cluster,
         table,
-        create=create,
-        shard_size=shard_size,
+        create_schemas=create_schemas,
         dtype=dtype,
         push_mode=push_mode,
         _async=_async,
@@ -512,62 +484,3 @@ def write_pinned_dataframe(
         retries=retries,
         **kwargs,
     )
-
-
-def _create_table_from_df(
-    df: pd.DataFrame, table: Table, shard_size: Optional[timedelta] = None
-) -> Table:
-    cols = list()
-
-    dtypes = _get_inferred_dtypes(df)
-
-    logger.info("got inferred dtypes: %s", dtypes)
-    for c in df.columns:
-        dt = dtypes[c]
-        ct = _dtype_to_column_type(df[c].dtype, dt)
-        logger.debug(
-            "probed pandas dtype %s to inferred dtype %s and map to quasardb column type %s",
-            df[c].dtype,
-            dt,
-            ct,
-        )
-        cols.append(quasardb.ColumnInfo(ct, c))
-
-    try:
-        if not shard_size:
-            table.create(cols)
-        else:
-            table.create(cols, shard_size)
-    except quasardb.AliasAlreadyExistsError:
-        # TODO(leon): warn? how?
-        pass
-
-    return table
-
-
-def _dtype_to_column_type(dt: Any, inferred: Any) -> quasardb.ColumnType:
-    res = _dtype_map.get(inferred, None)
-    if res is None:
-        res = _dtype_map.get(dt, None)
-
-    if res is None:
-        raise ValueError("Incompatible data type: ", dt)
-
-    return res
-
-
-def _get_inferred_dtypes(df: pd.DataFrame) -> Dict[str, str]:
-    dtypes = {}
-    for i in range(len(df.columns)):
-        c = df.columns[i]
-        dt = pd.api.types.infer_dtype(df[c].values)
-        logger.debug("Determined dtype of column %s to be %s", c, dt)
-        dtypes[c] = dt
-    return dtypes
-
-
-def _get_inferred_dtypes_indexed(df: pd.DataFrame) -> List[str]:
-    dtypes = _get_inferred_dtypes(df)
-    # Performance improvement: avoid a expensive dict lookups by indexing
-    # the column types by relative offset within the df.
-    return list(dtypes[c] for c in df.columns)

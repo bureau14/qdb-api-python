@@ -387,6 +387,7 @@ set(QDB_FILES
   table.cpp
   table.hpp
   table_fwd.hpp
+  table_schema.hpp
   tag.hpp
   timestamp.hpp
   traits.hpp

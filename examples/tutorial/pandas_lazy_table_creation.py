@@ -11,17 +11,6 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
 
     # batch-insert-start
 
-    # Acquire a reference to the table and define its columns
-    stocks_table = c.table("stocks")
-    columns = [
-        quasardb.ColumnInfo(quasardb.ColumnType.Double, "open"),
-        quasardb.ColumnInfo(quasardb.ColumnType.Double, "close"),
-        quasardb.ColumnInfo(quasardb.ColumnType.Int64, "volume"),
-    ]
-
-    # Create the table before writing the DataFrame
-    stocks_table.create(columns)
-
     # Prepare the entire DataFrame which we wish to store
     data = {"open": [3.40, 3.50], "close": [3.50, 3.55], "volume": [10000, 7500]}
     timestamps = np.array(
@@ -29,26 +18,34 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
         dtype="datetime64[ns]",
     )
     df = pd.DataFrame(data=data, index=timestamps)
-    qdbpd.write_dataframe(df, c, stocks_table)
+
+    # Providing an explicit schema allows the writer to create the table lazily
+    # if it is missing.
+    stocks_schema = quasardb.TableSchema(
+        columns=[
+            quasardb.ColumnInfo(quasardb.ColumnType.Double, "open"),
+            quasardb.ColumnInfo(quasardb.ColumnType.Double, "close"),
+            quasardb.ColumnInfo(quasardb.ColumnType.Int64, "volume"),
+        ],
+    )
+    qdbpd.write_dataframe(
+        df,
+        c,
+        "stocks",
+        create_schemas={"stocks": stocks_schema},
+    )
 
     # batch-insert-end
 
     # bulk-read-start
 
     ranges = [(np.datetime64("2019-02-01", "ns"), np.datetime64("2019-02-02", "ns"))]
+    t = c.table("stocks")
+
     # The `read_dataframe` function provides a performance-efficient mechanism to read data
     # from an entire table. We can optionally provide the time range we want to read from.
-    df = qdbpd.read_dataframe(c, stocks_table, ranges=ranges)
+    df = qdbpd.read_dataframe(c, t, ranges=ranges)
 
     # bulk-read-end
 
-    # query-start
-
-    df = qdbpd.query(c, "SELECT SUM(volume) FROM stocks")
-
-    # The API returns dataframe
-    print("result: ", df)
-
-    # query-end
-
-    stocks_table.remove()
+    c.table("stocks").remove()

@@ -762,6 +762,7 @@ def write_arrays(
     index: Optional[NDArrayTime] = None,
     # TODO: Set the default push_mode after removing _async, fast and truncate
     push_mode: Optional[quasardb.WriterPushMode] = None,
+    create_schemas: Optional[Dict[str, quasardb.TableSchema]] = None,
     _async: bool = False,
     fast: bool = False,
     truncate: Union[bool, Tuple[Any, ...]] = False,
@@ -852,6 +853,23 @@ def write_arrays(
 
       Defaults to `Transactional`.
 
+    create_schemas: optional dict[str, quasardb.TableSchema]
+      Schemas of tables that may be created during the writer push, indexed by table alias.
+      Providing this argument enables lazy table creation for the entire batch. Every table in
+      the batch must have an entry; mixing tables with and without local schemas is not supported.
+      If an alias already exists, its columns, shard size, and TTL must match the provided schema.
+      The Python API does not verify this before the push.
+
+      Example::
+
+        create_schemas = {
+            "prices": quasardb.TableSchema(
+                columns=[
+                    quasardb.ColumnInfo(quasardb.ColumnType.Double, "value"),
+                ],
+            ),
+        }
+
     truncate: optional bool
       **DEPRECATED** - Use `push_mode=WriterPushMode.Truncate` instead.
       Truncate (also referred to as upsert) the data in-place. Will detect time range to truncate
@@ -904,6 +922,15 @@ def write_arrays(
         table = None
 
     _type_check(push_mode, "push_mode", target_type=quasardb.WriterPushMode)
+    if create_schemas is not None:
+        _type_check(create_schemas, "create_schemas", target_type=dict)
+        for schema_alias, configured_schema in create_schemas.items():
+            _type_check(schema_alias, "create_schemas key", target_type=str)
+            _type_check(
+                configured_schema,
+                "create_schemas value",
+                target_type=quasardb.TableSchema,
+            )
     deprecation_stacklevel = kwargs.pop("deprecation_stacklevel", 1) + 1
 
     if isinstance(truncate, tuple):
@@ -954,9 +981,20 @@ def write_arrays(
     push_data = quasardb.WriterData()
 
     for table_, data_ in data:
-        # Acquire reference to table_ if string is provided
-        if isinstance(table_, str):
-            table_ = table_cache.lookup(table_, cluster)
+        table_alias = table_ if isinstance(table_, str) else table_.get_name()
+        if create_schemas and table_alias not in create_schemas:
+            raise quasardb.InvalidArgumentError(
+                "Invalid 'create_schemas': missing schema for table '{}'".format(
+                    table_alias
+                )
+            )
+
+        schema = create_schemas.get(table_alias) if create_schemas is not None else None
+
+        if schema is not None:
+            table_ = cluster.table_from_schema(table_alias, schema)
+        elif isinstance(table_, str):
+            table_ = table_cache.lookup(table_alias, cluster)
 
         cinfos = [(x.name, x.type) for x in table_.list_columns()]
         dtype_ = _coerce_dtype(dtype, cinfos)

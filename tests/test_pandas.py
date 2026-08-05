@@ -16,6 +16,215 @@ ROW_COUNT = 1000
 logger = logging.getLogger("test-pandas")
 
 
+def test_write_dataframe_creates_table_lazily(qdbd_connection, entry_name):
+    column_name = "value"
+    schema = quasardb.TableSchema(
+        columns=[quasardb.ColumnInfo(quasardb.ColumnType.Int64, column_name)],
+    )
+    index = pd.Index(
+        np.array(["2020-01-01T00:00:00"], dtype="datetime64[ns]"),
+        name="$timestamp",
+    )
+    expected = pd.DataFrame({column_name: np.array([42], dtype="int64")}, index=index)
+
+    qdbpd.write_dataframe(
+        expected,
+        qdbd_connection,
+        entry_name,
+        infer_types=False,
+        create_schemas={entry_name: schema},
+    )
+
+    actual = qdbpd.read_dataframe(qdbd_connection, entry_name)
+    _assert_df_equal(expected, actual)
+
+
+def test_write_dataframes_creates_tables_from_multiple_schemas(
+    qdbd_connection, entry_name
+):
+    first_table_name = "{}_first".format(entry_name)
+    second_table_name = "{}_second".format(entry_name)
+    index = pd.Index(
+        np.array(["2020-01-01T00:00:00"], dtype="datetime64[ns]"),
+        name="$timestamp",
+    )
+    first_dataframe = pd.DataFrame(
+        {"value": np.array([42], dtype="int64")},
+        index=index,
+    )
+    second_dataframe = pd.DataFrame(
+        {"price": np.array([1.5], dtype="float64")},
+        index=index,
+    )
+    schemas = {
+        first_table_name: quasardb.TableSchema(
+            columns=[
+                quasardb.ColumnInfo(quasardb.ColumnType.Int64, "value"),
+            ],
+        ),
+        second_table_name: quasardb.TableSchema(
+            columns=[
+                quasardb.ColumnInfo(quasardb.ColumnType.Double, "price"),
+            ],
+        ),
+    }
+
+    qdbpd.write_dataframes(
+        [
+            (first_table_name, first_dataframe),
+            (second_table_name, second_dataframe),
+        ],
+        qdbd_connection,
+        create_schemas=schemas,
+        infer_types=False,
+    )
+
+    _assert_df_equal(
+        first_dataframe,
+        qdbpd.read_dataframe(qdbd_connection, first_table_name),
+    )
+    _assert_df_equal(
+        second_dataframe,
+        qdbpd.read_dataframe(qdbd_connection, second_table_name),
+    )
+
+
+def test_write_dataframes_rejects_partial_create_schemas(qdbd_connection, entry_name):
+    first_table_name = "{}_first".format(entry_name)
+    second_table_name = "{}_second".format(entry_name)
+    column_name = "value"
+    schema = quasardb.TableSchema(
+        columns=[quasardb.ColumnInfo(quasardb.ColumnType.Int64, column_name)],
+    )
+    dataframe = pd.DataFrame(
+        {column_name: np.array([42], dtype="int64")},
+        index=pd.Index(
+            np.array(["2020-01-01T00:00:00"], dtype="datetime64[ns]"),
+            name="$timestamp",
+        ),
+    )
+
+    with pytest.raises(quasardb.InvalidArgumentError, match=second_table_name):
+        qdbpd.write_dataframes(
+            [
+                (first_table_name, dataframe),
+                (second_table_name, dataframe),
+            ],
+            qdbd_connection,
+            create_schemas={first_table_name: schema},
+            infer_types=False,
+        )
+
+    assert qdbd_connection.table(first_table_name).exists() is False
+    assert qdbd_connection.table(second_table_name).exists() is False
+
+
+def test_write_dataframe_does_not_create_table_without_schema(
+    qdbd_connection, entry_name
+):
+    column_name = "value"
+    index = pd.Index(
+        np.array(["2020-01-01T00:00:00"], dtype="datetime64[ns]"),
+        name="$timestamp",
+    )
+    dataframe = pd.DataFrame({column_name: np.array([42], dtype="int64")}, index=index)
+
+    with pytest.raises(quasardb.AliasNotFoundError):
+        qdbpd.write_dataframe(
+            dataframe,
+            qdbd_connection,
+            entry_name,
+            infer_types=False,
+        )
+
+
+def test_write_dataframe_accepts_explicit_table_with_matching_create_schema(
+    monkeypatch, qdbd_connection, df_with_table
+):
+    (_, _, dataframe, table) = df_with_table
+    schema = quasardb.TableSchema(
+        columns=table.list_columns(),
+        shard_size=table.get_shard_size(),
+        ttl=table.get_ttl(),
+    )
+
+    def unexpected_lookup(*_args, **_kwargs):
+        raise AssertionError("Explicit Table must not be replaced by a cache lookup")
+
+    monkeypatch.setattr(qdbpd.qdbnp.table_cache, "lookup", unexpected_lookup)
+
+    qdbpd.write_dataframe(
+        dataframe,
+        qdbd_connection,
+        table,
+        create_schemas={table.get_name(): schema},
+    )
+
+
+def test_write_dataframe_passes_create_schemas_to_numpy(
+    monkeypatch, qdbd_connection, entry_name
+):
+    column_name = "value"
+    schema = quasardb.TableSchema(
+        columns=[
+            quasardb.ColumnInfo(quasardb.ColumnType.Int64, column_name),
+        ],
+    )
+    create_schemas = {entry_name: schema}
+    dataframe = pd.DataFrame(
+        {column_name: np.array([42], dtype="int64")},
+        index=pd.Index(
+            np.array(["2020-01-01T00:00:00"], dtype="datetime64[ns]"),
+            name="$timestamp",
+        ),
+    )
+    captured_kwargs = {}
+
+    def capture_write_arrays(*_args, **kwargs):
+        captured_kwargs.update(kwargs)
+        return []
+
+    monkeypatch.setattr(qdbpd.qdbnp, "write_arrays", capture_write_arrays)
+
+    result = qdbpd.write_dataframe(
+        dataframe,
+        qdbd_connection,
+        entry_name,
+        create_schemas=create_schemas,
+        infer_types=False,
+    )
+
+    assert result == []
+    assert captured_kwargs["create_schemas"] is create_schemas
+
+
+@pytest.mark.parametrize(
+    "removed_argument",
+    [
+        {"create": True},
+        {"shard_size": timedelta(days=1)},
+    ],
+)
+def test_write_dataframe_rejects_removed_creation_arguments(
+    qdbd_connection, entry_name, removed_argument
+):
+    dataframe = pd.DataFrame(
+        {"value": np.array([42], dtype="int64")},
+        index=pd.Index(
+            np.array(["2020-01-01T00:00:00"], dtype="datetime64[ns]"),
+            name="$timestamp",
+        ),
+    )
+
+    with pytest.raises(TypeError, match="create_schemas"):
+        qdbpd.write_dataframe(
+            dataframe,
+            qdbd_connection,
+            entry_name,
+            **removed_argument,
+        )
+
+
 def _to_numpy_masked(xs):
     data = xs.to_numpy()
     mask = xs.isna()
@@ -306,34 +515,59 @@ def test_write_dataframe_deduplicate(
     _assert_df_equal(df1, df2)
 
 
-def test_write_dataframe_create_table(
+def test_write_dataframe_create_table_lazily(
     qdbpd_write_fn, qdbd_connection, gen_df, table_name
 ):
-    (_, _, df1) = gen_df
+    (column_type, _, df1) = gen_df
 
     table = qdbd_connection.ts(table_name)
-    qdbpd_write_fn(df1, qdbd_connection, table, create=True)
+    schema = quasardb.TableSchema(
+        columns=[quasardb.ColumnInfo(column_type, df1.columns[0])],
+    )
+    qdbpd_write_fn(
+        df1,
+        qdbd_connection,
+        table,
+        create_schemas={table_name: schema},
+    )
 
     df2 = qdbpd.read_dataframe(qdbd_connection, table)
 
     _assert_df_equal(df1, df2)
 
 
-def test_write_dataframe_create_table_twice(
+def test_write_dataframe_uses_existing_table_with_create_schema(
     qdbpd_write_fn, qdbd_connection, df_with_table
 ):
     (_, _, df, table) = df_with_table
-    qdbpd_write_fn(df, qdbd_connection, table, create=True)
+    schema = quasardb.TableSchema(
+        columns=table.list_columns(),
+        shard_size=table.get_shard_size(),
+        ttl=table.get_ttl(),
+    )
+    qdbpd_write_fn(
+        df,
+        qdbd_connection,
+        table,
+        create_schemas={table.get_name(): schema},
+    )
 
 
-def test_write_dataframe_create_table_with_shard_size(
+def test_write_dataframe_create_schema_with_shard_size(
     qdbpd_write_fn, qdbd_connection, gen_df, table_name
 ):
-    (_, _, df1) = gen_df
+    (column_type, _, df1) = gen_df
     table = qdbd_connection.ts(table_name)
+    schema = quasardb.TableSchema(
+        columns=[quasardb.ColumnInfo(column_type, df1.columns[0])],
+        shard_size=timedelta(weeks=4),
+    )
 
     qdbpd_write_fn(
-        df1, qdbd_connection, table, create=True, shard_size=timedelta(weeks=4)
+        df1,
+        qdbd_connection,
+        table,
+        create_schemas={table_name: schema},
     )
 
     df2 = qdbpd.read_dataframe(qdbd_connection, table)
@@ -427,9 +661,25 @@ def test_regression_sc11057(qdbd_connection, table_name):
         "unique_tagname": np.array(["ABC", "DEF", "GHI"], dtype="unicode"),
     }
     df = pd.DataFrame(data=data, index=idx)
+    schema = quasardb.TableSchema(
+        columns=[
+            quasardb.ColumnInfo(
+                quasardb.ColumnType.Timestamp,
+                "record_timestamp",
+            ),
+            quasardb.ColumnInfo(
+                quasardb.ColumnType.String,
+                "unique_tagname",
+            ),
+        ],
+    )
 
     qdbpd.write_dataframe(
-        df, qdbd_connection, table_name, create=True, infer_types=True
+        df,
+        qdbd_connection,
+        table_name,
+        create_schemas={table_name: schema},
+        infer_types=True,
     )
 
     q = 'select $timestamp, record_timestamp, unique_tagname from "{}"'.format(
@@ -438,12 +688,25 @@ def test_regression_sc11057(qdbd_connection, table_name):
     df_ = qdbpd.query(qdbd_connection, q)
     df_ = df_.groupby("unique_tagname").last().set_index("$timestamp")
 
+    output_table_name = "{}_out".format(table_name)
+    output_schema = quasardb.TableSchema(
+        columns=[
+            quasardb.ColumnInfo(
+                quasardb.ColumnType.Timestamp,
+                "record_timestamp",
+            ),
+        ],
+    )
     qdbpd.write_dataframe(
-        df_, qdbd_connection, "{}_out".format(table_name), create=True, infer_types=True
+        df_,
+        qdbd_connection,
+        output_table_name,
+        create_schemas={output_table_name: output_schema},
+        infer_types=True,
     )
 
     result = qdbpd.read_dataframe(
-        qdbd_connection, qdbd_connection.table("{}_out".format(table_name))
+        qdbd_connection, qdbd_connection.table(output_table_name)
     )
 
     _assert_df_equal(df_, result)
@@ -466,8 +729,15 @@ def test_regression_sc11084(qdbd_connection, table_name):
     data = {"val": np.concatenate([data1, data2])}
 
     df = pd.DataFrame(data=data, index=idx)
+    schema = quasardb.TableSchema(
+        columns=[quasardb.ColumnInfo(quasardb.ColumnType.Double, "val")],
+    )
     qdbpd.write_dataframe(
-        df, qdbd_connection, table_name, create=True, infer_types=True
+        df,
+        qdbd_connection,
+        table_name,
+        create_schemas={table_name: schema},
+        infer_types=True,
     )
 
     df_ = qdbpd.query(

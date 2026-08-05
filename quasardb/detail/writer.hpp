@@ -37,6 +37,7 @@
 #include "../logger.hpp"
 #include "../table.hpp"
 #include "retry.hpp"
+#include <optional>
 #include <variant>
 #include <vector>
 
@@ -160,6 +161,7 @@ public:
     staged_table(qdb::table const & table)
         : _logger("quasardb.writer")
         , _table_name(table.get_name())
+        , _table_schema(table.local_schema())
     {
         _column_infos = table.list_columns();
 
@@ -189,7 +191,8 @@ public:
     void prepare_batch(qdb_exp_batch_push_mode_t mode,
         detail::deduplicate_options const & deduplicate_options,
         qdb_ts_range_t * ranges,
-        qdb_exp_batch_push_table_t & batch);
+        qdb_exp_batch_push_table_t & batch,
+        qdb_exp_batch_push_table_schema_t * table_schema);
 
     static inline void _set_deduplication_mode(
         enum detail::deduplication_mode_t mode, bool columns, qdb_exp_batch_push_table_t & out)
@@ -227,6 +230,7 @@ public:
         _table_name.clear();
         _column_infos.clear();
         _columns_data.clear();
+        _table_schema.reset();
     }
 
     inline qdb_ts_range_t time_range() const
@@ -246,7 +250,11 @@ public:
         return _index.empty();
     }
 
-private:
+    inline qdb::table_schema const * schema() const noexcept
+    {
+        return _table_schema ? &*_table_schema : nullptr;
+    }
+
 private:
     qdb::logger _logger;
 
@@ -256,6 +264,8 @@ private:
     std::vector<any_column> _columns;
 
     std::vector<qdb_exp_batch_push_column_t> _columns_data;
+
+    std::optional<qdb::table_schema> _table_schema;
 };
 
 /**
