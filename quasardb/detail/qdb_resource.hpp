@@ -64,14 +64,22 @@ public:
     qdb_resource(qdb_resource const &)             = delete;
     qdb_resource & operator=(qdb_resource const &) = delete;
 
-    ~qdb_resource()
+    /**
+     * Early release for owners that free the resource before their own
+     * destruction (e.g. query_reader::close()). Idempotent.
+     */
+    void reset() noexcept
     {
         if (p_ != nullptr)
         {
             qdb_release(h_, p_);
+            p_ = nullptr;
         }
+    }
 
-        p_ = nullptr;
+    ~qdb_resource()
+    {
+        reset();
     }
 
     constexpr operator ValueType *() const

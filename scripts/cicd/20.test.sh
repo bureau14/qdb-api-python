@@ -159,12 +159,15 @@ ${VENV_PYTHON} -m pip install --no-deps --force-reinstall dist/quasardb-*.whl
 
 echo "Invoking pytest"
 
-TEST_OPTS="$@"
+# Forward arguments as an array so quoted args (-k "foo or bar") survive.
+# The ${arr[@]+...} guard makes empty-array expansion safe under set -u on
+# bash 3.2 (macOS /bin/bash).
+TEST_OPTS=("$@")
 if [[ ! -z ${JUNIT_XML_FILE-} ]]
 then
-    TEST_OPTS+=" --junitxml=${JUNIT_XML_FILE}"
+    TEST_OPTS+=("--junitxml=${JUNIT_XML_FILE}")
 fi
 
 pushd tests
-exec ${VENV_PYTHON} -m pytest ${TEST_OPTS}
+exec ${VENV_PYTHON} -m pytest ${TEST_OPTS[@]+"${TEST_OPTS[@]}"}
 popd

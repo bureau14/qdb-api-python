@@ -162,18 +162,19 @@ void register_cluster(py::module_ & m)
         .def("writer", &qdb::cluster::writer)
         .def("find", &qdb::cluster::find)
         .def("query", &qdb::cluster::query, //
-            py::arg("query"),               //
-            py::arg("blobs") = false)
+            py::arg("query"))
         .def("query_numpy", &qdb::cluster::query_numpy, //
             py::arg("query"))
+        .def("stream_query", &qdb::cluster::stream_query, //
+            py::arg("query"),                             //
+            py::kw_only(),                                //
+            py::arg("batch_size") = std::size_t{0})
         .def("query_continuous_full", &qdb::cluster::query_continuous_full, //
             py::arg("query"),                                               //
-            py::arg("pace"),                                                //
-            py::arg("blobs") = false)
+            py::arg("pace"))
         .def("query_continuous_new_values", &qdb::cluster::query_continuous_new_values,
             py::arg("query"), //
-            py::arg("pace"),  //
-            py::arg("blobs") = false)
+            py::arg("pace"))
         .def("prefix_get", &qdb::cluster::prefix_get)
         .def("prefix_count", &qdb::cluster::prefix_count)
         .def("suffix_get", &qdb::cluster::suffix_get)

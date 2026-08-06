@@ -41,6 +41,15 @@ def _generate_string_ts(start_time, count):
     return (dates, values)
 
 
+def _generate_symbol_ts(start_time, count):
+    dates = _generate_dates(start_time, count)
+    values = np.array(
+        [("symbol_" + str(item)) for item in range(count)], dtype=np.dtype("U")
+    )
+
+    return (dates, values)
+
+
 def test_column_info_repr(column_name):
     double = quasardb.ColumnInfo(quasardb.ColumnType.Double, column_name)
     blob = quasardb.ColumnInfo(quasardb.ColumnType.Blob, column_name)

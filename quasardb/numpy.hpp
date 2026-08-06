@@ -465,9 +465,8 @@ inline static PyObject * to_datetime64(std::int64_t ts)
     res->obmeta.base = NPY_FR_ns; // our timestamps are always in ns
     res->obval       = ts;
 
-    // Ensure that we create a new reference for the caller
-    Py_INCREF(res);
-
+    // tp_alloc already returned a new reference, owned by the caller; an
+    // extra incref here leaks one reference per scalar.
     return reinterpret_cast<PyObject *>(res);
 }
 
