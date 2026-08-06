@@ -396,13 +396,18 @@ struct value_converter<std::int64_t, qdb::numpy::datetime64>
  * Creates a nanosecond precision int64 out of a qdb_timespec_t. The resulting
  * integer represents the amount of nanoseconds since epoch, which is the
  * same representation numpy uses internally.
+ *
+ * The unsigned literal (ull) is required for the null sentinel: the product
+ * INT64_MIN * 10^9 vanishes mod 2^64, so {INT64_MIN, INT64_MIN} maps to
+ * exactly INT64_MIN (numpy NaT). With a signed literal this is overflow UB.
+ *
+ * tv_sec beyond ~year 2262 wraps, matching the datetime64[ns] range.
  */
 template <>
 struct value_converter<qdb_timespec_t, std::int64_t>
 {
     inline std::int64_t operator()(qdb_timespec_t const & x) const
     {
-        // XXX(leon): potential overflow
         return x.tv_nsec + x.tv_sec * 1'000'000'000ull;
     }
 };
