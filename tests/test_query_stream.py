@@ -4,8 +4,10 @@ import math
 import pytest
 import numpy as np
 import numpy.ma as ma
+import pandas as pd
 import quasardb
 import quasardb.numpy as qdbnp
+import quasardb.pandas as qdbpd
 
 import test_query as qlib
 import test_table as tslib
@@ -377,3 +379,117 @@ def test_qdbnp_query_equals_stream_query_concat(
 
     np.testing.assert_array_equal(streamed_idx, expected_idx)
     assert_ma_equal(streamed_col, expected_cols[column_name])
+
+
+##
+# pandas layer
+
+
+# Contract: qdbpd.query() is exactly the concatenation of qdbpd.stream_query()
+# batches, and every batch respects the batch size bound.
+def test_qdbpd_query_equals_stream_query_concat(
+    qdbd_connection, table, intervals, row_count, reader_batch_size
+):
+    qlib._insert_points(
+        "double", qdbd_connection, table, intervals=intervals, points=row_count
+    )
+    column_name = qlib._column_name(table, "double")
+    query = _select_column_query(table, column_name)
+
+    batches = list(
+        qdbpd.stream_query(qdbd_connection, query, batch_size=reader_batch_size)
+    )
+    assert len(batches) == math.ceil(row_count / reader_batch_size)
+
+    for df in batches:
+        assert 0 < len(df.index) <= reader_batch_size
+
+    expected = qdbpd.query(qdbd_connection, query)
+    pd.testing.assert_frame_equal(pd.concat(batches), expected)
+
+
+# Contract: stream/concat equivalence holds for every column value type.
+@pytest.mark.parametrize("value_type", all_value_types)
+def test_qdbpd_query_all_value_types(value_type, qdbd_connection, table, intervals):
+    qlib._insert_points(
+        value_type, qdbd_connection, table, intervals=intervals, points=100
+    )
+    column_name = qlib._column_name(table, value_type)
+    query = _select_column_query(table, column_name)
+
+    expected = qdbpd.query(qdbd_connection, query)
+    streamed = pd.concat(qdbpd.stream_query(qdbd_connection, query, batch_size=32))
+
+    # String-like columns may differ in exact `U<n>` width across code paths;
+    # only the dtype kind is contractual.
+    assert streamed[column_name].dtype.kind == expected[column_name].dtype.kind
+    np.testing.assert_array_equal(
+        streamed[column_name].to_numpy(), expected[column_name].to_numpy()
+    )
+
+
+# Contract: the default index is a running 0..n-1 named "$index" that
+# continues across batches.
+def test_qdbpd_stream_query_default_index(qdbd_connection, table, intervals):
+    row_count = 100
+    batch_size = 32
+
+    qlib._insert_points(
+        "double", qdbd_connection, table, intervals=intervals, points=row_count
+    )
+    column_name = qlib._column_name(table, "double")
+    query = _select_column_query(table, column_name)
+
+    batches = []
+    for k, df in enumerate(
+        qdbpd.stream_query(qdbd_connection, query, batch_size=batch_size)
+    ):
+        assert df.index.name == "$index"
+        np.testing.assert_array_equal(
+            df.index.to_numpy(), np.arange(k * batch_size, k * batch_size + len(df))
+        )
+        batches.append(df)
+
+    np.testing.assert_array_equal(
+        pd.concat(batches).index.to_numpy(), np.arange(row_count)
+    )
+
+
+# Contract: a named index column becomes the DataFrame index and is removed
+# from the columns.
+def test_qdbpd_stream_query_named_index(qdbd_connection, table, intervals):
+    qlib._insert_points(
+        "double", qdbd_connection, table, intervals=intervals, points=100
+    )
+    column_name = qlib._column_name(table, "double")
+    query = 'SELECT $timestamp, "{}" FROM "{}"'.format(column_name, table.get_name())
+
+    for df in qdbpd.stream_query(
+        qdbd_connection, query, index="$timestamp", batch_size=32
+    ):
+        assert df.index.name == "$timestamp"
+        assert df.index.dtype.kind == "M"
+        assert "$timestamp" not in df.columns
+
+
+# Contract: an empty result streams zero DataFrames, while query() preserves
+# the legacy empty shape (empty frame with named index).
+def test_qdbpd_query_empty_result(qdbd_connection, table):
+    query = 'SELECT * FROM "{}" IN RANGE(2016-01-01, 2016-12-12)'.format(
+        table.get_name()
+    )
+
+    assert list(qdbpd.stream_query(qdbd_connection, query)) == []
+
+    df = qdbpd.query(qdbd_connection, query)
+    assert len(df) == 0
+    assert df.index.name == "$index"
+
+
+# Contract: DML statements yield zero DataFrames.
+def test_qdbpd_stream_query_dml_yields_zero_batches(qdbd_connection, table):
+    query = 'INSERT INTO "{}" ($timestamp, "{}") VALUES (NOW(), 1.0)'.format(
+        table.get_name(), tslib._double_col_name(table)
+    )
+
+    assert list(qdbpd.stream_query(qdbd_connection, query)) == []

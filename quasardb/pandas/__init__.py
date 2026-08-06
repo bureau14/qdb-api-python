@@ -93,12 +93,15 @@ TableLike = Union[str, Table]
 def query(
     cluster: Cluster,
     query: str,
-    index: Optional[str] = None,
+    index: Optional[Union[str, int]] = None,
     blobs: bool = False,
     numpy: bool = True,
 ) -> pd.DataFrame:
     """
     Execute *query* and return the result as a pandas DataFrame.
+
+    Equivalent to concatenating all `stream_query()` batches; prefer
+    `stream_query()` when the result may not fit into memory.
 
     Parameters
     ----------
@@ -108,7 +111,7 @@ def query(
     query : str
         The query to execute.
 
-    index : str | None, default None
+    index : str | int | None, default None
         Column to use as index.  When None a synthetic index is created and
         named "$index".
 
@@ -134,12 +137,75 @@ def query(
     # ------------------------------------------------------------------------------
 
     logger.debug("querying and returning as DataFrame: %s", query)
-    index_vals, m = qdbnp.query(cluster, query, index=index, dict=True)
 
+    dfs = stream_query(cluster, query, index=index)
+
+    # No ignore_index here: the streamed "$index" already continues across
+    # batches (0..n-1), and plain concat preserves the index name, which
+    # ignore_index would drop.
+    try:
+        return pd.concat(dfs, copy=False)  #  type: ignore[call-overload]
+    except ValueError:
+        # Zero-batch stream (empty result or DML): a zero-row C result
+        # carries no schema, so column names are unavailable. Reproduce the
+        # legacy empty shape: an empty frame with a named datetime64[ns]
+        # index.
+        index_name = "$index" if index is None else index
+        return pd.DataFrame(
+            {},
+            index=pd.Index(np.array([], dtype="datetime64[ns]"), name=index_name),
+        )
+
+
+def stream_query(
+    cluster: Cluster,
+    query: str,
+    *,
+    index: Optional[Union[str, int]] = None,
+    batch_size: Optional[int] = 2**16,
+) -> Iterator[pd.DataFrame]:
+    """
+    Execute a query and stream the results as pandas DataFrames. Returns a
+    generator yielding one DataFrame per batch. Useful when traversing a
+    large result set which does not fit into memory.
+
+    Empty results and DML statements yield zero batches (an empty
+    generator). Dtypes and the column set are stable across batches because
+    the schema is probed once when the stream is opened.
+
+    Parameters:
+    -----------
+
+    cluster : quasardb.Cluster
+      Active connection to the QuasarDB cluster.
+
+    query : str
+      The query to execute.
+
+    index : optional[str | int]
+      If a string (e.g. `$timestamp`), that column becomes the DataFrame
+      index, named after it; a masked/null value in it raises ValueError at
+      the offending batch. If an int, selects the index column by position
+      and the index is named after that argument.
+      If not provided, the index is a running 0..n-1 named "$index" that
+      continues across batches, so concatenating all batches reproduces
+      `query()`.
+
+    batch_size : optional[int]
+      The maximum amount of rows per yielded DataFrame. If unset, uses 2^16
+      (65536) rows as batch size by default.
+
+    Examples:
+    ---------
+
+    >>> for df in qdbpd.stream_query(conn, "SELECT * FROM my_table"):
+    ...     process(df)
+    """
     index_name = "$index" if index is None else index
-    index_obj = pd.Index(index_vals, name=index_name)
-
-    return pd.DataFrame(m, index=index_obj)
+    for idx, m in qdbnp.stream_query(
+        cluster, query, index=index, dict=True, batch_size=batch_size
+    ):
+        yield pd.DataFrame(m, index=pd.Index(idx, copy=False, name=index_name))
 
 
 def stream_dataframes(
