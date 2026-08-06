@@ -493,3 +493,65 @@ def test_qdbpd_stream_query_dml_yields_zero_batches(qdbd_connection, table):
     )
 
     assert list(qdbpd.stream_query(qdbd_connection, query)) == []
+
+
+##
+# Early abandonment
+
+
+# Contract: __exit__ runs close() regardless of how the block is left, so a
+# break releases the C result at the with-block boundary. Batches already
+# yielded are numpy-owned copies and stay valid after release.
+def test_stream_query_break_releases_reader(qdbd_connection, table, intervals):
+    qlib._insert_points(
+        "double", qdbd_connection, table, intervals=intervals, points=100
+    )
+    column_name = qlib._column_name(table, "double")
+    query = _select_column_query(table, column_name)
+
+    kept = None
+    with qdbd_connection.stream_query(query, batch_size=32) as stream:
+        for batch in stream:
+            kept = batch[column_name]
+            break
+
+    with pytest.raises(quasardb.UninitializedError):
+        _ = list(stream)
+
+    assert isinstance(kept, ma.MaskedArray)
+    assert len(kept) == 32
+    assert np.isfinite(kept.sum())
+
+
+# pybind instances have no __dict__, so the reader cannot be recorded on the
+# C++ connection itself; delegate stream_query and capture the returned
+# reader instead.
+class _RecordingConnection:
+    def __init__(self, conn):
+        self._conn = conn
+        self.reader = None
+
+    def stream_query(self, *args, **kwargs):
+        self.reader = self._conn.stream_query(*args, **kwargs)
+        return self.reader
+
+
+# Contract: a break alone does not close a generator; gen.close() raises
+# GeneratorExit at the suspended yield inside the generator's with-block,
+# which runs the reader's __exit__ and releases the C result.
+def test_qdbnp_stream_query_generator_close_releases_reader(
+    qdbd_connection, table, intervals
+):
+    qlib._insert_points(
+        "double", qdbd_connection, table, intervals=intervals, points=100
+    )
+    column_name = qlib._column_name(table, "double")
+    query = _select_column_query(table, column_name)
+
+    shim = _RecordingConnection(qdbd_connection)
+    gen = qdbnp.stream_query(shim, query, batch_size=32)
+    next(gen)
+    gen.close()
+
+    with pytest.raises(quasardb.UninitializedError):
+        _ = list(shim.reader)
