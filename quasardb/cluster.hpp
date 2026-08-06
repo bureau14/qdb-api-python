@@ -331,11 +331,11 @@ public:
         return o->run();
     }
 
-    py::object query(const std::string & query_string, const py::object & blobs)
+    py::object query(const std::string & query_string)
     {
         check_open();
 
-        return py::cast(qdb::dict_query(_handle, query_string, blobs));
+        return py::cast(qdb::dict_query(_handle, query_string));
     }
 
     py::object query_numpy(const std::string & query_string)
@@ -347,12 +347,11 @@ public:
 
     std::shared_ptr<qdb::query_continuous> query_continuous(qdb_query_continuous_mode_type_t mode,
         const std::string & query_string,
-        std::chrono::milliseconds pace,
-        const py::object & blobs)
+        std::chrono::milliseconds pace)
     {
         check_open();
 
-        auto o = std::make_shared<qdb::query_continuous>(_handle, blobs);
+        auto o = std::make_shared<qdb::query_continuous>(_handle);
 
         o->run(mode, pace, query_string);
 
@@ -360,15 +359,15 @@ public:
     }
 
     std::shared_ptr<qdb::query_continuous> query_continuous_full(
-        const std::string & query_string, std::chrono::milliseconds pace, const py::object & blobs)
+        const std::string & query_string, std::chrono::milliseconds pace)
     {
-        return query_continuous(qdb_query_continuous_full, query_string, pace, blobs);
+        return query_continuous(qdb_query_continuous_full, query_string, pace);
     }
 
     std::shared_ptr<qdb::query_continuous> query_continuous_new_values(
-        const std::string & query_string, std::chrono::milliseconds pace, const py::object & blobs)
+        const std::string & query_string, std::chrono::milliseconds pace)
     {
-        return query_continuous(qdb_query_continuous_new_values_only, query_string, pace, blobs);
+        return query_continuous(qdb_query_continuous_new_values_only, query_string, pace);
     }
 
 public:

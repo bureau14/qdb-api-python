@@ -231,7 +231,7 @@ def test_returns_table_as_blob(qdbd_connection, table, intervals):
         + str(tslib._start_year(intervals))
         + ", +100d)"
     )
-    res = qdbd_connection.query(query, blobs=["$table"])
+    res = qdbd_connection.query(query)
 
     assert len(res) == 10
 
@@ -522,7 +522,7 @@ def test_returns_inserted_multi_data_with_star_select(
         + str(tslib._start_year(intervals))
         + ", +100d)"
     )
-    res = qdbd_connection.query(query, blobs=["the_blob"])
+    res = qdbd_connection.query(query)
 
     assert len(res) == 100
 

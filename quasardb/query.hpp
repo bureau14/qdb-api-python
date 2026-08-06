@@ -74,8 +74,8 @@ using dict_query_result_t  = std::vector<std::map<std::string, py::object>>;
 using numpy_query_column_t = std::pair<std::string, py::object>;
 using numpy_query_result_t = std::vector<numpy_query_column_t>;
 
-dict_query_result_t convert_query_results(const qdb_query_result_t * r, const py::object & blobs);
-dict_query_result_t dict_query(qdb::handle_ptr h, const std::string & query, const py::object & blobs);
+dict_query_result_t convert_query_results(const qdb_query_result_t * r);
+dict_query_result_t dict_query(qdb::handle_ptr h, const std::string & query);
 numpy_query_result_t numpy_query(qdb::handle_ptr h, const std::string & query);
 
 std::vector<std::string> coerce_column_names(const qdb_query_result_t & r);
