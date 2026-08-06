@@ -42,6 +42,7 @@ from typing import (
     Tuple,
     Type,
     Union,
+    cast,
 )
 
 import quasardb
@@ -1216,12 +1217,14 @@ def _concat_query_batches(
     idx = np.concatenate([x[0] for x in xs])
 
     # Keys and positions are identical across batches because the stream
-    # schema is fixed when the stream is opened.
+    # schema is fixed when the stream is opened. The casts narrow the
+    # dict-or-list union for mypy; the `dict` flag decides which member it is.
     if dict:
-        keys = xs[0][1].keys()
-        return idx, {k: _concat_masked([x[1][k] for x in xs]) for k in keys}
+        ds = [cast(Dict[str, MaskedArrayAny], x[1]) for x in xs]
+        return idx, {k: _concat_masked([d[k] for d in ds]) for k in ds[0].keys()}
 
-    return idx, [_concat_masked(list(cols)) for cols in zip(*(x[1] for x in xs))]
+    ls = [cast(List[MaskedArrayAny], x[1]) for x in xs]
+    return idx, [_concat_masked(list(cols)) for cols in zip(*ls)]
 
 
 def query(

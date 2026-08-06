@@ -162,7 +162,9 @@ def query(
     # No ignore_index here: the streamed "$index" already continues across
     # batches (0..n-1), and plain concat preserves the index name, which
     # ignore_index would drop.
-    return pd.concat(itertools.chain([head], it), copy=False)
+    return pd.concat(  # type: ignore[call-overload]
+        itertools.chain([head], it), copy=False
+    )
 
 
 def stream_query(
