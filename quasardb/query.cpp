@@ -35,9 +35,12 @@
 #include "numpy.hpp"
 #include "traits.hpp"
 #include "utils.hpp"
+#include "convert/array.hpp"
 #include "convert/value.hpp"
 #include "detail/qdb_resource.hpp"
 #include <pybind11/stl.h>
+#include <range/v3/view/counted.hpp>
+#include <range/v3/view/transform.hpp>
 #include <iostream>
 #include <set>
 #include <sstream>
@@ -136,7 +139,7 @@ static py::handle coerce_point(qdb_point_result_t p, bool parse_blob)
     throw std::runtime_error("Unable to cast QuasarDB type to Python type");
 }
 
-static std::vector<std::string> coerce_column_names(const qdb_query_result_t & r)
+std::vector<std::string> coerce_column_names(const qdb_query_result_t & r)
 {
     std::vector<std::string> xs;
     xs.reserve(r.column_count);
@@ -181,6 +184,11 @@ dict_query_result_t convert_query_results(const qdb_query_result_t * r, const py
     return convert_query_results(r, column_names, parse_blobs);
 }
 
+/**
+ * An all-null column carries no type information (the result has per-cell
+ * tags only, no column schema); keep the historical fully-masked float64
+ * NaN array.
+ */
 qdb::masked_array numpy_null_array(qdb_size_t row_count)
 {
     py::array::ShapeContainer shape{row_count};
@@ -190,131 +198,123 @@ qdb::masked_array numpy_null_array(qdb_size_t row_count)
     return qdb::masked_array::masked_all(data);
 }
 
-template <qdb_query_result_value_type_t ResultType>
-struct numpy_util
-{
-    static constexpr decltype(auto) get_value(qdb_point_result_t const &);
-};
+/**
+ * Maps a query result tag to the qdb primitive stored in the union payload.
+ */
+template <qdb_query_result_value_type_t Tag>
+struct point_result_traits;
 
 template <>
-struct numpy_util<qdb_query_result_double>
+struct point_result_traits<qdb_query_result_double>
 {
+    using primitive = double;
 
-    using value_type = std::double_t;
-    using dtype      = traits::float64_dtype;
-
-    static constexpr std::double_t get_value(qdb_point_result_t const & row) noexcept
+    static constexpr primitive get(qdb_point_result_t const & p) noexcept
     {
-        return row.payload.double_.value;
+        return p.payload.double_.value;
     }
 };
 
 template <>
-struct numpy_util<qdb_query_result_int64>
+struct point_result_traits<qdb_query_result_int64>
 {
-    using value_type = std::int64_t;
-    using dtype      = traits::int64_dtype;
+    using primitive = qdb_int_t;
 
-    static constexpr std::int64_t get_value(qdb_point_result_t const & row) noexcept
+    static constexpr primitive get(qdb_point_result_t const & p) noexcept
     {
-        return row.payload.int64_.value;
-    }
-};
-
-template <>
-struct numpy_util<qdb_query_result_blob>
-{
-    using value_type = py::object;
-    using dtype      = traits::pyobject_dtype;
-
-    static inline py::object get_value(qdb_point_result_t const & row) noexcept
-    {
-        return py::bytes{
-            static_cast<char const *>(row.payload.blob.content), row.payload.blob.content_length};
-    }
-};
-
-template <>
-struct numpy_util<qdb_query_result_string>
-{
-    using value_type = py::object;
-    using dtype      = traits::pyobject_dtype;
-
-    static inline py::object get_value(qdb_point_result_t const & row) noexcept
-    {
-        return py::str{row.payload.string.content, row.payload.string.content_length};
-    }
-};
-
-template <>
-struct numpy_util<qdb_query_result_count>
-{
-    using value_type = std::int64_t;
-    using dtype      = traits::int64_dtype;
-
-    static constexpr std::int64_t get_value(qdb_point_result_t const & row) noexcept
-    {
-        return row.payload.count.value;
-    }
-};
-
-template <>
-struct numpy_util<qdb_query_result_timestamp>
-{
-    using value_type = std::int64_t;
-    using dtype      = traits::datetime64_ns_dtype;
-
-    static constexpr std::int64_t get_value(qdb_point_result_t const & row) noexcept
-    {
-        return convert::value<qdb_timespec_t, std::int64_t>(row.payload.timestamp.value);
-    }
-};
-
-template <qdb_query_result_value_type_t ResultType>
-struct numpy_converter
-{
-    using dtype = typename numpy_util<ResultType>::dtype;
-
-    static decltype(auto) convert(qdb_size_t column, qdb_point_result_t ** rows, qdb_size_t row_count)
-    {
-        using value_type = typename numpy_util<ResultType>::value_type;
-        py::dtype dtype_ = dtype::dtype();
-
-        auto fn = numpy_util<ResultType>::get_value;
-
-        py::array data(dtype_, py::array::ShapeContainer{row_count});
-        qdb::mask mask = qdb::mask::of_all<true>(row_count);
-
-        auto data_f = data.template mutable_unchecked<value_type, 1>();
-
-        bool * mask_ = mask.mutable_data();
-
-        for (qdb_size_t i = 0; i < row_count; ++i, ++mask_)
-        {
-            bool masked = (rows[i][column].type == qdb_query_result_none);
-            *mask_      = masked;
-
-            if (!masked)
-            {
-                data_f(i) = fn(rows[i][column]);
-            }
-        }
-
-        return qdb::masked_array{data, mask};
+        return p.payload.int64_.value;
     }
 };
 
 /**
- * Nothing to convert for columns without type, just return an array filled with null
- * values.
+ * count() carries an unsigned qdb_size_t payload; the convert framework only
+ * knows the signed qdb_int_t primitive, so narrow explicitly. A count >= 2^63
+ * would alias the int64 null sentinel.
  */
 template <>
-struct numpy_converter<qdb_query_result_none>
+struct point_result_traits<qdb_query_result_count>
 {
-    static qdb::masked_array convert(
-        qdb_size_t /* column */, qdb_point_result_t ** /* rows */, qdb_size_t row_count)
+    using primitive = qdb_int_t;
+
+    static constexpr primitive get(qdb_point_result_t const & p) noexcept
     {
-        return numpy_null_array(row_count);
+        return static_cast<qdb_int_t>(p.payload.count.value);
+    }
+};
+
+template <>
+struct point_result_traits<qdb_query_result_timestamp>
+{
+    using primitive = qdb_timespec_t;
+
+    static constexpr primitive get(qdb_point_result_t const & p) noexcept
+    {
+        return p.payload.timestamp.value;
+    }
+};
+
+/**
+ * The string payload is layout-identical to qdb_string_t but a distinct type,
+ * so re-wrap instead of casting. The result borrows C-result-owned bytes;
+ * conversion copies them into numpy-owned buffers before release.
+ */
+template <>
+struct point_result_traits<qdb_query_result_string>
+{
+    using primitive = qdb_string_t;
+
+    static constexpr primitive get(qdb_point_result_t const & p) noexcept
+    {
+        return qdb_string_t{p.payload.string.content, p.payload.string.content_length};
+    }
+};
+
+/**
+ * The blob payload is layout-identical to qdb_blob_t but a distinct type, so
+ * re-wrap instead of casting. The result borrows C-result-owned bytes;
+ * conversion copies them into py::bytes before release.
+ */
+template <>
+struct point_result_traits<qdb_query_result_blob>
+{
+    using primitive = qdb_blob_t;
+
+    static constexpr primitive get(qdb_point_result_t const & p) noexcept
+    {
+        return qdb_blob_t{p.payload.blob.content, p.payload.blob.content_length};
+    }
+};
+
+/**
+ * Tag-checked projection of one result cell to its qdb primitive: none becomes
+ * the primitive's null sentinel, a tag mismatch raises IncompatibleTypeError
+ * instead of reinterpreting the union payload.
+ */
+template <qdb_query_result_value_type_t Tag>
+struct project_point
+{
+    using primitive = typename point_result_traits<Tag>::primitive;
+
+    qdb_size_t column;
+
+    inline primitive operator()(qdb_point_result_t const * row) const
+    {
+        qdb_point_result_t const & p = row[column];
+
+        if (p.type == qdb_query_result_none) [[unlikely]]
+        {
+            return traits::qdb_value<primitive>::null_value();
+        }
+
+        if (p.type != Tag) [[unlikely]]
+        {
+            std::stringstream ss;
+            ss << "query column contains mixed types: expected type " << Tag << ", got "
+               << p.type;
+            throw qdb::incompatible_type_exception{ss.str()};
+        }
+
+        return point_result_traits<Tag>::get(p);
     }
 };
 
@@ -334,30 +334,76 @@ qdb_query_result_value_type_t probe_column_type(qdb_query_result_t const & r, qd
     return qdb_query_result_none;
 }
 
-qdb::masked_array numpy_query_array(qdb_query_result_t const & r, qdb_size_t column)
+/**
+ * Converts one result column over a row subrange. `tag` is passed in, not
+ * probed here: the streaming reader probes once over the full result at open;
+ * re-probing per batch would let an all-null batch change dtype mid-stream.
+ */
+qdb::masked_array numpy_query_array(qdb_point_result_t const * const * rows,
+    qdb_size_t row_count,
+    qdb_size_t column,
+    qdb_query_result_value_type_t tag)
 {
 
-    switch (probe_column_type(r, column))
+    switch (tag)
     {
 
-#define CASE(t) \
-    case t:     \
-        return numpy_converter<t>::convert(column, r.rows, r.row_count);
+    case qdb_query_result_double:
+        return convert::masked_array<double, traits::float64_dtype>(
+            ranges::views::counted(rows, row_count)
+            | ranges::views::transform(project_point<qdb_query_result_double>{column}));
 
-        CASE(qdb_query_result_double);
-        CASE(qdb_query_result_int64);
-        CASE(qdb_query_result_string);
-        CASE(qdb_query_result_blob);
-        CASE(qdb_query_result_timestamp);
-        CASE(qdb_query_result_count);
-        CASE(qdb_query_result_none);
+    case qdb_query_result_int64:
+        return convert::masked_array<qdb_int_t, traits::int64_dtype>(
+            ranges::views::counted(rows, row_count)
+            | ranges::views::transform(project_point<qdb_query_result_int64>{column}));
+
+    case qdb_query_result_count:
+        return convert::masked_array<qdb_int_t, traits::int64_dtype>(
+            ranges::views::counted(rows, row_count)
+            | ranges::views::transform(project_point<qdb_query_result_count>{column}));
+
+    case qdb_query_result_timestamp:
+        return convert::masked_array<qdb_timespec_t, traits::datetime64_ns_dtype>(
+            ranges::views::counted(rows, row_count)
+            | ranges::views::transform(project_point<qdb_query_result_timestamp>{column}));
+
+    /**
+     * Strings become numpy "U" arrays (matching the bulk reader). An empty
+     * string aliases the null sentinel (length == 0) and comes back masked.
+     * The variable-width to_array traverses the range twice, so the
+     * projection must be idempotent.
+     */
+    case qdb_query_result_string:
+        return convert::masked_array<qdb_string_t, traits::unicode_dtype>(
+            ranges::views::counted(rows, row_count)
+            | ranges::views::transform(project_point<qdb_query_result_string>{column}));
+
+    /**
+     * Blobs become numpy object arrays of py::bytes (matching the bulk
+     * reader). An empty blob aliases the null sentinel (content_length == 0)
+     * and comes back masked None.
+     */
+    case qdb_query_result_blob:
+        return convert::masked_array<qdb_blob_t, traits::pyobject_dtype>(
+            ranges::views::counted(rows, row_count)
+            | ranges::views::transform(project_point<qdb_query_result_blob>{column}));
+
+    /* Dtype choice for typeless columns: see numpy_null_array. */
+    case qdb_query_result_none:
+        return numpy_null_array(row_count);
 
     default: {
         std::stringstream ss;
-        ss << "unrecognized query result column type: " << r.rows[0][column].type;
+        ss << "unrecognized query result column type: " << tag;
         throw qdb::incompatible_type_exception(ss.str());
     }
     };
+}
+
+qdb::masked_array numpy_query_array(qdb_query_result_t const & r, qdb_size_t column)
+{
+    return numpy_query_array(r.rows, r.row_count, column, probe_column_type(r, column));
 }
 
 numpy_query_column_t numpy_query_column(qdb_query_result_t const & r, qdb_size_t column)
