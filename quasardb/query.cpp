@@ -100,32 +100,39 @@ static std::vector<bool> coerce_blobs_opt(
     }
 }
 
-static py::handle coerce_point(qdb_point_result_t p, bool parse_blob)
+/**
+ * The CPython calls below return new references, stolen into the returned
+ * py::object.
+ */
+static py::object coerce_point(qdb_point_result_t p, bool parse_blob)
 {
     switch (p.type)
     {
     case qdb_query_result_none:
-        return Py_None;
+        return py::none();
 
     case qdb_query_result_double:
-        return PyFloat_FromDouble(p.payload.double_.value);
+        return py::reinterpret_steal<py::object>(PyFloat_FromDouble(p.payload.double_.value));
 
     case qdb_query_result_blob: {
-        return PyBytes_FromStringAndSize(static_cast<char const *>(p.payload.blob.content),
-            static_cast<Py_ssize_t>(p.payload.blob.content_length));
+        return py::reinterpret_steal<py::object>(
+            PyBytes_FromStringAndSize(static_cast<char const *>(p.payload.blob.content),
+                static_cast<Py_ssize_t>(p.payload.blob.content_length)));
     }
 
     case qdb_query_result_string:
-        return PyUnicode_FromStringAndSize(static_cast<char const *>(p.payload.string.content),
-            static_cast<Py_ssize_t>(p.payload.string.content_length));
+        return py::reinterpret_steal<py::object>(
+            PyUnicode_FromStringAndSize(static_cast<char const *>(p.payload.string.content),
+                static_cast<Py_ssize_t>(p.payload.string.content_length)));
 
     case qdb_query_result_int64:
-        return PyLong_FromLongLong(p.payload.int64_.value);
+        return py::reinterpret_steal<py::object>(PyLong_FromLongLong(p.payload.int64_.value));
 
     case qdb_query_result_count:
-        return PyLong_FromLongLong(p.payload.count.value);
+        return py::reinterpret_steal<py::object>(PyLong_FromLongLong(p.payload.count.value));
 
     case qdb_query_result_timestamp:
+        // datetime64 already owns its reference; no steal needed.
         return qdb::numpy::datetime64(p.payload.timestamp.value);
 
     case qdb_query_result_array_double:
@@ -160,7 +167,7 @@ static dict_query_result_t convert_query_results(const qdb_query_result_t * r,
 
     for (qdb_size_t i = 0; i < r->row_count; ++i)
     {
-        std::map<std::string, py::handle> row;
+        std::map<std::string, py::object> row;
 
         for (qdb_size_t j = 0; j < r->column_count; ++j)
         {

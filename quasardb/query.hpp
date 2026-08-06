@@ -70,7 +70,7 @@ private:
     std::string _query_string;
 };
 
-using dict_query_result_t  = std::vector<std::map<std::string, py::handle>>;
+using dict_query_result_t  = std::vector<std::map<std::string, py::object>>;
 using numpy_query_column_t = std::pair<std::string, py::object>;
 using numpy_query_result_t = std::vector<numpy_query_column_t>;
 
