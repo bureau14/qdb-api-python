@@ -1045,6 +1045,7 @@ def _xform_query_results(
     xs: Sequence[Tuple[str, MaskedArrayAny]],
     index: Optional[Union[str, int]],
     dict: bool,
+    offset: int = 0,
 ) -> Tuple[NDArrayAny, Union[Dict[str, MaskedArrayAny], List[MaskedArrayAny]]]:
     if len(xs) == 0:
         return (np.array([], np.dtype("datetime64[ns]")), {} if dict else [])
@@ -1061,12 +1062,16 @@ def _xform_query_results(
     if index is None:
         # Generate a range, put it in the front of the result list,
         # recurse and tell the function to use that index.
+        #
+        # When called per streamed batch, the default index must continue where
+        # the previous batch ended so that concatenating batches reproduces
+        # 0..n-1; a plain arange(n) would restart at 0 for every batch.
         assert isinstance(n, int)
         xs_: Sequence[Tuple[str, MaskedArrayAny]] = [
-            ("$index", ma.masked_array(np.arange(n)))
+            ("$index", ma.masked_array(np.arange(offset, offset + n)))
         ] + list(xs)
 
-        return _xform_query_results(xs_, "$index", dict)
+        return _xform_query_results(xs_, "$index", dict, offset=offset)
 
     if isinstance(index, str):
         for i in range(len(xs)):
@@ -1074,7 +1079,7 @@ def _xform_query_results(
             if cname == index:
                 # Now we know that this column has offset `i`,
                 # recurse with that offset
-                return _xform_query_results(xs, i, dict)
+                return _xform_query_results(xs, i, dict, offset=offset)
 
         raise KeyError(
             "Unable to resolve index column: column not found in results: {}".format(
@@ -1110,6 +1115,114 @@ def _xform_query_results(
         return idx, [x[1] for x in xs]
 
 
+def stream_query(
+    cluster: quasardb.Cluster,
+    query: str,
+    *,
+    index: Optional[Union[str, int]] = None,
+    dict: bool = False,
+    batch_size: Optional[int] = 2**16,
+) -> Iterator[
+    Tuple[NDArrayAny, Union[Dict[str, MaskedArrayAny], List[MaskedArrayAny]]]
+]:
+    """
+    Execute a query and stream the results as numpy arrays. Returns a generator
+    yielding one `(index, dict | list[np.array])` pair per batch, with the same
+    shape `query()` returns. Useful when traversing a large result set which
+    does not fit into memory.
+
+    Parameters:
+    -----------
+
+    cluster : quasardb.Cluster
+      Active connection to the QuasarDB cluster
+
+    query : str
+      The query to execute.
+
+    index : optional[str | int]
+      If provided, resolves column and uses that as the index. If string (e.g.
+      `$timestamp`), uses that column as the index. If int (e.g. `1`), looks up
+      the column based on that offset. A masked value in a named index column
+      raises ValueError at the offending batch.
+      If not provided, the default index is a running 0..n-1 that continues
+      across batches.
+
+    dict : bool
+      If true, returns data arrays as a dict, otherwise a list of np.arrays.
+      Defaults to False.
+
+    batch_size : optional[int]
+      The maximum amount of rows per yielded batch. If unset, uses 2^16 (65536)
+      rows as batch size by default.
+
+    Returns:
+    --------
+
+    iterator[tuple[numpy.ndarray, dict[str, numpy.ma.MaskedArray] | list[numpy.ma.MaskedArray]]]
+      One (index, columns) pair per batch. Dtypes are stable across batches
+      because the schema is probed once when the stream is opened. Empty
+      results yield zero batches. Results with duplicate column names collapse
+      to the last occurrence.
+
+    Examples:
+    ---------
+
+    >>> for idx, cols in qdbnp.stream_query(
+    ...     conn, "SELECT * FROM my_table", dict=True
+    ... ):
+    ...     process(idx, cols)
+    """
+    # Sanitize batch_size
+    if batch_size is None:
+        batch_size = 2**16
+    elif not isinstance(batch_size, int):
+        raise TypeError(
+            "batch_size should be an integer, but got: {} with value {}".format(
+                type(batch_size), str(batch_size)
+            )
+        )
+
+    offset = 0
+    with cluster.stream_query(query, batch_size=batch_size) as stream:
+        for batch in stream:
+            # The list copy is required because _xform_query_results mutates
+            # its argument via del; dict insertion order preserves the result
+            # column order, so an int index offset means the same thing as it
+            # does in query().
+            xs = list(batch.items())
+            n = xs[0][1].size if xs else 0
+            yield _xform_query_results(xs, index, dict, offset=offset)
+            offset += n
+
+
+def _concat_query_batches(
+    batches: Iterable[
+        Tuple[NDArrayAny, Union[Dict[str, MaskedArrayAny], List[MaskedArrayAny]]]
+    ],
+    dict: bool,
+) -> Tuple[NDArrayAny, Union[Dict[str, MaskedArrayAny], List[MaskedArrayAny]]]:
+    xs = list(batches)
+
+    if len(xs) == 0:
+        # Preserves the legacy empty-result shape; column names are
+        # unavailable because a zero-row C result carries no schema.
+        return (np.array([], np.dtype("datetime64[ns]")), {} if dict else [])
+
+    if len(xs) == 1:
+        return xs[0]
+
+    idx = np.concatenate([x[0] for x in xs])
+
+    # Keys and positions are identical across batches because the stream
+    # schema is fixed when the stream is opened.
+    if dict:
+        keys = xs[0][1].keys()
+        return idx, {k: _concat_masked([x[1][k] for x in xs]) for k in keys}
+
+    return idx, [_concat_masked(list(cols)) for cols in zip(*(x[1] for x in xs))]
+
+
 def query(
     cluster: quasardb.Cluster,
     query: str,
@@ -1126,7 +1239,7 @@ def query(
     If `dict` is True, constructs a dict[str, np.array] where the key is the column name.
     Otherwise, it returns a list of all the individual data arrays.
 
-
+    Results with duplicate column names collapse to the last occurrence.
 
     Parameters:
     -----------
@@ -1147,6 +1260,6 @@ def query(
 
     """
 
-    xs = cluster.query_numpy(query)
+    batches = stream_query(cluster, query, index=index, dict=dict)
 
-    return _xform_query_results(xs, index, dict)
+    return _concat_query_batches(batches, dict)

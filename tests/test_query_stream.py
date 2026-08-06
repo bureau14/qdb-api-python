@@ -5,6 +5,7 @@ import pytest
 import numpy as np
 import numpy.ma as ma
 import quasardb
+import quasardb.numpy as qdbnp
 
 import test_query as qlib
 import test_table as tslib
@@ -232,3 +233,147 @@ def test_stream_query_mixed_type_column_raises(qdbd_connection, entry_name, inte
     with qdbd_connection.stream_query(query) as stream:
         with pytest.raises(quasardb.IncompatibleTypeError):
             _ = list(stream)
+
+
+##
+# numpy layer
+
+
+@pytest.mark.parametrize("value_type", all_value_types)
+def test_qdbnp_stream_query_equals_query(value_type, qdbd_connection, table, intervals):
+    qlib._insert_points(
+        value_type, qdbd_connection, table, intervals=intervals, points=100
+    )
+    column_name = qlib._column_name(table, value_type)
+    query = _select_column_query(table, column_name)
+
+    (expected_idx, expected_cols) = qdbnp.query(qdbd_connection, query, dict=True)
+
+    batches = list(qdbnp.stream_query(qdbd_connection, query, dict=True, batch_size=32))
+
+    streamed_idx = np.concatenate([idx for (idx, _) in batches])
+    streamed_col = ma.concatenate([cols[column_name] for (_, cols) in batches])
+
+    np.testing.assert_array_equal(streamed_idx, expected_idx)
+    assert_ma_equal(streamed_col, expected_cols[column_name])
+
+
+def test_qdbnp_stream_query_default_index_is_offset_aware(
+    qdbd_connection, table, intervals
+):
+    row_count = 100
+    batch_size = 32
+
+    qlib._insert_points(
+        "double", qdbd_connection, table, intervals=intervals, points=row_count
+    )
+    column_name = qlib._column_name(table, "double")
+    query = _select_column_query(table, column_name)
+
+    idx_batches = []
+    for k, (idx, _) in enumerate(
+        qdbnp.stream_query(qdbd_connection, query, batch_size=batch_size)
+    ):
+        np.testing.assert_array_equal(
+            idx, np.arange(k * batch_size, k * batch_size + len(idx))
+        )
+        idx_batches.append(idx)
+
+    np.testing.assert_array_equal(np.concatenate(idx_batches), np.arange(row_count))
+
+
+def test_qdbnp_stream_query_named_index(qdbd_connection, table, intervals):
+    qlib._insert_points(
+        "double", qdbd_connection, table, intervals=intervals, points=100
+    )
+    column_name = qlib._column_name(table, "double")
+    query = 'SELECT $timestamp, "{}" FROM "{}"'.format(column_name, table.get_name())
+
+    (expected_idx, _) = qdbnp.query(qdbd_connection, query, index="$timestamp")
+
+    idx_batches = []
+    for idx, cols in qdbnp.stream_query(
+        qdbd_connection, query, index="$timestamp", dict=True, batch_size=32
+    ):
+        assert idx.dtype.kind == "M"
+        assert "$timestamp" not in cols
+        idx_batches.append(idx)
+
+    np.testing.assert_array_equal(np.concatenate(idx_batches), expected_idx)
+
+
+def test_qdbnp_stream_query_dict_and_list_shapes(qdbd_connection, table, intervals):
+    qlib._insert_points(
+        "double", qdbd_connection, table, intervals=intervals, points=100
+    )
+    column_name = qlib._column_name(table, "double")
+    query = 'SELECT $timestamp, "{}" FROM "{}"'.format(column_name, table.get_name())
+
+    for _, cols in qdbnp.stream_query(
+        qdbd_connection, query, index="$timestamp", dict=True, batch_size=32
+    ):
+        assert isinstance(cols, dict)
+        assert list(cols.keys()) == [column_name]
+
+    for _, cols in qdbnp.stream_query(
+        qdbd_connection, query, index="$timestamp", dict=False, batch_size=32
+    ):
+        assert isinstance(cols, list)
+        assert len(cols) == 1
+
+
+def test_qdbnp_stream_query_empty_result_yields_zero_batches(qdbd_connection, table):
+    query = 'SELECT * FROM "{}" IN RANGE(2016-01-01, 2016-12-12)'.format(
+        table.get_name()
+    )
+
+    assert list(qdbnp.stream_query(qdbd_connection, query)) == []
+
+
+def test_qdbnp_stream_query_dml_yields_zero_batches(qdbd_connection, table):
+    query = 'INSERT INTO "{}" ($timestamp, "{}") VALUES (NOW(), 1.0)'.format(
+        table.get_name(), tslib._double_col_name(table)
+    )
+
+    assert list(qdbnp.stream_query(qdbd_connection, query)) == []
+
+
+def test_qdbnp_stream_query_masked_named_index_raises(
+    qdbd_connection, table, intervals
+):
+    # Writing doubles creates rows; the int64 column was never written, so
+    # selecting it yields an all-null (fully masked) column, which is invalid
+    # as an index.
+    qlib._insert_points(
+        "double", qdbd_connection, table, intervals=intervals, points=100
+    )
+    column_name = tslib._int64_col_name(table)
+    query = _select_column_query(table, column_name)
+
+    with pytest.raises(ValueError):
+        list(qdbnp.stream_query(qdbd_connection, query, index=column_name))
+
+
+def test_qdbnp_query_equals_stream_query_concat(
+    qdbd_connection, table, intervals, row_count, reader_batch_size
+):
+    qlib._insert_points(
+        "double", qdbd_connection, table, intervals=intervals, points=row_count
+    )
+    column_name = qlib._column_name(table, "double")
+    query = _select_column_query(table, column_name)
+
+    (expected_idx, expected_cols) = qdbnp.query(qdbd_connection, query, dict=True)
+
+    batches = list(
+        qdbnp.stream_query(
+            qdbd_connection, query, dict=True, batch_size=reader_batch_size
+        )
+    )
+    assert len(batches) == math.ceil(row_count / reader_batch_size)
+
+    streamed_idx = np.concatenate([idx for (idx, _) in batches])
+    streamed_col = ma.concatenate([cols[column_name] for (_, cols) in batches])
+
+    np.testing.assert_array_equal(streamed_idx, expected_idx)
+    assert_ma_equal(streamed_col, expected_cols[column_name])
