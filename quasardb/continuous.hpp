@@ -44,7 +44,7 @@ namespace qdb
 class query_continuous : public std::enable_shared_from_this<query_continuous>
 {
 public:
-    query_continuous(qdb::handle_ptr h, const py::object & bools);
+    query_continuous(qdb::handle_ptr h);
     query_continuous(const qdb::query_continuous & /*other*/) = delete;
     ~query_continuous();
 
@@ -76,8 +76,6 @@ private:
     qdb::handle_ptr _handle;
     qdb_query_cont_callback_t _callback;
     qdb_query_cont_handle_t _cont_handle;
-
-    py::object _parse_bools;
 
     mutable std::condition_variable _results_cond;
     mutable std::mutex _results_mutex;

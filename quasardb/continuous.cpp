@@ -4,12 +4,11 @@
 namespace qdb
 {
 
-query_continuous::query_continuous(qdb::handle_ptr h, const py::object & bools)
+query_continuous::query_continuous(qdb::handle_ptr h)
     : _logger("quasardb.query_continuous")
     , _handle{h}
     , _callback{&query_continuous::continuous_callback}
     , _cont_handle{nullptr}
-    , _parse_bools{bools}
     , _previous_watermark{0}
     , _watermark{0}
     , _last_error{qdb_e_uninitialized}
@@ -109,7 +108,7 @@ dict_query_result_t query_continuous::unsafe_results()
     qdb::qdb_throw_if_error(*_handle, _last_error);
 
     // safe and quick to call if _results is nullptr
-    auto res = convert_query_results(_results, _parse_bools);
+    auto res = convert_query_results(_results);
 
     release_results();
 

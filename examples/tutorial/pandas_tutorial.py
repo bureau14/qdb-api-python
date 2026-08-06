@@ -46,4 +46,13 @@ with quasardb.Cluster("qdb://127.0.0.1:2836") as c:
 
     # query-end
 
+    # stream-query-start
+
+    # Streams the result as DataFrame batches without materializing
+    # everything in memory.
+    for df in qdbpd.stream_query(c, "SELECT * FROM stocks", batch_size=1024):
+        print("batch: ", df)
+
+    # stream-query-end
+
     c.table("stocks").remove()

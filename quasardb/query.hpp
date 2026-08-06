@@ -31,6 +31,7 @@
 #pragma once
 
 #include "handle.hpp"
+#include "masked_array.hpp"
 #include "utils.hpp"
 #include <qdb/query.h>
 #include <pybind11/numpy.h>
@@ -69,13 +70,26 @@ private:
     std::string _query_string;
 };
 
-using dict_query_result_t  = std::vector<std::map<std::string, py::handle>>;
+using dict_query_result_t  = std::vector<std::map<std::string, py::object>>;
 using numpy_query_column_t = std::pair<std::string, py::object>;
 using numpy_query_result_t = std::vector<numpy_query_column_t>;
 
-dict_query_result_t convert_query_results(const qdb_query_result_t * r, const py::object & blobs);
-dict_query_result_t dict_query(qdb::handle_ptr h, const std::string & query, const py::object & blobs);
+dict_query_result_t convert_query_results(const qdb_query_result_t * r);
+dict_query_result_t dict_query(qdb::handle_ptr h, const std::string & query);
 numpy_query_result_t numpy_query(qdb::handle_ptr h, const std::string & query);
+
+std::vector<std::string> coerce_column_names(const qdb_query_result_t & r);
+
+qdb_query_result_value_type_t probe_column_type(qdb_query_result_t const & r, qdb_size_t column);
+
+qdb::masked_array numpy_null_array(qdb_size_t row_count);
+
+qdb::masked_array numpy_query_array(qdb_point_result_t const * const * rows,
+    qdb_size_t row_count,
+    qdb_size_t column,
+    qdb_query_result_value_type_t tag);
+
+qdb::masked_array numpy_query_array(qdb_query_result_t const & r, qdb_size_t column);
 
 template <typename Module>
 static inline void register_query(Module & m)

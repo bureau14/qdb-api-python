@@ -30,25 +30,25 @@ numpy and pandas adapters layered on top:
 
 ## Layout
 
-| Path                      | Purpose                                                                                |
-| ------------------------- | -------------------------------------------------------------------------------------- |
-| `quasardb/*.cpp,*.hpp`    | C++ pybind11 bindings; entry point `module.cpp`                                        |
-| `quasardb/convert/`       | C++ Python<->C value/array conversion                                                  |
-| `quasardb/detail/`        | C++ internals: RAII (`qdb_resource.hpp`), retry, writer                                |
-| `quasardb/CMakeLists.txt` | C++ build (C++20 required)                                                             |
-| `quasardb/__init__.py`    | Imports `from quasardb.quasardb import *`, applies extensions                          |
-| `quasardb/quasardb/*.pyi` | Type stubs for the extension module (no .py implementations)                           |
-| `quasardb/numpy/`         | Numpy adapter: `read_arrays`, `write_arrays`, `query`                                  |
-| `quasardb/pandas/`        | Pandas adapter: `read_dataframe`, `write_dataframe(s)`, `query`, `stream_dataframe(s)` |
-| `quasardb/extensions/`    | Runtime method additions to C++ classes (e.g. legacy writer API)                       |
-| `quasardb/pool.py`        | Connection pooling                                                                     |
-| `quasardb/firehose.py`    | Transaction-log changelog streaming                                                    |
-| `tests/`                  | pytest suite; all fixtures in `tests/conftest.py`                                      |
-| `scripts/cicd/`           | Canonical build/test scripts (see below)                                               |
-| `scripts/tests/setup/`    | qdbd service management (qdb-test-setup submodule)                                     |
-| `qdb/`                    | Extracted QuasarDB C API + server tarballs (not in git)                                |
-| `thirdparty/`             | Vendored C++ libraries (pybind11, ...); never touch or lint                            |
-| `examples/tutorials/`     | Example code, tested by the test suite, injected into docs                             |
+| Path                      | Purpose                                                                                                |
+| ------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `quasardb/*.cpp,*.hpp`    | C++ pybind11 bindings; entry point `module.cpp`                                                        |
+| `quasardb/convert/`       | C++ Python<->C value/array conversion                                                                  |
+| `quasardb/detail/`        | C++ internals: RAII (`qdb_resource.hpp`), retry, writer                                                |
+| `quasardb/CMakeLists.txt` | C++ build (C++20 required)                                                                             |
+| `quasardb/__init__.py`    | Imports `from quasardb.quasardb import *`, applies extensions                                          |
+| `quasardb/quasardb/*.pyi` | Type stubs for the extension module (no .py implementations)                                           |
+| `quasardb/numpy/`         | Numpy adapter: `read_arrays`, `write_arrays`, `query`, `stream_query`                                  |
+| `quasardb/pandas/`        | Pandas adapter: `read_dataframe`, `write_dataframe(s)`, `query`, `stream_query`, `stream_dataframe(s)` |
+| `quasardb/extensions/`    | Runtime method additions to C++ classes (e.g. legacy writer API)                                       |
+| `quasardb/pool.py`        | Connection pooling                                                                                     |
+| `quasardb/firehose.py`    | Transaction-log changelog streaming                                                                    |
+| `tests/`                  | pytest suite; all fixtures in `tests/conftest.py`                                                      |
+| `scripts/cicd/`           | Canonical build/test scripts (see below)                                                               |
+| `scripts/tests/setup/`    | qdbd service management (qdb-test-setup submodule)                                                     |
+| `qdb/`                    | Extracted QuasarDB C API + server tarballs (not in git)                                                |
+| `thirdparty/`             | Vendored C++ libraries (pybind11, ...); never touch or lint                                            |
+| `examples/tutorials/`     | Example code, tested by the test suite, injected into docs                                             |
 
 The C++ extension is registered via `register_*()` functions called from
 `module.cpp` (cluster, table, writer, reader, entries, errors). The
@@ -167,7 +167,10 @@ When adding a test:
 - **Reader**: bulk reader, iterates batches of dicts of numpy arrays;
   batch size and column selection configurable.
 - **Query**: SQL-like queries via `Cluster.query()`; pandas/numpy `query()`
-  wrap it. Blob columns are not returned by default (performance).
+  wrap it. `Cluster.stream_query()` (wrapped by `qdbnp.stream_query` /
+  `qdbpd.stream_query`) streams results in batches for results that do not
+  fit in memory; schema is probed once at open, so dtypes are stable across
+  batches. String columns come back as numpy `U` arrays.
 - **Entries**: scalar types Blob, String, Integer, Double, Timestamp; tags
   for lookup (`find()`).
 - **Errors**: all inherit `quasardb.Error`; specific subclasses like
@@ -179,7 +182,8 @@ When adding a test:
   nulls. Use `quasardb.numpy.ensure_ma` when constructing inputs.
 - tz-naive timestamps are treated as UTC.
 - `read_dataframe()` loads everything; use `stream_dataframe()` for large
-  tables.
+  tables. Likewise `query()` materializes everything; use `stream_query()`
+  for large results.
 - Continuous queries exist but are flaky; their tests are skipped due to segfaults.
 - `pytest` runs with `-x`: a single failure aborts the run, so a "short"
   test run may hide later failures.

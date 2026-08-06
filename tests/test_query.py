@@ -231,7 +231,7 @@ def test_returns_table_as_blob(qdbd_connection, table, intervals):
         + str(tslib._start_year(intervals))
         + ", +100d)"
     )
-    res = qdbd_connection.query(query, blobs=["$table"])
+    res = qdbd_connection.query(query)
 
     assert len(res) == 10
 
@@ -265,7 +265,7 @@ def test_returns_inserted_data_with_star_select(qdbd_connection, table, interval
 
 @pytest.mark.parametrize("query_handler", ["dict", "numpy"])
 @pytest.mark.parametrize(
-    "value_type", ["double", "int64", "blob", "string", "timestamp"]
+    "value_type", ["double", "int64", "blob", "string", "timestamp", "symbol"]
 )
 def test_supports_all_column_types(
     value_type, query_handler, qdbd_connection, table, intervals
@@ -394,6 +394,88 @@ def test_returns_count_data_with_count_select(qdbd_connection, table, intervals)
     assert res[0]["count(the_double)"] == 10
 
 
+def test_returns_count_data_with_count_select_numpy(qdbd_connection, table, intervals):
+    start_time = tslib._start_time(intervals)
+    _ = _insert_double_points(qdbd_connection, table, start_time, 10)
+    query = (
+        "select count("
+        + tslib._double_col_name(table)
+        + ') from "'
+        + table.get_name()
+        + '" in range('
+        + str(tslib._start_year(intervals))
+        + ", +100d)"
+    )
+    (idx, res) = qdbnp.query(qdbd_connection, query)
+
+    assert len(res) == 1
+    counts = res[0]
+
+    assert len(counts) == 1
+    assert counts.dtype == np.dtype("int64")
+    assert counts[0] is not np.ma.masked
+    assert counts[0] == 10
+
+
+def test_string_query_returns_unicode_numpy(qdbd_connection, table, intervals):
+    start_time = tslib._start_time(intervals)
+    inserted_string_data = _insert_string_points(qdbd_connection, table, start_time, 10)
+    column_name = tslib._string_col_name(table)
+    query = 'SELECT "{}" FROM "{}"'.format(column_name, table.get_name())
+
+    (idx, res) = qdbnp.query(qdbd_connection, query)
+
+    assert len(res) == 1
+    xs = res[0]
+
+    # The concrete dtype is U<n> (n = longest string); compare by kind.
+    assert qdbnp.dtypes_equal(xs.dtype, np.dtype("unicode"))
+    np.testing.assert_array_equal(xs, inserted_string_data[1])
+
+
+def test_blob_query_returns_bytes_numpy(qdbd_connection, table, intervals):
+    start_time = tslib._start_time(intervals)
+    inserted_blob_data = _insert_blob_points(qdbd_connection, table, start_time, 10)
+    column_name = tslib._blob_col_name(table)
+    query = 'SELECT "{}" FROM "{}"'.format(column_name, table.get_name())
+
+    (idx, res) = qdbnp.query(qdbd_connection, query)
+
+    assert len(res) == 1
+    xs = res[0]
+
+    assert xs.dtype == np.dtype("object")
+    assert not np.any(np.ma.getmaskarray(xs))
+
+    for lhs, rhs in zip(xs, inserted_blob_data[1]):
+        assert isinstance(lhs, bytes)
+        assert lhs == rhs
+
+
+def test_mixed_type_column_query_raises_numpy(qdbd_connection, entry_name, intervals):
+    start_time = tslib._start_time(intervals)
+
+    t1_name = entry_name + "_double"
+    t2_name = entry_name + "_blob"
+
+    t1 = qdbd_connection.table(t1_name)
+    t1.create([quasardb.ColumnInfo(quasardb.ColumnType.Double, "the_col")])
+    t2 = qdbd_connection.table(t2_name)
+    t2.create([quasardb.ColumnInfo(quasardb.ColumnType.Blob, "the_col")])
+
+    _write_points(
+        qdbd_connection, t1, "the_col", tslib._generate_double_ts(start_time, 1)
+    )
+    _write_points(
+        qdbd_connection, t2, "the_col", tslib._generate_blob_ts(start_time, 1)
+    )
+
+    query = 'SELECT the_col FROM "{}", "{}"'.format(t1_name, t2_name)
+
+    with pytest.raises(quasardb.IncompatibleTypeError):
+        qdbd_connection.query_numpy(query)
+
+
 def test_returns_count_data_with_sum_select(qdbd_connection, table, intervals):
     start_time = tslib._start_time(intervals)
     inserted_double_data = _insert_double_points(qdbd_connection, table, start_time, 10)
@@ -440,7 +522,7 @@ def test_returns_inserted_multi_data_with_star_select(
         + str(tslib._start_year(intervals))
         + ", +100d)"
     )
-    res = qdbd_connection.query(query, blobs=["the_blob"])
+    res = qdbd_connection.query(query)
 
     assert len(res) == 100
 
