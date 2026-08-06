@@ -2,6 +2,7 @@
 #include "cluster.hpp"
 #include "metrics.hpp"
 #include "node.hpp"
+#include "query_reader.hpp"
 #include "reader.hpp"
 #include "writer.hpp"
 #include <functional>
@@ -79,6 +80,7 @@ PYBIND11_MODULE(quasardb, m)
     qdb::register_table(m);
     qdb::register_masked_array(m);
     qdb::register_reader(m);
+    qdb::register_query_reader(m);
 
     qdb::register_writer<push_strategy_t, sleep_strategy_t>(m);
 

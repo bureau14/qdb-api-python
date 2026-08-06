@@ -42,6 +42,7 @@
 #include "perf.hpp"
 #include "properties.hpp"
 #include "query.hpp"
+#include "query_reader.hpp"
 #include "reader.hpp"
 #include "string.hpp"
 #include "table_fwd.hpp"
@@ -343,6 +344,14 @@ public:
         check_open();
 
         return py::cast(qdb::numpy_query(_handle, query_string));
+    }
+
+    // the query_reader_ptr is non-copyable
+    qdb::query_reader_ptr stream_query(const std::string & query_string, std::size_t batch_size)
+    {
+        check_open();
+
+        return make_query_reader_ptr(_handle, query_string, batch_size);
     }
 
     std::shared_ptr<qdb::query_continuous> query_continuous(qdb_query_continuous_mode_type_t mode,

@@ -10,6 +10,7 @@ from ._error import (
     AliasAlreadyExistsError,
     AliasNotFoundError,
     AsyncPipelineFullError,
+    DirectInstantiationError,
     Error,
     IncompatibleTypeError,
     InputBufferTooSmallError,
@@ -28,6 +29,7 @@ from ._node import DirectBlob, DirectInteger, Node
 from ._options import Options
 from ._perf import Perf
 from ._query import FindQuery
+from ._query_reader import QueryReader
 from ._reader import Reader
 from ._retry import RetryOptions
 from ._string import String
@@ -47,6 +49,7 @@ __all__ = [
     "AliasAlreadyExistsError",
     "AliasNotFoundError",
     "AsyncPipelineFullError",
+    "DirectInstantiationError",
     "IncompatibleTypeError",
     "InputBufferTooSmallError",
     "InternalLocalError",
@@ -65,6 +68,7 @@ __all__ = [
     "Options",
     "Perf",
     "FindQuery",
+    "QueryReader",
     "Reader",
     "RetryOptions",
     "String",

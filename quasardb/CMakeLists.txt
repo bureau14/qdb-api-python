@@ -382,6 +382,8 @@ set(QDB_FILES
   reader.cpp
   reader.hpp
   reader_fwd.hpp
+  query_reader.cpp
+  query_reader.hpp
   remove_cvref.hpp
   string.hpp
   table.cpp
