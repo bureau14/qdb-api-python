@@ -28,6 +28,7 @@
 #
 from __future__ import annotations
 
+import itertools
 import logging
 import warnings
 from datetime import timedelta
@@ -140,12 +141,14 @@ def query(
 
     dfs = stream_query(cluster, query, index=index)
 
-    # No ignore_index here: the streamed "$index" already continues across
-    # batches (0..n-1), and plain concat preserves the index name, which
-    # ignore_index would drop.
+    # Detect the empty stream via StopIteration rather than catching the
+    # ValueError pd.concat raises for it: concat drives the generator, and
+    # catching ValueError would also swallow conversion errors raised while
+    # streaming (e.g. a masked named index).
+    it = iter(dfs)
     try:
-        return pd.concat(dfs, copy=False)  #  type: ignore[call-overload]
-    except ValueError:
+        head = next(it)
+    except StopIteration:
         # Zero-batch stream (empty result or DML): a zero-row C result
         # carries no schema, so column names are unavailable. Reproduce the
         # legacy empty shape: an empty frame with a named datetime64[ns]
@@ -155,6 +158,11 @@ def query(
             {},
             index=pd.Index(np.array([], dtype="datetime64[ns]"), name=index_name),
         )
+
+    # No ignore_index here: the streamed "$index" already continues across
+    # batches (0..n-1), and plain concat preserves the index name, which
+    # ignore_index would drop.
+    return pd.concat(itertools.chain([head], it), copy=False)
 
 
 def stream_query(
