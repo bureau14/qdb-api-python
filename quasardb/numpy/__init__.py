@@ -1154,7 +1154,8 @@ def stream_query(
 
     batch_size : optional[int]
       The maximum amount of rows per yielded batch. If unset, uses 2^16 (65536)
-      rows as batch size by default.
+      rows as batch size by default. A value of 0 disables batching and yields
+      the entire result as a single batch.
 
     Returns:
     --------
