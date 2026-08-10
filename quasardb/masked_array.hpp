@@ -321,6 +321,9 @@ public:
     /**
      * Cast this masked array to an actual numpy.ma.MaskedArray. This invokes
      * a python function and can be slow.
+     *
+     * Returns an owned reference: the type_caster steals it, any other
+     * caller must py::reinterpret_steal it or the array leaks.
      */
     py::handle cast(py::return_value_policy policy) const
     {

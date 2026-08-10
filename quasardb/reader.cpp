@@ -68,7 +68,9 @@ namespace detail
                 "type returned from bulk reader");
         };
 
-        ret[std::move(column_name)] = std::move(xs.cast(py::return_value_policy::move));
+        // cast() returns an owned reference; steal it, or the array leaks.
+        ret[std::move(column_name)] =
+            py::reinterpret_steal<py::object>(xs.cast(py::return_value_policy::move));
     }
 
     return ret;
