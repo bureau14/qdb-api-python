@@ -60,7 +60,9 @@ py::dict query_reader_iterator::operator*() const
         // the stream-wide dtype.
         qdb::masked_array xs = numpy_query_array(r.rows + offset_, n, j, parent_->column_types_[j]);
 
-        ret[py::str(parent_->column_names_[j])] = std::move(xs.cast(py::return_value_policy::move));
+        // cast() returns an owned reference; steal it, or the array leaks.
+        ret[py::str(parent_->column_names_[j])] =
+            py::reinterpret_steal<py::object>(xs.cast(py::return_value_policy::move));
     }
 
     return ret;
