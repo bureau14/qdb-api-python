@@ -114,6 +114,7 @@ def _get_agent_python_env(platform: Platform, python_version: str) -> dict[str, 
     elif platform.os == "macos":
         return {
             "PYTHON_EXECUTABLE": f"$$QDB_CICD_AGENT_PYTHON_{python_version_slug}_PATH",
+            "PYTHON_CMD": f"$$QDB_CICD_AGENT_PYTHON_{python_version_slug}_PATH",
         }
     return {}
 
