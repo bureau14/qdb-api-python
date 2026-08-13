@@ -102,8 +102,8 @@ def _get_agent_python_env(platform: Platform, python_version: str) -> dict[str, 
     """
     Returns the version-specific Python command for the agent platform.
 
-    The build scripts create their virtualenv and wheel with PYTHON_CMD, so it
-    determines the wheel's Python and ABI tags.
+    The build scripts create their virtualenv and wheel with PYTHON_CMD.
+    Python version from this var determines the wheel's Python tags.
     """
     python_version_slug = python_version.replace(".", "")
     if platform.os == "windows":
