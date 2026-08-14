@@ -3,7 +3,7 @@
   <name>Python</name>
   <parameters>
     <param name="env.QDB_ENCRYPT_TRAFFIC" value="1" spec="select label_3='Enabled' display='normal' description='Whether or not full stream encryption is enabled for secure connections. Python API tests currently assume full stream encryption is enabled.' label='Enable full stream encryption' data_1='0' label_1='Disabled' data_3='1'" />
-    <param name="env.PYTHONIOENCODING" value="1" />
+    <param name="env.PYTHONIOENCODING" value="utf-8" />
   </parameters>
   <project-extensions>
     <extension id="PROJECT_EXT_1" type="versionedSettings">
