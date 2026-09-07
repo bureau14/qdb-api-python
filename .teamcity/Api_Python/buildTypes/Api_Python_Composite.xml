@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <build-type xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" uuid="" xsi:noNamespaceSchemaLocation="https://www.jetbrains.com/teamcity/schemas/2025.3/project-config.xsd">
   <name>Composite</name>
-  <description>Build all artifacts, including debug</description>
+  <description>Build all artifacts (release only) </description>
   <settings>
     <options>
       <option name="buildConfigurationType" value="COMPOSITE" />
@@ -50,13 +50,13 @@
           <option name="take-successful-builds-only" value="true" />
         </options>
       </depend-on>
-      <depend-on sourceBuildTypeId="Api_Python_Debug_Composite">
+      <!-- <depend-on sourceBuildTypeId="Api_Python_Debug_Composite">
         <options>
           <option name="run-build-if-dependency-failed" value="RUN_ADD_PROBLEM" />
           <option name="take-started-build-with-same-revisions" value="true" />
           <option name="take-successful-builds-only" value="true" />
         </options>
-      </depend-on>
+      </depend-on> -->
     </dependencies>
   </settings>
 </build-type>
