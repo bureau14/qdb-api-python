@@ -17,7 +17,16 @@ endif()
 
 include(CheckIPOSupported)
 
-option(QDB_LINK_STATIC_LIB "Link qdb_api_static instead of dynamic qdb_api." OFF)
+# Linux release packages of the C API ship a self-contained lib/libqdb_api.a next
+# to the shared library. Linking it statically means the wheel no longer has to
+# carry libqdb_api.so, so it is the default on Linux. The archive is built with
+# gcc16 and needs gcc16's libstdc++ at link time (see docker/Dockerfile).
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  set(QDB_LINK_STATIC_LIB_DEFAULT ON)
+else()
+  set(QDB_LINK_STATIC_LIB_DEFAULT OFF)
+endif()
+option(QDB_LINK_STATIC_LIB "Link the bundled static libqdb_api.a instead of the shared qdb_api (Linux only)." ${QDB_LINK_STATIC_LIB_DEFAULT})
 option(QDB_TESTS_ENABLED "Build quasardb test suite?" OFF)
 
 set(PACKAGE_NAME quasardb)
@@ -55,19 +64,34 @@ else()
   set(QDB_API_DIR "${CMAKE_SOURCE_DIR}/../qdb")
 endif()
 
-find_library(
-  QDB_API_LIB
-  NAMES ${QDB_API_NAME}
-  PATHS ${QDB_API_DIR}/lib
-  NO_DEFAULT_PATH)
+if(QDB_LINK_STATIC_LIB)
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    message(FATAL_ERROR "[qdb-api-python] QDB_LINK_STATIC_LIB is only supported on Linux")
+  endif()
 
-if(QDB_API_LIB)
+  set(QDB_API_LIB "${QDB_API_DIR}/lib/lib${QDB_API_NAME}.a")
+  if(NOT EXISTS "${QDB_API_LIB}")
+    message(FATAL_ERROR "[qdb-api-python] Static library not found: ${QDB_API_LIB}. Only Release c-api packages ship it; set QDB_LINK_STATIC_LIB=OFF to link the shared library instead.")
+  endif()
   if(NOT IS_DIRECTORY "${QDB_API_DIR}/include")
     message(FATAL_ERROR "[qdb-api-python] Please unzip qdb c-api into ${QDB_API_DIR}")
   endif()
   include_directories(SYSTEM ${QDB_API_DIR}/include)
 else()
-  find_library(QDB_API_LIB NAMES ${QDB_API_NAME})
+  find_library(
+    QDB_API_LIB
+    NAMES ${QDB_API_NAME}
+    PATHS ${QDB_API_DIR}/lib
+    NO_DEFAULT_PATH)
+
+  if(QDB_API_LIB)
+    if(NOT IS_DIRECTORY "${QDB_API_DIR}/include")
+      message(FATAL_ERROR "[qdb-api-python] Please unzip qdb c-api into ${QDB_API_DIR}")
+    endif()
+    include_directories(SYSTEM ${QDB_API_DIR}/include)
+  else()
+    find_library(QDB_API_LIB NAMES ${QDB_API_NAME})
+  endif()
 endif()
 
 message(STATUS "[qdb-api-python] Resolved QDB API library location: ${QDB_API_LIB}")
@@ -300,13 +324,14 @@ include_directories(../quasardb/)
 #
 # Based on the OS, we copy the relevant files into our output directory. This
 # matches the `extdir` as defined in setup.py's CMakeBuild.build_extension().
-
-# We need to detect the _actual_ location of the qdb api lib file, lest we
-# accidentally copy the symlink instead of the file.
-get_filename_component(QDB_API_LIB_REAL ${QDB_API_LIB} REALPATH)
-get_filename_component(QDB_API_LIB_REAL_NAME ${QDB_API_LIB_REAL} NAME)
+# A statically linked extension has nothing to ship, so this is skipped.
 
 if(NOT QDB_LINK_STATIC_LIB)
+  # We need to detect the _actual_ location of the qdb api lib file, lest we
+  # accidentally copy the symlink instead of the file.
+  get_filename_component(QDB_API_LIB_REAL ${QDB_API_LIB} REALPATH)
+  get_filename_component(QDB_API_LIB_REAL_NAME ${QDB_API_LIB_REAL} NAME)
+
   set(FILES_TO_COPY)
 
   if(WIN32)
@@ -449,80 +474,16 @@ pybind11_add_module(
 
 target_compile_definitions(quasardb PUBLIC QDB_PY_VERSION="${QDB_PY_VERSION}" QDB_GIT_HASH="${QDB_GIT_HASH}")
 if(QDB_LINK_STATIC_LIB)
-  add_definitions(-DQDB_API_STATIC_LINK=1)
+  # libqdb_api.a bundles every QuasarDB dependency (rocksdb, tbb, arrow, ...);
+  # only the C runtime and the C++ runtime are left for the final link. The
+  # C++ runtime comes from the compiler through -static-libstdc++ below.
+  target_compile_definitions(quasardb PUBLIC QDB_API_STATIC_LINK=1)
+  target_link_libraries(quasardb PUBLIC ${QDB_API_LIB} m dl pthread rt)
 
-  set(LIB_DIR "${QDB_API_DIR}/lib_static")
-  if(WIN32)
-    set(LIB_PREFIX "")
-    set(LIB_SUFFIX "$<$<CONFIG:Debug>:d>.lib")
-  else()
-    set(LIB_PREFIX "lib")
-    set(LIB_SUFFIX "$<$<CONFIG:Debug>:d>.a")
-  endif()
-
-  target_link_libraries(quasardb
-    PUBLIC
-      "${LIB_DIR}/${LIB_PREFIX}qdb_api_static${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_query_client${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_client${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_aggregation${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_chord${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_network${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_protocol${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_perf${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_persistence${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_application${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}rocksdb${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}zlibstatic${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_query${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}geohash${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_timeseries${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_query_dsl${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}arrow${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_metadata${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_config${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}boost_program_options${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_serialization${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_compression${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_serialization${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_compression${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_auth${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_crypto${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_json${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_id${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}skein${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_network_resolver${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}libsodium${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_io${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_log${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}lz4${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_sys${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_time${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}brigand${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_util${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}boost_filesystem${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}fmt${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}robin_hood${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}asio${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}xxhash${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_memory${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}tbbmalloc${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}tbb${LIB_SUFFIX}"
-      "${LIB_DIR}/${LIB_PREFIX}qdb_version${LIB_SUFFIX}"
-  )
-
-  if(WIN32)
-    target_link_libraries(quasardb
-      PUBLIC
-        "${LIB_DIR}/${LIB_PREFIX}zstd_static${LIB_SUFFIX}"
-    )
-  else()
-    target_link_libraries(quasardb
-      PUBLIC
-        "${LIB_DIR}/${LIB_PREFIX}boost_system${LIB_SUFFIX}"
-        "${LIB_DIR}/${LIB_PREFIX}zstd${LIB_SUFFIX}"
-    )
-  endif()
+  # Keep every symbol pulled from the archive local to the extension, so that
+  # e.g. the bundled tbb or arrow can never be resolved by another module
+  # loaded in the same interpreter.
+  target_link_options(quasardb PUBLIC "LINKER:--exclude-libs,ALL")
 else()
   target_link_libraries(quasardb PUBLIC ${QDB_API_LIB})
 endif()
