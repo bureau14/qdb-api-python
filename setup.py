@@ -20,9 +20,10 @@ from wheel.bdist_wheel import bdist_wheel as old_bdist_wheel
 
 qdb_version = "3.14.4.dev0"
 
-# package_modules are our 'extra' files. Our cmake configuration copies our QDB_API_LIB
-# into our source directory, and by adding this to `package_modules` we tell setuptools to
-# package this.
+# package_modules are our 'extra' files. When linking the shared C API, our cmake
+# configuration copies QDB_API_LIB into our source directory, and by adding this to
+# `package_modules` we tell setuptools to package it. Linux links the static C API
+# (QDB_LINK_STATIC_LIB) and ships nothing here.
 package_modules = glob.glob(os.path.join("quasardb", "lib*"))
 package_name = "quasardb"
 packages = [
@@ -63,9 +64,9 @@ class CMakeBuild(build_ext):
             "quasardb",
         )
 
-        # We provide CMAKE_LIBRARY_OUTPUT_DIRECTORY to cmake, where it will copy libqdb_api.so (or
-        # whatever the OS uses). It is important that this path matches `package_modules`, so that
-        # setuptools knows it needs to package this.
+        # We provide CMAKE_LIBRARY_OUTPUT_DIRECTORY to cmake, where it will copy libqdb_api.dylib
+        # (or whatever the OS uses) when linking the shared C API. It is important that this path
+        # matches `package_modules`, so that setuptools knows it needs to package this.
         cmake_args = [
             "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=" + extdir,
             "-DPYTHON_EXECUTABLE=" + sys.executable,
@@ -80,6 +81,7 @@ class CMakeBuild(build_ext):
             "CMAKE_C_COMPILER": ["-D", "CMAKE_C_COMPILER={}"],
             "CMAKE_CXX_COMPILER": ["-D", "CMAKE_CXX_COMPILER={}"],
             "QDB_LINKER": ["-D", "QDB_LINKER={}"],
+            "QDB_LINK_STATIC_LIB": ["-D", "QDB_LINK_STATIC_LIB={}"],
             "QDB_TESTS_ENABLED": ["-D", "QDB_TESTS_ENABLED={}"],
             "CMAKE_BUILD_TYPE": ["-D", "CMAKE_BUILD_TYPE={}"],
             "CMAKE_OSX_DEPLOYMENT_TARGET": ["-D", "CMAKE_OSX_DEPLOYMENT_TARGET={}"],
