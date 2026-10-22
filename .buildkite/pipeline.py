@@ -32,7 +32,15 @@ from qdb_pipeline import (
 STEPS_DIR = Path(__file__).parent / "steps"
 
 # Quasardb-specific toolchain overlays on top of shared infrastructure platforms.
-_LINUX = dict()
+#
+# Linux links the static libqdb_api.a, built by quasardb-build with gcc16, so the
+# extension must be compiled and linked with gcc16 as well: its libstdc++ is the
+# only one that defines the symbols the archive references. docker/Dockerfile
+# copies the toolchain from bureau14/builder:rhel7 to this path.
+_LINUX = dict(
+    c_compiler="/usr/local/gcc16/bin/gcc",
+    cxx_compiler="/usr/local/gcc16/bin/g++",
+)
 _WIN = dict()
 _MACOS = dict()
 

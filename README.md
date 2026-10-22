@@ -34,9 +34,10 @@ python3 -m pip install quasardb
 For Linux builds, we use [manylinux2_28](https://github.com/pypa/manylinux) to ensure compatibility with Linux distributions that have glibc version 2.28 or later installed, built on RHEL8. This means that if you are using a Linux distribution that was released in 2019 or later, we support your environment.
 
 This includes, but is not limited to:
-* RHEL8+ and derivatives;
-* Debian 10 (buster) or later;
-* Ubuntu 19.04 or later.
+
+- RHEL8+ and derivatives;
+- Debian 10 (buster) or later;
+- Ubuntu 19.04 or later.
 
 You can check the glibc version installed on your machine as follows:
 
@@ -55,32 +56,35 @@ The QuasarDB Python API builds on top of [pybind11](https://github.com/pybind/py
 
 ## Directory structure
 
-| Directory     | Purpose                                                                                                                                                                    |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `doc/`        | Scripts to generate pydoc code                                                                                                                                             |
-| `docker/`     | Dockerfile for `manylinux` builds                                                                                                                                          |
-| `examples/`   | Example code. Code in the `tutorials/` subdirectory is tested as part of the test suite, and directly injected into our documentation available on https://doc.quasar.ai   |
-| `quasardb/`   | C++ source code and python modules.                                                                                                                                        |
-| `scripts/`    | Utility scripts for continuous integratioin and development.                                                                                                               |
-| `tests/`      | Test suite based on pytest.                                                                                                                                                |
-| `thirdparty/` | Vendored c++ libraries                                                                                                                                                     |
+| Directory     | Purpose                                                                                                                                                                  |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `doc/`        | Scripts to generate pydoc code                                                                                                                                           |
+| `docker/`     | Dockerfile for `manylinux` builds                                                                                                                                        |
+| `examples/`   | Example code. Code in the `tutorials/` subdirectory is tested as part of the test suite, and directly injected into our documentation available on https://doc.quasar.ai |
+| `quasardb/`   | C++ source code and python modules.                                                                                                                                      |
+| `scripts/`    | Utility scripts for continuous integratioin and development.                                                                                                             |
+| `tests/`      | Test suite based on pytest.                                                                                                                                              |
+| `thirdparty/` | Vendored c++ libraries                                                                                                                                                   |
 
 ## Prepare for running tests
 
 Prerequisite
-* c++ compiler that supports C++20
-* cmake
+
+- c++ compiler that supports C++20
+- cmake
 
 The instructions below have been verified to work on:
-* Linux (RHEL, Fedora, Ubuntu, Debian and Arch Linux);
-* macOS 15.4.1 (amd64 and aarch64);
-* Windows WSL.
+
+- Linux (RHEL, Fedora, Ubuntu, Debian and Arch Linux);
+- macOS 15.4.1 (amd64 and aarch64);
+- Windows WSL.
 
 ### QuasarDB tarball extraction
 
 All QuasarDB APIs assume QuasarDB and associated utilities are extracted into the `qdb/` subdirectory.
 
 Extract QuasarDB C API, utilities and server into qdb/
+
 ```
 mkdir qdb
 cd qdb
@@ -92,11 +96,10 @@ cd ..
 
 The build/test process heavily relies on certain environment variables to be set. What is required at the minimum is:
 
-* Set `QDB_TESTS_ENABLED` environment variable to ensure that C++ code found in `tests/` is also compiled, which is required to run the tests.
-* Set `QDB_ENCRYPT_TRAFFIC` before launching the QuasarDB services, as the Python tests establish an encrypted connection with QuasarDB when tests are ran on the secure cluster.
+- Set `QDB_TESTS_ENABLED` environment variable to ensure that C++ code found in `tests/` is also compiled, which is required to run the tests.
+- Set `QDB_ENCRYPT_TRAFFIC` before launching the QuasarDB services, as the Python tests establish an encrypted connection with QuasarDB when tests are ran on the secure cluster.
 
 All the environment variables are discovered and used appropriately by `setup.py`, which controls the C++ build process.
-
 
 Export required environment variables:
 
@@ -124,6 +127,12 @@ Compiler customization (optional):
 ```
 export CMAKE_C_COMPILER=/usr/local/clang18/bin/clang
 export CMAKE_CXX_COMPILER=/usr/local/clang18/bin/clang++
+```
+
+On Linux the extension links the static `libqdb_api.a` shipped in Release C API packages (`QDB_LINK_STATIC_LIB`, default `ON` on Linux), so the wheel does not carry `libqdb_api.so`. That archive is built with gcc16 and must be linked with gcc16's libstdc++, which is what the `docker/` image provides. To link the shared library instead, for example against a Debug C API package:
+
+```
+export QDB_LINK_STATIC_LIB=OFF
 ```
 
 ### Launch services
@@ -154,11 +163,11 @@ $
 
 This does the following out of the box:
 
-* Create a virtualenv;
-* Install dev requirements in virtualenv;
-* Build the .whl file;
-* Install the .whl file in virtualenv;
-* Invoke pytest on the entire repository in the `tests/` subdirectory.
+- Create a virtualenv;
+- Install dev requirements in virtualenv;
+- Build the .whl file;
+- Install the .whl file in virtualenv;
+- Invoke pytest on the entire repository in the `tests/` subdirectory.
 
 This process is not as optimal as before, as it doesn't use incremental development. CMake <> Python integration relies on setuptools facilities which are slowly being deprecated. Work to improve this process and bring back incremental builds is tracked in internal ticket QDB-16522.
 
