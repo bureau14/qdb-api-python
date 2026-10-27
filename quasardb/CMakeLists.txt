@@ -484,6 +484,13 @@ if(QDB_LINK_STATIC_LIB)
   # e.g. the bundled tbb or arrow can never be resolved by another module
   # loaded in the same interpreter.
   target_link_options(quasardb PUBLIC "LINKER:--exclude-libs,ALL")
+
+  # TEMPORARY(QDB-20060): remove once quasardb-build runs on RHEL8 (glibc 2.28).
+  # The archive is built on glibc 2.26 and linked here on glibc 2.28; pin the
+  # libm symbols whose default version moved in between to the old version so
+  # the wheel keeps its manylinux_2_26 tag. See detail/glibc_compat.cpp.
+  target_sources(quasardb PRIVATE detail/glibc_compat.cpp)
+  set_source_files_properties(detail/glibc_compat.cpp PROPERTIES COMPILE_OPTIONS "-fno-lto;-fno-builtin")
 else()
   target_link_libraries(quasardb PUBLIC ${QDB_API_LIB})
 endif()
