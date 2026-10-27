@@ -129,7 +129,7 @@ export CMAKE_C_COMPILER=/usr/local/clang18/bin/clang
 export CMAKE_CXX_COMPILER=/usr/local/clang18/bin/clang++
 ```
 
-On Linux the extension links the static `libqdb_api.a` shipped in Release C API packages (`QDB_LINK_STATIC_LIB`, default `ON` on Linux), so the wheel does not carry `libqdb_api.so`. That archive is built with gcc16 and must be linked with gcc16's libstdc++, which is what the `docker/` image provides. To link the shared library instead, for example against a Debug C API package:
+On Linux the extension links the static `libqdb_api.a` shipped in Release C API packages (`QDB_LINK_STATIC_LIB`, default `ON` on Linux), so the wheel does not carry `libqdb_api.so`. That archive is built with gcc16 and must be linked with gcc16's libstdc++, which is what the `docker/` image provides. The archive is compiled on glibc 2.26 but linked on the image's glibc 2.28, so `quasardb/detail/glibc_compat.cpp` pins the libm symbols whose default version changed in between; this keeps the wheel installable on glibc 2.26 (its `manylinux_2_26` tag), which `scripts/cicd/10.build.sh` verifies. To link the shared library instead, for example against a Debug C API package:
 
 ```
 export QDB_LINK_STATIC_LIB=OFF
