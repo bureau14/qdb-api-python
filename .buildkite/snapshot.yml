@@ -9,3 +9,13 @@ pipelines:
     depends:
       - project: quasardb-build
         repo: bureau14/quasardb
+      # sc-20192 test branch only, until the planned dependency lands.
+      - project: qdb-api-rest
+        repo: bureau14/qdb-api-rest
+    # sc-20192 test branch only: the reduced matrix of pipeline.py.
+    gates:
+      - build-linux-core2-release-py312
+      - build-linux-aarch64-release-py312
+    produces:
+      - linux-core2-release-py312
+      - linux-aarch64-release-py312

@@ -110,22 +110,17 @@ _OS_OVERLAY = {"linux": _LINUX, "windows": _WIN, "macos": _MACOS}
 PLATFORMS: list[Platform] = [
     dataclasses.replace(p, **_OS_OVERLAY.get(p.os, {}))
     for p in select_platforms(
+        # sc-20192 test branch only: Linux core2 and Linux aarch64, one
+        # Python version, Release only. Never merge this reduction.
         "linux-amd64-core2",
         "linux-aarch64",
-        "windows-amd64-core2",
-        "macos-aarch64",
     )
 ]
 
-BUILD_TYPES = ["Release", "Debug"]
+BUILD_TYPES = ["Release"]
 
 PYTHON_VERSIONS = [
-    "3.9",
-    "3.10",
-    "3.11",
     "3.12",
-    "3.13",
-    "3.14",
 ]
 
 # Environment variable layering: global → step → os → os+step → platform compilers.
