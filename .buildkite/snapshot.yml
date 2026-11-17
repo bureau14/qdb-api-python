@@ -1,0 +1,11 @@
+# Snapshot dependencies (sc-20192): the direct dependencies of this
+# repository's pipelines on other pipelines, one entry per project_id
+# that the qdb-artifacts download blocks in steps/ name. The same content
+# on every release line.
+schema: 1
+lines: [master, 3.14.x]
+pipelines:
+  qdb-api-python:
+    depends:
+      - project: quasardb-build
+        repo: bureau14/quasardb
