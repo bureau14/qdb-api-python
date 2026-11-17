@@ -505,6 +505,13 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 if(APPLE)
+  # Recent libc++ SDKs removed the private visibility macros used by meta's
+  # standard container forward declarations.
+  target_compile_definitions(quasardb
+                             PRIVATE META_NO_STD_FORWARD_DECLARATIONS)
+endif()
+
+if(APPLE)
   set_target_properties(quasardb PROPERTIES INSTALL_RPATH "@loader_path")
 else()
   set_target_properties(quasardb PROPERTIES INSTALL_RPATH "$ORIGIN/")
