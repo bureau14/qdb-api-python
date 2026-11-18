@@ -55,14 +55,14 @@ PLATFORMS: list[Platform] = [
     )
 ]
 
-BUILD_TYPES = ["Release"] # , "Debug"]
+BUILD_TYPES = ["Release", "Debug"]
 
 PYTHON_VERSIONS = [
-    # "3.9",
-    # "3.10",
-    # "3.11",
-    # "3.12",
-    # "3.13",
+    "3.9",
+    "3.10",
+    "3.11",
+    "3.12",
+    "3.13",
     "3.14",
 ]
 
