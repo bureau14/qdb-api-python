@@ -1,3 +1,5 @@
+import conftest
+
 # # pylint: disable=C0103,C0111,C0302,W0212
 import pytest
 import quasardb
@@ -394,7 +396,10 @@ def test_returns_count_data_with_count_select(qdbd_connection, table, intervals)
     assert res[0]["count(the_double)"] == 10
 
 
-def test_returns_count_data_with_count_select_numpy(qdbd_connection, table, intervals):
+@conftest.query_transports
+def test_returns_count_data_with_count_select_numpy(
+    query_connection, qdbd_connection, table, intervals
+):
     start_time = tslib._start_time(intervals)
     _ = _insert_double_points(qdbd_connection, table, start_time, 10)
     query = (
@@ -406,7 +411,7 @@ def test_returns_count_data_with_count_select_numpy(qdbd_connection, table, inte
         + str(tslib._start_year(intervals))
         + ", +100d)"
     )
-    (idx, res) = qdbnp.query(qdbd_connection, query)
+    (idx, res) = qdbnp.query(query_connection, query)
 
     assert len(res) == 1
     counts = res[0]
@@ -417,13 +422,16 @@ def test_returns_count_data_with_count_select_numpy(qdbd_connection, table, inte
     assert counts[0] == 10
 
 
-def test_string_query_returns_unicode_numpy(qdbd_connection, table, intervals):
+@conftest.query_transports
+def test_string_query_returns_unicode_numpy(
+    query_connection, qdbd_connection, table, intervals
+):
     start_time = tslib._start_time(intervals)
     inserted_string_data = _insert_string_points(qdbd_connection, table, start_time, 10)
     column_name = tslib._string_col_name(table)
     query = 'SELECT "{}" FROM "{}"'.format(column_name, table.get_name())
 
-    (idx, res) = qdbnp.query(qdbd_connection, query)
+    (idx, res) = qdbnp.query(query_connection, query)
 
     assert len(res) == 1
     xs = res[0]
@@ -433,13 +441,16 @@ def test_string_query_returns_unicode_numpy(qdbd_connection, table, intervals):
     np.testing.assert_array_equal(xs, inserted_string_data[1])
 
 
-def test_blob_query_returns_bytes_numpy(qdbd_connection, table, intervals):
+@conftest.query_transports
+def test_blob_query_returns_bytes_numpy(
+    query_connection, qdbd_connection, table, intervals
+):
     start_time = tslib._start_time(intervals)
     inserted_blob_data = _insert_blob_points(qdbd_connection, table, start_time, 10)
     column_name = tslib._blob_col_name(table)
     query = 'SELECT "{}" FROM "{}"'.format(column_name, table.get_name())
 
-    (idx, res) = qdbnp.query(qdbd_connection, query)
+    (idx, res) = qdbnp.query(query_connection, query)
 
     assert len(res) == 1
     xs = res[0]

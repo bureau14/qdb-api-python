@@ -138,3 +138,25 @@ if not "quasardb" in locals():
 from .extensions import extend_module
 
 extend_module(quasardb)
+
+
+from ._cluster import Cluster, QueryStream
+
+# Virtual registration needs the completed native types and preserves their inheritance.
+Cluster.register(NativeCluster)
+QueryStream.register(QueryReader)
+
+
+def __getattr__(name):
+    if name == "RestCluster":
+        from ._rest import RestCluster
+
+        globals()[name] = RestCluster
+        return RestCluster
+    raise AttributeError("module 'quasardb' has no attribute {!r}".format(name))
+
+
+# Wildcard imports expose the native/common API, independent of optional extras.
+__all__ = [name for name in dir(quasardb) if not name.startswith("_")] + [
+    "QueryStream",
+]

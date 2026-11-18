@@ -341,7 +341,9 @@ def test_write_dataframe_create_table_with_shard_size(
     _assert_df_equal(df1, df2)
 
 
+@conftest.query_transports
 def test_query(
+    query_connection,
     qdbpd_write_fn,  # parametrized
     qdbpd_query_fn,  # parametrized
     df_with_table,  # parametrized
@@ -354,7 +356,7 @@ def test_query(
 
     df2 = (
         qdbpd_query_fn(
-            qdbd_connection,
+            query_connection,
             'SELECT $timestamp, {} FROM "{}"'.format(column_name, table_name),
         )
         .set_index("$timestamp")

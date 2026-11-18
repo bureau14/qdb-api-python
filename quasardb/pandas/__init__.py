@@ -37,7 +37,8 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 import quasardb
 import quasardb.numpy as qdbnp
 import quasardb.table_cache as table_cache
-from quasardb.quasardb import Cluster, Table, Writer
+from quasardb import Cluster
+from quasardb.quasardb import Table, Writer
 from quasardb.typing import DType, MaskedArrayAny, Range, RangeSet
 
 logger = logging.getLogger("quasardb.pandas")
@@ -203,8 +204,10 @@ def stream_query(
 
     batch_size : optional[int]
       The maximum amount of rows per yielded DataFrame. If unset, uses 2^16
-      (65536) rows as batch size by default. A value of 0 disables batching
-      and yields the entire result as a single DataFrame.
+      (65536) rows as batch size by default. A value of 0 yields one full-result
+      DataFrame on native connections and preserves server batch boundaries on
+      REST. REST batches may be smaller than requested; slicing cannot reduce
+      memory already held by an incoming Arrow batch.
 
     Examples:
     ---------

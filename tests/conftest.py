@@ -23,29 +23,62 @@ def connect(uri):
 
 def config():
     return {
-        "uri": {"insecure": "qdb://127.0.0.1:2836", "secure": "qdb://127.0.0.1:2838"}
+        "uri": {
+            mode: "qdb://"
+            + os.environ.get("URI_" + mode.upper(), default).replace("qdb://", "", 1)
+            for mode, default in (
+                ("insecure", "127.0.0.1:2836"),
+                ("secure", "127.0.0.1:2838"),
+            )
+        }
     }
+
+
+def _setup_key_path(variable, default):
+    path = os.environ.get(variable, default)
+    # Setup scripts interpret relative overrides from the repository root; pytest
+    # runs from tests/, so resolve the same path before reading credentials.
+    return os.path.join(os.path.dirname(__file__), "..", path)
 
 
 def _qdbd_settings():
-    user_key = {}
-    cluster_key = ""
-
-    with open("../user_private.key", "r") as user_key_file:
+    user_path = _setup_key_path("USER_PRIVATE_KEY", "user_private.key")
+    public_path = _setup_key_path("CLUSTER_PUBLIC_KEY", "cluster_public.key")
+    with open(user_path, "r") as user_key_file:
         user_key = json.load(user_key_file)
-    with open("../cluster_public.key", "r") as cluster_key_file:
+    with open(public_path, "r") as cluster_key_file:
         cluster_key = cluster_key_file.read()
-    return {
-        "uri": {"insecure": "qdb://127.0.0.1:2836", "secure": "qdb://127.0.0.1:2838"},
-        "security": {
-            "user_name": user_key["username"],
-            "user_private_key": user_key["secret_key"],
-            "cluster_public_key": cluster_key,
-            "user_private_key_file": "../user_private.key",
-            "cluster_public_key_file": "../cluster_public.key",
-            "enable_encryption": os.environ.get("QDB_ENCRYPT_TRAFFIC", "0") != "0",
-        },
+    settings = config()
+    settings["security"] = {
+        "user_name": user_key["username"],
+        "user_private_key": user_key["secret_key"],
+        "cluster_public_key": cluster_key,
+        "user_private_key_file": user_path,
+        "cluster_public_key_file": public_path,
+        "enable_encryption": os.environ.get("QDB_ENCRYPT_TRAFFIC", "0") != "0",
     }
+    return settings
+
+
+def _query_connection_settings(variant, settings):
+    transport, security = variant.split("-")
+    native = {"uri": settings["uri"][security]}
+    if security == "secure":
+        for key in (
+            "user_name",
+            "user_private_key",
+            "cluster_public_key",
+            "enable_encryption",
+        ):
+            native[key] = settings["security"][key]
+    connection = dict(native)
+    if transport == "rest":
+        port = os.environ.get(
+            "REST_PORT_" + security.upper(),
+            "40081" if security == "secure" else "40080",
+        )
+        connection["uri"] = "http://127.0.0.1:" + port
+    return connection, native
 
 
 @pytest.fixture(scope="module")
@@ -63,10 +96,17 @@ def create_qdbd_connection(settings, purge=False):
 
 
 @pytest.fixture(scope="module")
-def qdbd_connection(qdbd_settings):
-    conn = create_qdbd_connection(qdbd_settings, purge=True)
-    yield conn
-    conn.close()
+def qdbd_connection(request, qdbd_settings):
+    # Only explicitly parametrized query tests select another setup backend.
+    # Existing tests keep the native insecure connection and purge behavior.
+    variant = getattr(request, "param", "native-insecure")
+    _, settings = _query_connection_settings(variant, qdbd_settings)
+    conn = quasardb.Cluster(**settings)
+    conn.purge_all(datetime.timedelta(minutes=1))
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 @pytest.fixture(scope="module")
@@ -1027,3 +1067,31 @@ def mock_failure_count(request):
 @pytest.fixture
 def mock_failure_options(mock_failure_count):
     return quasardb.MockFailureOptions(failures=mock_failure_count)
+
+
+# Opt in per test so unsupported native APIs are never multiplied into REST cases.
+query_transports = pytest.mark.parametrize(
+    "qdbd_connection",
+    ["native-insecure", "native-secure", "rest-insecure", "rest-secure"],
+    indirect=True,
+    scope="module",
+)
+rest_transports = pytest.mark.parametrize(
+    "qdbd_connection", ["rest-insecure", "rest-secure"], indirect=True, scope="module"
+)
+
+
+@pytest.fixture
+def query_connection_settings(request, qdbd_settings, qdbd_connection):
+    variant = request.node.callspec.params["qdbd_connection"]
+    return _query_connection_settings(variant, qdbd_settings)
+
+
+@pytest.fixture
+def query_connection(query_connection_settings, qdbd_connection):
+    settings, _ = query_connection_settings
+    if settings["uri"].startswith("qdb://"):
+        yield qdbd_connection
+    else:
+        with quasardb.Cluster(**settings) as conn:
+            yield conn

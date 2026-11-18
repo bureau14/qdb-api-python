@@ -206,10 +206,19 @@ setup(
     install_requires=["numpy"],
     extras_require={
         "pandas": ["pandas"],
+        "rest": [
+            "pyarrow>=12,<13; python_version < '3.8'",
+            "pyarrow>=12,<18; python_version == '3.8'",
+            "pyarrow>=12; python_version >= '3.9'",
+        ],
         "test": ["pytest"],
     },
     packages=packages,
-    package_data={package_name: package_modules},
+    package_data={
+        package_name: package_modules + ["*.pyi", "py.typed"],
+        "quasardb.quasardb": ["*.pyi"],
+        "quasardb.quasardb.metrics": ["*.pyi"],
+    },
     ext_modules=[CMakeExtension("quasardb", "quasardb/")],
     include_package_data=True,
     cmdclass=cmdclass,

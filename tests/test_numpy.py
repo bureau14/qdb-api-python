@@ -611,62 +611,78 @@ def _prepare_query_test(array_with_index_and_table, qdbd_connection):
     return (data, index, col, q)
 
 
-def test_query_valid_results(array_with_index_and_table, qdbd_connection):
+@conftest.query_transports
+def test_query_valid_results(
+    query_connection, array_with_index_and_table, qdbd_connection
+):
     (data, index, col, q) = _prepare_query_test(
         array_with_index_and_table, qdbd_connection
     )
 
-    (idx, res) = qdbnp.query(qdbd_connection, q, index="$timestamp")
+    (idx, res) = qdbnp.query(query_connection, q, index="$timestamp")
     assert_indexed_arrays_equal((index, data), (idx, res[0]))
 
 
-def test_query_unknown_index(array_with_index_and_table, qdbd_connection):
+@conftest.query_transports
+def test_query_unknown_index(
+    query_connection, array_with_index_and_table, qdbd_connection
+):
     (data, index, col, q) = _prepare_query_test(
         array_with_index_and_table, qdbd_connection
     )
 
     with pytest.raises(KeyError):
-        qdbnp.query(qdbd_connection, q, index="fooasbsdaog")
+        qdbnp.query(query_connection, q, index="fooasbsdaog")
 
 
-def test_query_iota_index(array_with_index_and_table, qdbd_connection):
+@conftest.query_transports
+def test_query_iota_index(
+    query_connection, array_with_index_and_table, qdbd_connection
+):
     (data, index, col, q) = _prepare_query_test(
         array_with_index_and_table, qdbd_connection
     )
 
     # Simple test which just ensures when no explicit index is provided,
     # we get numbered "iota"-range back instead.
-    (idx, res) = qdbnp.query(qdbd_connection, q)
+    (idx, res) = qdbnp.query(query_connection, q)
 
     # A range of 1,2,3,4 etc will have a diff of exactly 1 for each item
     idx_ = np.diff(idx)
     assert np.all(idx_ == 1)
 
 
+@conftest.query_transports
 @conftest.override_sparsify("partial")
-def test_query_masked_index(array_with_index_and_table, qdbd_connection):
+def test_query_masked_index(
+    query_connection, array_with_index_and_table, qdbd_connection
+):
     (data, index, col, q) = _prepare_query_test(
         array_with_index_and_table, qdbd_connection
     )
 
     with pytest.raises(ValueError):
         # We know we always have a partially masked array
-        qdbnp.query(qdbd_connection, q, index=col)
+        qdbnp.query(query_connection, q, index=col)
 
 
-def test_query_empty_result(array_with_index_and_table, qdbd_connection):
+@conftest.query_transports
+def test_query_empty_result(
+    query_connection, array_with_index_and_table, qdbd_connection
+):
     (ctype, dtype, data, index, table) = array_with_index_and_table
 
     q = 'SELECT * FROM "{}"'.format(table.get_name())
-    (idx, res) = qdbnp.query(qdbd_connection, q)
+    (idx, res) = qdbnp.query(query_connection, q)
 
     assert len(idx) == 0
     assert len(res) == len(idx)
 
 
+@conftest.query_transports
 @conftest.override_sparsify("none")
 @conftest.override_cdtypes([np.dtype("int64"), np.dtype("float64")])
-def test_query_insert(array_with_index_and_table, qdbd_connection):
+def test_query_insert(query_connection, array_with_index_and_table, qdbd_connection):
     (ctype, dtype, data, index, table) = array_with_index_and_table
 
     col = table.column_id_by_index(0)
@@ -675,7 +691,7 @@ def test_query_insert(array_with_index_and_table, qdbd_connection):
     q = 'INSERT INTO "{}" ($timestamp, {}) VALUES (NOW(), {})'.format(
         table.get_name(), col, val
     )
-    (idx, res) = qdbnp.query(qdbd_connection, q)
+    (idx, res) = qdbnp.query(query_connection, q)
 
     assert len(idx) == 0
     assert len(res) == len(idx)

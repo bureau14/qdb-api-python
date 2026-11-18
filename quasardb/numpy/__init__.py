@@ -47,7 +47,8 @@ from typing import (
 
 import quasardb
 import quasardb.table_cache as table_cache
-from quasardb.quasardb import Cluster, Table, Writer
+from quasardb import Cluster
+from quasardb.quasardb import Table, Writer
 from quasardb.typing import DType, MaskedArrayAny, NDArrayAny, NDArrayTime, RangeSet
 
 logger = logging.getLogger("quasardb.numpy")
@@ -1155,8 +1156,10 @@ def stream_query(
 
     batch_size : optional[int]
       The maximum amount of rows per yielded batch. If unset, uses 2^16 (65536)
-      rows as batch size by default. A value of 0 disables batching and yields
-      the entire result as a single batch.
+      rows as batch size by default. A value of 0 yields one full-result batch
+      on native connections and preserves server batch boundaries on REST.
+      REST batches may be smaller than requested. Numeric slices retain the
+      source Arrow buffers, so the server batch size sets a memory lower bound.
 
     Returns:
     --------
