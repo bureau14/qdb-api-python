@@ -6,9 +6,6 @@ key: "full-test-report"
 
 command: "true"
 
-# Recent builds took under 6 minutes.
-timeout_in_minutes: 15
-
 allow_dependency_failure: true
 
 depends_on:

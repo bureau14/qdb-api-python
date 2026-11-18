@@ -5,79 +5,17 @@ Step templates in steps/*.yml define nearly-complete Buildkite steps with
 {placeholder} variables.  This script loads them, substitutes variables, and
 overlays environment variables and the Docker plugin per platform.
 
-Without a command and without SNAPDEP_PHASE=generate, the script prints
-the snapshot gate of snapshot-bootstrap.yml instead. The gate's first
-job runs the qdb-snapshot plugin, which calls this script again with
-SNAPDEP_PHASE=generate to obtain the pipeline (snapshot.yml declares the
-dependencies).
-
 Usage:
     python3 pipeline.py           # emit pipeline YAML to stdout
     python3 pipeline.py check     # validate without emitting
 """
 from __future__ import annotations
 
-import os
-import subprocess
+import dataclasses
 import sys
-import time
 from pathlib import Path
 
-SNAPDEP_BOOTSTRAP = Path(__file__).parent / "snapshot-bootstrap.yml"
-
-
-def _snapdep_wants_bootstrap() -> bool:
-    """Return True for the upload job's plain invocation, outside the generate phase."""
-    return (
-        len(sys.argv) == 1
-        and os.environ.get("SNAPDEP_PHASE") != "generate"
-        and SNAPDEP_BOOTSTRAP.exists()
-    )
-
-
-def _snapdep_record_arrival() -> None:
-    """Set the build meta-data snapdep-arrived to the current UTC epoch seconds.
-
-    Does nothing when buildkite-agent is not installed (a local run), and
-    raises CalledProcessError when buildkite-agent fails.
-    """
-    cmd = [
-        "buildkite-agent",
-        "meta-data",
-        "set",
-        "snapdep-arrived",
-        str(int(time.time())),
-    ]
-    try:
-        # stdout goes to stderr: the upload job pipes stdout into the upload.
-        subprocess.run(cmd, check=True, stdout=sys.stderr)
-    except FileNotFoundError:
-        pass
-
-
-def _snapdep_bootstrap() -> str:
-    """Return the bootstrap pipeline with __COMMIT__ replaced by the checked-out commit."""
-    sha = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=Path(__file__).parent,
-        check=True,
-        stdout=subprocess.PIPE,
-        text=True,
-    ).stdout.strip()
-    return SNAPDEP_BOOTSTRAP.read_text().replace("__COMMIT__", sha)
-
-
-# The bootstrap runs before the imports below, so it needs neither the
-# tools submodule nor the packages of requirements.txt.
-if _snapdep_wants_bootstrap():
-    bootstrap = _snapdep_bootstrap()
-    _snapdep_record_arrival()
-    sys.stdout.write(bootstrap)
-    sys.exit(0)
-
-import dataclasses  # noqa: E402
-
-from buildkite_sdk import CommandStep, Pipeline, GroupStep  # noqa: E402
+from buildkite_sdk import CommandStep, Pipeline, GroupStep
 
 sys.path.insert(0, str(Path(__file__).parent / "tools"))
 from qdb_pipeline import (
