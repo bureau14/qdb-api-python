@@ -28,6 +28,13 @@ plugins:
               - "*-c-api.tar.zst!*"
               - "*-server.tar.zst!*"
               - "*-utils.tar.zst!*"
+          # sc-20192 test branch only: a snapshot dependency on qdb-api-rest,
+          # so that a build of this pipeline is the root of a chain three
+          # deep. Download only, into a directory the build does not use.
+          - project_id: "qdb-api-rest"
+            output-dir: "snapdep-rest"
+            files:
+              - "*-rest.*"
       upload:
         files:
           - "dist/quasardb-*.whl"
