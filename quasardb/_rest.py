@@ -12,6 +12,7 @@ import operator
 import threading
 import weakref
 from contextlib import ExitStack
+from functools import partial
 from types import TracebackType
 from typing import Dict, Iterator, Optional, Type
 from urllib.parse import urlsplit
@@ -43,6 +44,7 @@ logger = logging.getLogger(__name__)
 
 _MAX_ERROR_DETAIL_BYTES = 16 * 1024
 _MAX_AUTH_RESPONSE_BYTES = 64 * 1024
+_ARROW_STREAM = "application/vnd.apache.arrow.stream"
 
 
 class _Response(io.RawIOBase):
@@ -51,7 +53,9 @@ class _Response(io.RawIOBase):
     def __init__(self, connection, response):
         super().__init__()
         self.connection = connection
-        self.response = response
+        self._response = response
+        self.status = response.status
+        self.headers = response.headers
 
     def readable(self):
         return True
@@ -59,17 +63,17 @@ class _Response(io.RawIOBase):
     def read(self, size=-1):
         if self.closed:
             raise ValueError("read from a closed REST response")
-        data = self.response.read(size)
+        data = self._response.read(size)
         # Bounded HTTP reads suppress IncompleteRead, and Arrow accepts EOF at a
         # batch boundary. Enforce HTTP framing so a dropped stream cannot look complete.
-        if size >= 0 and len(data) < size and self.response.length not in (None, 0):
-            raise http.client.IncompleteRead(data, self.response.length)
+        if size >= 0 and len(data) < size and self._response.length not in (None, 0):
+            raise http.client.IncompleteRead(data, self._response.length)
         return data
 
     def close(self):
         if not self.closed:
             try:
-                self.response.close()
+                self._response.close()
             finally:
                 self.connection.close()
                 super().close()
@@ -156,9 +160,17 @@ class RestCluster(Cluster):
             user_name, user_private_key, user_security_file
         )
         self._uri = uri
-        self._endpoint = endpoint
-        self._port = port
-        self._timeout = seconds
+        # Each request owns a socket. HTTPSConnection uses standard certificate
+        # and hostname verification; quasardb.pool reuses the authentication.
+        connection_type = (
+            http.client.HTTPSConnection
+            if endpoint.scheme == "https"
+            else http.client.HTTPConnection
+        )
+        self._new_connection = partial(
+            connection_type, endpoint.hostname, port, timeout=seconds
+        )
+        self._base_path = endpoint.path.rstrip("/") + "/api/v2"
         self._access_token = ""
         self._refresh_token = ""
         self._open = True
@@ -181,27 +193,16 @@ class RestCluster(Cluster):
         if not self._open:
             raise InvalidHandleError("REST connection is closed")
 
-    def _request(self, path, body, content_type="application/json", token=""):
+    def _request(self, path, body, headers):
         self._check_open()
-        # Per-request sockets avoid a custom HTTP pool. quasardb.pool reuses this
-        # logical connection and its authentication, with TCP/TLS setup per request.
-        # HTTPSConnection uses the standard certificate and hostname verification.
-        connection_type = (
-            http.client.HTTPSConnection
-            if self._endpoint.scheme == "https"
-            else http.client.HTTPConnection
-        )
-        connection = connection_type(
-            self._endpoint.hostname, self._port, timeout=self._timeout
-        )
-        headers = {"Content-Type": content_type, "Accept-Encoding": "identity"}
-        if path == "/query":
-            headers["Accept"] = "application/vnd.apache.arrow.stream"
-        if token:
-            headers["Authorization"] = "Bearer " + token
-        target = self._endpoint.path.rstrip("/") + "/api/v2" + path
+        connection = self._new_connection()
         try:
-            connection.request("POST", target, body=body, headers=headers)
+            connection.request(
+                "POST",
+                self._base_path + path,
+                body=body,
+                headers={"Accept-Encoding": "identity", **headers},
+            )
             response = connection.getresponse()
             logger.debug(
                 "REST request path=%s status=%s request_id=%s",
@@ -218,7 +219,7 @@ class RestCluster(Cluster):
             raise Error("REST HTTP request failed") from exc
 
     def _raise_http_error(self, response, *, query=False):
-        status = response.response.status
+        status = response.status
         body = b""
         cause = None
         detail = ""
@@ -231,8 +232,6 @@ class RestCluster(Cluster):
                 body = exc.partial[:_MAX_ERROR_DETAIL_BYTES]
         except (OSError, http.client.HTTPException) as exc:
             cause = exc
-        finally:
-            response.close()
         try:
             data = json.loads(body)
             detail = data.get("detail", "") if isinstance(data, dict) else ""
@@ -265,16 +264,8 @@ class RestCluster(Cluster):
         )
         raise error_type(message) from cause
 
-    def _grant(self, path, payload):
-        response = self._request(path, json.dumps(payload).encode("utf-8"))
-        if response.response.status != 200:
-            # A refused refresh is the only authentication error that triggers login.
-            if path == "/auth/refresh" and response.response.status == 401:
-                response.close()
-                logger.debug("REST token refresh refused; logging in")
-                return False
-            self._raise_http_error(response)
-        failure = None
+    @staticmethod
+    def _read_tokens(response):
         try:
             body = response.read(_MAX_AUTH_RESPONSE_BYTES + 1)
             if len(body) > _MAX_AUTH_RESPONSE_BYTES:
@@ -288,21 +279,32 @@ class RestCluster(Cluster):
                 for t in (access, refresh)
             ):
                 raise ValueError
+            return access, refresh
         except (OSError, http.client.HTTPException):
             failure = "Unable to read REST authentication response"
         except (ValueError, KeyError, TypeError) as exc:
             failure = "Malformed REST authentication response ({})".format(
                 type(exc).__name__
             )
-        finally:
-            response.close()
-        if failure:
-            # JSON and framing exceptions keep the response bytes. Raising outside
-            # the handler keeps those tokens out of the exception chain.
-            raise Error(failure)
+        # JSON and framing exceptions keep the response bytes. Raising outside
+        # the handler keeps those tokens out of the exception chain.
+        raise Error(failure)
+
+    def _grant(self, path, payload):
+        body = json.dumps(payload).encode("utf-8")
+        with self._request(
+            path, body, {"Content-Type": "application/json"}
+        ) as response:
+            # A refused refresh is the only authentication error that triggers login.
+            if path == "/auth/refresh" and response.status == 401:
+                logger.debug("REST token refresh refused; logging in")
+                return False
+            if response.status != 200:
+                self._raise_http_error(response)
+            tokens = self._read_tokens(response)
         with self._state_lock:
             self._check_open()
-            self._access_token, self._refresh_token = access, refresh
+            self._access_token, self._refresh_token = tokens
         return True
 
     def _login(self):
@@ -312,24 +314,23 @@ class RestCluster(Cluster):
     def _query_response(self, query):
         # Recover authentication before returning a body; a partially read query is
         # never resubmitted, since SQL may have side effects or already yielded rows.
+        body = query.encode("utf-8")
         for attempt in range(2):
-            response = self._request(
-                "/query", query.encode("utf-8"), "text/plain", self._access_token
-            )
-            if response.response.status == 200:
-                content_type = (
-                    response.response.getheader("Content-Type", "")
-                    .split(";")[0]
-                    .strip()
-                    .lower()
-                )
-                if content_type != "application/vnd.apache.arrow.stream":
-                    response.close()
-                    raise Error("REST query did not return an Arrow IPC stream")
-                return response
-            if response.response.status != 401 or attempt == 1:
-                self._raise_http_error(response, query=True)
-            response.close()
+            headers = {
+                "Content-Type": "text/plain",
+                "Accept": _ARROW_STREAM,
+                "Authorization": "Bearer " + self._access_token,
+            }
+            with ExitStack() as cleanup:
+                response = cleanup.enter_context(self._request("/query", body, headers))
+                if response.status == 200:
+                    if response.headers.get_content_type() != _ARROW_STREAM:
+                        raise Error("REST query did not return an Arrow IPC stream")
+                    # The Arrow reader takes ownership of the validated response.
+                    cleanup.pop_all()
+                    return response
+                if response.status != 401 or attempt == 1:
+                    self._raise_http_error(response, query=True)
             logger.debug("REST query authentication expired; refreshing token")
             if not self._grant("/auth/refresh", {"refresh_token": self._refresh_token}):
                 self._login()
@@ -431,7 +432,6 @@ class RestQueryReader:
         self._response = None
         self._reader = None
         self._entered = False
-        self._done = False
 
     def __exit__(
         self,
@@ -460,7 +460,6 @@ class RestQueryReader:
             with self._cluster._state_lock:
                 self._cluster._check_open()
                 self._entered = True
-                self._done = False
                 self._cluster._streams.add(self)
         except (
             OSError,
@@ -488,7 +487,7 @@ class RestQueryReader:
     def _next_batch(self) -> Dict[str, MaskedArrayAny]:
         if not self._entered:
             raise UninitializedError("Open the REST query stream in a with block")
-        if self._done:
+        if self._reader is None:
             raise StopIteration
         try:
             batch = self._reader.read_next_batch()
@@ -500,7 +499,6 @@ class RestQueryReader:
             }
         except StopIteration:
             # Release the socket at EOF. The iterator stays exhausted until context exit.
-            self._done = True
             self._release()
             raise
         except (
@@ -531,5 +529,4 @@ class RestQueryReader:
     def close(self) -> None:
         with self._io_lock:
             self._entered = False
-            self._done = True
             self._release()

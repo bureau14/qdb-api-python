@@ -247,6 +247,18 @@ def test_invalid_query(rest_connection):
             pass
 
 
+def test_reader_stays_exhausted_until_context_exit(rest_connection):
+    with rest_connection.stream_query("SELECT 42 AS answer") as reader:
+        assert next(reader)["answer"].tolist() == [42]
+        with pytest.raises(StopIteration):
+            next(reader)
+        assert reader._response is None
+        with pytest.raises(StopIteration):
+            next(reader)
+    with pytest.raises(quasardb.UninitializedError):
+        next(reader)
+
+
 def test_close_active_reader(rest_connection):
     reader = rest_connection.stream_query("SELECT 42 AS answer")
     with reader:
