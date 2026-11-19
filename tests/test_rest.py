@@ -147,7 +147,7 @@ def test_native_dispatch_forwards_uri(monkeypatch, native_uri):
 
 @pytest.mark.parametrize("constructor", ["Cluster", "RestCluster"])
 @pytest.mark.parametrize(
-    "uri", ["ftp://localhost", "https://[::1", "http://[invalid]/"]
+    "uri", ["ftp://localhost", "https://[::1", "http://localhost:bad-port/"]
 )
 def test_invalid_uri(constructor, uri):
     with pytest.raises(quasardb.InvalidArgumentError):
