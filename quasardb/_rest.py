@@ -311,29 +311,25 @@ class RestCluster(Cluster):
         logger.debug("REST login started")
         self._grant("/auth/login", self._credentials)
 
-    def _query_response(self, query):
-        # Recover authentication before returning a body; a partially read query is
-        # never resubmitted, since SQL may have side effects or already yielded rows.
-        body = query.encode("utf-8")
-        for attempt in range(2):
-            headers = {
-                "Content-Type": "text/plain",
-                "Accept": _ARROW_STREAM,
-                "Authorization": "Bearer " + self._access_token,
-            }
-            with ExitStack() as cleanup:
-                response = cleanup.enter_context(self._request("/query", body, headers))
-                if response.status == 200:
-                    if response.headers.get_content_type() != _ARROW_STREAM:
-                        raise Error("REST query did not return an Arrow IPC stream")
-                    # The Arrow reader takes ownership of the validated response.
-                    cleanup.pop_all()
-                    return response
-                if response.status != 401 or attempt == 1:
-                    self._raise_http_error(response, query=True)
-            logger.debug("REST query authentication expired; refreshing token")
-            if not self._grant("/auth/refresh", {"refresh_token": self._refresh_token}):
-                self._login()
+    def _authorized_post(
+        self, path: str, body: bytes, headers: Dict[str, str]
+    ) -> _Response:
+        """Retry an explicit authentication rejection once. The caller owns the response."""
+
+        def post():
+            return self._request(
+                path, body, {**headers, "Authorization": "Bearer " + self._access_token}
+            )
+
+        response = post()
+        if response.status != 401:
+            return response
+        # An interrupted request may already have taken effect. Only a 401 is replayed.
+        response.close()
+        logger.debug("REST authentication expired; refreshing token")
+        if not self._grant("/auth/refresh", {"refresh_token": self._refresh_token}):
+            self._login()
+        return post()
 
     def close(self) -> None:
         # Mark the handle closed before taking the snapshot so in-flight grants
@@ -420,6 +416,20 @@ def _masked_array(array) -> MaskedArrayAny:
     return np.ma.array(data, mask=mask, copy=False)
 
 
+def _read_nonempty_batch(reader: pa.RecordBatchReader) -> pa.RecordBatch:
+    while True:
+        batch = reader.read_next_batch()
+        if batch.num_rows:
+            return batch
+
+
+def _batch_to_masked_arrays(batch: pa.RecordBatch) -> Dict[str, MaskedArrayAny]:
+    return {
+        name: _masked_array(column)
+        for name, column in zip(batch.schema.names, batch.columns)
+    }
+
+
 class RestQueryReader:
     def __init__(self, cluster: RestCluster, query: str) -> None:
         self._cluster = cluster
@@ -447,33 +457,38 @@ class RestQueryReader:
 
     def __enter__(self) -> RestQueryReader:
         with self._io_lock:
-            return self._open()
-
-    def _open(self) -> RestQueryReader:
-        if self._entered:
-            raise InvalidArgumentError("REST query stream is already open")
-        self._cluster._check_open()
-        try:
-            self._response = self._cluster._query_response(self._query)
-            self._reader = pa.ipc.open_stream(self._response)
-            # close() may have run while reading the Arrow schema.
-            with self._cluster._state_lock:
-                self._cluster._check_open()
-                self._entered = True
-                self._cluster._streams.add(self)
-        except (
-            OSError,
-            http.client.HTTPException,
-            pa.ArrowException,
-            ValueError,
-        ) as exc:
-            self.close()
-            raise Error("Unable to open REST Arrow stream") from exc
-        except BaseException:
-            self.close()
-            raise
-        logger.debug("REST query stream opened")
-        return self
+            if self._entered:
+                raise InvalidArgumentError("REST query stream is already open")
+            self._cluster._check_open()
+            try:
+                self._response = self._cluster._authorized_post(
+                    "/query",
+                    self._query.encode("utf-8"),
+                    {"Content-Type": "text/plain", "Accept": _ARROW_STREAM},
+                )
+                if self._response.status != 200:
+                    self._cluster._raise_http_error(self._response, query=True)
+                if self._response.headers.get_content_type() != _ARROW_STREAM:
+                    raise Error("REST query did not return an Arrow IPC stream")
+                self._reader = pa.ipc.open_stream(self._response)
+                # close() may have run while reading the Arrow schema.
+                with self._cluster._state_lock:
+                    self._cluster._check_open()
+                    self._entered = True
+                    self._cluster._streams.add(self)
+            except (
+                OSError,
+                http.client.HTTPException,
+                pa.ArrowException,
+                ValueError,
+            ) as exc:
+                self.close()
+                raise Error("Unable to open REST Arrow stream") from exc
+            except BaseException:
+                self.close()
+                raise
+            logger.debug("REST query stream opened")
+            return self
 
     def __iter__(self) -> Iterator[Dict[str, MaskedArrayAny]]:
         if not self._entered:
@@ -482,36 +497,28 @@ class RestQueryReader:
 
     def __next__(self) -> Dict[str, MaskedArrayAny]:
         with self._io_lock:
-            return self._next_batch()
-
-    def _next_batch(self) -> Dict[str, MaskedArrayAny]:
-        if not self._entered:
-            raise UninitializedError("Open the REST query stream in a with block")
-        if self._reader is None:
-            raise StopIteration
-        try:
-            batch = self._reader.read_next_batch()
-            while not batch.num_rows:
-                batch = self._reader.read_next_batch()
-            return {
-                name: _masked_array(column)
-                for name, column in zip(batch.schema.names, batch.columns)
-            }
-        except StopIteration:
-            # Release the socket at EOF. The iterator stays exhausted until context exit.
-            self._release()
-            raise
-        except (
-            OSError,
-            http.client.HTTPException,
-            pa.ArrowException,
-            ValueError,
-        ) as exc:
-            self.close()
-            raise Error("REST Arrow stream is invalid or interrupted") from exc
-        except BaseException:
-            self.close()
-            raise
+            if not self._entered:
+                raise UninitializedError("Open the REST query stream in a with block")
+            if self._reader is None:
+                raise StopIteration
+            try:
+                batch = _read_nonempty_batch(self._reader)
+                return _batch_to_masked_arrays(batch)
+            except StopIteration:
+                # Release the socket at EOF. The iterator stays exhausted until context exit.
+                self._release()
+                raise
+            except (
+                OSError,
+                http.client.HTTPException,
+                pa.ArrowException,
+                ValueError,
+            ) as exc:
+                self.close()
+                raise Error("REST Arrow stream is invalid or interrupted") from exc
+            except BaseException:
+                self.close()
+                raise
 
     def _release(self):
         try:
