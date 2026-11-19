@@ -611,7 +611,6 @@ def _prepare_query_test(array_with_index_and_table, qdbd_connection):
     return (data, index, col, q)
 
 
-@conftest.query_transports
 def test_query_valid_results(
     query_connection, array_with_index_and_table, qdbd_connection
 ):
@@ -623,7 +622,6 @@ def test_query_valid_results(
     assert_indexed_arrays_equal((index, data), (idx, res[0]))
 
 
-@conftest.query_transports
 def test_query_unknown_index(
     query_connection, array_with_index_and_table, qdbd_connection
 ):
@@ -635,7 +633,6 @@ def test_query_unknown_index(
         qdbnp.query(query_connection, q, index="fooasbsdaog")
 
 
-@conftest.query_transports
 def test_query_iota_index(
     query_connection, array_with_index_and_table, qdbd_connection
 ):
@@ -652,7 +649,6 @@ def test_query_iota_index(
     assert np.all(idx_ == 1)
 
 
-@conftest.query_transports
 @conftest.override_sparsify("partial")
 def test_query_masked_index(
     query_connection, array_with_index_and_table, qdbd_connection
@@ -666,7 +662,6 @@ def test_query_masked_index(
         qdbnp.query(query_connection, q, index=col)
 
 
-@conftest.query_transports
 def test_query_empty_result(
     query_connection, array_with_index_and_table, qdbd_connection
 ):
@@ -679,7 +674,6 @@ def test_query_empty_result(
     assert len(res) == len(idx)
 
 
-@conftest.query_transports
 @conftest.override_sparsify("none")
 @conftest.override_cdtypes([np.dtype("int64"), np.dtype("float64")])
 def test_query_insert(query_connection, array_with_index_and_table, qdbd_connection):

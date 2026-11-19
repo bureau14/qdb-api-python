@@ -140,23 +140,19 @@ from .extensions import extend_module
 extend_module(quasardb)
 
 
-from ._cluster import Cluster, QueryStream
+from ._cluster import Cluster
 
-# Virtual registration needs the completed native types and preserves their inheritance.
+# Native instances keep their pybind type and satisfy isinstance(conn, Cluster).
 Cluster.register(NativeCluster)
-QueryStream.register(QueryReader)
+
+
+class PyArrowRequired(ImportError):
+    """REST connections require the optional PyArrow dependency."""
 
 
 def __getattr__(name):
     if name == "RestCluster":
         from ._rest import RestCluster
 
-        globals()[name] = RestCluster
         return RestCluster
     raise AttributeError("module 'quasardb' has no attribute {!r}".format(name))
-
-
-# Wildcard imports expose the native/common API, independent of optional extras.
-__all__ = [name for name in dir(quasardb) if not name.startswith("_")] + [
-    "QueryStream",
-]

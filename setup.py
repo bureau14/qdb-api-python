@@ -207,9 +207,8 @@ setup(
     extras_require={
         "pandas": ["pandas"],
         "rest": [
-            "pyarrow>=12,<13; python_version < '3.8'",
-            "pyarrow>=12,<18; python_version == '3.8'",
-            "pyarrow>=12; python_version >= '3.9'",
+            "pyarrow>=12; python_version < '3.9'",
+            "pyarrow>=16; python_version >= '3.9'",
         ],
         "test": ["pytest"],
     },

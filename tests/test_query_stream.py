@@ -1,5 +1,3 @@
-import conftest
-
 # pylint: disable=C0103,C0111,C0302,W0212
 import math
 
@@ -37,7 +35,6 @@ def _concat_column(batches, column_name):
 # Equivalence vs query_numpy
 
 
-@conftest.query_transports
 @pytest.mark.parametrize("value_type", all_value_types)
 def test_stream_query_equals_query_numpy(
     query_connection, value_type, qdbd_connection, table, intervals
@@ -61,7 +58,6 @@ def test_stream_query_equals_query_numpy(
 # Batching contract
 
 
-@conftest.query_transports
 def test_stream_query_batching_contract(
     query_connection,
     qdbd_connection,
@@ -81,10 +77,15 @@ def test_stream_query_batching_contract(
     query = _select_column_query(table, column_name)
 
     with query_connection.stream_query(query, batch_size=reader_batch_size) as stream:
-        assert stream.get_batch_size() == reader_batch_size
+        expected_size = (
+            reader_batch_size
+            if isinstance(query_connection, quasardb.NativeCluster)
+            else 0
+        )
+        assert stream.get_batch_size() == expected_size
         batches = list(stream)
 
-    assert all(0 < len(batch[column_name]) <= reader_batch_size for batch in batches)
+    assert all(len(batch[column_name]) > 0 for batch in batches)
     assert sum(len(batch[column_name]) for batch in batches) == row_count
     assert_ma_equal(
         _concat_column(batches, column_name),
@@ -99,7 +100,6 @@ def test_stream_query_batching_contract(
         assert len(batches[-1][column_name]) == remainder
 
 
-@conftest.query_transports
 def test_stream_query_zero_batch_size_yields_single_batch(
     query_connection, qdbd_connection, table, intervals
 ):
@@ -128,7 +128,6 @@ def test_stream_query_zero_batch_size_yields_single_batch(
 # Argument handling
 
 
-@conftest.query_transports
 def test_stream_query_batch_size_is_keyword_only(
     query_connection, qdbd_connection, table
 ):
@@ -142,7 +141,6 @@ def test_stream_query_batch_size_is_keyword_only(
 # Lifecycle errors
 
 
-@conftest.query_transports
 def test_stream_query_cannot_iterate_without_enter(
     query_connection, qdbd_connection, table
 ):
@@ -162,7 +160,6 @@ def test_query_reader_cannot_be_instantiated_directly():
 # Empty result
 
 
-@conftest.query_transports
 def test_stream_query_empty_result_yields_zero_batches(
     query_connection, qdbd_connection, table
 ):
@@ -174,7 +171,6 @@ def test_stream_query_empty_result_yields_zero_batches(
         assert list(stream) == []
 
 
-@conftest.query_transports
 def test_stream_query_dml_yields_zero_batches(query_connection, qdbd_connection, table):
     # DML statements return no result set: the C result stays NULL.
     query = 'INSERT INTO "{}" ($timestamp, "{}") VALUES (NOW(), 1.0)'.format(
@@ -189,7 +185,6 @@ def test_stream_query_dml_yields_zero_batches(query_connection, qdbd_connection,
 # Schema-kind stability across batches
 
 
-@conftest.query_transports
 def test_stream_query_schema_stable_when_first_batch_all_null(
     query_connection, qdbd_connection, table, intervals
 ):
@@ -199,8 +194,8 @@ def test_stream_query_schema_stable_when_first_batch_all_null(
 
     (timestamps, values) = tslib._generate_double_ts(start_time, row_count)
 
-    # First batch entirely null, second batch fully populated: the stream's
-    # global probe must still type the first batch as float64.
+    # Native batching puts all nulls in the first batch. The global schema
+    # probe must still give it the same dtype as the populated second batch.
     mask = np.zeros(row_count, dtype=bool)
     mask[:batch_size] = True
     xs = ma.array(data=values, mask=mask)
@@ -215,7 +210,7 @@ def test_stream_query_schema_stable_when_first_batch_all_null(
     offset = 0
     for batch in batches:
         array = batch[column_name]
-        assert 0 < len(array) <= batch_size
+        assert len(array) > 0
         assert array.dtype == np.dtype("float64")
         np.testing.assert_array_equal(array.mask, mask[offset : offset + len(array)])
         offset += len(array)
@@ -225,8 +220,7 @@ def test_stream_query_schema_stable_when_first_batch_all_null(
         assert ma.count_masked(batches[1][column_name]) == 0
 
 
-@conftest.query_transports
-def test_stream_query_entirely_null_column_is_masked_float64(
+def test_stream_query_entirely_null_column_preserves_mask(
     query_connection, qdbd_connection, table, intervals
 ):
     # Writing doubles creates rows; selecting a column that was never written
@@ -240,17 +234,18 @@ def test_stream_query_entirely_null_column_is_masked_float64(
     batches = _stream_batches(query_connection, query, batch_size=50)
 
     assert sum(len(batch[column_name]) for batch in batches) == 100
+    # The native schema probe falls back to float64 when it sees only nulls.
+    # The REST Arrow schema carries the column's declared int64 type.
     if isinstance(query_connection, quasardb.NativeCluster):
         assert len(batches) == 2
+        expected_dtype = np.dtype("float64")
+    else:
+        expected_dtype = np.dtype("int64")
 
     for batch in batches:
         xs = batch[column_name]
-        assert 0 < len(xs) <= 50
-        assert xs.dtype == np.dtype(
-            "float64"
-            if isinstance(query_connection, quasardb.NativeCluster)
-            else "int64"
-        )
+        assert len(xs) > 0
+        assert xs.dtype == expected_dtype
         assert ma.count_masked(xs) == len(xs)
 
 
@@ -258,7 +253,9 @@ def test_stream_query_entirely_null_column_is_masked_float64(
 # Mixed-type columns
 
 
-def test_stream_query_mixed_type_column_raises(qdbd_connection, entry_name, intervals):
+def test_stream_query_mixed_type_column_raises(
+    query_connection, qdbd_connection, entry_name, intervals
+):
     start_time = tslib._start_time(intervals)
 
     t1_name = entry_name + "_double"
@@ -278,18 +275,22 @@ def test_stream_query_mixed_type_column_raises(qdbd_connection, entry_name, inte
 
     query = 'SELECT the_col FROM "{}", "{}"'.format(t1_name, t2_name)
 
-    # The tag mismatch is detected during batch conversion, not at __enter__:
-    # the probe only reads type tags and cannot fail on mixed columns.
-    with qdbd_connection.stream_query(query) as stream:
-        with pytest.raises(quasardb.IncompatibleTypeError):
-            _ = list(stream)
+    if isinstance(query_connection, quasardb.NativeCluster):
+        # Native results carry a tag per cell. The mismatch surfaces during iteration.
+        with query_connection.stream_query(query) as stream:
+            with pytest.raises(quasardb.IncompatibleTypeError):
+                list(stream)
+    else:
+        # qdb-rest rejects the mixed column with HTTP 400 before sending an Arrow schema.
+        with pytest.raises(quasardb.InvalidQueryError):
+            with query_connection.stream_query(query):
+                pass
 
 
 ##
 # numpy layer
 
 
-@conftest.query_transports
 @pytest.mark.parametrize("value_type", all_value_types)
 def test_qdbnp_stream_query_equals_query(
     query_connection, value_type, qdbd_connection, table, intervals
@@ -313,7 +314,6 @@ def test_qdbnp_stream_query_equals_query(
     assert_ma_equal(streamed_col, expected_cols[column_name])
 
 
-@conftest.query_transports
 def test_qdbnp_stream_query_default_index_is_offset_aware(
     query_connection, qdbd_connection, table, intervals
 ):
@@ -340,7 +340,6 @@ def test_qdbnp_stream_query_default_index_is_offset_aware(
     np.testing.assert_array_equal(np.concatenate(idx_batches), np.arange(row_count))
 
 
-@conftest.query_transports
 def test_qdbnp_stream_query_named_index(
     query_connection, qdbd_connection, table, intervals
 ):
@@ -363,7 +362,6 @@ def test_qdbnp_stream_query_named_index(
     np.testing.assert_array_equal(np.concatenate(idx_batches), expected_idx)
 
 
-@conftest.query_transports
 def test_qdbnp_stream_query_dict_and_list_shapes(
     query_connection, qdbd_connection, table, intervals
 ):
@@ -386,7 +384,6 @@ def test_qdbnp_stream_query_dict_and_list_shapes(
         assert len(cols) == 1
 
 
-@conftest.query_transports
 def test_qdbnp_stream_query_empty_result_yields_zero_batches(
     query_connection, qdbd_connection, table
 ):
@@ -397,7 +394,6 @@ def test_qdbnp_stream_query_empty_result_yields_zero_batches(
     assert list(qdbnp.stream_query(query_connection, query)) == []
 
 
-@conftest.query_transports
 def test_qdbnp_stream_query_dml_yields_zero_batches(
     query_connection, qdbd_connection, table
 ):
@@ -408,7 +404,6 @@ def test_qdbnp_stream_query_dml_yields_zero_batches(
     assert list(qdbnp.stream_query(query_connection, query)) == []
 
 
-@conftest.query_transports
 def test_qdbnp_stream_query_masked_named_index_raises(
     query_connection, qdbd_connection, table, intervals
 ):
@@ -425,7 +420,6 @@ def test_qdbnp_stream_query_masked_named_index_raises(
         list(qdbnp.stream_query(query_connection, query, index=column_name))
 
 
-@conftest.query_transports
 def test_qdbnp_query_equals_stream_query_concat(
     query_connection,
     qdbd_connection,
@@ -451,8 +445,9 @@ def test_qdbnp_query_equals_stream_query_concat(
             query_connection, query, dict=True, batch_size=reader_batch_size
         )
     )
-    assert all(0 < len(idx) <= reader_batch_size for idx, _ in batches)
+    assert all(len(idx) > 0 for idx, _ in batches)
     if isinstance(query_connection, quasardb.NativeCluster):
+        assert all(len(idx) <= reader_batch_size for idx, _ in batches)
         assert len(batches) == math.ceil(row_count / reader_batch_size)
 
     streamed_idx = np.concatenate([idx for (idx, _) in batches])
@@ -467,8 +462,7 @@ def test_qdbnp_query_equals_stream_query_concat(
 
 
 # Contract: qdbpd.query() is exactly the concatenation of qdbpd.stream_query()
-# batches, and every batch respects the batch size bound.
-@conftest.query_transports
+# batches. Native batches respect the requested size.
 def test_qdbpd_query_equals_stream_query_concat(
     query_connection,
     qdbd_connection,
@@ -492,16 +486,14 @@ def test_qdbpd_query_equals_stream_query_concat(
     )
     if isinstance(query_connection, quasardb.NativeCluster):
         assert len(batches) == math.ceil(row_count / reader_batch_size)
-
-    for df in batches:
-        assert 0 < len(df.index) <= reader_batch_size
+        assert all(len(df.index) <= reader_batch_size for df in batches)
+    assert all(len(df.index) > 0 for df in batches)
 
     expected = qdbpd.query(query_connection, query)
     pd.testing.assert_frame_equal(pd.concat(batches), expected)
 
 
 # Contract: stream/concat equivalence holds for every column value type.
-@conftest.query_transports
 @pytest.mark.parametrize("value_type", all_value_types)
 def test_qdbpd_query_all_value_types(
     query_connection, value_type, qdbd_connection, table, intervals
@@ -525,7 +517,6 @@ def test_qdbpd_query_all_value_types(
 
 # Contract: the default index is a running 0..n-1 named "$index" that
 # continues across batches.
-@conftest.query_transports
 def test_qdbpd_stream_query_default_index(
     query_connection, qdbd_connection, table, intervals
 ):
@@ -559,7 +550,6 @@ def test_qdbpd_stream_query_default_index(
 
 # Contract: a named index column becomes the DataFrame index and is removed
 # from the columns.
-@conftest.query_transports
 def test_qdbpd_stream_query_named_index(
     query_connection, qdbd_connection, table, intervals
 ):
@@ -579,7 +569,6 @@ def test_qdbpd_stream_query_named_index(
 
 # Contract: an empty result streams zero DataFrames, while query() preserves
 # the legacy empty shape (empty frame with named index).
-@conftest.query_transports
 def test_qdbpd_query_empty_result(query_connection, qdbd_connection, table):
     query = 'SELECT * FROM "{}" IN RANGE(2016-01-01, 2016-12-12)'.format(
         table.get_name()
@@ -593,7 +582,6 @@ def test_qdbpd_query_empty_result(query_connection, qdbd_connection, table):
 
 
 # Contract: DML statements yield zero DataFrames.
-@conftest.query_transports
 def test_qdbpd_stream_query_dml_yields_zero_batches(
     query_connection, qdbd_connection, table
 ):
@@ -611,7 +599,6 @@ def test_qdbpd_stream_query_dml_yields_zero_batches(
 # Contract: __exit__ runs close() regardless of how the block is left, so a
 # break releases the C result at the with-block boundary. Batches already
 # yielded retain their buffers and stay valid after release.
-@conftest.query_transports
 def test_stream_query_break_releases_reader(
     query_connection, qdbd_connection, table, intervals
 ):
@@ -631,7 +618,7 @@ def test_stream_query_break_releases_reader(
         _ = list(stream)
 
     assert isinstance(kept, ma.MaskedArray)
-    assert 0 < len(kept) <= 32
+    assert len(kept) > 0
     if isinstance(query_connection, quasardb.NativeCluster):
         assert len(kept) == 32
     assert np.isfinite(kept.sum())
@@ -653,7 +640,6 @@ class _RecordingConnection:
 # Contract: a break alone does not close a generator; gen.close() raises
 # GeneratorExit at the suspended yield inside the generator's with-block,
 # which runs the reader's __exit__ and releases the C result.
-@conftest.query_transports
 def test_qdbnp_stream_query_generator_close_releases_reader(
     query_connection, qdbd_connection, table, intervals
 ):

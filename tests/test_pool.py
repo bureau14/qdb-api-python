@@ -1,35 +1,31 @@
-import conftest
 import re
 import pytest
 import quasardb
 import quasardb.pool as pool
 
 
-@conftest.query_transports
 def test_can_create_pool(query_connection_settings):
     # Basic test whether whether we can create a new pool
 
-    with pool.SingletonPool(**query_connection_settings[0]) as p:
+    with pool.SingletonPool(**query_connection_settings) as p:
         pass
 
 
-@conftest.query_transports
 def test_can_acquire_connection(query_connection_settings):
     # Basic test whether whether we can acquire a new connection
 
-    with pool.SingletonPool(**query_connection_settings[0]) as p:
+    with pool.SingletonPool(**query_connection_settings) as p:
         with p.connect() as conn:
             pass
 
 
-@conftest.query_transports
 def test_releases_connection_in_with_block(query_connection_settings):
     # Tests whether pool.release() is invoked with a connection after a `with` block,
     # rather than actually closing a connection
 
     the_conn = None
 
-    with pool.SingletonPool(**query_connection_settings[0]) as p:
+    with pool.SingletonPool(**query_connection_settings) as p:
         with p.connect() as conn:
             the_conn = conn
             assert the_conn.is_open() is True
@@ -37,13 +33,12 @@ def test_releases_connection_in_with_block(query_connection_settings):
         assert the_conn.is_open() is True
 
 
-@conftest.query_transports
 def test_cleans_connections_after_pool_close(query_connection_settings):
     # Verifies whether a pool cleans up all connections after it is closed
 
     the_conn = None
 
-    with pool.SingletonPool(**query_connection_settings[0]) as p:
+    with pool.SingletonPool(**query_connection_settings) as p:
         with p.connect() as conn:
             the_conn = conn
             assert the_conn.is_open() is True
@@ -115,10 +110,9 @@ def test_positional_args_decorator(entry_name):
     )
 
 
-@conftest.query_transports
 def test_pooled_stream_query(query_connection_settings):
     query = "SELECT 42 AS answer"
-    with pool.SingletonPool(**query_connection_settings[0]) as connections:
+    with pool.SingletonPool(**query_connection_settings) as connections:
         with connections.connect() as conn:
             with conn.stream_query(query, batch_size=1) as stream:
                 batches = list(stream)

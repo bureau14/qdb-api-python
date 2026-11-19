@@ -9,22 +9,25 @@ import json
 import logging
 import math
 import operator
-import time
+import threading
 import weakref
+from contextlib import ExitStack
 from types import TracebackType
 from typing import Dict, Iterator, Optional, Type
 from urllib.parse import urlsplit
 
 import numpy as np
 
+from . import PyArrowRequired
+from ._cluster import Cluster
+
 try:
     import pyarrow as pa
 except ImportError as exc:
-    raise ImportError(
+    raise PyArrowRequired(
         "REST connections require PyArrow; install it with pip install 'quasardb[rest]'"
     ) from exc
 
-from ._cluster import Cluster, QueryStream
 from .quasardb import (
     Error,
     InvalidArgumentError,
@@ -37,6 +40,9 @@ from .quasardb import (
 from .typing import MaskedArrayAny
 
 logger = logging.getLogger(__name__)
+
+_MAX_ERROR_DETAIL_BYTES = 16 * 1024
+_MAX_AUTH_RESPONSE_BYTES = 64 * 1024
 
 
 class _Response(io.RawIOBase):
@@ -104,6 +110,8 @@ def _credentials(user_name, user_private_key, user_security_file):
 class RestCluster(Cluster):
     """REST query connection. Native-only options are accepted and ignored."""
 
+    _default_query_batch_size = 0
+
     def __init__(
         self,
         uri: str,
@@ -154,7 +162,10 @@ class RestCluster(Cluster):
         self._access_token = ""
         self._refresh_token = ""
         self._open = True
+        # Readers own their sockets. Track live readers for close() without
+        # extending their lifetime when the caller drops the last reference.
         self._streams = weakref.WeakSet()
+        self._state_lock = threading.Lock()
         try:
             self._login()
         except BaseException:
@@ -189,39 +200,37 @@ class RestCluster(Cluster):
         if token:
             headers["Authorization"] = "Bearer " + token
         target = self._endpoint.path.rstrip("/") + "/api/v2" + path
-        started = time.monotonic()
         try:
             connection.request("POST", target, body=body, headers=headers)
             response = connection.getresponse()
             logger.debug(
-                "REST request path=%s status=%s duration=%.3fs request_id=%s",
+                "REST request path=%s status=%s request_id=%s",
                 path,
                 response.status,
-                time.monotonic() - started,
                 response.getheader("X-Request-ID", ""),
             )
             return _Response(connection, response)
         except (OSError, http.client.HTTPException, ValueError) as exc:
             connection.close()
             logger.debug(
-                "REST request failed path=%s duration=%.3fs error=%s",
-                path,
-                time.monotonic() - started,
-                type(exc).__name__,
+                "REST request failed path=%s error=%s", path, type(exc).__name__
             )
             raise Error("REST HTTP request failed") from exc
 
-    def _error(self, response, *, query=False):
+    def _raise_http_error(self, response, *, query=False):
         status = response.response.status
         body = b""
         cause = None
         detail = ""
         try:
-            body = response.read(16384)
+            body = response.read(_MAX_ERROR_DETAIL_BYTES)
+        except http.client.IncompleteRead as exc:
+            # The exception holds the raw response. Only query diagnostics may
+            # use partial text, after filtering it below.
+            if query:
+                body = exc.partial[:_MAX_ERROR_DETAIL_BYTES]
         except (OSError, http.client.HTTPException) as exc:
             cause = exc
-            if query and isinstance(exc, http.client.IncompleteRead):
-                body = exc.partial[:16384]
         finally:
             response.close()
         try:
@@ -235,12 +244,15 @@ class RestCluster(Cluster):
             if query:
                 detail = body.decode("utf-8", errors="replace").strip()
         # Backend diagnostics pass through unchanged and may include CREATE SECRET
-        # SQL containing the user key. Filter known secrets before exposing details.
-        for secret in (
-            self._credentials.get("secret_key"),
-            self._access_token,
-            self._refresh_token,
-        ):
+        # SQL containing the user key. close() clears the values used for redaction.
+        with self._state_lock:
+            self._check_open()
+            secrets = (
+                self._credentials.get("secret_key"),
+                self._access_token,
+                self._refresh_token,
+            )
+        for secret in secrets:
             if secret:
                 detail = detail.replace(secret, "[redacted]")
         message = "REST HTTP {}".format(status)
@@ -251,42 +263,46 @@ class RestCluster(Cluster):
             if status == 503
             else InvalidQueryError if query and status == 400 else Error
         )
-        error = error_type(message)
-        # Auth recovery can handle a refusal without raising; terminal callers still
-        # need the original transport failure when reading that error response failed.
-        error.__cause__ = cause
-        return error
+        raise error_type(message) from cause
 
     def _grant(self, path, payload):
         response = self._request(path, json.dumps(payload).encode("utf-8"))
         if response.response.status != 200:
             # A refused refresh is the only authentication error that triggers login.
-            refused = path == "/auth/refresh" and response.response.status == 401
-            error = self._error(response)
-            if refused:
+            if path == "/auth/refresh" and response.response.status == 401:
+                response.close()
                 logger.debug("REST token refresh refused; logging in")
                 return False
-            raise error
+            self._raise_http_error(response)
+        failure = None
         try:
-            data = json.loads(response.read(65536))
+            body = response.read(_MAX_AUTH_RESPONSE_BYTES + 1)
+            if len(body) > _MAX_AUTH_RESPONSE_BYTES:
+                raise Error("REST authentication response exceeds the size limit")
+            data = json.loads(body)
             access = data["access_token"]
             refresh = data["refresh_token"]
+            # Bearer tokens travel in HTTP headers as printable ASCII without whitespace.
             if not all(
                 isinstance(t, str) and t and all(33 <= ord(c) <= 126 for c in t)
                 for t in (access, refresh)
             ):
                 raise ValueError
-        except (OSError, http.client.HTTPException) as exc:
-            raise Error("Unable to read REST authentication response") from exc
+        except (OSError, http.client.HTTPException):
+            failure = "Unable to read REST authentication response"
         except (ValueError, KeyError, TypeError) as exc:
-            # JSON parse errors retain the authentication body, which can contain
-            # tokens. Preserve only the exception type in this sensitive path.
-            raise Error(
-                "Malformed REST authentication response ({})".format(type(exc).__name__)
-            ) from None
+            failure = "Malformed REST authentication response ({})".format(
+                type(exc).__name__
+            )
         finally:
             response.close()
-        self._access_token, self._refresh_token = access, refresh
+        if failure:
+            # JSON and framing exceptions keep the response bytes. Raising outside
+            # the handler keeps those tokens out of the exception chain.
+            raise Error(failure)
+        with self._state_lock:
+            self._check_open()
+            self._access_token, self._refresh_token = access, refresh
         return True
 
     def _login(self):
@@ -305,30 +321,36 @@ class RestCluster(Cluster):
                     response.response.getheader("Content-Type", "")
                     .split(";")[0]
                     .strip()
+                    .lower()
                 )
                 if content_type != "application/vnd.apache.arrow.stream":
                     response.close()
                     raise Error("REST query did not return an Arrow IPC stream")
                 return response
             if response.response.status != 401 or attempt == 1:
-                raise self._error(response, query=True)
+                self._raise_http_error(response, query=True)
             response.close()
             logger.debug("REST query authentication expired; refreshing token")
             if not self._grant("/auth/refresh", {"refresh_token": self._refresh_token}):
                 self._login()
 
     def close(self) -> None:
-        if not self._open:
-            return
-        self._open = False
-        try:
-            for stream in list(self._streams):
-                stream.close()
-        finally:
+        # Mark the handle closed before taking the snapshot so in-flight grants
+        # and reader opens cannot publish new state after close.
+        with self._state_lock:
+            if not self._open and not self._streams:
+                return
+            self._open = False
             self._credentials.clear()
             self._access_token = ""
             self._refresh_token = ""
-            logger.debug("REST connection closed")
+            streams = list(self._streams)
+        # Reader cleanup takes the state lock to unregister after finishing I/O.
+        # Attempt every close even when one transport reports a cleanup error.
+        with ExitStack() as cleanup:
+            for stream in streams:
+                cleanup.callback(stream.close)
+        logger.debug("REST connection closed")
 
     def __enter__(self) -> RestCluster:
         self._check_open()
@@ -341,18 +363,18 @@ class RestCluster(Cluster):
         return self._uri
 
     def stream_query(self, query: str, *, batch_size: int = 0) -> RestQueryReader:
-        """Read Arrow batches incrementally; batch_size is a maximum, 0 keeps wire batches.
-
-        Slices retain their source batch buffers. Wire batch size sets the minimum
-        memory footprint, and retaining yielded arrays keeps those buffers alive.
-        """
+        """Yield each nonempty server batch. A positive batch_size logs a warning."""
         self._check_open()
         if not isinstance(query, str):
             raise TypeError("query must be a string")
         batch_size = operator.index(batch_size)
         if batch_size < 0 or batch_size > np.iinfo(np.uintp).max:
             raise TypeError("batch_size must be a non-negative size_t integer")
-        return RestQueryReader(self, query, batch_size)
+        if batch_size:
+            logger.warning(
+                "REST ignores batch_size=%d and yields server batches", batch_size
+            )
+        return RestQueryReader(self, query)
 
 
 def _masked_array(array) -> MaskedArrayAny:
@@ -363,6 +385,10 @@ def _masked_array(array) -> MaskedArrayAny:
     # 4. Attach the mask without copying numeric buffers; NumPy owns an Arrow reference.
     if pa.types.is_dictionary(array.type):
         array = array.dictionary_decode()
+    if pa.types.is_timestamp(array.type) and array.type.unit != "ns":
+        # Arrow scales only valid timestamps and checks the datetime64[ns] range.
+        # A null slot can contain arbitrary bits that overflow a raw NumPy cast.
+        array = array.cast(pa.timestamp("ns", tz=array.type.tz), safe=True)
     count = len(array)
     mask = array.is_null(nan_is_null=False).to_numpy(zero_copy_only=False)
     dtype = array.type
@@ -373,7 +399,7 @@ def _masked_array(array) -> MaskedArrayAny:
     ):
         numpy_dtype = np.dtype("float64" if pa.types.is_float64(dtype) else "int64")
         if pa.types.is_timestamp(dtype):
-            numpy_dtype = np.dtype("datetime64[{}]".format(dtype.unit))
+            numpy_dtype = np.dtype("datetime64[ns]")
         values = array.buffers()[1]
         if count:
             data = np.frombuffer(
@@ -381,36 +407,31 @@ def _masked_array(array) -> MaskedArrayAny:
             )
         else:
             data = np.empty(0, dtype=numpy_dtype)
-        if pa.types.is_timestamp(dtype) and dtype.unit != "ns":
-            # s/ms/us timestamps (including DuckDB TIMESTAMP) need a copying scale
-            # conversion for the public datetime64[ns] dtype; ns stays a view.
-            data = data.astype("datetime64[ns]")
     elif pa.types.is_string(dtype) or pa.types.is_large_string(dtype):
         data = np.array(["" if x is None else x for x in array.to_pylist()], dtype="U")
     elif pa.types.is_binary(dtype) or pa.types.is_large_binary(dtype):
         data = np.array([b"" if x is None else x for x in array.to_pylist()], dtype="O")
     elif pa.types.is_null(dtype):
+        # An untyped NULL expression has no physical dtype. Use the native fallback.
         data = np.zeros(count, dtype="float64")
     else:
         raise Error("Unsupported REST Arrow column type: {}".format(dtype))
     return np.ma.array(data, mask=mask, copy=False)
 
 
-class RestQueryReader(QueryStream):
-    def __init__(self, cluster: RestCluster, query: str, batch_size: int) -> None:
+class RestQueryReader:
+    def __init__(self, cluster: RestCluster, query: str) -> None:
         self._cluster = cluster
         self._query = query
-        self._batch_size = batch_size
+        # PyArrow releases the GIL while reading. cluster.close() on another thread
+        # must wait until reading and conversion finish before closing the Arrow
+        # reader and HTTP response. Open and read errors call self.close() while
+        # holding this lock, so cleanup on the same thread must be reentrant.
+        self._io_lock = threading.RLock()
         self._response = None
         self._reader = None
-        self._batch = None
-        self._offset = 0
         self._entered = False
         self._done = False
-        self._started = None
-        self._wire_batches = 0
-        self._yielded_batches = 0
-        self._yielded_rows = 0
 
     def __exit__(
         self,
@@ -421,17 +442,26 @@ class RestQueryReader(QueryStream):
         self.close()
 
     def get_batch_size(self) -> int:
-        return self._batch_size
+        """Zero indicates that the REST server chooses the batch size."""
+        return 0
 
     def __enter__(self) -> RestQueryReader:
+        with self._io_lock:
+            return self._open()
+
+    def _open(self) -> RestQueryReader:
         if self._entered:
             raise InvalidArgumentError("REST query stream is already open")
         self._cluster._check_open()
-        self._started = time.monotonic()
-        self._wire_batches = self._yielded_batches = self._yielded_rows = 0
         try:
             self._response = self._cluster._query_response(self._query)
             self._reader = pa.ipc.open_stream(self._response)
+            # close() may have run while reading the Arrow schema.
+            with self._cluster._state_lock:
+                self._cluster._check_open()
+                self._entered = True
+                self._done = False
+                self._cluster._streams.add(self)
         except (
             OSError,
             http.client.HTTPException,
@@ -443,10 +473,7 @@ class RestQueryReader(QueryStream):
         except BaseException:
             self.close()
             raise
-        self._entered = True
-        self._done = False
-        self._cluster._streams.add(self)
-        logger.debug("REST query stream opened batch_size=%s", self._batch_size)
+        logger.debug("REST query stream opened")
         return self
 
     def __iter__(self) -> Iterator[Dict[str, MaskedArrayAny]]:
@@ -455,36 +482,24 @@ class RestQueryReader(QueryStream):
         return self
 
     def __next__(self) -> Dict[str, MaskedArrayAny]:
+        with self._io_lock:
+            return self._next_batch()
+
+    def _next_batch(self) -> Dict[str, MaskedArrayAny]:
         if not self._entered:
             raise UninitializedError("Open the REST query stream in a with block")
         if self._done:
             raise StopIteration
         try:
-            while self._batch is None or self._offset == self._batch.num_rows:
-                self._batch = self._reader.read_next_batch()
-                self._wire_batches += 1
-                self._offset = 0
-                if self._batch.num_rows:
-                    break
-            size = self._batch.num_rows - self._offset
-            if self._batch_size:
-                size = min(size, self._batch_size)
-            # batch_size caps conversion size; smaller wire batches are never combined.
-            # Slicing shares buffers and cannot reduce memory held by a received batch.
-            # Retained arrays therefore retain that entire batch's buffers after close.
-            batch = self._batch.slice(self._offset, size)
-            self._offset += size
-            result = {
+            batch = self._reader.read_next_batch()
+            while not batch.num_rows:
+                batch = self._reader.read_next_batch()
+            return {
                 name: _masked_array(column)
                 for name, column in zip(batch.schema.names, batch.columns)
             }
-            if self._offset == self._batch.num_rows:
-                self._batch = None
-                self._offset = 0
-            self._yielded_batches += 1
-            self._yielded_rows += size
-            return result
         except StopIteration:
+            # Release the socket at EOF. The iterator stays exhausted until context exit.
             self._done = True
             self._release()
             raise
@@ -501,7 +516,6 @@ class RestQueryReader(QueryStream):
             raise
 
     def _release(self):
-        self._batch = None
         try:
             if self._reader is not None:
                 self._reader.close()
@@ -510,18 +524,12 @@ class RestQueryReader(QueryStream):
             if self._response is not None:
                 self._response.close()
                 self._response = None
-            self._cluster._streams.discard(self)
-            if self._started is not None:
-                logger.debug(
-                    "REST query stream closed wire_batches=%s yielded_batches=%s rows=%s duration=%.3fs",
-                    self._wire_batches,
-                    self._yielded_batches,
-                    self._yielded_rows,
-                    time.monotonic() - self._started,
-                )
-                self._started = None
+            # A failed close keeps the response registered for a subsequent close().
+            with self._cluster._state_lock:
+                self._cluster._streams.discard(self)
 
     def close(self) -> None:
-        self._entered = False
-        self._done = True
-        self._release()
+        with self._io_lock:
+            self._entered = False
+            self._done = True
+            self._release()

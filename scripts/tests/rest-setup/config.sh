@@ -29,4 +29,3 @@ then
     echo "Log archive path ${REST_LOG_ARCHIVE_PATH} does not yet exist, creating..."
     mkdir -v -p "$REST_LOG_ARCHIVE_PATH"
 fi
-

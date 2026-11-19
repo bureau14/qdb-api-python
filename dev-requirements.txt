@@ -38,7 +38,6 @@ mypy
 pybind11-stubgen
 pandas-stubs
 
-# REST extra: Arrow 12 supports Python 3.7, Arrow 17 supports Python 3.8.
-pyarrow>=12,<13; python_version < '3.8'
-pyarrow>=12,<18; python_version == '3.8'
-pyarrow>=12; python_version >= '3.9'
+# REST cluster
+pyarrow>=12; python_version < '3.9'
+pyarrow>=16; python_version >= '3.9'

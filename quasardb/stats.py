@@ -6,8 +6,7 @@ from enum import Enum
 from typing import Any, DefaultDict, Dict, List, TypeVar, Union
 
 import quasardb
-from quasardb import Cluster
-from quasardb.quasardb import Node
+from quasardb.quasardb import Cluster, Node
 
 logger = logging.getLogger("quasardb.stats")
 

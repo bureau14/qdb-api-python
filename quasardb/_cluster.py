@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import datetime
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 from inspect import signature
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Type
-from urllib.parse import urlsplit
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, Union
 
 from .quasardb import Options
 
 if TYPE_CHECKING:
+    from ._rest import RestQueryReader
     from .typing import MaskedArrayAny, RangeSet
     from .quasardb import (
         Blob,
@@ -21,6 +21,7 @@ if TYPE_CHECKING:
         Perf,
         Properties,
         QueryContinuous,
+        QueryReader,
         Reader,
         String,
         Table,
@@ -30,51 +31,25 @@ if TYPE_CHECKING:
     )
 
 
-class QueryStream(metaclass=ABCMeta):
-    """Context-managed iterable of column names and NumPy masked arrays."""
-
-    __slots__ = ()
-
-    @abstractmethod
-    def __enter__(self) -> QueryStream:
-        raise NotImplementedError
-
-    def __exit__(
-        self,
-        __exc_type: Optional[Type[BaseException]],
-        __exc_value: Optional[BaseException],
-        __exc_tb: Optional[TracebackType],
-    ) -> None:
-        raise NotImplementedError
-
-    def __iter__(self) -> Iterator[Dict[str, MaskedArrayAny]]:
-        raise NotImplementedError
-
-    def get_batch_size(self) -> int:
-        raise NotImplementedError
-
-
 class ClusterMeta(ABCMeta):
     def __call__(cls, *args, **kwargs):
         if cls is Cluster:
             from .quasardb import InvalidArgumentError, NativeCluster
 
-            # Bind before dispatch so every transport shares constructor argument rules.
-            bound = signature(Cluster.__init__).bind(None, *args, **kwargs)
-            uri = bound.arguments["uri"]
-            if not isinstance(uri, str):
-                raise TypeError("uri must be a string")
-            try:
-                scheme = urlsplit(uri).scheme
-            except ValueError as exc:
-                raise InvalidArgumentError(str(exc)) from None
-            if scheme == "qdb":
-                return NativeCluster(*args, **kwargs)
-            if scheme in ("http", "https"):
-                from ._rest import RestCluster
+            # The native parser accepts multi-node addresses and raw byte strings.
+            # Only inspect the scheme here so the binding receives its original URI.
+            uri = args[0] if args else kwargs.get("uri")
+            if isinstance(uri, str):
+                scheme = uri.partition(":")[0].lower()
+                if scheme in ("http", "https"):
+                    from ._rest import RestCluster
 
-                return RestCluster(*args, **kwargs)
-            raise InvalidArgumentError("Unsupported connection URI scheme: " + scheme)
+                    return RestCluster(*args, **kwargs)
+                if scheme != "qdb":
+                    raise InvalidArgumentError(
+                        "Unsupported connection URI scheme: " + scheme
+                    )
+            return NativeCluster(*args, **kwargs)
         return super().__call__(*args, **kwargs)
 
 
@@ -210,7 +185,9 @@ class Cluster(metaclass=ClusterMeta):
     ) -> Reader:
         raise NotImplementedError("reader is unavailable for this transport")
 
-    def stream_query(self, query: str, *, batch_size: int = 0) -> QueryStream:
+    def stream_query(
+        self, query: str, *, batch_size: int = 0
+    ) -> Union[QueryReader, RestQueryReader]:
         raise NotImplementedError("stream_query is unavailable for this transport")
 
     def string(self, __alias: str) -> String:

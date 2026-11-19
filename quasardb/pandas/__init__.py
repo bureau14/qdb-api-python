@@ -173,7 +173,7 @@ def stream_query(
     query: str,
     *,
     index: Optional[Union[str, int]] = None,
-    batch_size: Optional[int] = 2**16,
+    batch_size: Optional[int] = None,
 ) -> Iterator[pd.DataFrame]:
     """
     Execute a query and stream the results as pandas DataFrames. Returns a
@@ -203,11 +203,9 @@ def stream_query(
       `query()`.
 
     batch_size : optional[int]
-      The maximum amount of rows per yielded DataFrame. If unset, uses 2^16
-      (65536) rows as batch size by default. A value of 0 yields one full-result
-      DataFrame on native connections and preserves server batch boundaries on
-      REST. REST batches may be smaller than requested; slicing cannot reduce
-      memory already held by an incoming Arrow batch.
+      Native connections yield at most this many rows per batch (default 65536).
+      Zero requests one full-result batch. REST yields each nonempty server
+      batch and logs a warning if a positive size is supplied.
 
     Examples:
     ---------

@@ -47,8 +47,7 @@ from typing import (
 
 import quasardb
 import quasardb.table_cache as table_cache
-from quasardb import Cluster
-from quasardb.quasardb import Table, Writer
+from quasardb.quasardb import Cluster, Table, Writer
 from quasardb.typing import DType, MaskedArrayAny, NDArrayAny, NDArrayTime, RangeSet
 
 logger = logging.getLogger("quasardb.numpy")
@@ -1123,7 +1122,7 @@ def stream_query(
     *,
     index: Optional[Union[str, int]] = None,
     dict: bool = False,
-    batch_size: Optional[int] = 2**16,
+    batch_size: Optional[int] = None,
 ) -> Iterator[
     Tuple[NDArrayAny, Union[Dict[str, MaskedArrayAny], List[MaskedArrayAny]]]
 ]:
@@ -1155,11 +1154,9 @@ def stream_query(
       Defaults to False.
 
     batch_size : optional[int]
-      The maximum amount of rows per yielded batch. If unset, uses 2^16 (65536)
-      rows as batch size by default. A value of 0 yields one full-result batch
-      on native connections and preserves server batch boundaries on REST.
-      REST batches may be smaller than requested. Numeric slices retain the
-      source Arrow buffers, so the server batch size sets a memory lower bound.
+      Native connections yield at most this many rows per batch (default 65536).
+      Zero requests one full-result batch. REST yields each nonempty server
+      batch and logs a warning if a positive size is supplied.
 
     Returns:
     --------
@@ -1178,9 +1175,10 @@ def stream_query(
     ... ):
     ...     process(idx, cols)
     """
-    # Sanitize batch_size
     if batch_size is None:
-        batch_size = 2**16
+        # Pool sessions forward the transport's default. Native connections
+        # and third-party stream_query implementations use the NumPy default.
+        batch_size = getattr(cluster, "_default_query_batch_size", 2**16)
     elif not isinstance(batch_size, int):
         raise TypeError(
             "batch_size should be an integer, but got: {} with value {}".format(

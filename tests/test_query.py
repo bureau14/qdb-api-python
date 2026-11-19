@@ -1,5 +1,3 @@
-import conftest
-
 # # pylint: disable=C0103,C0111,C0302,W0212
 import pytest
 import quasardb
@@ -396,7 +394,6 @@ def test_returns_count_data_with_count_select(qdbd_connection, table, intervals)
     assert res[0]["count(the_double)"] == 10
 
 
-@conftest.query_transports
 def test_returns_count_data_with_count_select_numpy(
     query_connection, qdbd_connection, table, intervals
 ):
@@ -422,7 +419,6 @@ def test_returns_count_data_with_count_select_numpy(
     assert counts[0] == 10
 
 
-@conftest.query_transports
 def test_string_query_returns_unicode_numpy(
     query_connection, qdbd_connection, table, intervals
 ):
@@ -441,7 +437,6 @@ def test_string_query_returns_unicode_numpy(
     np.testing.assert_array_equal(xs, inserted_string_data[1])
 
 
-@conftest.query_transports
 def test_blob_query_returns_bytes_numpy(
     query_connection, qdbd_connection, table, intervals
 ):

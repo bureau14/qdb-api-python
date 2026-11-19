@@ -341,7 +341,6 @@ def test_write_dataframe_create_table_with_shard_size(
     _assert_df_equal(df1, df2)
 
 
-@conftest.query_transports
 def test_query(
     query_connection,
     qdbpd_write_fn,  # parametrized
