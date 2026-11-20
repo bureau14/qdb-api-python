@@ -77,12 +77,12 @@ def test_stream_query_batching_contract(
     query = _select_column_query(table, column_name)
 
     with query_connection.stream_query(query, batch_size=reader_batch_size) as stream:
-        expected_size = (
-            reader_batch_size
-            if isinstance(query_connection, quasardb.NativeCluster)
-            else 0
-        )
-        assert stream.get_batch_size() == expected_size
+        if isinstance(query_connection, quasardb.NativeCluster):
+            assert stream.get_batch_size() == reader_batch_size
+        else:
+            # REST keeps the server's Arrow batch boundaries. Zero reports that
+            # the client cannot set a batch size, even when one was requested.
+            assert stream.get_batch_size() == 0
         batches = list(stream)
 
     assert all(len(batch[column_name]) > 0 for batch in batches)
@@ -119,6 +119,8 @@ def test_stream_query_zero_batch_size_yields_single_batch(
         batches = list(stream)
 
     assert sum(len(batch[column_name]) for batch in batches) == row_count
+    # Native zero requests the complete result in one batch. The REST
+    # server may split these rows across any number of Arrow batches.
     if isinstance(query_connection, quasardb.NativeCluster):
         assert len(batches) == 1
         assert len(batches[0][column_name]) == row_count
@@ -194,8 +196,8 @@ def test_stream_query_schema_stable_when_first_batch_all_null(
 
     (timestamps, values) = tslib._generate_double_ts(start_time, row_count)
 
-    # Native batching puts all nulls in the first batch. The global schema
-    # probe must still give it the same dtype as the populated second batch.
+    # Native batching puts all nulls in the first batch and all values in the
+    # second. Its global schema probe must still type the first batch as float64.
     mask = np.zeros(row_count, dtype=bool)
     mask[:batch_size] = True
     xs = ma.array(data=values, mask=mask)

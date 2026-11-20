@@ -32,6 +32,12 @@ if TYPE_CHECKING:
 
 
 class ClusterMeta(ABCMeta):
+    """Choose the transport when a caller constructs Cluster(uri).
+
+    ABCMeta supplies register(), so the native extension type can satisfy
+    isinstance(conn, Cluster) while keeping its existing class hierarchy.
+    """
+
     def __call__(cls, *args, **kwargs):
         if cls is Cluster:
             from .quasardb import InvalidArgumentError, NativeCluster
@@ -63,11 +69,7 @@ class ClusterMeta(ABCMeta):
 
 
 class Cluster(metaclass=ClusterMeta):
-    """Open a NativeCluster for qdb:// or a RestCluster for http:// and https://.
-
-    Cluster accepts verify=True for any supported URI. For HTTPS, verify=False
-    disables certificate verification. For qdb://, it raises InvalidArgumentError.
-    """
+    """Open a NativeCluster for qdb:// or a RestCluster for http:// and https://."""
 
     __slots__ = ()
 

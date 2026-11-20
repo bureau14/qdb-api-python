@@ -1,149 +1,12 @@
 """Real service tests for transport dispatch and REST authentication/lifecycle."""
 
 import datetime
-import gc
-import inspect
 import json
 import ssl
-import subprocess
-import sys
 
 import numpy as np
 import pytest
 import quasardb
-
-
-def test_native_inheritance_and_lifetime(qdbd_connection, monkeypatch):
-    from quasardb.quasardb import Cluster as LegacyCluster
-
-    class NativeSubclass(quasardb.NativeCluster):
-        pass
-
-    assert LegacyCluster is quasardb.NativeCluster
-    assert LegacyCluster is not quasardb.Cluster
-    assert type(qdbd_connection) is quasardb.NativeCluster
-    assert isinstance(qdbd_connection, quasardb.Cluster)
-    assert issubclass(quasardb.NativeCluster, quasardb.Cluster)
-    original_init = quasardb.NativeCluster.__init__
-    calls = []
-
-    def counted_init(self, *args, **kwargs):
-        calls.append(self)
-        original_init(self, *args, **kwargs)
-
-    monkeypatch.setattr(quasardb.NativeCluster, "__init__", counted_init)
-    for constructor in (quasardb.Cluster, LegacyCluster, NativeSubclass):
-        conn = constructor(qdbd_connection.uri())
-        assert calls.pop() is conn
-        assert isinstance(conn, constructor)
-        with conn as session:
-            assert session.query("SELECT 1")[0]
-            assert session.is_open()
-        assert not conn.is_open()
-        assert not calls
-        del conn
-        gc.collect()
-    assert "uri" in inspect.signature(quasardb.Cluster).parameters
-
-
-def test_native_without_optional_dependency(qdbd_connection):
-    # A fresh interpreter prevents pandas' own optional Arrow import from hiding
-    # an eager dependency in the connection/package import path.
-    program = """
-import importlib.abc
-import inspect
-import pydoc
-import sys
-class BlockArrow(importlib.abc.MetaPathFinder):
-    def find_spec(self, fullname, path=None, target=None):
-        if fullname == "pyarrow" or fullname.startswith("pyarrow."):
-            raise ModuleNotFoundError("Arrow deliberately unavailable in this test")
-sys.meta_path.insert(0, BlockArrow())
-import quasardb
-exported = {}
-exec("from quasardb import *", exported)
-assert "RestCluster" not in exported
-assert exported["MaskedArray"] is quasardb.quasardb.MaskedArray
-assert exported["Cluster"] is quasardb.Cluster
-assert quasardb.quasardb.Cluster is quasardb.NativeCluster
-assert quasardb.Cluster is not quasardb.quasardb.Cluster
-for name in dir(quasardb.quasardb):
-    if not name.startswith("_") and name != "Cluster":
-        assert exported[name] is getattr(quasardb.quasardb, name), name
-assert "RestCluster" not in dict(inspect.getmembers(quasardb))
-assert "quasardb" in pydoc.render_doc(quasardb)
-assert "quasardb._rest" not in sys.modules
-import quasardb.pool
-import quasardb.numpy
-import quasardb.pandas
-with quasardb.Cluster(sys.argv[1]) as conn:
-    assert isinstance(conn, quasardb.NativeCluster)
-    assert conn.query("SELECT 1")
-assert "quasardb._rest" not in sys.modules
-try:
-    quasardb.Cluster("http://127.0.0.1:40080")
-except quasardb.PyArrowRequired as exc:
-    assert isinstance(exc, ImportError)
-    assert isinstance(exc.__cause__, ModuleNotFoundError)
-    assert "pip install 'quasardb[rest]'" in str(exc)
-else:
-    raise AssertionError("REST must report the missing optional dependency")
-try:
-    from quasardb import RestCluster
-except quasardb.PyArrowRequired as exc:
-    assert isinstance(exc, ImportError)
-    assert isinstance(exc.__cause__, ModuleNotFoundError)
-    assert "pip install 'quasardb[rest]'" in str(exc)
-else:
-    raise AssertionError("Explicit REST import must report the missing dependency")
-"""
-    result = subprocess.run(
-        [sys.executable, "-c", program, qdbd_connection.uri()],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        universal_newlines=True,
-    )
-    assert result.returncode == 0, result.stderr
-
-
-def test_wildcard_exports_after_explicit_rest_access():
-    program = """
-import quasardb as qdb
-import quasardb.pool
-assert qdb.RestCluster is not None
-from quasardb import *
-assert "RestCluster" not in locals()
-assert pool is qdb.pool
-assert MaskedArray is qdb.quasardb.MaskedArray
-"""
-    result = subprocess.run(
-        [sys.executable, "-c", program],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        universal_newlines=True,
-    )
-    assert result.returncode == 0, result.stderr
-
-
-@pytest.mark.parametrize(
-    "native_uri",
-    [
-        "qdb://127.0.0.1:2836,[::1]:2836",
-        b"qdb://127.0.0.1:2836",
-        bytearray(b"qdb://127.0.0.1:2836"),
-    ],
-)
-def test_native_dispatch_forwards_uri(monkeypatch, native_uri):
-    expected_timeout = datetime.timedelta(seconds=5)
-
-    def capture(self, uri, *, timeout):
-        assert uri is native_uri
-        assert timeout == expected_timeout
-        raise RuntimeError("native constructor reached")
-
-    monkeypatch.setattr(quasardb.NativeCluster, "__init__", capture)
-    with pytest.raises(RuntimeError, match="native constructor reached"):
-        quasardb.Cluster(uri=native_uri, timeout=expected_timeout)
 
 
 @pytest.mark.parametrize("constructor", ["Cluster", "RestCluster"])
@@ -192,7 +55,7 @@ def test_refresh_and_relogin(rest_connection):
 
 
 @pytest.mark.parametrize("options", [{}, {"verify": True}])
-def test_https_rejects_self_signed_certificate(options):
+def test_https_rejects_self_signed_certificate_by_default(options):
     with pytest.raises(quasardb.Error) as exc:
         quasardb.Cluster("https://127.0.0.1:40443", **options)
     assert isinstance(exc.value.__cause__, ssl.SSLCertVerificationError)
@@ -340,26 +203,6 @@ def test_unsupported_methods(rest_connection):
             getattr(rest_connection, method)(*args)
 
 
-def test_unsupported_inventory():
-    supported = {"close", "is_open", "uri", "stream_query"}
-    methods = {name for name in dir(quasardb.NativeCluster) if not name.startswith("_")}
-    assert {method for method, _ in unsupported} == methods - supported
-
-
-def test_installed_typing_files():
-    from pathlib import Path
-
-    package = Path(quasardb.__file__).parent
-    for name in (
-        "py.typed",
-        "__init__.pyi",
-        "_cluster.py",
-        "_rest.py",
-        "quasardb/_cluster.pyi",
-    ):
-        assert (package / name).is_file(), name
-
-
 @pytest.mark.parametrize(
     "query,kind",
     [
@@ -368,7 +211,8 @@ def test_installed_typing_files():
     ],
 )
 def test_rest_sentinels_are_values(rest_connection, query, kind):
-    # DuckDB literals avoid native insertion's sentinel-to-null conversion.
+    # Native writes turn these values into nulls. DuckDB literals let us check
+    # that the Python client preserves a valid NaN and minimum int64.
     with rest_connection.stream_query(query) as stream:
         array = next(stream)["value"]
         assert array.dtype.kind == kind

@@ -110,11 +110,10 @@ def qdbd_insecure_connection(qdbd_settings):
 def qdbd_connection(request):
     # Table and writer fixtures need the native backend paired with the query.
     # Resolve the optional fixture dynamically so native-only tests run once.
-    for fixture in ("query_connection_settings", "rest_connection_settings"):
-        if fixture in request.fixturenames:
-            settings = request.getfixturevalue(fixture)
-            if "user_name" in settings:
-                return request.getfixturevalue("qdbd_secure_connection")
+    if "query_connection_settings" in request.fixturenames:
+        settings = request.getfixturevalue("query_connection_settings")
+        if "user_name" in settings:
+            return request.getfixturevalue("qdbd_secure_connection")
     return request.getfixturevalue("qdbd_insecure_connection")
 
 
@@ -1079,13 +1078,9 @@ def mock_failure_options(mock_failure_count):
 
 
 @pytest.fixture
-def query_connection(request, query_connection_settings):
-    if query_connection_settings["uri"].startswith("qdb://"):
-        # Reuse the connection that owns the native test data.
-        yield request.getfixturevalue("qdbd_connection")
-    else:
-        with quasardb.Cluster(**query_connection_settings) as conn:
-            yield conn
+def query_connection(query_connection_settings):
+    with quasardb.Cluster(**query_connection_settings) as conn:
+        yield conn
 
 
 @pytest.fixture

@@ -7,7 +7,6 @@ import http.client
 import io
 import json
 import logging
-import math
 import operator
 import ssl
 import threading
@@ -43,21 +42,31 @@ from .typing import MaskedArrayAny
 
 logger = logging.getLogger(__name__)
 
-_MAX_ERROR_DETAIL_BYTES = 16 * 1024
-
 
 class _Response(io.RawIOBase):
-    """Keep the socket and HTTP response under the Arrow reader's lifetime."""
+    """Expose the REST server's HTTP response body as a readable RawIOBase stream.
+
+    A short read with bytes outstanding in Content-Length signals a truncated
+    response. Closing the stream releases both the response and its connection.
+    """
 
     def __init__(self, connection, response):
         super().__init__()
         self.connection = connection
         self._response = response
+        self._require_arrow_eos = False
         self.status = response.status
         self.headers = response.headers
 
     def readable(self):
         return True
+
+    def open_arrow_stream(self):
+        # Without HTTP framing, only Arrow's end marker proves the query finished.
+        self._require_arrow_eos = (
+            self._response.length is None and not self._response.chunked
+        )
+        return pa.ipc.open_stream(self)
 
     def read(self, size=-1):
         if self.closed:
@@ -67,6 +76,10 @@ class _Response(io.RawIOBase):
         if size < 0:
             return self._response.read()
         data = self._response.read(size)
+        # PyArrow stops on the end marker without requesting another message.
+        # An empty read while it still expects bytes means this result is incomplete.
+        if self._require_arrow_eos and size > 0 and not data:
+            raise http.client.IncompleteRead(b"")
         # Bounded HTTP reads suppress IncompleteRead, and Arrow accepts EOF at a
         # batch boundary. Enforce HTTP framing so a dropped stream cannot look complete.
         if len(data) < size and self._response.length not in (None, 0):
@@ -83,6 +96,7 @@ class _Response(io.RawIOBase):
 
 
 def _credentials(user_name, user_private_key, user_security_file):
+    """Build the REST login payload from a name and key, a file, or anonymous access."""
     if not all(
         isinstance(x, str) for x in (user_name, user_private_key, user_security_file)
     ):
@@ -112,6 +126,30 @@ def _credentials(user_name, user_private_key, user_security_file):
     if bool(user_name) != bool(user_private_key):
         raise InvalidArgumentError("Provide both user_name and user_private_key")
     return {"username": user_name, "secret_key": user_private_key} if user_name else {}
+
+
+def _read_tokens(response):
+    try:
+        body = response.read()
+        data = json.loads(body)
+        access = data["access_token"]
+        refresh = data["refresh_token"]
+        # Bearer tokens travel in HTTP headers as printable ASCII without whitespace.
+        if not all(
+            isinstance(t, str) and t and all(33 <= ord(c) <= 126 for c in t)
+            for t in (access, refresh)
+        ):
+            raise ValueError
+        return access, refresh
+    except (OSError, http.client.HTTPException):
+        failure = "Unable to read REST authentication response"
+    except (ValueError, KeyError, TypeError) as exc:
+        failure = "Malformed REST authentication response ({})".format(
+            type(exc).__name__
+        )
+    # JSON and framing exceptions keep the response bytes. Raising outside
+    # the handler keeps those tokens out of the exception chain.
+    raise Error(failure)
 
 
 class RestCluster(Cluster):
@@ -153,23 +191,22 @@ class RestCluster(Cluster):
             raise InvalidArgumentError(
                 "Expected an HTTP(S) URI without credentials or query"
             ) from None
-        seconds = (
-            timeout.total_seconds()
-            if isinstance(timeout, datetime.timedelta)
-            else float(timeout)
-        )
-        if not math.isfinite(seconds) or seconds <= 0:
-            raise InvalidArgumentError("timeout must be positive and finite")
+        if not isinstance(timeout, datetime.timedelta):
+            raise TypeError("timeout must be a datetime.timedelta")
+        seconds = timeout.total_seconds()
+        if seconds <= 0:
+            raise InvalidArgumentError("timeout must be positive")
         self._credentials = _credentials(
             user_name, user_private_key, user_security_file
         )
         self._uri = uri
         if not isinstance(verify, bool):
             raise TypeError("verify must be a bool")
-        # Each request owns a socket. Limit the TLS policy to this REST connection.
         if endpoint.scheme == "https":
             context = None
             if not verify:
+                # A REST server can generate a self-signed certificate. Limit this
+                # opt-out to the HTTPS connections opened by this cluster.
                 context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
                 context.check_hostname = False
                 context.verify_mode = ssl.CERT_NONE
@@ -188,8 +225,8 @@ class RestCluster(Cluster):
         self._access_token = ""
         self._refresh_token = ""
         self._open = True
-        # Readers own their sockets. Track live readers for close() without
-        # extending their lifetime when the caller drops the last reference.
+        # Each reader owns its HTTP response and socket. A weak set lets
+        # cluster.close() find live readers without keeping abandoned ones alive.
         self._streams = weakref.WeakSet()
         self._state_lock = threading.Lock()
         try:
@@ -233,17 +270,18 @@ class RestCluster(Cluster):
             raise Error("REST HTTP request failed") from exc
 
     def _raise_http_error(self, response, *, query=False):
+        """Read the error response, redact credentials and raise the API exception."""
         status = response.status
         body = b""
         cause = None
         detail = ""
         try:
-            body = response.read(_MAX_ERROR_DETAIL_BYTES)
+            body = response.read()
         except http.client.IncompleteRead as exc:
             # The exception holds the raw response. Only query diagnostics may
             # use partial text, after filtering it below.
             if query:
-                body = exc.partial[:_MAX_ERROR_DETAIL_BYTES]
+                body = exc.partial
         except (OSError, http.client.HTTPException) as exc:
             cause = exc
         try:
@@ -253,7 +291,7 @@ class RestCluster(Cluster):
                 detail = ""
         except ValueError:
             # Query proxies may return plain text or truncated JSON. Authentication
-            # bodies can contain tokens, so only queries expose this bounded fallback.
+            # bodies can contain tokens, so only queries expose the plain-text fallback.
             if query:
                 detail = body.decode("utf-8", errors="replace").strip()
         # Backend diagnostics pass through unchanged and may include CREATE SECRET
@@ -271,6 +309,8 @@ class RestCluster(Cluster):
         message = "REST HTTP {}".format(status)
         if detail:
             message += ": " + detail
+        # A 503 indicates an unavailable service on any endpoint. A 400 maps
+        # to InvalidQueryError for queries and to the generic Error for authentication.
         error_type = (
             TryAgainError
             if status == 503
@@ -278,31 +318,11 @@ class RestCluster(Cluster):
         )
         raise error_type(message) from cause
 
-    @staticmethod
-    def _read_tokens(response):
-        try:
-            body = response.read()
-            data = json.loads(body)
-            access = data["access_token"]
-            refresh = data["refresh_token"]
-            # Bearer tokens travel in HTTP headers as printable ASCII without whitespace.
-            if not all(
-                isinstance(t, str) and t and all(33 <= ord(c) <= 126 for c in t)
-                for t in (access, refresh)
-            ):
-                raise ValueError
-            return access, refresh
-        except (OSError, http.client.HTTPException):
-            failure = "Unable to read REST authentication response"
-        except (ValueError, KeyError, TypeError) as exc:
-            failure = "Malformed REST authentication response ({})".format(
-                type(exc).__name__
-            )
-        # JSON and framing exceptions keep the response bytes. Raising outside
-        # the handler keeps those tokens out of the exception chain.
-        raise Error(failure)
-
     def _grant(self, path, payload):
+        """Store the access and refresh tokens returned by login or refresh.
+
+        Return False when refresh receives a 401 so the caller can log in again.
+        """
         body = json.dumps(payload).encode("utf-8")
         with self._request(
             path, body, {"Content-Type": "application/json"}
@@ -313,7 +333,7 @@ class RestCluster(Cluster):
                 return False
             if response.status != 200:
                 self._raise_http_error(response)
-            tokens = self._read_tokens(response)
+            tokens = _read_tokens(response)
         with self._state_lock:
             self._check_open()
             self._access_token, self._refresh_token = tokens
@@ -326,7 +346,11 @@ class RestCluster(Cluster):
     def _authorized_post(
         self, path: str, body: bytes, headers: Dict[str, str]
     ) -> _Response:
-        """Retry an explicit authentication rejection once. The caller owns the response."""
+        """POST with the access token and return a response for the caller to close.
+
+        On a 401, refresh the tokens and resend once. If the server refuses
+        the refresh with a 401, log in again before resending.
+        """
 
         def post():
             return self._request(
@@ -470,7 +494,7 @@ class RestQueryReader:
         self.close()
 
     def get_batch_size(self) -> int:
-        """Zero indicates that the REST server chooses the batch size."""
+        """Match the native reader interface. Zero means the REST server sizes batches."""
         return 0
 
     def __enter__(self) -> RestQueryReader:
@@ -489,8 +513,8 @@ class RestQueryReader:
                 )
                 if self._response.status != 200:
                     self._cluster._raise_http_error(self._response, query=True)
-                self._reader = pa.ipc.open_stream(self._response)
-                # close() may have run while reading the Arrow schema.
+                self._reader = self._response.open_arrow_stream()
+                # cluster.close() may have run while reading the Arrow schema.
                 with self._cluster._state_lock:
                     self._cluster._check_open()
                     self._entered = True
