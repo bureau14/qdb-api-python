@@ -35,6 +35,14 @@ plugins:
             output-dir: "snapdep-rest"
             files:
               - "*-rest.*"
+          # sc-20192 test branch only (proof step 11): qdb-api-rest's
+          # freebsd-haswell-release, which no consumer downloaded before.
+          # Download only, into a directory the build does not use.
+          - project_id: "qdb-api-rest"
+            variant: "freebsd-haswell-release"
+            output-dir: "sc20192-rest-freebsd"
+            files:
+              - "*-rest.*"
       upload:
         files:
           - "dist/quasardb-*.whl"
