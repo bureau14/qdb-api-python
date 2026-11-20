@@ -9,6 +9,7 @@ import json
 import logging
 import math
 import operator
+import ssl
 import threading
 import weakref
 from contextlib import ExitStack
@@ -43,8 +44,6 @@ from .typing import MaskedArrayAny
 logger = logging.getLogger(__name__)
 
 _MAX_ERROR_DETAIL_BYTES = 16 * 1024
-_MAX_AUTH_RESPONSE_BYTES = 64 * 1024
-_ARROW_STREAM = "application/vnd.apache.arrow.stream"
 
 
 class _Response(io.RawIOBase):
@@ -63,10 +62,14 @@ class _Response(io.RawIOBase):
     def read(self, size=-1):
         if self.closed:
             raise ValueError("read from a closed REST response")
+        # HTTPResponse.read() honors Content-Length on a persistent connection.
+        # Passing -1 explicitly can wait for the peer to close the socket.
+        if size < 0:
+            return self._response.read()
         data = self._response.read(size)
         # Bounded HTTP reads suppress IncompleteRead, and Arrow accepts EOF at a
         # batch boundary. Enforce HTTP framing so a dropped stream cannot look complete.
-        if size >= 0 and len(data) < size and self._response.length not in (None, 0):
+        if len(data) < size and self._response.length not in (None, 0):
             raise http.client.IncompleteRead(data, self._response.length)
         return data
 
@@ -130,6 +133,7 @@ class RestCluster(Cluster):
         enable_encryption: bool = False,
         compression_mode: Options.Compression = Options.Compression.Balanced,
         client_max_parallelism: int = 0,
+        verify: bool = True,
     ) -> None:
         if not isinstance(uri, str):
             raise TypeError("uri must be a string")
@@ -160,16 +164,26 @@ class RestCluster(Cluster):
             user_name, user_private_key, user_security_file
         )
         self._uri = uri
-        # Each request owns a socket. HTTPSConnection uses standard certificate
-        # and hostname verification; quasardb.pool reuses the authentication.
-        connection_type = (
-            http.client.HTTPSConnection
-            if endpoint.scheme == "https"
-            else http.client.HTTPConnection
-        )
-        self._new_connection = partial(
-            connection_type, endpoint.hostname, port, timeout=seconds
-        )
+        if not isinstance(verify, bool):
+            raise TypeError("verify must be a bool")
+        # Each request owns a socket. Limit the TLS policy to this REST connection.
+        if endpoint.scheme == "https":
+            context = None
+            if not verify:
+                context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+                context.check_hostname = False
+                context.verify_mode = ssl.CERT_NONE
+            self._new_connection = partial(
+                http.client.HTTPSConnection,
+                endpoint.hostname,
+                port,
+                timeout=seconds,
+                context=context,
+            )
+        else:
+            self._new_connection = partial(
+                http.client.HTTPConnection, endpoint.hostname, port, timeout=seconds
+            )
         self._base_path = endpoint.path.rstrip("/") + "/api/v2"
         self._access_token = ""
         self._refresh_token = ""
@@ -267,9 +281,7 @@ class RestCluster(Cluster):
     @staticmethod
     def _read_tokens(response):
         try:
-            body = response.read(_MAX_AUTH_RESPONSE_BYTES + 1)
-            if len(body) > _MAX_AUTH_RESPONSE_BYTES:
-                raise Error("REST authentication response exceeds the size limit")
+            body = response.read()
             data = json.loads(body)
             access = data["access_token"]
             refresh = data["refresh_token"]
@@ -360,7 +372,13 @@ class RestCluster(Cluster):
         return self._uri
 
     def stream_query(self, query: str, *, batch_size: int = 0) -> RestQueryReader:
-        """Yield each nonempty server batch. A positive batch_size logs a warning."""
+        """Yield each nonempty server batch.
+
+        Arrow validity determines the mask. Valid NaN and INT64_MIN values are
+        unmasked, and typed all-null columns retain their Arrow-derived dtype.
+        The native reader masks those sentinel values and uses float64 when an
+        entire result column is null.
+        """
         self._check_open()
         if not isinstance(query, str):
             raise TypeError("query must be a string")
@@ -464,12 +482,13 @@ class RestQueryReader:
                 self._response = self._cluster._authorized_post(
                     "/query",
                     self._query.encode("utf-8"),
-                    {"Content-Type": "text/plain", "Accept": _ARROW_STREAM},
+                    {
+                        "Content-Type": "text/plain",
+                        "Accept": "application/vnd.apache.arrow.stream",
+                    },
                 )
                 if self._response.status != 200:
                     self._cluster._raise_http_error(self._response, query=True)
-                if self._response.headers.get_content_type() != _ARROW_STREAM:
-                    raise Error("REST query did not return an Arrow IPC stream")
                 self._reader = pa.ipc.open_stream(self._response)
                 # close() may have run while reading the Arrow schema.
                 with self._cluster._state_lock:

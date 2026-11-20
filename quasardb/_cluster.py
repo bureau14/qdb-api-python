@@ -83,6 +83,7 @@ class Cluster(metaclass=ClusterMeta):
         enable_encryption: bool = False,
         compression_mode: Options.Compression = Options.Compression.Balanced,
         client_max_parallelism: int = 0,
+        verify: bool = True,
     ) -> None:
         raise TypeError("Construct a concrete connection or use Cluster(uri)")
 

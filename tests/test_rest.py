@@ -4,6 +4,7 @@ import datetime
 import gc
 import inspect
 import json
+import ssl
 import subprocess
 import sys
 
@@ -190,6 +191,13 @@ def test_refresh_and_relogin(rest_connection):
     assert conn._refresh_token != "invalid-refresh-token"
 
 
+@pytest.mark.parametrize("options", [{}, {"verify": True}])
+def test_https_rejects_self_signed_certificate(options):
+    with pytest.raises(quasardb.Error) as exc:
+        quasardb.Cluster("https://127.0.0.1:40443", **options)
+    assert isinstance(exc.value.__cause__, ssl.SSLCertVerificationError)
+
+
 def test_credentials_file(rest_connection_settings, tmp_path):
     settings = rest_connection_settings
     credentials = tmp_path / "user.json"
@@ -213,6 +221,7 @@ def test_credentials_file(rest_connection_settings, tmp_path):
         enable_encryption=True,
         do_version_check=True,
         client_max_parallelism=3,
+        verify=settings.get("verify", True),
     ) as conn:
         assert _answer(conn) == [42]
 

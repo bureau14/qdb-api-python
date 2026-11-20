@@ -47,11 +47,16 @@ def _qdbd_settings():
     return settings
 
 
-_REST_TRANSPORTS = ("rest-insecure", "rest-secure")
+_REST_ENDPOINTS = {
+    "rest-http-insecure": "http://127.0.0.1:40080",
+    "rest-http-secure": "http://127.0.0.1:40081",
+    "rest-https-insecure": "https://127.0.0.1:40443",
+    "rest-https-secure": "https://127.0.0.1:40444",
+}
 
 
 def _query_connection_settings(variant, qdbd_settings):
-    transport, security = variant.split("-")
+    _, security = variant.rsplit("-", 1)
     connection = {"uri": qdbd_settings["uri"][security]}
     if security == "secure":
         for key in (
@@ -61,20 +66,22 @@ def _query_connection_settings(variant, qdbd_settings):
             "enable_encryption",
         ):
             connection[key] = qdbd_settings["security"][key]
-    if transport == "rest":
-        port = "40081" if security == "secure" else "40080"
-        connection["uri"] = "http://127.0.0.1:" + port
+    if variant in _REST_ENDPOINTS:
+        connection["uri"] = _REST_ENDPOINTS[variant]
+    if connection["uri"].startswith("https://"):
+        # The loopback test servers generate a new self-signed certificate on startup.
+        connection["verify"] = False
     return connection
 
 
 @pytest.fixture(
-    scope="module", params=("native-insecure", "native-secure") + _REST_TRANSPORTS
+    scope="module", params=("native-insecure", "native-secure") + tuple(_REST_ENDPOINTS)
 )
 def query_connection_settings(request, qdbd_settings):
     return _query_connection_settings(request.param, qdbd_settings)
 
 
-@pytest.fixture(scope="module", params=_REST_TRANSPORTS)
+@pytest.fixture(scope="module", params=tuple(_REST_ENDPOINTS))
 def rest_connection_settings(request, qdbd_settings):
     return _query_connection_settings(request.param, qdbd_settings)
 
