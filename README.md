@@ -83,7 +83,7 @@ The instructions below have been verified to work on:
 
 All QuasarDB APIs assume QuasarDB and associated utilities are extracted into the `qdb/` subdirectory.
 
-Extract QuasarDB C API, utilities and server into qdb/
+Extract QuasarDB C API, utilities, server, REST API into qdb/
 
 ```
 mkdir qdb
@@ -145,6 +145,11 @@ $ scripts/tests/setup/start-services.sh
 <.. snip ..>
 
 qdbd secure and insecure were started properly.
+
+$ scripts/tests/rest-setup/start-services.sh
+
+<.. snip ..>
+REST logs: .rest/log
 ```
 
 ## Run tests
