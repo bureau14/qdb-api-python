@@ -49,12 +49,25 @@ class ClusterMeta(ABCMeta):
                     raise InvalidArgumentError(
                         "Unsupported connection URI scheme: " + scheme
                     )
+            # verify controls REST certificate checks. Shared settings may
+            # include its default even when the native binding handles the URI.
+            verify = kwargs.pop("verify", True)
+            if not isinstance(verify, bool):
+                raise TypeError("verify must be a bool")
+            if not verify:
+                raise InvalidArgumentError(
+                    "verify=False is only supported by REST connections"
+                )
             return NativeCluster(*args, **kwargs)
         return super().__call__(*args, **kwargs)
 
 
 class Cluster(metaclass=ClusterMeta):
-    """Connection interface. Construction selects a transport from the URI scheme."""
+    """Open a NativeCluster for qdb:// or a RestCluster for http:// and https://.
+
+    Cluster accepts verify=True for any supported URI. For HTTPS, verify=False
+    disables certificate verification. For qdb://, it raises InvalidArgumentError.
+    """
 
     __slots__ = ()
 
