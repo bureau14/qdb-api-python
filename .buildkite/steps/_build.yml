@@ -22,9 +22,6 @@ plugins:
         clean: true
         projects:
           - project_id: "quasardb-build"
-            # sc-20192 test branch only (proof step 9): pin quasardb-build to
-            # the ref the plan gives it anyway, to show a pin in the plan.
-            git_ref: "refs/heads/sc-20192/snapshot-dependencies"
             output-dir: "qdb"
             extract: true
             files:
