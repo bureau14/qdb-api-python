@@ -30,7 +30,7 @@ plugins:
               - "*-server.tar.zst!*"
               - "*-utils.tar.zst!*"
           - project_id: "qdb-api-rest"
-            output-dir: "qdb"
+            output-dir: "qdb/rest"
             extract: true
             files:
               - "*-rest.*"

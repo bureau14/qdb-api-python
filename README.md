@@ -81,15 +81,16 @@ The instructions below have been verified to work on:
 
 ### QuasarDB tarball extraction
 
-All QuasarDB APIs assume QuasarDB and associated utilities are extracted into the `qdb/` subdirectory.
-
-Extract QuasarDB C API, utilities, server, REST API into qdb/
+Extract the C API, server, and utilities into `qdb/`. Extract the REST package
+into `qdb/rest/` so its bundled Windows DLL stays beside the REST
+executable and the Python wheel uses the DLL from the C API package.
 
 ```
-mkdir qdb
-cd qdb
-tar xf <archives>
-cd ..
+mkdir -p qdb/rest
+tar xf <c-api-archive> -C qdb
+tar xf <server-archive> -C qdb
+tar xf <utils-archive> -C qdb
+tar xf <rest-archive> -C qdb/rest
 ```
 
 ### Environment variables
