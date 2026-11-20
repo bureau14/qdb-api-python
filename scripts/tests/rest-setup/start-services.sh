@@ -53,6 +53,18 @@ for name in insecure secure; do
         sleep 0.2
     done
 done
-echo "REST ready: http://127.0.0.1:$REST_PORT_INSECURE -> $(rest_cluster_uri "$URI_INSECURE")"
-echo "REST ready: http://127.0.0.1:$REST_PORT_SECURE -> $(rest_cluster_uri "$URI_SECURE") (user keys)"
+
+function print_rest_endpoints {
+    local backend=$1 http_port=$2 https_port=$3
+    local https_endpoint="https://127.0.0.1:$https_port"
+    # With port 0, qdb_rest logs the requested HTTPS port rather than the assigned port.
+    if [[ "$https_port" == 0 ]]; then
+        https_endpoint="HTTPS (server-assigned port)"
+    fi
+    echo "REST ready: http://127.0.0.1:$http_port -> $backend"
+    echo "REST ready: $https_endpoint -> $backend"
+}
+
+print_rest_endpoints "$(rest_cluster_uri "$URI_INSECURE")" "$REST_PORT_INSECURE" "$REST_HTTPS_PORT_INSECURE"
+print_rest_endpoints "$(rest_cluster_uri "$URI_SECURE") (user keys)" "$REST_PORT_SECURE" "$REST_HTTPS_PORT_SECURE"
 echo "REST logs: $LOG_DIR_REST"
