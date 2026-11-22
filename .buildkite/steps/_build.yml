@@ -23,9 +23,6 @@ plugins:
         projects:
           - project_id: "quasardb-build"
             step: build
-            # sc-20192 test branch only (step-id proof I3): pin quasardb-build
-            # to the step-id branch.
-            git_ref: "refs/heads/sc-20192/step-ids"
             output-dir: "qdb"
             extract: true
             files:
