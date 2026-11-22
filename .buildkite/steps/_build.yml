@@ -36,6 +36,9 @@ plugins:
           # so that a build of this pipeline is the root of a chain three
           # deep. Download only, into a directory the build does not use.
           - project_id: "qdb-api-rest"
+            # sc-20192 test branch only (latest-file proof N): pin qdb-api-rest
+            # to the step-id branch, as quasardb-build is pinned above.
+            git_ref: "refs/heads/sc-20192/step-ids"
             output-dir: "snapdep-rest"
             files:
               - "*-rest.*"
@@ -43,6 +46,9 @@ plugins:
           # freebsd-haswell-release, so that a dependent asks rest for FreeBSD.
           # Download only, into a directory the build does not use.
           - project_id: "qdb-api-rest"
+            # sc-20192 test branch only (latest-file proof N): pin qdb-api-rest
+            # to the step-id branch, as quasardb-build is pinned above.
+            git_ref: "refs/heads/sc-20192/step-ids"
             variant: "freebsd-haswell-release"
             output-dir: "sc20192-rest-freebsd"
             files:
