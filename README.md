@@ -147,7 +147,7 @@ $ scripts/tests/setup/start-services.sh
 
 qdbd secure and insecure were started properly.
 
-$ scripts/tests/rest-setup/start-services.sh
+$ scripts/tests/setup/rest/start-services.sh
 
 <.. snip ..>
 REST logs: .rest/log

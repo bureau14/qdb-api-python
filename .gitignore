@@ -15,7 +15,6 @@ quasardb/quasardb.cp37-win_amd64.pyd
 /qdb32
 /qdb64
 /.rest/
-/scripts/tests/rest-setup/logs/
 
 # Editors
 /.vscode/
