@@ -61,7 +61,8 @@ class _Response(io.RawIOBase):
         return True
 
     def open_arrow_stream(self) -> pa.RecordBatchReader:
-        # Without HTTP framing, only Arrow's end marker proves the query finished.
+        # A proxy can send a close-delimited response. Only Arrow's end marker
+        # distinguishes a complete query from a disconnect at a batch boundary.
         self._require_arrow_eos = (
             self._response.length is None and not self._response.chunked
         )
@@ -164,6 +165,8 @@ def _read_tokens(response: _Response) -> Tuple[str, str]:
 class RestCluster(Cluster):
     """REST query connection. Native-only options are accepted and ignored."""
 
+    # REST uses the server's batches. Zero keeps the NumPy adapter's default
+    # query from warning about a batch size the user never requested.
     _default_query_batch_size = 0
 
     def __init__(
@@ -237,10 +240,9 @@ class RestCluster(Cluster):
         self._access_token = ""
         self._refresh_token = ""
         self._open = True
-        # A partially consumed reader can still hold an HTTP response and socket.
-        # Track open readers so cluster.close() releases those resources even if
-        # the caller stops iterating early. A WeakSet lets the caller drop its
-        # last reference to a reader without the cluster keeping that reader alive.
+        # As with native readers, a reader's lifetime is bounded by its cluster.
+        # Track live readers weakly so cluster.close() can release their sockets
+        # even when the user stops iterating early.
         self._streams: weakref.WeakSet[RestQueryReader] = weakref.WeakSet()
         try:
             self._login()
@@ -289,47 +291,28 @@ class RestCluster(Cluster):
     def _raise_http_error(self, response: _Response, *, query: bool = False) -> None:
         """Read the error response, redact credentials and raise the API exception."""
         status = response.status
-        body = b""
-        cause = None
-        detail = ""
-        try:
-            body = response.read()
-        except http.client.IncompleteRead:
-            # A truncated credential cannot be redacted by matching its full value.
-            # Keep the HTTP status and discard the partial body and exception.
-            pass
-        except (OSError, http.client.HTTPException) as exc:
-            cause = exc
-        try:
-            data = json.loads(body)
-            detail = data.get("detail", "") if isinstance(data, dict) else ""
-            if not isinstance(detail, str):
-                detail = ""
-        except ValueError:
-            # Query proxies may return plain text. A malformed JSON object can
-            # end partway through a credential even when HTTP framing is complete.
-            if query and not body.lstrip().startswith(b"{"):
-                detail = body.decode("utf-8", errors="replace").strip()
-        # A backend error can echo the CREATE SECRET statement containing the user's
-        # private key. Redact it and the session tokens from the diagnostic.
-        for secret in (
-            self._credentials.get("secret_key"),
-            self._access_token,
-            self._refresh_token,
-        ):
-            if secret:
-                detail = detail.replace(secret, "[redacted]")
         message = "REST HTTP {}".format(status)
-        if detail:
+        try:
+            problem = json.loads(response.read())
+        except (OSError, http.client.HTTPException, ValueError):
+            # Partial bodies and parse exceptions can contain credentials.
+            problem = None
+        detail = problem.get("detail") if isinstance(problem, dict) else None
+        if isinstance(detail, str) and detail:
+            # Backend diagnostics can echo a private key or session token.
+            for secret in (
+                self._credentials.get("secret_key"),
+                self._access_token,
+                self._refresh_token,
+            ):
+                if secret:
+                    detail = detail.replace(secret, "[redacted]")
             message += ": " + detail
-        # A 503 indicates an unavailable service on any endpoint. A 400 maps
-        # to InvalidQueryError for queries and to the generic Error for authentication.
-        error_type = (
-            TryAgainError
-            if status == 503
-            else InvalidQueryError if query and status == 400 else Error
-        )
-        raise error_type(message) from cause
+        if status == 503:
+            raise TryAgainError(message)
+        if query and status == 400:
+            raise InvalidQueryError(message)
+        raise Error(message)
 
     def _grant(self, path: str, payload: Dict[str, str]) -> bool:
         """Store the access and refresh tokens returned by login or refresh.

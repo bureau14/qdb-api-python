@@ -213,11 +213,7 @@ setup(
         "test": ["pytest"],
     },
     packages=packages,
-    package_data={
-        package_name: package_modules + ["*.pyi", "py.typed"],
-        "quasardb.quasardb": ["*.pyi"],
-        "quasardb.quasardb.metrics": ["*.pyi"],
-    },
+    package_data={package_name: package_modules},
     ext_modules=[CMakeExtension("quasardb", "quasardb/")],
     include_package_data=True,
     cmdclass=cmdclass,

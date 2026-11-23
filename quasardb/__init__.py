@@ -148,7 +148,7 @@ Cluster.register(NativeCluster)
 
 
 def __getattr__(name):
-    # Load PyArrow only when someone requests the REST class. Native clients
+    # Load PyArrow only when a user requests the REST class. Native clients
     # can import the top-level package without installing the REST extra.
     if name == "RestCluster":
         from ._rest import RestCluster
