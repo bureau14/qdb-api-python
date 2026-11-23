@@ -19,13 +19,12 @@ from urllib.parse import urlsplit
 
 import numpy as np
 
-from . import PyArrowRequired
 from ._cluster import Cluster
 
 try:
     import pyarrow as pa
 except ImportError as exc:
-    raise PyArrowRequired(
+    raise ImportError(
         "REST connections require PyArrow; install it with pip install 'quasardb[rest]'"
     ) from exc
 
@@ -128,17 +127,25 @@ def _credentials(user_name, user_private_key, user_security_file):
     return {"username": user_name, "secret_key": user_private_key} if user_name else {}
 
 
+def _validate_bearer_token(token):
+    """Require a nonempty token that can follow 'Bearer ' in the HTTP header."""
+    if (
+        not isinstance(token, str)
+        or not token
+        or not all(33 <= ord(c) <= 126 for c in token)
+    ):
+        raise ValueError
+
+
 def _read_tokens(response):
     try:
         body = response.read()
         data = json.loads(body)
         access = data["access_token"]
         refresh = data["refresh_token"]
-        # Bearer tokens travel in HTTP headers as printable ASCII without whitespace.
-        if not all(
-            isinstance(t, str) and t and all(33 <= ord(c) <= 126 for c in t)
-            for t in (access, refresh)
-        ):
+        _validate_bearer_token(access)
+        # The refresh token travels in a JSON body and may contain Unicode.
+        if not isinstance(refresh, str) or not refresh:
             raise ValueError
         return access, refresh
     except (OSError, http.client.HTTPException):
@@ -296,8 +303,9 @@ class RestCluster(Cluster):
             # bodies can contain tokens, so only queries expose the plain-text fallback.
             if query:
                 detail = body.decode("utf-8", errors="replace").strip()
-        # Backend diagnostics pass through unchanged and may include CREATE SECRET
-        # SQL containing the user key. close() clears the values used for redaction.
+        # A backend error can echo the CREATE SECRET statement containing the user's
+        # private key. Capture the secrets before close() clears them so the Python
+        # exception can report the diagnostic with credentials removed.
         with self._state_lock:
             self._check_open()
             secrets = (
@@ -419,18 +427,17 @@ class RestCluster(Cluster):
 
 
 def _masked_array(array) -> MaskedArrayAny:
-    # Preserve Arrow's validity independently of NaN, NaT and integer sentinels.
-    # 1. Decode dictionary values, retaining their null bitmap.
-    # 2. Ask Arrow for a slice-aware null mask, without treating NaN as null.
-    # 3. View numeric buffers or copy variable-width values into NumPy arrays.
-    # 4. Attach the mask without copying numeric buffers; NumPy owns an Arrow reference.
+    """Convert an Arrow column to a NumPy masked array, masking only null rows."""
     if pa.types.is_dictionary(array.type):
+        # A valid dictionary index can point to a null value.
         array = array.dictionary_decode()
     if pa.types.is_timestamp(array.type) and array.type.unit != "ns":
         # Arrow scales only valid timestamps and checks the datetime64[ns] range.
         # A null slot can contain arbitrary bits that overflow a raw NumPy cast.
         array = array.cast(pa.timestamp("ns", tz=array.type.tz), safe=True)
     count = len(array)
+    # NumPy needs one boolean per row, so expand Arrow's bit-packed null mask.
+    # A valid NaN stays unmasked.
     mask = array.is_null(nan_is_null=False).to_numpy(zero_copy_only=False)
     dtype = array.type
     if (
@@ -438,20 +445,30 @@ def _masked_array(array) -> MaskedArrayAny:
         or pa.types.is_float64(dtype)
         or pa.types.is_timestamp(dtype)
     ):
-        numpy_dtype = np.dtype("float64" if pa.types.is_float64(dtype) else "int64")
         if pa.types.is_timestamp(dtype):
             numpy_dtype = np.dtype("datetime64[ns]")
-        values = array.buffers()[1]
+        else:
+            numpy_dtype = np.dtype("float64" if pa.types.is_float64(dtype) else "int64")
         if count:
+            # A slice shares its original values buffer. Arrow counts the offset
+            # in rows and NumPy counts it in bytes.
             data = np.frombuffer(
-                values, dtype=numpy_dtype, count=count, offset=array.offset * 8
+                array.buffers()[1],
+                dtype=numpy_dtype,
+                count=count,
+                offset=array.offset * numpy_dtype.itemsize,
             )
         else:
+            # An empty column can have no values buffer to view.
             data = np.empty(0, dtype=numpy_dtype)
-    elif pa.types.is_string(dtype) or pa.types.is_large_string(dtype):
-        data = np.array(["" if x is None else x for x in array.to_pylist()], dtype="U")
-    elif pa.types.is_binary(dtype) or pa.types.is_large_binary(dtype):
-        data = np.array([b"" if x is None else x for x in array.to_pylist()], dtype="O")
+    elif dtype in (pa.string(), pa.large_string(), pa.binary(), pa.large_binary()):
+        is_text = dtype in (pa.string(), pa.large_string())
+        # Arrow materializes Python strings or bytes in an object array. Fill
+        # its null slots before converting text so None cannot become "None".
+        data = array.to_numpy(zero_copy_only=False, writable=True)
+        data[mask] = "" if is_text else b""
+        if is_text:
+            data = data.astype("U")
     elif pa.types.is_null(dtype):
         # An untyped NULL expression has no physical dtype. Use the native fallback.
         data = np.zeros(count, dtype="float64")
@@ -478,10 +495,10 @@ class RestQueryReader:
     def __init__(self, cluster: RestCluster, query: str) -> None:
         self._cluster = cluster
         self._query = query
-        # PyArrow releases the GIL while reading. cluster.close() on another thread
-        # must wait until reading and conversion finish before closing the Arrow
-        # reader and HTTP response. Open and read errors call self.close() while
-        # holding this lock, so cleanup on the same thread must be reentrant.
+        # PyArrow releases the GIL while reading. This lock makes cluster.close()
+        # wait for an active read before closing its reader and socket. An open
+        # or read error calls self.close() while holding the lock, so the same
+        # thread must be able to acquire it twice.
         self._io_lock = threading.RLock()
         self._response = None
         self._reader = None
@@ -516,7 +533,9 @@ class RestQueryReader:
                 if self._response.status != 200:
                     self._cluster._raise_http_error(self._response, query=True)
                 self._reader = self._response.open_arrow_stream()
-                # cluster.close() may have run while reading the Arrow schema.
+                # Opening the schema can overlap cluster.close(). Hold the cluster
+                # lock across the open check and registration so close sees this
+                # reader or the check rejects it after shutdown.
                 with self._cluster._state_lock:
                     self._cluster._check_open()
                     self._entered = True

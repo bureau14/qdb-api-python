@@ -89,6 +89,8 @@ __all__ = [
     "metrics",
 ]
 
+# The extension exports this class with no bound methods. The ellipsis leaves
+# its stub body empty while making the runtime type available to type checkers.
 class MaskedArray: ...
 
 never_expires: datetime.datetime = ...

@@ -142,15 +142,14 @@ extend_module(quasardb)
 
 from ._cluster import Cluster
 
-# Native instances keep their pybind type and satisfy isinstance(conn, Cluster).
+# RestCluster inherits Cluster directly. Register the independent pybind class
+# so isinstance(conn, Cluster) also recognizes native connections.
 Cluster.register(NativeCluster)
 
 
-class PyArrowRequired(ImportError):
-    """REST connections require the optional PyArrow dependency."""
-
-
 def __getattr__(name):
+    # Load PyArrow only when someone requests the REST class. Native clients
+    # can import the top-level package without installing the REST extra.
     if name == "RestCluster":
         from ._rest import RestCluster
 

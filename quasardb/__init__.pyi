@@ -63,8 +63,6 @@ from quasardb.quasardb import (
     version,
 )
 
-class PyArrowRequired(ImportError): ...
-
 __all__ = [
     "Blob",
     "QueryContinuous",
@@ -91,7 +89,6 @@ __all__ = [
     "AliasNotFoundError",
     "AsyncPipelineFullError",
     "Cluster",
-    "PyArrowRequired",
     "NativeCluster",
     "ColumnInfo",
     "ColumnType",

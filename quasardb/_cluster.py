@@ -31,6 +31,9 @@ if TYPE_CHECKING:
     )
 
 
+# XXX: igor: A separate quasardb.connect(uri, ...) factory could select the
+# transport and leave Cluster as the native class for existing subclasses.
+# Callers switching transports by URI would then use connect() as their entry point.
 class ClusterMeta(ABCMeta):
     """Choose the transport when a caller constructs Cluster(uri).
 
@@ -38,7 +41,7 @@ class ClusterMeta(ABCMeta):
     isinstance(conn, Cluster) while keeping its existing class hierarchy.
     """
 
-    def __call__(cls, *args, **kwargs):
+    def __call__(cls, *args: Any, **kwargs: Any) -> Any:
         if cls is Cluster:
             from .quasardb import InvalidArgumentError, NativeCluster
 
@@ -69,9 +72,9 @@ class ClusterMeta(ABCMeta):
 
 
 class Cluster(metaclass=ClusterMeta):
-    """Open a NativeCluster for qdb:// or a RestCluster for http:// and https://."""
-
-    __slots__ = ()
+    """
+    Open a NativeCluster for qdb:// or a RestCluster for http:// and https://.
+    """
 
     def __enter__(self) -> Cluster:
         return self
@@ -258,7 +261,8 @@ class Cluster(metaclass=ClusterMeta):
         raise NotImplementedError("writer is unavailable for this transport")
 
 
-# A metaclass __call__ is variadic; publish the constructor signature for inspection.
+# Show the named constructor arguments in inspect.signature(Cluster) and help(Cluster).
+# Otherwise callers see the dispatcher's *args and **kwargs.
 setattr(
     Cluster,
     "__signature__",

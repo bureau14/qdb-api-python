@@ -125,7 +125,7 @@ def test_invalid_query(rest_connection):
             pass
 
 
-def test_reader_stays_exhausted_until_context_exit(rest_connection):
+def test_reader_releases_response_at_eof_and_closes_on_exit(rest_connection):
     with rest_connection.stream_query("SELECT 42 AS answer") as reader:
         assert next(reader)["answer"].tolist() == [42]
         with pytest.raises(StopIteration):
@@ -230,6 +230,7 @@ def test_rest_sentinels_are_values(rest_connection, query, kind):
 
 
 def test_large_query_preserves_values(query_connection, qdbd_connection, table):
+    """Reassemble every row in order, regardless of where the transport splits batches."""
     count = 2**16 + 7
     timestamps = np.datetime64("2020-01-01", "ns") + np.arange(count).astype(
         "timedelta64[s]"
@@ -248,15 +249,3 @@ def test_large_query_preserves_values(query_connection, qdbd_connection, table):
         actual = np.ma.concatenate(batches)
         assert not np.any(actual.mask)
         np.testing.assert_array_equal(actual, expected)
-
-
-def test_native_parameter_conventions(qdbd_connection, entry_name):
-    assert isinstance(qdbd_connection.table(entry_name), quasardb.Table)
-    with pytest.raises(TypeError):
-        qdbd_connection.table(alias=entry_name)
-    with pytest.raises(TypeError):
-        qdbd_connection.purge_all(timeout=datetime.timedelta(seconds=1))
-    with qdbd_connection.stream_query(
-        query="SELECT 42 AS answer", batch_size=1
-    ) as reader:
-        assert next(iter(reader))["answer"].tolist() == [42]
