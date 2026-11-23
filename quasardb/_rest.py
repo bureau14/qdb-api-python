@@ -191,6 +191,8 @@ class RestCluster(Cluster):
             raise InvalidArgumentError(
                 "Expected an HTTP(S) URI without credentials or query"
             ) from None
+        if enable_encryption and endpoint.scheme != "https":
+            raise InvalidArgumentError("enable_encryption=True requires an HTTPS URI")
         if not isinstance(timeout, datetime.timedelta):
             raise TypeError("timeout must be a datetime.timedelta")
         seconds = timeout.total_seconds()

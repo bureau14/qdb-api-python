@@ -68,6 +68,9 @@ def _query_connection_settings(variant, qdbd_settings):
             connection[key] = qdbd_settings["security"][key]
     if variant in _REST_ENDPOINTS:
         connection["uri"] = _REST_ENDPOINTS[variant]
+        # The fixture's secure/insecure suffix selects the backend. The REST
+        # client's encryption setting applies to its own HTTP(S) connection.
+        connection["enable_encryption"] = connection["uri"].startswith("https://")
     if connection["uri"].startswith("https://"):
         # The loopback test servers generate a new self-signed certificate on startup.
         connection["verify"] = False

@@ -61,6 +61,12 @@ def test_https_rejects_self_signed_certificate_by_default(options):
     assert isinstance(exc.value.__cause__, ssl.SSLCertVerificationError)
 
 
+@pytest.mark.parametrize("constructor", ["Cluster", "RestCluster"])
+def test_encryption_requires_https(constructor):
+    with pytest.raises(quasardb.InvalidArgumentError, match="HTTPS"):
+        getattr(quasardb, constructor)("http://127.0.0.1", enable_encryption=True)
+
+
 def test_credentials_file(rest_connection_settings, tmp_path):
     settings = rest_connection_settings
     credentials = tmp_path / "user.json"
@@ -81,7 +87,7 @@ def test_credentials_file(rest_connection_settings, tmp_path):
         user_security_file=str(credentials),
         cluster_public_key="ignored",
         cluster_public_key_file="ignored",
-        enable_encryption=True,
+        enable_encryption=settings["enable_encryption"],
         do_version_check=True,
         client_max_parallelism=3,
         verify=settings.get("verify", True),
