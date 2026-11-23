@@ -24,9 +24,9 @@ from qdb_pipeline import (
     load_template,
     merge_env,
     select_platforms,
+    validate_pipeline,
     get_git_ref,
     set_artifact_plugin_options,
-    run,
 )  # noqa: E402
 
 STEPS_DIR = Path(__file__).parent / "steps"
@@ -48,17 +48,22 @@ _OS_OVERLAY = {"linux": _LINUX, "windows": _WIN, "macos": _MACOS}
 PLATFORMS: list[Platform] = [
     dataclasses.replace(p, **_OS_OVERLAY.get(p.os, {}))
     for p in select_platforms(
-        # sc-20192 test branch only: Linux core2 and Linux aarch64, one
-        # Python version, Release only. Never merge this reduction.
         "linux-amd64-core2",
         "linux-aarch64",
+        "windows-amd64-core2",
+        "macos-aarch64",
     )
 ]
 
-BUILD_TYPES = ["Release"]
+BUILD_TYPES = ["Release", "Debug"]
 
 PYTHON_VERSIONS = [
+    "3.9",
+    "3.10",
+    "3.11",
     "3.12",
+    "3.13",
+    "3.14",
 ]
 
 # Environment variable layering: global → step → os → os+step → platform compilers.
@@ -204,5 +209,29 @@ def generate_pipeline() -> Pipeline:
     return pipeline
 
 
+def main() -> None:
+    command = sys.argv[1] if len(sys.argv) > 1 else "generate"
+
+    try:
+        pipeline = generate_pipeline()
+    except Exception as e:
+        print(f"[FAIL] Pipeline generation failed: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if command == "generate":
+        print(pipeline.to_yaml())
+    elif command == "check":
+        errors = validate_pipeline(pipeline)
+        if errors:
+            for e in errors:
+                print(f"[FAIL] {e}", file=sys.stderr)
+            sys.exit(1)
+        print(f"[OK] Pipeline valid: {len(pipeline.steps)} steps")
+    else:
+        print(f"Unknown command: {command}", file=sys.stderr)
+        print("Usage: pipeline.py [generate|check]", file=sys.stderr)
+        sys.exit(1)
+
+
 if __name__ == "__main__":
-    run(generate_pipeline)
+    main()
