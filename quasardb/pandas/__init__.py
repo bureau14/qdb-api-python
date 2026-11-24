@@ -32,7 +32,7 @@ import itertools
 import logging
 import warnings
 from datetime import timedelta
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import quasardb
 import quasardb.numpy as qdbnp
@@ -40,6 +40,9 @@ import quasardb.table_cache as table_cache
 from quasardb import Cluster
 from quasardb.quasardb import Table, Writer
 from quasardb.typing import DType, MaskedArrayAny, Range, RangeSet
+
+if TYPE_CHECKING:
+    import pyarrow as pa
 
 logger = logging.getLogger("quasardb.pandas")
 
@@ -98,6 +101,8 @@ def query(
     index: Optional[Union[str, int]] = None,
     blobs: bool = False,
     numpy: bool = True,
+    *,
+    arrow: bool = False,
 ) -> pd.DataFrame:
     """
     Execute *query* and return the result as a pandas DataFrame.
@@ -116,6 +121,10 @@ def query(
     index : str | int | None, default None
         Column to use as index.  When None a synthetic index is created and
         named "$index".
+
+    arrow : bool, default False
+        On a REST connection, convert each Arrow batch directly to pandas. Native
+        connections raise NotImplementedError if arrow=True.
 
     blobs, numpy
         DEPRECATED - no longer used.  Supplying a non-default value raises a
@@ -140,7 +149,7 @@ def query(
 
     logger.debug("querying and returning as DataFrame: %s", query)
 
-    dfs = stream_query(cluster, query, index=index)
+    dfs = stream_query(cluster, query, index=index, arrow=arrow)
 
     # Detect the empty stream via StopIteration rather than catching the
     # ValueError pd.concat raises for it: concat drives the generator, and
@@ -168,12 +177,67 @@ def query(
     )
 
 
+def _arrow_query_frame(
+    batch: pa.RecordBatch,
+    index: Optional[Union[str, int]],
+    offset: int,
+    string_dtype: Any,
+) -> pd.DataFrame:
+    """Normalize REST columns, convert the batch to pandas, and assign its query index."""
+    # Keep PyArrow optional for callers using the native pandas adapter.
+    import pyarrow as pa
+    import pyarrow.compute as pc
+    from quasardb._rest import _query_column
+
+    # Keep the first position and last value of duplicate column names,
+    # just as the REST dictionary reader does.
+    columns = {}
+    try:
+        for name, array in zip(batch.schema.names, batch.columns):
+            array = _query_column(array)
+            if array.type in (pa.string(), pa.large_string()):
+                # The standard reader's NumPy Unicode dtype strips trailing NULs.
+                array = pc.utf8_rtrim(array, characters="\x00")
+            elif pa.types.is_null(array.type):
+                array = array.cast(pa.float64())
+            columns[name] = array
+        frame = pa.table(columns).to_pandas(ignore_metadata=True)
+    except pa.ArrowException as exc:
+        raise quasardb.Error("REST Arrow stream is invalid or interrupted") from exc
+
+    for name, column in columns.items():
+        series = frame[name]
+        if (
+            column.type in (pa.string(), pa.large_string())
+            and (series.dtype != string_dtype or column.null_count == len(column))
+        ) or (series.dtype == object and column.null_count):
+            # Reapply pandas inference and the masked reader's NaN sentinel.
+            frame[name] = series.to_numpy(dtype=object, na_value=np.nan)
+
+    if index is None:
+        frame.index = pd.Index(np.arange(offset, offset + len(frame)), name="$index")
+    else:
+        name = list(columns)[qdbnp._query_index_position(columns, index)]
+        if columns[name].null_count:
+            raise ValueError(
+                "Invalid index: null values detected. An index is never allowed to have null values."
+            )
+        row_index = pd.Index(frame.pop(name), name=index)
+        if not len(frame.columns):
+            # The standard frame constructor gives an index-only result an empty RangeIndex.
+            frame = pd.DataFrame(index=row_index)
+        else:
+            frame.index = row_index
+    return frame
+
+
 def stream_query(
     cluster: Cluster,
     query: str,
     *,
     index: Optional[Union[str, int]] = None,
     batch_size: Optional[int] = None,
+    arrow: bool = False,
 ) -> Iterator[pd.DataFrame]:
     """
     Execute a query and stream the results as pandas DataFrames. Returns a
@@ -209,12 +273,35 @@ def stream_query(
       REST ignores batch_size, yields server-sized DataFrames, and logs a warning
       if a positive size is supplied.
 
+    arrow : bool, default False
+      Convert each REST Arrow batch directly to a DataFrame. Native connections
+      raise NotImplementedError when the generator is advanced with arrow=True.
+
     Examples:
     ---------
 
     >>> for df in qdbpd.stream_query(conn, "SELECT * FROM my_table"):
     ...     process(df)
     """
+    if arrow:
+        reader = cluster.stream_query(
+            query, batch_size=qdbnp._query_batch_size(cluster, batch_size)
+        )
+        # Entering the reader executes the SQL, including statements with side effects.
+        arrow_batches = getattr(reader, "arrow_batches", None)
+        if arrow_batches is None:
+            raise NotImplementedError("arrow=True requires a REST connection")
+
+        # Probe the active pandas string dtype once so each batch can skip converting
+        # text columns that already have the dtype pandas would infer.
+        string_dtype = pd.Series([""]).dtype
+        offset = 0
+        with reader:
+            for batch in arrow_batches():
+                yield _arrow_query_frame(batch, index, offset, string_dtype)
+                offset += batch.num_rows
+        return
+
     index_name = "$index" if index is None else index
     for idx, m in qdbnp.stream_query(
         cluster, query, index=index, dict=True, batch_size=batch_size

@@ -1043,6 +1043,25 @@ def write_arrays(
     return ret
 
 
+def _query_index_position(names: Iterable[str], index: Union[str, int]) -> int:
+    if isinstance(index, int):
+        return index
+    if isinstance(index, str):
+        for position, name in enumerate(names):
+            if name == index:
+                return position
+        raise KeyError(
+            "Unable to resolve index column: column not found in results: {}".format(
+                index
+            )
+        )
+    raise TypeError(
+        "Unable to resolve index column: unrecognized type {}: {}".format(
+            type(index), index
+        )
+    )
+
+
 def _xform_query_results(
     xs: Sequence[Tuple[str, MaskedArrayAny]],
     index: Optional[Union[str, int]],
@@ -1075,27 +1094,7 @@ def _xform_query_results(
 
         return _xform_query_results(xs_, "$index", dict, offset=offset)
 
-    if isinstance(index, str):
-        for i in range(len(xs)):
-            (cname, _) = xs[i]
-            if cname == index:
-                # Now we know that this column has offset `i`,
-                # recurse with that offset
-                return _xform_query_results(xs, i, dict, offset=offset)
-
-        raise KeyError(
-            "Unable to resolve index column: column not found in results: {}".format(
-                index
-            )
-        )
-
-    if not isinstance(index, int):
-        raise TypeError(
-            "Unable to resolve index column: unrecognized type {}: {}".format(
-                type(index), index
-            )
-        )
-
+    index = _query_index_position((name for name, _ in xs), index)
     assert isinstance(xs, list)
     idx = xs[index][1]
     del xs[index]
@@ -1115,6 +1114,20 @@ def _xform_query_results(
         return idx, {x[0]: x[1] for x in xs}
     else:
         return idx, [x[1] for x in xs]
+
+
+def _query_batch_size(cluster: quasardb.Cluster, batch_size: Optional[int]) -> int:
+    if batch_size is None:
+        # Pool sessions forward the transport's default. Native connections
+        # and third-party stream_query implementations use the NumPy default.
+        return getattr(cluster, "_default_query_batch_size", 2**16)
+    if not isinstance(batch_size, int):
+        raise TypeError(
+            "batch_size should be an integer, but got: {} with value {}".format(
+                type(batch_size), str(batch_size)
+            )
+        )
+    return batch_size
 
 
 def stream_query(
@@ -1178,17 +1191,7 @@ def stream_query(
     ... ):
     ...     process(idx, cols)
     """
-    if batch_size is None:
-        # Pool sessions forward the transport's default. Native connections
-        # and third-party stream_query implementations use the NumPy default.
-        batch_size = getattr(cluster, "_default_query_batch_size", 2**16)
-    elif not isinstance(batch_size, int):
-        raise TypeError(
-            "batch_size should be an integer, but got: {} with value {}".format(
-                type(batch_size), str(batch_size)
-            )
-        )
-
+    batch_size = _query_batch_size(cluster, batch_size)
     offset = 0
     with cluster.stream_query(query, batch_size=batch_size) as stream:
         for batch in stream:

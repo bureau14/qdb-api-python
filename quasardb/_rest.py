@@ -409,15 +409,31 @@ class RestCluster(Cluster):
         return RestQueryReader(self, query)
 
 
-def _masked_array(array: pa.Array) -> MaskedArrayAny:
-    """Convert an Arrow column to a NumPy masked array, masking only null rows."""
+def _query_column(array: pa.Array) -> pa.Array:
+    """Decode dictionary values and normalize the supported REST query types."""
     if pa.types.is_dictionary(array.type):
         # A valid dictionary index can point to a null value.
         array = array.dictionary_decode()
-    if pa.types.is_timestamp(array.type) and array.type.unit != "ns":
+    if pa.types.is_timestamp(array.type):
         # Arrow scales only valid timestamps and checks the datetime64[ns] range.
         # A null slot can contain arbitrary bits that overflow a raw NumPy cast.
-        array = array.cast(pa.timestamp("ns", tz=array.type.tz), safe=True)
+        return array.cast(pa.timestamp("ns"), safe=True)
+    if array.type not in (
+        pa.int64(),
+        pa.float64(),
+        pa.string(),
+        pa.large_string(),
+        pa.binary(),
+        pa.large_binary(),
+        pa.null(),
+    ):
+        raise Error("Unsupported REST Arrow column type: {}".format(array.type))
+    return array
+
+
+def _masked_array(array: pa.Array) -> MaskedArrayAny:
+    """Convert an Arrow column to a NumPy masked array, masking only null rows."""
+    array = _query_column(array)
     count = len(array)
     # NumPy needs one boolean per row, so expand Arrow's bit-packed null mask.
     # A valid NaN stays unmasked.
@@ -452,11 +468,9 @@ def _masked_array(array: pa.Array) -> MaskedArrayAny:
         data[mask] = "" if is_text else b""
         if is_text:
             data = data.astype("U")
-    elif pa.types.is_null(dtype):
+    else:
         # An untyped NULL expression has no physical dtype. Use the native fallback.
         data = np.zeros(count, dtype="float64")
-    else:
-        raise Error("Unsupported REST Arrow column type: {}".format(dtype))
     return np.ma.array(data, mask=mask, copy=False)
 
 
@@ -525,13 +539,32 @@ class RestQueryReader:
         return self
 
     def __next__(self) -> Dict[str, MaskedArrayAny]:
+        batch = self._next_arrow_batch()
+        try:
+            return _batch_to_masked_arrays(batch)
+        except (pa.ArrowException, ValueError) as exc:
+            self.close()
+            raise Error("REST Arrow stream is invalid or interrupted") from exc
+        except BaseException:
+            self.close()
+            raise
+
+    def arrow_batches(self) -> Iterator[pa.RecordBatch]:
+        """Yield remaining server batches from this open reader without NumPy conversion."""
+        while True:
+            try:
+                batch = self._next_arrow_batch()
+            except StopIteration:
+                return
+            yield batch
+
+    def _next_arrow_batch(self) -> pa.RecordBatch:
         if not self._entered:
             raise UninitializedError("Open the REST query stream in a with block")
         if self._reader is None:
             raise StopIteration
         try:
-            batch = _read_nonempty_batch(self._reader)
-            return _batch_to_masked_arrays(batch)
+            return _read_nonempty_batch(self._reader)
         except StopIteration:
             # Release the socket at EOF. The iterator stays exhausted until context exit.
             self._release()
