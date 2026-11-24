@@ -11,7 +11,7 @@ key: "build-{slug}"
 commands:
   - echo \"+++ Start Services\"
   - bash scripts/tests/setup/start-services.sh
-  - bash scripts/tests/setup/rest/start-services.sh
+  - bash scripts/tests/rest-setup/start-services.sh
   - echo \"+++ Run Tests\"
   - bash scripts/cicd/20.test.sh
   - echo \"+++ Run build\"

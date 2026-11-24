@@ -1,7 +1,7 @@
 [submodule "scripts/tests/setup"]
 	path = scripts/tests/setup
 	url = https://github.com/bureau14/qdb-test-setup
-	branch = sc-20169/rest-api-fixtures
+	branch = master
 [submodule ".buildkite/tools"]
 	path = .buildkite/tools
 	url = https://github.com/bureau14/qdb-cicd-tools.git
