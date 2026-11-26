@@ -2,7 +2,6 @@
 
 import datetime
 import json
-import ssl
 
 import numpy as np
 import pytest
@@ -58,7 +57,7 @@ def test_refresh_and_relogin(rest_connection):
 def test_https_rejects_self_signed_certificate_by_default(options):
     with pytest.raises(quasardb.Error) as exc:
         quasardb.Cluster("https://127.0.0.1:40443", **options)
-    assert isinstance(exc.value.__cause__, ssl.SSLCertVerificationError)
+    assert "certificate verify failed" in str(exc.value.__cause__).lower()
 
 
 @pytest.mark.parametrize("constructor", ["Cluster", "RestCluster"])

@@ -1,18 +1,17 @@
-"""Standard-library HTTP transport and incremental Arrow IPC query conversion."""
+"""Pooled HTTPX transport and incremental Arrow IPC query conversion."""
 
 from __future__ import annotations
 
 import datetime
-import http.client
 import io
 import json
 import logging
 import operator
 import ssl
 import weakref
-from functools import partial
+from contextlib import ExitStack, closing
 from types import TracebackType
-from typing import Callable, Dict, Iterator, Optional, Tuple, Type
+from typing import Dict, Iterator, Optional, Type
 from urllib.parse import urlsplit
 
 import numpy as np
@@ -20,10 +19,11 @@ import numpy as np
 from ._cluster import Cluster
 
 try:
+    import httpx
     import pyarrow as pa  # type: ignore[import-untyped]
 except ImportError as exc:
     raise ImportError(
-        "REST connections require PyArrow; install it with pip install 'quasardb[rest]'"
+        "REST connections require HTTPX and PyArrow; install it with pip install 'quasardb[rest]'"
     ) from exc
 
 from .quasardb import (
@@ -40,59 +40,41 @@ from .typing import MaskedArrayAny
 logger = logging.getLogger(__name__)
 
 
-class _Response(io.RawIOBase):
-    """Expose the REST server's HTTP response body as a readable RawIOBase stream.
+class _ArrowInput(io.RawIOBase):
+    """Supply the sized reads that PyArrow's IPC stream reader requests.
 
-    A short read with bytes outstanding in Content-Length signals a truncated
-    response. Closing the stream releases both the response and its connection.
+    HTTPX yields chunks of arbitrary size. This adapter saves unused bytes from
+    each chunk, and the standard library's io.BufferedReader combines short reads
+    until PyArrow has the number of bytes it requested.
+
+    If PyArrow exposes the C++ ipc::StreamDecoder, HTTPX chunks could be fed
+    directly to that decoder. See https://github.com/apache/arrow/issues/37390.
     """
 
-    def __init__(
-        self, connection: http.client.HTTPConnection, response: http.client.HTTPResponse
-    ) -> None:
-        super().__init__()
-        self.connection = connection
-        self._response = response
-        self._require_arrow_eos = False
-        self.status = response.status
-        self.headers = response.headers
+    def __init__(self, chunks: Iterator[bytes]) -> None:
+        self._chunks = chunks
+        self._pending = memoryview(b"")
 
     def readable(self) -> bool:
         return True
 
-    def open_arrow_stream(self) -> pa.RecordBatchReader:
-        # A proxy can send a close-delimited response. Only Arrow's end marker
-        # distinguishes a complete query from a disconnect at a batch boundary.
-        self._require_arrow_eos = (
-            self._response.length is None and not self._response.chunked
-        )
-        return pa.ipc.open_stream(self)
-
-    def read(self, size: int = -1) -> bytes:
-        if self.closed:
-            raise ValueError("read from a closed REST response")
-        # HTTPResponse.read() honors Content-Length on a persistent connection.
-        # Passing -1 explicitly can wait for the peer to close the socket.
-        if size < 0:
-            return self._response.read()
-        data = self._response.read(size)
-        # PyArrow stops on the end marker without requesting another message.
-        # An empty read while it still expects bytes means this result is incomplete.
-        if self._require_arrow_eos and size > 0 and not data:
-            raise http.client.IncompleteRead(b"")
-        # Bounded HTTP reads suppress IncompleteRead, and Arrow accepts EOF at a
-        # batch boundary. Enforce HTTP framing so a dropped stream cannot look complete.
-        if len(data) < size and self._response.length not in (None, 0):
-            raise http.client.IncompleteRead(data, self._response.length)
-        return data
-
-    def close(self) -> None:
-        if not self.closed:
-            try:
-                self._response.close()
-            finally:
-                self.connection.close()
-                super().close()
+    def readinto(self, target: bytearray) -> int:
+        """Copy up to len(target) bytes from one chunk and return the count copied."""
+        if not target:
+            return 0
+        while not self._pending:
+            chunk = next(self._chunks, None)
+            if chunk is None:
+                # A successful REST query ends with an explicit Arrow marker.
+                # PyArrow accepts plain EOF between batches, so returning zero
+                # here could silently deliver only part of a failed query.
+                raise EOFError("Missing REST Arrow end-of-stream marker")
+            self._pending = memoryview(chunk)
+        # Slicing a memoryview keeps the unread suffix without copying its bytes.
+        count = min(len(target), len(self._pending))
+        target[:count] = self._pending[:count]
+        self._pending = self._pending[count:]
+        return count
 
 
 def _credentials(
@@ -130,38 +112,6 @@ def _credentials(
     return {"username": user_name, "secret_key": user_private_key} if user_name else {}
 
 
-def _validate_bearer_token(token: object) -> None:
-    """Require a nonempty token that can follow 'Bearer ' in the HTTP header."""
-    if (
-        not isinstance(token, str)
-        or not token
-        or not all(33 <= ord(c) <= 126 for c in token)
-    ):
-        raise ValueError
-
-
-def _read_tokens(response: _Response) -> Tuple[str, str]:
-    try:
-        body = response.read()
-        data = json.loads(body)
-        access = data["access_token"]
-        refresh = data["refresh_token"]
-        _validate_bearer_token(access)
-        # The refresh token travels in a JSON body and may contain Unicode.
-        if not isinstance(refresh, str) or not refresh:
-            raise ValueError
-        return access, refresh
-    except (OSError, http.client.HTTPException):
-        failure = "Unable to read REST authentication response"
-    except (ValueError, KeyError, TypeError) as exc:
-        failure = "Malformed REST authentication response ({})".format(
-            type(exc).__name__
-        )
-    # JSON and framing exceptions keep the response bytes. Raising outside
-    # the handler keeps those tokens out of the exception chain.
-    raise Error(failure)
-
-
 class RestCluster(Cluster):
     """REST query connection. Native-only options are accepted and ignored."""
 
@@ -189,7 +139,8 @@ class RestCluster(Cluster):
             raise TypeError("uri must be a string")
         try:
             endpoint = urlsplit(uri)
-            port = endpoint.port
+            # Accessing port validates its numeric value before opening the pool.
+            _ = endpoint.port
             if (
                 endpoint.scheme not in ("http", "https")
                 or not endpoint.hostname
@@ -216,27 +167,23 @@ class RestCluster(Cluster):
         self._uri = uri
         if not isinstance(verify, bool):
             raise TypeError("verify must be a bool")
-        self._new_connection: Callable[[], http.client.HTTPConnection]
-        if endpoint.scheme == "https":
-            context = None
-            if not verify:
-                # A REST server can generate a self-signed certificate. Limit this
-                # opt-out to the HTTPS connections opened by this cluster.
-                context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-                context.check_hostname = False
-                context.verify_mode = ssl.CERT_NONE
-            self._new_connection = partial(
-                http.client.HTTPSConnection,
-                endpoint.hostname,
-                port,
-                timeout=seconds,
-                context=context,
+        try:
+            base_url = httpx.URL(
+                endpoint._replace(path=endpoint.path.rstrip("/") + "/api/v2/").geturl()
             )
-        else:
-            self._new_connection = partial(
-                http.client.HTTPConnection, endpoint.hostname, port, timeout=seconds
-            )
-        self._base_path = endpoint.path.rstrip("/") + "/api/v2"
+        except (httpx.InvalidURL, UnicodeError):
+            raise InvalidArgumentError("Invalid REST endpoint") from None
+        self._client = httpx.Client(
+            base_url=base_url,
+            timeout=seconds,
+            trust_env=False,
+            verify=(
+                ssl.create_default_context()
+                if verify and endpoint.scheme == "https"
+                else verify
+            ),
+            headers={"Accept-Encoding": "identity"},
+        )
         self._access_token = ""
         self._refresh_token = ""
         self._open = True
@@ -259,42 +206,40 @@ class RestCluster(Cluster):
         if not self._open:
             raise InvalidHandleError("REST connection is closed")
 
-    def _request(self, path: str, body: bytes, headers: Dict[str, str]) -> _Response:
-        """Send one POST and transfer the connection and response to the caller."""
+    def _request(
+        self, path: str, body: bytes, headers: Dict[str, str]
+    ) -> httpx.Response:
+        """Send the POST and transfer the streaming response to the caller."""
         try:
-            connection = self._new_connection()
-            connection.request(
-                "POST",
-                self._base_path + path,
-                body=body,
-                headers={"Accept-Encoding": "identity", **headers},
+            request = self._client.build_request(
+                "POST", path.lstrip("/"), content=body, headers=headers
             )
-            response = connection.getresponse()
-            logger.debug(
-                "REST request path=%s status=%s request_id=%s",
-                path,
-                response.status,
-                response.getheader("X-Request-ID", ""),
-            )
-            return _Response(connection, response)
-        except http.client.InvalidURL:
-            raise InvalidArgumentError("Invalid REST endpoint")
-        except http.client.BadStatusLine:
-            # A malformed status line can carry arbitrary server response text.
-            raise Error("Invalid REST HTTP response")
-        except (OSError, http.client.HTTPException, ValueError) as exc:
+            response = self._client.send(request, stream=True)
+        except httpx.InvalidURL:
+            failure = InvalidArgumentError("Invalid REST endpoint")
+        except (httpx.HTTPError, ValueError) as exc:
             logger.debug(
                 "REST request failed path=%s error=%s", path, type(exc).__name__
             )
-            raise Error("REST HTTP request failed") from exc
+            if isinstance(exc, httpx.ConnectError):
+                raise Error("REST HTTP request failed") from exc
+            # Protocol errors can quote raw response bytes. Raise outside the
+            # handler to keep those bytes out of the exception chain.
+            failure = Error("REST HTTP request failed")
+        else:
+            logger.debug("REST request path=%s status=%s", path, response.status_code)
+            return response
+        raise failure
 
-    def _raise_http_error(self, response: _Response, *, query: bool = False) -> None:
+    def _raise_http_error(
+        self, response: httpx.Response, *, query: bool = False
+    ) -> None:
         """Read the error response, redact credentials and raise the API exception."""
-        status = response.status
+        status = response.status_code
         message = "REST HTTP {}".format(status)
         try:
             problem = json.loads(response.read())
-        except (OSError, http.client.HTTPException, ValueError):
+        except (OSError, httpx.HTTPError, ValueError):
             # Partial bodies and parse exceptions can contain credentials.
             problem = None
         detail = problem.get("detail") if isinstance(problem, dict) else None
@@ -320,28 +265,37 @@ class RestCluster(Cluster):
         Return False when refresh receives a 401 so the caller can log in again.
         """
         body = json.dumps(payload).encode("utf-8")
-        with self._request(
-            path, body, {"Content-Type": "application/json"}
+        with closing(
+            self._request(path, body, {"Content-Type": "application/json"})
         ) as response:
-            # A refused refresh is the only authentication error that triggers login.
-            if path == "/auth/refresh" and response.status == 401:
-                logger.debug("REST token refresh refused; logging in")
-                return False
-            if response.status != 200:
+            if response.status_code != 200:
+                # A refused refresh is the only authentication error that triggers login.
+                if path == "/auth/refresh" and response.status_code == 401:
+                    logger.debug("REST token refresh refused; logging in")
+                    return False
                 self._raise_http_error(response)
-            tokens = _read_tokens(response)
-        self._access_token, self._refresh_token = tokens
-        return True
+
+            try:
+                tokens = json.loads(response.read())
+                self._access_token, self._refresh_token = (
+                    tokens["access_token"],
+                    tokens["refresh_token"],
+                )
+                return True
+            except (OSError, httpx.HTTPError, ValueError, KeyError, TypeError):
+                # Decoder exceptions can retain the response containing both tokens.
+                pass
+            raise Error("Unable to read REST authentication response")
 
     def _login(self) -> None:
         logger.debug("REST login started")
         self._grant("/auth/login", self._credentials)
 
-    def _post_query(self, query: str) -> _Response:
+    def _post_query(self, query: str) -> httpx.Response:
         """Submit the query and retry once if the server rejects the access token."""
         body = query.encode("utf-8")
 
-        def post() -> _Response:
+        def post() -> httpx.Response:
             return self._request(
                 "/query",
                 body,
@@ -353,7 +307,7 @@ class RestCluster(Cluster):
             )
 
         response = post()
-        if response.status != 401:
+        if response.status_code != 401:
             return response
         # An interrupted request may already have taken effect. Only a 401 is replayed.
         response.close()
@@ -369,9 +323,12 @@ class RestCluster(Cluster):
         self._credentials.clear()
         self._access_token = ""
         self._refresh_token = ""
-        # Closing a reader removes it from the weak set.
-        for stream in list(self._streams):
-            stream.close()
+        # A reader that fails to close must not strand the others. ExitStack
+        # runs every callback on failure and closes the pool last.
+        with ExitStack() as cleanup:
+            cleanup.callback(self._client.close)
+            for stream in list(self._streams):
+                cleanup.callback(stream.close)
         logger.debug("REST connection closed")
 
     def __enter__(self) -> RestCluster:
@@ -432,18 +389,14 @@ def _masked_array(array: pa.Array) -> MaskedArrayAny:
             numpy_dtype = np.dtype("datetime64[ns]")
         else:
             numpy_dtype = np.dtype("float64" if pa.types.is_float64(dtype) else "int64")
-        if count:
-            # A slice shares its original values buffer. Arrow counts the offset
-            # in rows and NumPy counts it in bytes.
-            data = np.frombuffer(
-                array.buffers()[1],
-                dtype=numpy_dtype,
-                count=count,
-                offset=array.offset * numpy_dtype.itemsize,
-            )
-        else:
-            # An empty column can have no values buffer to view.
-            data = np.empty(0, dtype=numpy_dtype)
+        # A slice shares its original values buffer. Arrow counts the offset
+        # in rows and NumPy counts it in bytes.
+        data = np.frombuffer(
+            array.buffers()[1],
+            dtype=numpy_dtype,
+            count=count,
+            offset=array.offset * numpy_dtype.itemsize,
+        )
     elif dtype in (pa.string(), pa.large_string(), pa.binary(), pa.large_binary()):
         is_text = dtype in (pa.string(), pa.large_string())
         # Arrow materializes Python strings or bytes in an object array. Fill
@@ -460,13 +413,6 @@ def _masked_array(array: pa.Array) -> MaskedArrayAny:
     return np.ma.array(data, mask=mask, copy=False)
 
 
-def _read_nonempty_batch(reader: pa.RecordBatchReader) -> pa.RecordBatch:
-    while True:
-        batch = reader.read_next_batch()
-        if batch.num_rows:
-            return batch
-
-
 def _batch_to_masked_arrays(batch: pa.RecordBatch) -> Dict[str, MaskedArrayAny]:
     return {
         name: _masked_array(column)
@@ -478,7 +424,8 @@ class RestQueryReader:
     def __init__(self, cluster: RestCluster, query: str) -> None:
         self._cluster = cluster
         self._query = query
-        self._response: Optional[_Response] = None
+        self._response: Optional[httpx.Response] = None
+        self._chunks: Optional[Iterator[bytes]] = None
         self._reader: Optional[pa.RecordBatchReader] = None
         self._entered = False
 
@@ -500,24 +447,28 @@ class RestQueryReader:
         self._cluster._check_open()
         try:
             self._response = self._cluster._post_query(self._query)
-            if self._response.status != 200:
+            if self._response.status_code != 200:
                 self._cluster._raise_http_error(self._response, query=True)
-            self._reader = self._response.open_arrow_stream()
+            self._chunks = self._response.iter_raw()
+            self._reader = pa.ipc.open_stream(
+                io.BufferedReader(_ArrowInput(self._chunks))
+            )
             self._entered = True
             self._cluster._streams.add(self)
             logger.debug("REST query stream opened")
+            return self
         except (
+            EOFError,
             OSError,
-            http.client.HTTPException,
+            httpx.HTTPError,
             pa.ArrowException,
             ValueError,
-        ) as exc:
+        ):
             self.close()
-            raise Error("Unable to open REST Arrow stream") from exc
         except BaseException:
             self.close()
             raise
-        return self
+        raise Error("Unable to open REST Arrow stream")
 
     def __iter__(self) -> Iterator[Dict[str, MaskedArrayAny]]:
         if not self._entered:
@@ -530,23 +481,37 @@ class RestQueryReader:
         if self._reader is None:
             raise StopIteration
         try:
-            batch = _read_nonempty_batch(self._reader)
-            return _batch_to_masked_arrays(batch)
-        except StopIteration:
-            # Release the socket at EOF. The iterator stays exhausted until context exit.
-            self._release()
-            raise
+            for batch in self._reader:
+                if batch.num_rows:
+                    return _batch_to_masked_arrays(batch)
+            self._finish_http_body()
         except (
+            EOFError,
             OSError,
-            http.client.HTTPException,
+            httpx.HTTPError,
             pa.ArrowException,
             ValueError,
-        ) as exc:
+        ):
             self.close()
-            raise Error("REST Arrow stream is invalid or interrupted") from exc
         except BaseException:
             self.close()
             raise
+        else:
+            self._release()
+            raise StopIteration
+        raise Error("REST Arrow stream is invalid or interrupted")
+
+    def _finish_http_body(self) -> None:
+        # Arrow stops at its marker. Finish an explicitly framed HTTP body
+        # so HTTPX checks its terminator and can reuse the socket.
+        assert self._response is not None and self._chunks is not None
+        headers = self._response.headers
+        if (
+            "content-length" in headers
+            or "chunked" in headers.get("transfer-encoding", "").lower()
+        ):
+            for _ in self._chunks:
+                pass
 
     def _release(self) -> None:
         try:
@@ -554,6 +519,7 @@ class RestQueryReader:
                 self._reader.close()
         finally:
             self._reader = None
+            self._chunks = None
             if self._response is not None:
                 self._response.close()
                 self._response = None
