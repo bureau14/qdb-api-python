@@ -6,7 +6,7 @@ retry:
       limit: 3
 
 label: "{name} ({slug})"
-key: "build-{slug}"
+step_id: build
 
 commands:
   - echo \"+++ Start Services\"
@@ -23,6 +23,7 @@ plugins:
         clean: true
         projects:
           - project_id: "quasardb-build"
+            step: build
             output-dir: "qdb"
             extract: true
             files:
