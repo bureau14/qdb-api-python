@@ -203,11 +203,9 @@ def stream_query(
       `query()`.
 
     batch_size : optional[int]
-      The maximum number of rows per yielded DataFrame on native connections.
-      If unset, uses 2^16 (65536) rows as batch size by default. A value of 0
-      disables batching and yields the entire result as a single DataFrame.
-      REST ignores batch_size, yields server-sized DataFrames, and logs a warning
-      if a positive size is supplied.
+      The maximum amount of rows per yielded DataFrame. If unset, uses 2^16
+      (65536) rows as batch size by default. A value of 0 disables batching
+      and yields the entire result as a single DataFrame.
 
     Examples:
     ---------

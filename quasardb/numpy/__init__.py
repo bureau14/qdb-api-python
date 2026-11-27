@@ -1155,11 +1155,9 @@ def stream_query(
       Defaults to False.
 
     batch_size : optional[int]
-      The maximum number of rows per yielded batch on native connections. If
-      unset, uses 2^16 (65536) rows as batch size by default. A value of 0
-      disables batching and yields the entire result as a single batch.
-      REST ignores batch_size, yields server-sized batches, and logs a warning
-      if a positive size is supplied.
+      The maximum amount of rows per yielded batch. If unset, uses 2^16 (65536)
+      rows as batch size by default. A value of 0 disables batching and yields
+      the entire result as a single batch.
 
     Returns:
     --------

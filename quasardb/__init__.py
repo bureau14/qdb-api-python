@@ -151,7 +151,7 @@ def __getattr__(name):
     # Load PyArrow only when a user requests the REST class. Native clients
     # can import the top-level package without installing the REST extra.
     if name == "RestCluster":
-        from ._rest import RestCluster
+        from .rest import RestCluster
 
         return RestCluster
     raise AttributeError("module 'quasardb' has no attribute {!r}".format(name))

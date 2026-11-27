@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, Union
 from .quasardb import Options
 
 if TYPE_CHECKING:
-    from ._rest import RestQueryReader
+    from .rest import RestQueryReader
     from .typing import MaskedArrayAny, RangeSet
     from .quasardb import (
         Blob,
@@ -51,7 +51,7 @@ class ClusterMeta(ABCMeta):
             if isinstance(uri, str):
                 scheme = uri.partition(":")[0].lower()
                 if scheme in ("http", "https"):
-                    from ._rest import RestCluster
+                    from .rest import RestCluster
 
                     return RestCluster(*args, **kwargs)
                 if scheme != "qdb":

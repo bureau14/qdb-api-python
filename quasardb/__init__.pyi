@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from ._cluster import Cluster
-from ._rest import RestCluster as RestCluster
+from .rest import RestCluster as RestCluster
 
 from quasardb.quasardb import (
     AliasAlreadyExistsError,

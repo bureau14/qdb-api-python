@@ -360,6 +360,7 @@ class RestCluster(Cluster):
         if batch_size < 0 or batch_size > np.iinfo(np.uintp).max:
             raise TypeError("batch_size must be a non-negative size_t integer")
         if batch_size:
+            # TODO: Remove this warning once the REST API honors positive batch sizes.
             logger.warning(
                 "REST ignores batch_size=%d and yields server batches", batch_size
             )
