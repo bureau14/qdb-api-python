@@ -9,7 +9,7 @@ import logging
 import ssl
 from contextlib import contextmanager
 from types import TracebackType
-from typing import TYPE_CHECKING, Dict, Generator, Iterator, Optional, Type
+from typing import TYPE_CHECKING, Dict, Iterator, Optional, Type
 from urllib.parse import urlsplit
 
 import numpy as np
@@ -84,29 +84,61 @@ def _credentials(
         isinstance(x, str) for x in (user_name, user_private_key, user_security_file)
     ):
         raise TypeError("REST credentials and security file must be strings")
-    if user_security_file:
-        if user_name or user_private_key:
-            raise InvalidArgumentError(
-                "Provide either user credentials or user_security_file"
-            )
-        try:
-            with open(user_security_file, encoding="utf-8") as source:
-                data = json.load(source)
-            user_name = data["username"]
-            user_private_key = data["secret_key"]
-        except (OSError, ValueError, KeyError, TypeError):
-            raise InvalidArgumentError(
-                "Unable to read a valid user security file"
-            ) from None
-        if not all(
-            isinstance(value, str) and value for value in (user_name, user_private_key)
+    if not user_security_file:
+        if bool(user_name) != bool(user_private_key):
+            raise InvalidArgumentError("Provide both user_name and user_private_key")
+        return (
+            {"username": user_name, "secret_key": user_private_key} if user_name else {}
+        )
+
+    if user_name or user_private_key:
+        raise InvalidArgumentError(
+            "Provide either user credentials or user_security_file"
+        )
+    try:
+        with open(user_security_file, encoding="utf-8") as source:
+            data = json.load(source)
+        user_name = data["username"]
+        user_private_key = data["secret_key"]
+    except (OSError, ValueError, KeyError, TypeError):
+        raise InvalidArgumentError(
+            "Unable to read a valid user security file"
+        ) from None
+    if not all(
+        isinstance(value, str) and value for value in (user_name, user_private_key)
+    ):
+        raise InvalidArgumentError("Security file credentials must be nonempty strings")
+    return {"username": user_name, "secret_key": user_private_key}
+
+
+def _rest_base_url(uri: str, enable_encryption: bool) -> httpx.URL:
+    if not isinstance(uri, str):
+        raise TypeError("uri must be a string")
+    try:
+        endpoint = urlsplit(uri)
+        # Accessing port validates its numeric value before opening the pool.
+        _ = endpoint.port
+        if (
+            endpoint.scheme not in ("http", "https")
+            or not endpoint.hostname
+            or endpoint.username is not None
+            or endpoint.password is not None
+            or endpoint.query
+            or endpoint.fragment
         ):
-            raise InvalidArgumentError(
-                "Security file credentials must be nonempty strings"
-            )
-    if bool(user_name) != bool(user_private_key):
-        raise InvalidArgumentError("Provide both user_name and user_private_key")
-    return {"username": user_name, "secret_key": user_private_key} if user_name else {}
+            raise ValueError
+    except ValueError:
+        raise InvalidArgumentError(
+            "Expected an HTTP(S) URI without credentials or query"
+        ) from None
+    if enable_encryption and endpoint.scheme != "https":
+        raise InvalidArgumentError("enable_encryption=True requires an HTTPS URI")
+    try:
+        return httpx.URL(
+            endpoint._replace(path=endpoint.path.rstrip("/") + "/api/v2/").geturl()
+        )
+    except (httpx.InvalidURL, UnicodeError):
+        raise InvalidArgumentError("Invalid REST endpoint") from None
 
 
 class RestCluster:
@@ -126,27 +158,7 @@ class RestCluster:
         client_max_parallelism: int = 0,
         verify: bool = True,
     ) -> None:
-        if not isinstance(uri, str):
-            raise TypeError("uri must be a string")
-        try:
-            endpoint = urlsplit(uri)
-            # Accessing port validates its numeric value before opening the pool.
-            _ = endpoint.port
-            if (
-                endpoint.scheme not in ("http", "https")
-                or not endpoint.hostname
-                or endpoint.username is not None
-                or endpoint.password is not None
-                or endpoint.query
-                or endpoint.fragment
-            ):
-                raise ValueError
-        except ValueError:
-            raise InvalidArgumentError(
-                "Expected an HTTP(S) URI without credentials or query"
-            ) from None
-        if enable_encryption and endpoint.scheme != "https":
-            raise InvalidArgumentError("enable_encryption=True requires an HTTPS URI")
+        base_url = _rest_base_url(uri, enable_encryption)
         if not isinstance(timeout, datetime.timedelta):
             raise TypeError("timeout must be a datetime.timedelta")
         seconds = timeout.total_seconds()
@@ -158,19 +170,13 @@ class RestCluster:
         self._uri = uri
         if not isinstance(verify, bool):
             raise TypeError("verify must be a bool")
-        try:
-            base_url = httpx.URL(
-                endpoint._replace(path=endpoint.path.rstrip("/") + "/api/v2/").geturl()
-            )
-        except (httpx.InvalidURL, UnicodeError):
-            raise InvalidArgumentError("Invalid REST endpoint") from None
         self._client = httpx.Client(
             base_url=base_url,
             timeout=seconds,
             trust_env=False,
             verify=(
                 ssl.create_default_context()
-                if verify and endpoint.scheme == "https"
+                if verify and base_url.scheme == "https"
                 else verify
             ),
             headers={"Accept-Encoding": "identity"},
@@ -184,13 +190,9 @@ class RestCluster:
             raise
         logger.debug(
             "REST connection opened host=%s tls=%s",
-            endpoint.hostname,
-            endpoint.scheme == "https",
+            base_url.host,
+            base_url.scheme == "https",
         )
-
-    def _check_open(self) -> None:
-        if self._client.is_closed:
-            raise InvalidHandleError("REST connection is closed")
 
     def _raise_http_error(
         self, response: httpx.Response, *, query: bool = False
@@ -226,7 +228,9 @@ class RestCluster:
             response = self._client.post(
                 "auth/refresh", json={"refresh_token": self._refresh_token}
             )
-        if not refresh or response.status_code == 401:
+            if response.status_code == 401:
+                response = self._client.post("auth/login", json=self._credentials)
+        else:
             response = self._client.post("auth/login", json=self._credentials)
         if response.status_code != 200:
             self._raise_http_error(response)
@@ -257,18 +261,14 @@ class RestCluster:
                 "Accept": "application/vnd.apache.arrow.stream",
                 "Authorization": "Bearer " + self._access_token,
             }
-            request = self._client.build_request(
+            with self._client.stream(
                 "POST", "query", content=body, headers=headers
-            )
-            response = self._client.send(request, stream=True)
-            try:
+            ) as response:
                 if response.status_code == 200:
                     yield response
                     return
                 if response.status_code != 401 or attempt:
                     self._raise_http_error(response, query=True)
-            finally:
-                response.close()
             # An interrupted query may already have taken effect. Only a 401 is replayed.
             self._authenticate(refresh=True)
 
@@ -282,7 +282,6 @@ class RestCluster:
         logger.debug("REST connection closed")
 
     def __enter__(self) -> RestCluster:
-        self._check_open()
         return self
 
     def __exit__(
@@ -305,26 +304,25 @@ class RestCluster:
     ) -> Iterator[Iterator[Dict[str, MaskedArrayAny]]]:
         """Enter the reader in a with block and iterate over nonempty server batches.
 
-        Exit the stream's with-block before closing the cluster. The block closes
-        the HTTP response and Arrow reader. Iteration resumes from the current
-        position and stays exhausted at EOF.
+        Consume batches inside the with-block, which owns the HTTP response and
+        Arrow reader. Yielded arrays remain valid after the block exits.
 
         Arrow validity determines the mask. Valid NaN and INT64_MIN values are
         unmasked, and typed all-null columns retain their Arrow-derived dtype.
         The native reader masks those sentinel values and uses float64 when an
         entire result column is null.
         """
-        self._check_open()
+        if not self.is_open():
+            raise InvalidHandleError("REST connection is closed")
         with self._post_query(query) as response:
             chunks = response.iter_raw()
             source = io.BufferedReader(_ArrowInput(chunks))
             with source, pa.ipc.open_stream(source) as reader:
-                batches = _stream_batches(reader, response, chunks)
-                try:
-                    logger.debug("REST query stream opened")
-                    yield batches
-                finally:
-                    batches.close()
+                logger.debug("REST query stream opened")
+                yield _stream_batches(reader, response, chunks)
+
+
+_FIXED_WIDTH_DTYPES = {pa.int64(): np.dtype("int64"), pa.float64(): np.dtype("float64")}
 
 
 def _masked_array(array: pa.Array) -> MaskedArrayAny:
@@ -332,30 +330,25 @@ def _masked_array(array: pa.Array) -> MaskedArrayAny:
     if pa.types.is_dictionary(array.type):
         # A valid dictionary index can point to a null value.
         array = array.dictionary_decode()
-    if pa.types.is_timestamp(array.type) and array.type.unit != "ns":
-        # Arrow scales only valid timestamps and checks the datetime64[ns] range.
-        # A null slot can contain arbitrary bits that overflow a raw NumPy cast.
-        array = array.cast(pa.timestamp("ns", tz=array.type.tz), safe=True)
-    count = len(array)
+    dtype = array.type
     # NumPy needs one boolean per row, so expand Arrow's bit-packed null mask.
     # A valid NaN stays unmasked.
     mask = array.is_null(nan_is_null=False).to_numpy(zero_copy_only=False)
-    dtype = array.type
-    if (
-        pa.types.is_int64(dtype)
-        or pa.types.is_float64(dtype)
-        or pa.types.is_timestamp(dtype)
-    ):
-        if pa.types.is_timestamp(dtype):
-            numpy_dtype = np.dtype("datetime64[ns]")
-        else:
-            numpy_dtype = np.dtype("float64" if pa.types.is_float64(dtype) else "int64")
+    numpy_dtype: Optional[np.dtype]
+    if pa.types.is_timestamp(dtype):
+        if dtype.unit != "ns":
+            # Scale only valid timestamps. Null slots can contain arbitrary bits.
+            array = array.cast(pa.timestamp("ns", tz=dtype.tz), safe=True)
+        numpy_dtype = np.dtype("datetime64[ns]")
+    else:
+        numpy_dtype = _FIXED_WIDTH_DTYPES.get(dtype)
+    if numpy_dtype is not None:
         # A slice shares its original values buffer. Arrow counts the offset
         # in rows and NumPy counts it in bytes.
         data = np.frombuffer(
             array.buffers()[1],
             dtype=numpy_dtype,
-            count=count,
+            count=len(array),
             offset=array.offset * numpy_dtype.itemsize,
         )
     elif dtype in (pa.string(), pa.large_string(), pa.binary(), pa.large_binary()):
@@ -368,7 +361,7 @@ def _masked_array(array: pa.Array) -> MaskedArrayAny:
             data = data.astype("U")
     elif pa.types.is_null(dtype):
         # An untyped NULL expression has no physical dtype. Use the native fallback.
-        data = np.zeros(count, dtype="float64")
+        data = np.zeros(len(array), dtype="float64")
     else:
         raise Error("Unsupported REST Arrow column type: {}".format(dtype))
     return np.ma.array(data, mask=mask, copy=False)
@@ -378,23 +371,19 @@ def _stream_batches(
     reader: pa.RecordBatchReader,
     response: httpx.Response,
     chunks: Iterator[bytes],
-) -> Generator[Dict[str, MaskedArrayAny], None, None]:
-    try:
-        for batch in reader:
-            if batch.num_rows:
-                yield {
-                    name: _masked_array(column)
-                    for name, column in zip(batch.schema.names, batch.columns)
-                }
-        # Arrow stops at its marker. Finish an explicitly framed HTTP body
-        # so HTTPX checks its terminator and can reuse the socket.
-        headers = response.headers
-        if (
-            "content-length" in headers
-            or "chunked" in headers.get("transfer-encoding", "").lower()
-        ):
-            for _ in chunks:
-                pass
-    finally:
-        # A caller may catch a read error and stay inside the stream context.
-        response.close()
+) -> Iterator[Dict[str, MaskedArrayAny]]:
+    for batch in reader:
+        if batch.num_rows:
+            yield {
+                name: _masked_array(column)
+                for name, column in zip(batch.schema.names, batch.columns)
+            }
+    # Arrow stops at its marker. Finish an explicitly framed HTTP body
+    # so HTTPX checks its terminator and can reuse the socket.
+    headers = response.headers
+    if (
+        "content-length" in headers
+        or "chunked" in headers.get("transfer-encoding", "").lower()
+    ):
+        for _ in chunks:
+            pass
