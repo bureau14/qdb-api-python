@@ -46,7 +46,8 @@ from quasardb.quasardb import (
 )
 
 class Cluster(quasardb.Cluster):
-    # The URI scheme determines the concrete type at runtime.
+    # A str annotation cannot distinguish URI schemes. An isinstance check
+    # narrows the result for callers that use native-only methods.
     def __new__(  # type: ignore[misc]
         cls,
         uri: str,

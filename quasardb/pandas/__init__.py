@@ -172,7 +172,7 @@ def stream_query(
     query: str,
     *,
     index: Optional[Union[str, int]] = None,
-    batch_size: Optional[int] = None,
+    batch_size: Optional[int] = 2**16,
 ) -> Iterator[pd.DataFrame]:
     """
     Execute a query and stream the results as pandas DataFrames. Returns a
@@ -202,9 +202,8 @@ def stream_query(
       `query()`.
 
     batch_size : optional[int]
-      The maximum amount of rows per yielded DataFrame. If unset, uses 2^16
-      (65536) rows as batch size by default. A value of 0 disables batching
-      and yields the entire result as a single DataFrame.
+      For native connections, the maximum number of rows per DataFrame.
+      Defaults to 65536. A value of 0 yields the entire result as a single DataFrame.
 
     Examples:
     ---------

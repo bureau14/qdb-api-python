@@ -1129,7 +1129,7 @@ def stream_query(
     *,
     index: Optional[Union[str, int]] = None,
     dict: bool = False,
-    batch_size: Optional[int] = None,
+    batch_size: Optional[int] = 2**16,
 ) -> Iterator[
     Tuple[NDArrayAny, Union[Dict[str, MaskedArrayAny], List[MaskedArrayAny]]]
 ]:
@@ -1163,7 +1163,7 @@ def stream_query(
     batch_size : optional[int]
       The maximum amount of rows per yielded batch. If unset, uses 2^16 (65536)
       rows as batch size by default. A value of 0 disables batching and yields
-      the entire result as a single batch.
+      the entire result as a single batch. REST always uses the server's batch size.
 
     Returns:
     --------
@@ -1182,10 +1182,9 @@ def stream_query(
     ... ):
     ...     process(idx, cols)
     """
+    # Sanitize batch_size
     if batch_size is None:
-        # Pool sessions forward the transport's default. Native connections
-        # and third-party stream_query implementations use the NumPy default.
-        batch_size = getattr(cluster, "_default_query_batch_size", 2**16)
+        batch_size = 2**16
     elif not isinstance(batch_size, int):
         raise TypeError(
             "batch_size should be an integer, but got: {} with value {}".format(

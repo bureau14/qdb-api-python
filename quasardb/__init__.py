@@ -165,4 +165,4 @@ def __getattr__(name):
         from .rest import RestCluster
 
         return RestCluster
-    raise AttributeError("module 'quasardb' has no attribute {!r}".format(name))
+    raise AttributeError(name)
