@@ -112,10 +112,10 @@ def _validate_node_stats(stats):
         _validate_stats_dict(xs)
 
 
-def test_stats_by_node(qdbd_secure_connection, secure_table):
-    _ensure_stats(qdbd_secure_connection, secure_table)
+def test_stats_by_node(native_secure_cluster, secure_table):
+    _ensure_stats(native_secure_cluster, secure_table)
 
-    xs = qdbst.by_node(qdbd_secure_connection)
+    xs = qdbst.by_node(native_secure_cluster)
 
     assert len(xs) == 1
 
@@ -123,9 +123,9 @@ def test_stats_by_node(qdbd_secure_connection, secure_table):
         _validate_node_stats(stats)
 
 
-def test_stats_of_node(qdbd_settings, qdbd_secure_connection, secure_table):
+def test_stats_of_node(qdbd_settings, native_secure_cluster, secure_table):
     # First seed the table
-    _ensure_stats(qdbd_secure_connection, secure_table)
+    _ensure_stats(native_secure_cluster, secure_table)
 
     # Now establish direct connection
     conn = quasardb.Node(

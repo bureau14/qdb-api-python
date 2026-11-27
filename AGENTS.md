@@ -132,7 +132,8 @@ cases. pytest runs with `-s -x` (stop at first failure) and
 
 Key fixtures:
 
-- `qdbd_connection` / `qdbd_secure_connection` (module scope, auto-purged)
+- `native_cluster` for setup on the matching backend, `cluster` for the six
+  native/REST variants, and `rest_cluster` for the four HTTP(S) variants
 - `table`: fresh 6-column table (`the_double`, `the_blob`, `the_string`,
   `the_int64`, `the_ts`, `the_symbol`), random name per test
 - `gen_cdtype` / `gen_array` / `gen_df`: (ColumnType, np.dtype, data)

@@ -138,3 +138,31 @@ if not "quasardb" in locals():
 from .extensions import extend_module
 
 extend_module(quasardb)
+
+
+class Cluster(quasardb.Cluster):
+    """Connect through REST for HTTP(S) URIs or through the native client."""
+
+    def __new__(cls, *args, **kwargs):
+        if cls is Cluster:
+            uri = args[0] if args else kwargs.get("uri")
+            if isinstance(uri, str) and uri.lower().startswith(("http:", "https:")):
+                from .rest import RestCluster
+
+                return RestCluster(*args, **kwargs)
+        # Python passes the original arguments to the native or subclass initializer.
+        return super().__new__(cls)
+
+    def __enter__(self):
+        # The binding returns a C++ copy, which drops the Python subclass.
+        return self
+
+
+def __getattr__(name):
+    # Load PyArrow only when a user requests the REST class. Native clients
+    # can import the top-level package without installing the REST extra.
+    if name == "RestCluster":
+        from .rest import RestCluster
+
+        return RestCluster
+    raise AttributeError(name)

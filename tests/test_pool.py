@@ -4,28 +4,28 @@ import quasardb
 import quasardb.pool as pool
 
 
-def test_can_create_pool():
+def test_can_create_pool(cluster_settings):
     # Basic test whether whether we can create a new pool
 
-    with pool.SingletonPool(uri="qdb://127.0.0.1:2836") as p:
+    with pool.SingletonPool(**cluster_settings) as p:
         pass
 
 
-def test_can_acquire_connection():
+def test_can_acquire_connection(cluster_settings):
     # Basic test whether whether we can acquire a new connection
 
-    with pool.SingletonPool(uri="qdb://127.0.0.1:2836") as p:
+    with pool.SingletonPool(**cluster_settings) as p:
         with p.connect() as conn:
             pass
 
 
-def test_releases_connection_in_with_block():
+def test_releases_connection_in_with_block(cluster_settings):
     # Tests whether pool.release() is invoked with a connection after a `with` block,
     # rather than actually closing a connection
 
     the_conn = None
 
-    with pool.SingletonPool(uri="qdb://127.0.0.1:2836") as p:
+    with pool.SingletonPool(**cluster_settings) as p:
         with p.connect() as conn:
             the_conn = conn
             assert the_conn.is_open() is True
@@ -33,12 +33,12 @@ def test_releases_connection_in_with_block():
         assert the_conn.is_open() is True
 
 
-def test_cleans_connections_after_pool_close():
+def test_cleans_connections_after_pool_close(cluster_settings):
     # Verifies whether a pool cleans up all connections after it is closed
 
     the_conn = None
 
-    with pool.SingletonPool(uri="qdb://127.0.0.1:2836") as p:
+    with pool.SingletonPool(**cluster_settings) as p:
         with p.connect() as conn:
             the_conn = conn
             assert the_conn.is_open() is True

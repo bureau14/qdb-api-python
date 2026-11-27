@@ -37,3 +37,8 @@ black==23.3.0; python_version < '3.9'
 mypy
 pybind11-stubgen
 pandas-stubs
+
+# REST cluster
+httpx
+pyarrow>=12; python_version < '3.9'
+pyarrow>=16; python_version >= '3.9'

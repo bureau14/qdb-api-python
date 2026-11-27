@@ -81,15 +81,15 @@ The instructions below have been verified to work on:
 
 ### QuasarDB tarball extraction
 
-All QuasarDB APIs assume QuasarDB and associated utilities are extracted into the `qdb/` subdirectory.
-
-Extract QuasarDB C API, utilities and server into qdb/
+Extract the C API, server, utilities, and REST archives into `qdb/`. The REST
+archive places the executable in `qdb/bin/`.
 
 ```
-mkdir qdb
-cd qdb
-tar xf <archives>
-cd ..
+mkdir -p qdb
+tar xf <c-api-archive> -C qdb
+tar xf <server-archive> -C qdb
+tar xf <utils-archive> -C qdb
+tar xf <rest-archive> -C qdb
 ```
 
 ### Environment variables
@@ -145,6 +145,11 @@ $ scripts/tests/setup/start-services.sh
 <.. snip ..>
 
 qdbd secure and insecure were started properly.
+
+$ scripts/tests/rest-setup/start-services.sh
+
+<.. snip ..>
+REST logs: .rest/log
 ```
 
 ## Run tests

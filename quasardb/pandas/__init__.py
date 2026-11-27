@@ -38,7 +38,7 @@ import quasardb
 import quasardb.numpy as qdbnp
 import quasardb.table_cache as table_cache
 from quasardb.quasardb import Cluster, Table, Writer
-from quasardb.typing import DType, MaskedArrayAny, Range, RangeSet
+from quasardb.typing import ClusterConnection, DType, MaskedArrayAny, Range, RangeSet
 
 logger = logging.getLogger("quasardb.pandas")
 
@@ -92,7 +92,7 @@ TableLike = Union[str, Table]
 
 
 def query(
-    cluster: Cluster,
+    cluster: ClusterConnection,
     query: str,
     index: Optional[Union[str, int]] = None,
     blobs: bool = False,
@@ -168,7 +168,7 @@ def query(
 
 
 def stream_query(
-    cluster: Cluster,
+    cluster: ClusterConnection,
     query: str,
     *,
     index: Optional[Union[str, int]] = None,

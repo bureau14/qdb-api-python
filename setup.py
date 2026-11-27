@@ -206,6 +206,11 @@ setup(
     install_requires=["numpy"],
     extras_require={
         "pandas": ["pandas"],
+        "rest": [
+            "httpx",
+            "pyarrow>=12; python_version < '3.9'",
+            "pyarrow>=16; python_version >= '3.9'",
+        ],
         "test": ["pytest"],
     },
     packages=packages,

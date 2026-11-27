@@ -1,5 +1,11 @@
 # This hook ensures that we don't leave qdbd cluster running even if one of the steps in the pipeline fails.
 
+REST_SCRIPT_PATH="scripts/tests/rest-setup/stop-services.sh"
+
+if [ -f "$REST_SCRIPT_PATH" ]; then
+    bash "$REST_SCRIPT_PATH" || true
+fi
+
 SCRIPT_PATH="scripts/tests/setup/stop-services.sh"
 
 if [ -f "$SCRIPT_PATH" ]; then

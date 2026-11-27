@@ -93,36 +93,38 @@ def gen_df(start_time, count, step=1, unit="D"):
     )
 
 
-def test_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
+def test_dataframe(qdbpd_write_fn, df_with_table, native_insecure_cluster):
     (_, _, df1, table) = df_with_table
-    qdbpd_write_fn(df1, qdbd_connection, table)
+    qdbpd_write_fn(df1, native_insecure_cluster, table)
 
-    df2 = qdbpd.read_dataframe(qdbd_connection, table)
+    df2 = qdbpd.read_dataframe(native_insecure_cluster, table)
 
     _assert_df_equal(df1, df2)
 
 
 @pytest.mark.parametrize("sparsify", conftest.no_sparsify)
 def test_dataframe_can_read_columns(
-    qdbpd_write_fn, df_with_table, qdbd_connection, column_name, table_name
+    qdbpd_write_fn, df_with_table, native_insecure_cluster, column_name, table_name
 ):
     (ctype, dtype, df1, table) = df_with_table
     assert column_name in df1.columns
     assert len(df1.columns) == 1
 
-    qdbpd_write_fn(df1, qdbd_connection, table, infer_types=False, dtype=dtype)
+    qdbpd_write_fn(df1, native_insecure_cluster, table, infer_types=False, dtype=dtype)
 
-    df2 = qdbpd.read_dataframe(qdbd_connection, table, column_names=[column_name])
+    df2 = qdbpd.read_dataframe(
+        native_insecure_cluster, table, column_names=[column_name]
+    )
 
     _assert_df_equal(df1, df2)
 
 
 def test_dataframe_can_read_ranges(
-    qdbpd_write_fn, qdbd_connection, df_with_table, start_date, row_count
+    qdbpd_write_fn, native_insecure_cluster, df_with_table, start_date, row_count
 ):
     (ctype, dtype, df1, table) = df_with_table
 
-    qdbpd_write_fn(df1, qdbd_connection, table)
+    qdbpd_write_fn(df1, native_insecure_cluster, table)
 
     offset_25 = start_date + np.timedelta64(int(row_count / 4), "s")
     offset_75 = start_date + (3 * np.timedelta64(int(row_count / 4), "s"))
@@ -130,10 +132,12 @@ def test_dataframe_can_read_ranges(
     range_0_25 = (start_date, offset_25)
     range_25_75 = (offset_25, offset_75)
 
-    df2 = qdbpd.read_dataframe(qdbd_connection, table)
-    df3 = qdbpd.read_dataframe(qdbd_connection, table, ranges=[range_0_25])
-    df4 = qdbpd.read_dataframe(qdbd_connection, table, ranges=[range_25_75])
-    df5 = qdbpd.read_dataframe(qdbd_connection, table, ranges=[range_0_25, range_25_75])
+    df2 = qdbpd.read_dataframe(native_insecure_cluster, table)
+    df3 = qdbpd.read_dataframe(native_insecure_cluster, table, ranges=[range_0_25])
+    df4 = qdbpd.read_dataframe(native_insecure_cluster, table, ranges=[range_25_75])
+    df5 = qdbpd.read_dataframe(
+        native_insecure_cluster, table, ranges=[range_0_25, range_25_75]
+    )
 
     assert df2.shape[0] == row_count
     assert df3.shape[0] == row_count / 4
@@ -141,18 +145,18 @@ def test_dataframe_can_read_ranges(
     assert df5.shape[0] == (row_count / 4) * 3
 
 
-def test_write_dataframe(qdbpd_write_fn, df_with_table, qdbd_connection):
+def test_write_dataframe(qdbpd_write_fn, df_with_table, native_insecure_cluster):
     (ctype, dtype, df, table) = df_with_table
 
     # We always need to infer
-    qdbpd_write_fn(df, qdbd_connection, table, infer_types=True)
-    res = qdbpd.read_dataframe(qdbd_connection, table)
+    qdbpd_write_fn(df, native_insecure_cluster, table, infer_types=True)
+    res = qdbpd.read_dataframe(native_insecure_cluster, table)
 
     _assert_df_equal(df, res)
 
 
 def test_multiple_dataframe(
-    qdbpd_writes_fn, dfs_with_tables, qdbd_connection, reader_batch_size
+    qdbpd_writes_fn, dfs_with_tables, native_insecure_cluster, reader_batch_size
 ):
     """
     Tests both writing and reader from multiple tables.
@@ -172,13 +176,15 @@ def test_multiple_dataframe(
 
     qdbpd_writes_fn(
         payload,
-        qdbd_connection,
+        native_insecure_cluster,
         infer_types=True,
         push_mode=quasardb.WriterPushMode.Fast,
     )
 
     xs = list(
-        qdbpd.stream_dataframes(qdbd_connection, tables, batch_size=reader_batch_size)
+        qdbpd.stream_dataframes(
+            native_insecure_cluster, tables, batch_size=reader_batch_size
+        )
     )
 
     # Ensure batch sizes are what we expect
@@ -197,7 +203,7 @@ def test_multiple_dataframe(
 # generate "full" arrays when we don't infer / convert array types.
 @pytest.mark.parametrize("sparsify", conftest.no_sparsify)
 def test_write_dataframe_no_infer(
-    qdbpd_write_fn, df_with_table, qdbd_connection, reader_batch_size
+    qdbpd_write_fn, df_with_table, native_insecure_cluster, reader_batch_size
 ):
     (ctype, dtype, df, table) = df_with_table
 
@@ -208,16 +214,16 @@ def test_write_dataframe_no_infer(
             TypeError,
             match=r"Data for column \'([a-z]{16})\' with type \'ColumnType.String\' was provided in dtype \'",
         ):
-            qdbpd_write_fn(df, qdbd_connection, table, infer_types=False)
+            qdbpd_write_fn(df, native_insecure_cluster, table, infer_types=False)
     else:
-        qdbpd_write_fn(df, qdbd_connection, table, infer_types=False)
-        res = qdbpd.read_dataframe(qdbd_connection, table)
+        qdbpd_write_fn(df, native_insecure_cluster, table, infer_types=False)
+        res = qdbpd.read_dataframe(native_insecure_cluster, table)
 
         _assert_df_equal(df, res)
 
 
 def test_write_unindexed_dataframe(
-    qdbpd_write_fn, df_with_table, df_count, qdbd_connection, caplog
+    qdbpd_write_fn, df_with_table, df_count, native_insecure_cluster, caplog
 ):
     # CF. QDB-10203, we generate a dataframe which is unordered. The easiest
     # way to do this is reuse our gen_df function with overlapping timestamps,
@@ -243,45 +249,51 @@ def test_write_unindexed_dataframe(
     # We store unsorted
     caplog.clear()
     caplog.set_level(logging.WARN, logger="quasardb.pandas")
-    qdbpd_write_fn(df_unsorted, qdbd_connection, table)
+    qdbpd_write_fn(df_unsorted, native_insecure_cluster, table)
     msgs = [x.message for x in caplog.records]
     assert "dataframe index is unsorted, resorting dataframe based on index" in msgs
 
     # We expect to receive sorted data
-    df_read = qdbpd.read_dataframe(qdbd_connection, table)
+    df_read = qdbpd.read_dataframe(native_insecure_cluster, table)
 
     _assert_df_equal(df_sorted, df_read)
 
 
-def test_write_dataframe_push_fast(qdbpd_write_fn, qdbd_connection, df_with_table):
+def test_write_dataframe_push_fast(
+    qdbpd_write_fn, native_insecure_cluster, df_with_table
+):
     (_, _, df1, table) = df_with_table
 
     # Ensures that we can do a full-circle write and read of a dataframe
-    qdbpd_write_fn(df1, qdbd_connection, table, push_mode=quasardb.WriterPushMode.Fast)
+    qdbpd_write_fn(
+        df1, native_insecure_cluster, table, push_mode=quasardb.WriterPushMode.Fast
+    )
 
-    df2 = qdbpd.read_dataframe(qdbd_connection, table)
+    df2 = qdbpd.read_dataframe(native_insecure_cluster, table)
 
     _assert_df_equal(df1, df2)
 
 
-def test_write_dataframe_push_truncate(qdbpd_write_fn, qdbd_connection, df_with_table):
+def test_write_dataframe_push_truncate(
+    qdbpd_write_fn, native_insecure_cluster, df_with_table
+):
     (_, _, df1, table) = df_with_table
 
     # Ensures that we can do a full-circle write and read of a dataframe
     qdbpd_write_fn(
-        df1, qdbd_connection, table, push_mode=quasardb.WriterPushMode.Truncate
+        df1, native_insecure_cluster, table, push_mode=quasardb.WriterPushMode.Truncate
     )
     qdbpd_write_fn(
-        df1, qdbd_connection, table, push_mode=quasardb.WriterPushMode.Truncate
+        df1, native_insecure_cluster, table, push_mode=quasardb.WriterPushMode.Truncate
     )
 
-    df2 = qdbpd.read_dataframe(qdbd_connection, table)
+    df2 = qdbpd.read_dataframe(native_insecure_cluster, table)
 
     _assert_df_equal(df1, df2)
 
 
 def test_write_dataframe_deduplicate(
-    qdbpd_write_fn, qdbd_connection, df_with_table, deduplicate
+    qdbpd_write_fn, native_insecure_cluster, df_with_table, deduplicate
 ):
     (_, _, df1, table) = df_with_table
 
@@ -295,66 +307,77 @@ def test_write_dataframe_deduplicate(
 
     # Ensures that we can do a full-circle write and read of a dataframe
     qdbpd_write_fn(
-        df1, qdbd_connection, table, deduplicate=False, deduplication_mode="drop"
+        df1,
+        native_insecure_cluster,
+        table,
+        deduplicate=False,
+        deduplication_mode="drop",
     )
     qdbpd_write_fn(
-        df1, qdbd_connection, table, deduplicate=deduplicate, deduplication_mode="drop"
+        df1,
+        native_insecure_cluster,
+        table,
+        deduplicate=deduplicate,
+        deduplication_mode="drop",
     )
 
-    df2 = qdbpd.read_dataframe(qdbd_connection, table)
+    df2 = qdbpd.read_dataframe(native_insecure_cluster, table)
 
     _assert_df_equal(df1, df2)
 
 
 def test_write_dataframe_create_table(
-    qdbpd_write_fn, qdbd_connection, gen_df, table_name
+    qdbpd_write_fn, native_insecure_cluster, gen_df, table_name
 ):
     (_, _, df1) = gen_df
 
-    table = qdbd_connection.ts(table_name)
-    qdbpd_write_fn(df1, qdbd_connection, table, create=True)
+    table = native_insecure_cluster.ts(table_name)
+    qdbpd_write_fn(df1, native_insecure_cluster, table, create=True)
 
-    df2 = qdbpd.read_dataframe(qdbd_connection, table)
+    df2 = qdbpd.read_dataframe(native_insecure_cluster, table)
 
     _assert_df_equal(df1, df2)
 
 
 def test_write_dataframe_create_table_twice(
-    qdbpd_write_fn, qdbd_connection, df_with_table
+    qdbpd_write_fn, native_insecure_cluster, df_with_table
 ):
     (_, _, df, table) = df_with_table
-    qdbpd_write_fn(df, qdbd_connection, table, create=True)
+    qdbpd_write_fn(df, native_insecure_cluster, table, create=True)
 
 
 def test_write_dataframe_create_table_with_shard_size(
-    qdbpd_write_fn, qdbd_connection, gen_df, table_name
+    qdbpd_write_fn, native_insecure_cluster, gen_df, table_name
 ):
     (_, _, df1) = gen_df
-    table = qdbd_connection.ts(table_name)
+    table = native_insecure_cluster.ts(table_name)
 
     qdbpd_write_fn(
-        df1, qdbd_connection, table, create=True, shard_size=timedelta(weeks=4)
+        df1, native_insecure_cluster, table, create=True, shard_size=timedelta(weeks=4)
     )
 
-    df2 = qdbpd.read_dataframe(qdbd_connection, table)
+    df2 = qdbpd.read_dataframe(native_insecure_cluster, table)
 
     _assert_df_equal(df1, df2)
 
 
 def test_query(
+    cluster,
     qdbpd_write_fn,  # parametrized
     qdbpd_query_fn,  # parametrized
-    df_with_table,  # parametrized
-    qdbd_connection,
+    gen_df,  # parametrized
+    native_cluster,
     column_name,
     table_name,
 ):
-    (_, _, df1, table) = df_with_table
-    qdbpd_write_fn(df1, qdbd_connection, table)
+    ctype, _, df1 = gen_df
+    table = native_cluster.table(table_name)
+    table.create([quasardb.ColumnInfo(ctype, column_name)])
+    qdbpd_write_fn(df1, native_cluster, table)
 
     df2 = (
         qdbpd_query_fn(
-            qdbd_connection,
+            cluster,
             'SELECT $timestamp, {} FROM "{}"'.format(column_name, table_name),
         )
         .set_index("$timestamp")
@@ -364,17 +387,19 @@ def test_query(
     _assert_df_equal(df1, df2)
 
 
-def test_inference(qdbpd_write_fn, df_with_table, qdbd_connection):  # parametrized
+def test_inference(
+    qdbpd_write_fn, df_with_table, native_insecure_cluster
+):  # parametrized
     # Note that there are no tests; we effectively only test whether it doesn't
     # throw.
     (_, _, df, table) = df_with_table
-    qdbpd_write_fn(df, qdbd_connection, table, infer_types=True)
+    qdbpd_write_fn(df, native_insecure_cluster, table, infer_types=True)
 
 
 def test_shuffled_columns(
-    qdbpd_write_fn, qdbd_connection, table_name, start_date, row_count
+    qdbpd_write_fn, native_insecure_cluster, table_name, start_date, row_count
 ):
-    t = qdbd_connection.table(table_name)
+    t = native_insecure_cluster.table(table_name)
 
     # Specific regresion test used in Python user guide / API documentation
     cols = [
@@ -401,10 +426,10 @@ def test_shuffled_columns(
 
     df = pd.DataFrame(data).set_index("$timestamp").reindex()
 
-    qdbpd_write_fn(df, qdbd_connection, t, infer_types=True)
+    qdbpd_write_fn(df, native_insecure_cluster, t, infer_types=True)
 
 
-def test_regression_sc11057(qdbd_connection, table_name):
+def test_regression_sc11057(native_insecure_cluster, table_name):
     """
     Our query results (apparently) return datetime64 arrays with a itemsize of 8,
     but a stride size of 16 -- i.e. every other item is "skipped".
@@ -429,27 +454,32 @@ def test_regression_sc11057(qdbd_connection, table_name):
     df = pd.DataFrame(data=data, index=idx)
 
     qdbpd.write_dataframe(
-        df, qdbd_connection, table_name, create=True, infer_types=True
+        df, native_insecure_cluster, table_name, create=True, infer_types=True
     )
 
     q = 'select $timestamp, record_timestamp, unique_tagname from "{}"'.format(
         table_name
     )
-    df_ = qdbpd.query(qdbd_connection, q)
+    df_ = qdbpd.query(native_insecure_cluster, q)
     df_ = df_.groupby("unique_tagname").last().set_index("$timestamp")
 
     qdbpd.write_dataframe(
-        df_, qdbd_connection, "{}_out".format(table_name), create=True, infer_types=True
+        df_,
+        native_insecure_cluster,
+        "{}_out".format(table_name),
+        create=True,
+        infer_types=True,
     )
 
     result = qdbpd.read_dataframe(
-        qdbd_connection, qdbd_connection.table("{}_out".format(table_name))
+        native_insecure_cluster,
+        native_insecure_cluster.table("{}_out".format(table_name)),
     )
 
     _assert_df_equal(df_, result)
 
 
-def test_regression_sc11084(qdbd_connection, table_name):
+def test_regression_sc11084(native_insecure_cluster, table_name):
     """
     This test validates that, if one array starts with a significant amount of
     NULL values, it works properly. This addresses a bug that our "probe_mask" function
@@ -467,11 +497,11 @@ def test_regression_sc11084(qdbd_connection, table_name):
 
     df = pd.DataFrame(data=data, index=idx)
     qdbpd.write_dataframe(
-        df, qdbd_connection, table_name, create=True, infer_types=True
+        df, native_insecure_cluster, table_name, create=True, infer_types=True
     )
 
     df_ = qdbpd.query(
-        qdbd_connection,
+        native_insecure_cluster,
         'select $timestamp, val from "{}"'.format(table_name),
         index="$timestamp",
     )
@@ -481,7 +511,7 @@ def test_regression_sc11084(qdbd_connection, table_name):
 
 @pytest.mark.parametrize("sparsify", conftest.no_sparsify)
 def test_regression_sc11337(
-    qdbpd_write_fn, df_with_table, qdbd_connection, column_name
+    qdbpd_write_fn, df_with_table, native_insecure_cluster, column_name
 ):
     (ctype, dtype, df1, table) = df_with_table
     assert column_name in df1.columns
@@ -493,37 +523,41 @@ def test_regression_sc11337(
 
     qdbpd_write_fn(
         df1,
-        qdbd_connection,
+        native_insecure_cluster,
         table.get_name(),
         push_mode=quasardb.WriterPushMode.Fast,
         infer_types=True,
     )
 
-    df2 = qdbpd.read_dataframe(qdbd_connection, table, column_names=[column_name])
+    df2 = qdbpd.read_dataframe(
+        native_insecure_cluster, table, column_names=[column_name]
+    )
 
     _assert_df_equal(df1, df2)
 
 
-def test_write_through_flag(qdbpd_write_fn, df_with_table, qdbd_connection):
+def test_write_through_flag(qdbpd_write_fn, df_with_table, native_insecure_cluster):
     (_, _, df, table) = df_with_table
 
-    qdbpd_write_fn(df, qdbd_connection, table, write_through=True)
+    qdbpd_write_fn(df, native_insecure_cluster, table, write_through=True)
 
-    df2 = qdbpd.read_dataframe(qdbd_connection, table)
+    df2 = qdbpd.read_dataframe(native_insecure_cluster, table)
 
     _assert_df_equal(df, df2)
 
 
 def test_write_through_flag_throws_when_incorrect(
-    qdbpd_write_fn, df_with_table, qdbd_connection
+    qdbpd_write_fn, df_with_table, native_insecure_cluster
 ):
     (_, _, df, table) = df_with_table
 
     with pytest.raises(quasardb.InvalidArgumentError):
-        qdbpd_write_fn(df, qdbd_connection, table, write_through="wrong!")
+        qdbpd_write_fn(df, native_insecure_cluster, table, write_through="wrong!")
 
 
-def test_push_mode(qdbpd_write_fn, df_with_table, push_mode, qdbd_connection, caplog):
+def test_push_mode(
+    qdbpd_write_fn, df_with_table, push_mode, native_insecure_cluster, caplog
+):
     (_, _, df, table) = df_with_table
 
     expected = "transactional push mode"
@@ -537,7 +571,7 @@ def test_push_mode(qdbpd_write_fn, df_with_table, push_mode, qdbd_connection, ca
 
     caplog.clear()
     caplog.set_level(logging.DEBUG, logger="quasardb.writer")
-    qdbpd_write_fn(df, qdbd_connection, table, **kwargs)
+    qdbpd_write_fn(df, native_insecure_cluster, table, **kwargs)
 
     assert any(expected in x.message for x in caplog.records)
 
@@ -545,7 +579,7 @@ def test_push_mode(qdbpd_write_fn, df_with_table, push_mode, qdbd_connection, ca
 def test_retries(
     qdbpd_write_fn,
     df_with_table,
-    qdbd_connection,
+    native_insecure_cluster,
     retry_options,
     mock_failure_options,
     caplog,
@@ -556,7 +590,7 @@ def test_retries(
 
     do_write_fn = lambda: qdbpd_write_fn(
         df,
-        qdbd_connection,
+        native_insecure_cluster,
         table,
         retries=retry_options,
         mock_failure_options=mock_failure_options,
@@ -626,13 +660,13 @@ def test_retries(
         assert seen == True
 
 
-def test_read_dataframe_empty_table_sc16881(qdbd_connection, table_name):
+def test_read_dataframe_empty_table_sc16881(native_insecure_cluster, table_name):
     """
     Ensures qdbpd.read_dataframe returns an empty DataFrame when the table exists but contains no data.
 
     Previously this raised ValueError due to pd.concat() on an empty result set.
     """
-    table = qdbd_connection.ts(table_name)
+    table = native_insecure_cluster.ts(table_name)
 
     table_config = [
         quasardb.ColumnInfo(quasardb.ColumnType.Double, "d"),
@@ -640,6 +674,6 @@ def test_read_dataframe_empty_table_sc16881(qdbd_connection, table_name):
 
     table.create(table_config)
 
-    df = qdbpd.read_dataframe(qdbd_connection, table)
+    df = qdbpd.read_dataframe(native_insecure_cluster, table)
 
     assert df.empty
