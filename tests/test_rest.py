@@ -2,6 +2,7 @@
 
 import json
 
+import httpx
 import numpy as np
 import pytest
 import quasardb
@@ -77,9 +78,9 @@ def test_refresh_and_relogin(rest_cluster):
 
 @pytest.mark.parametrize("options", [{}, {"verify": True}])
 def test_https_rejects_self_signed_certificate_by_default(options):
-    with pytest.raises(quasardb.Error) as exc:
+    with pytest.raises(httpx.ConnectError) as exc:
         quasardb.Cluster("https://127.0.0.1:40443", **options)
-    assert "certificate verify failed" in str(exc.value.__cause__).lower()
+    assert "certificate verify failed" in str(exc.value).lower()
 
 
 @pytest.mark.parametrize("constructor", ["Cluster", "RestCluster"])
@@ -196,7 +197,7 @@ def test_rest_sentinels_are_values(rest_cluster, query, kind):
             assert np.isnan(array[0])
 
 
-def test_large_query_preserves_values(cluster, native_cluster, table):
+def test_large_query_preserves_values(cluster, native_cluster, query_table):
     """Reassemble every row in order, regardless of where the transport splits batches."""
     count = 2**16 + 7
     timestamps = np.datetime64("2020-01-01", "ns") + np.arange(count).astype(
@@ -205,8 +206,8 @@ def test_large_query_preserves_values(cluster, native_cluster, table):
     expected = np.arange(count, dtype="int64")
     from test_query import _write_points
 
-    _write_points(native_cluster, table, "the_int64", (timestamps, expected))
-    query = 'SELECT the_int64 FROM "{}"'.format(table.get_name())
+    _write_points(native_cluster, query_table, "the_int64", (timestamps, expected))
+    query = 'SELECT the_int64 FROM "{}"'.format(query_table.get_name())
     for size in (0, 10000):
         with cluster.stream_query(query, batch_size=size) as stream:
             batches = [batch["the_int64"] for batch in stream]

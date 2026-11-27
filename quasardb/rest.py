@@ -6,11 +6,10 @@ import datetime
 import io
 import json
 import logging
-import operator
 import ssl
 from contextlib import closing, contextmanager
 from types import TracebackType
-from typing import Dict, Generator, Iterator, Optional, Type
+from typing import TYPE_CHECKING, Dict, Generator, Iterator, Optional, Type
 from urllib.parse import urlsplit
 
 import numpy as np
@@ -33,6 +32,9 @@ from .quasardb import (
 )
 from .typing import MaskedArrayAny
 
+if TYPE_CHECKING:
+    from typing_extensions import Buffer
+
 logger = logging.getLogger(__name__)
 
 
@@ -54,9 +56,10 @@ class _ArrowInput(io.RawIOBase):
     def readable(self) -> bool:
         return True
 
-    def readinto(self, target: bytearray) -> int:
+    def readinto(self, target: Buffer) -> int:
         """Copy up to len(target) bytes from one chunk and return the count copied."""
-        if not target:
+        view = memoryview(target).cast("B")
+        if not view:
             return 0
         while not self._pending:
             chunk = next(self._chunks, None)
@@ -67,8 +70,8 @@ class _ArrowInput(io.RawIOBase):
                 raise EOFError("Missing REST Arrow end-of-stream marker")
             self._pending = memoryview(chunk)
         # Slicing a memoryview keeps the unread suffix without copying its bytes.
-        count = min(len(target), len(self._pending))
-        target[:count] = self._pending[:count]
+        count = min(len(view), len(self._pending))
+        view[:count] = self._pending[:count]
         self._pending = self._pending[count:]
         return count
 
@@ -110,10 +113,6 @@ def _credentials(
 
 class RestCluster:
     """REST query connection. Native-only options are accepted and ignored."""
-
-    # REST uses the server's batches. Zero keeps the NumPy adapter's default
-    # query from warning about a batch size the user never requested.
-    _default_query_batch_size = 0
 
     def __init__(
         self,
@@ -182,7 +181,6 @@ class RestCluster:
         )
         self._access_token = ""
         self._refresh_token = ""
-        self._open = True
         try:
             self._login()
         except BaseException:
@@ -195,33 +193,25 @@ class RestCluster:
         )
 
     def _check_open(self) -> None:
-        if not self._open:
+        if self._client.is_closed:
             raise InvalidHandleError("REST connection is closed")
 
     def _request(
         self, path: str, body: bytes, headers: Dict[str, str]
     ) -> httpx.Response:
         """Send the POST and transfer the streaming response to the caller."""
+        request = self._client.build_request(
+            "POST", path.lstrip("/"), content=body, headers=headers
+        )
         try:
-            request = self._client.build_request(
-                "POST", path.lstrip("/"), content=body, headers=headers
-            )
             response = self._client.send(request, stream=True)
-        except httpx.InvalidURL:
-            failure = InvalidArgumentError("Invalid REST endpoint")
-        except (httpx.HTTPError, ValueError) as exc:
-            logger.debug(
-                "REST request failed path=%s error=%s", path, type(exc).__name__
-            )
-            if isinstance(exc, httpx.ConnectError):
-                raise Error("REST HTTP request failed") from exc
-            # Protocol errors can quote raw response bytes. Raise outside the
-            # handler to keep those bytes out of the exception chain.
-            failure = Error("REST HTTP request failed")
-        else:
             logger.debug("REST request path=%s status=%s", path, response.status_code)
             return response
-        raise failure
+        except httpx.ProtocolError:
+            # Protocol errors can quote raw bytes. Raise outside the handler to
+            # keep those bytes out of the exception chain.
+            pass
+        raise Error("REST HTTP request failed")
 
     def _raise_http_error(
         self, response: httpx.Response, *, query: bool = False
@@ -274,7 +264,7 @@ class RestCluster:
                     tokens["refresh_token"],
                 )
                 return True
-            except (OSError, httpx.HTTPError, ValueError, KeyError, TypeError):
+            except (OSError, httpx.ProtocolError, ValueError, KeyError, TypeError):
                 # Decoder exceptions can retain the response containing both tokens.
                 pass
             raise Error("Unable to read REST authentication response")
@@ -309,9 +299,8 @@ class RestCluster:
         return post()
 
     def close(self) -> None:
-        if not self._open:
+        if self._client.is_closed:
             return
-        self._open = False
         self._credentials.clear()
         self._access_token = ""
         self._refresh_token = ""
@@ -331,7 +320,7 @@ class RestCluster:
         self.close()
 
     def is_open(self) -> bool:
-        return self._open
+        return not self._client.is_closed
 
     def uri(self) -> str:
         return self._uri
@@ -352,17 +341,6 @@ class RestCluster:
         entire result column is null.
         """
         self._check_open()
-        if not isinstance(query, str):
-            raise TypeError("query must be a string")
-        batch_size = operator.index(batch_size)
-        if batch_size < 0 or batch_size > np.iinfo(np.uintp).max:
-            raise TypeError("batch_size must be a non-negative size_t integer")
-        if batch_size:
-            # TODO: Remove this warning once the REST API honors positive batch sizes.
-            logger.warning(
-                "REST ignores batch_size=%d and yields server batches", batch_size
-            )
-
         with closing(self._post_query(query)) as response:
             if response.status_code != 200:
                 self._raise_http_error(response, query=True)
@@ -422,13 +400,6 @@ def _masked_array(array: pa.Array) -> MaskedArrayAny:
     return np.ma.array(data, mask=mask, copy=False)
 
 
-def _batch_to_masked_arrays(batch: pa.RecordBatch) -> Dict[str, MaskedArrayAny]:
-    return {
-        name: _masked_array(column)
-        for name, column in zip(batch.schema.names, batch.columns)
-    }
-
-
 def _stream_batches(
     reader: pa.RecordBatchReader,
     response: httpx.Response,
@@ -437,7 +408,10 @@ def _stream_batches(
     try:
         for batch in reader:
             if batch.num_rows:
-                yield _batch_to_masked_arrays(batch)
+                yield {
+                    name: _masked_array(column)
+                    for name, column in zip(batch.schema.names, batch.columns)
+                }
         # Arrow stops at its marker. Finish an explicitly framed HTTP body
         # so HTTPX checks its terminator and can reuse the socket.
         headers = response.headers
