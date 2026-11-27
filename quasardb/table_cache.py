@@ -1,8 +1,7 @@
 import logging
 from typing import Dict, Optional
 
-from quasardb import Cluster
-from quasardb.quasardb import Table
+from quasardb.quasardb import Cluster, Table
 
 logger = logging.getLogger("quasardb.table_cache")
 

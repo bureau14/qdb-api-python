@@ -1,8 +1,13 @@
 from __future__ import annotations
 
-from typing import Iterable, Tuple
+from typing import Iterable, Tuple, Union
 
 import numpy as np
+
+import quasardb
+
+# Keep REST dependencies optional for native clients.
+ClusterConnection = Union[quasardb.quasardb.Cluster, "quasardb.RestCluster"]
 
 # Numpy
 

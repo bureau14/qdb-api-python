@@ -77,7 +77,7 @@ def test_stream_query_batching_contract(
     query = _select_column_query(table, column_name)
 
     with cluster.stream_query(query, batch_size=reader_batch_size) as stream:
-        if isinstance(cluster, quasardb.NativeCluster):
+        if isinstance(cluster, quasardb.quasardb.Cluster):
             assert stream.get_batch_size() == reader_batch_size
         else:
             # REST keeps the server's Arrow batch boundaries. Zero reports that
@@ -91,7 +91,7 @@ def test_stream_query_batching_contract(
         _concat_column(batches, column_name),
         dict(native_cluster.query_numpy(query))[column_name],
     )
-    if isinstance(cluster, quasardb.NativeCluster):
+    if isinstance(cluster, quasardb.quasardb.Cluster):
         expected_batch_count = math.ceil(row_count / reader_batch_size)
         assert len(batches) == expected_batch_count
         for batch in batches[:-1]:
@@ -121,7 +121,7 @@ def test_stream_query_zero_batch_size_yields_single_batch(
     assert sum(len(batch[column_name]) for batch in batches) == row_count
     # Native zero requests the complete result in one batch. The REST
     # server may split these rows across any number of Arrow batches.
-    if isinstance(cluster, quasardb.NativeCluster):
+    if isinstance(cluster, quasardb.quasardb.Cluster):
         assert len(batches) == 1
         assert len(batches[0][column_name]) == row_count
 
@@ -210,7 +210,7 @@ def test_stream_query_schema_stable_when_first_batch_all_null(
         assert array.dtype == np.dtype("float64")
         np.testing.assert_array_equal(array.mask, mask[offset : offset + len(array)])
         offset += len(array)
-    if isinstance(cluster, quasardb.NativeCluster):
+    if isinstance(cluster, quasardb.quasardb.Cluster):
         assert len(batches) == 2
         assert ma.count_masked(batches[0][column_name]) == batch_size
         assert ma.count_masked(batches[1][column_name]) == 0
@@ -232,7 +232,7 @@ def test_stream_query_entirely_null_column_preserves_mask(
     assert sum(len(batch[column_name]) for batch in batches) == 100
     # The native schema probe falls back to float64 when it sees only nulls.
     # The REST Arrow schema carries the column's declared int64 type.
-    if isinstance(cluster, quasardb.NativeCluster):
+    if isinstance(cluster, quasardb.quasardb.Cluster):
         assert len(batches) == 2
         expected_dtype = np.dtype("float64")
     else:
@@ -271,7 +271,7 @@ def test_stream_query_mixed_type_column_raises(
 
     query = 'SELECT the_col FROM "{}", "{}"'.format(t1_name, t2_name)
 
-    if isinstance(cluster, quasardb.NativeCluster):
+    if isinstance(cluster, quasardb.quasardb.Cluster):
         # Native results carry a tag per cell. The mismatch surfaces during iteration.
         with cluster.stream_query(query) as stream:
             with pytest.raises(quasardb.IncompatibleTypeError):
@@ -434,7 +434,7 @@ def test_qdbnp_query_equals_stream_query_concat(
         qdbnp.stream_query(cluster, query, dict=True, batch_size=reader_batch_size)
     )
     assert all(len(idx) > 0 for idx, _ in batches)
-    if isinstance(cluster, quasardb.NativeCluster):
+    if isinstance(cluster, quasardb.quasardb.Cluster):
         assert all(len(idx) <= reader_batch_size for idx, _ in batches)
         assert len(batches) == math.ceil(row_count / reader_batch_size)
 
@@ -470,7 +470,7 @@ def test_qdbpd_query_equals_stream_query_concat(
     query = _select_column_query(table, column_name)
 
     batches = list(qdbpd.stream_query(cluster, query, batch_size=reader_batch_size))
-    if isinstance(cluster, quasardb.NativeCluster):
+    if isinstance(cluster, quasardb.quasardb.Cluster):
         assert len(batches) == math.ceil(row_count / reader_batch_size)
         assert all(len(df.index) <= reader_batch_size for df in batches)
     assert all(len(df.index) > 0 for df in batches)
@@ -595,7 +595,7 @@ def test_stream_query_break_releases_reader(cluster, native_cluster, table, inte
 
     assert isinstance(kept, ma.MaskedArray)
     assert len(kept) > 0
-    if isinstance(cluster, quasardb.NativeCluster):
+    if isinstance(cluster, quasardb.quasardb.Cluster):
         assert len(kept) == 32
     assert np.isfinite(kept.sum())
 

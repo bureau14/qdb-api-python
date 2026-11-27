@@ -47,9 +47,15 @@ from typing import (
 
 import quasardb
 import quasardb.table_cache as table_cache
-from quasardb import Cluster
-from quasardb.quasardb import Table, Writer
-from quasardb.typing import DType, MaskedArrayAny, NDArrayAny, NDArrayTime, RangeSet
+from quasardb.quasardb import Cluster, Table, Writer
+from quasardb.typing import (
+    ClusterConnection,
+    DType,
+    MaskedArrayAny,
+    NDArrayAny,
+    NDArrayTime,
+    RangeSet,
+)
 
 logger = logging.getLogger("quasardb.numpy")
 
@@ -1118,7 +1124,7 @@ def _xform_query_results(
 
 
 def stream_query(
-    cluster: quasardb.Cluster,
+    cluster: ClusterConnection,
     query: str,
     *,
     index: Optional[Union[str, int]] = None,
@@ -1230,7 +1236,7 @@ def _concat_query_batches(
 
 
 def query(
-    cluster: quasardb.Cluster,
+    cluster: ClusterConnection,
     query: str,
     index: Optional[Union[str, int]] = None,
     dict: bool = False,

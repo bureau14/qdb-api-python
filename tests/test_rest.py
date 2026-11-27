@@ -1,6 +1,5 @@
 """Real service tests for transport dispatch and REST authentication/lifecycle."""
 
-import datetime
 import json
 
 import numpy as np
@@ -8,9 +7,15 @@ import pytest
 import quasardb
 
 
-@pytest.mark.parametrize("constructor", ["Cluster", "RestCluster"])
 @pytest.mark.parametrize(
-    "uri", ["ftp://localhost", "https://[::1", "http://localhost:bad-port/"]
+    "constructor,uri",
+    [
+        ("Cluster", "https://[::1"),
+        ("Cluster", "http://localhost:bad-port/"),
+        ("RestCluster", "https://[::1"),
+        ("RestCluster", "http://localhost:bad-port/"),
+        ("RestCluster", "ftp://localhost"),
+    ],
 )
 def test_invalid_uri(constructor, uri):
     with pytest.raises(quasardb.InvalidArgumentError):
@@ -23,21 +28,40 @@ def _answer(conn):
 
 
 def test_dispatch_and_concrete_construction(cluster, cluster_settings):
-    settings = cluster_settings
+    settings = cluster_settings.copy()
+    uri = settings.pop("uri")
     concrete = (
-        quasardb.RestCluster
-        if settings["uri"].startswith("http")
-        else quasardb.NativeCluster
+        quasardb.RestCluster if uri.startswith("http") else quasardb.quasardb.Cluster
     )
-    assert type(cluster) is concrete
-    assert isinstance(cluster, quasardb.Cluster)
-    assert issubclass(concrete, quasardb.Cluster)
+    assert isinstance(cluster, concrete)
+    if uri.startswith("http"):
+        assert not hasattr(cluster, "table")
+    assert isinstance(cluster, quasardb.Cluster) == (
+        concrete is quasardb.quasardb.Cluster
+    )
     assert _answer(cluster) == [42]
-    with concrete(**settings) as conn:
-        assert conn.uri() == settings["uri"]
+    with quasardb.Cluster(uri, **settings) as dispatched:
+        assert type(dispatched) is type(cluster)
+    with concrete(uri, **settings) as conn:
+        assert conn.uri() == uri
         assert _answer(conn) == [42]
     assert not conn.is_open()
     conn.close()
+
+
+def test_native_subclass(qdbd_settings):
+    class NamedCluster(quasardb.Cluster):
+        def __init__(self, label):
+            super().__init__(qdbd_settings["uri"]["insecure"])
+            self.label = label
+
+    with NamedCluster("http://label") as conn:
+        assert conn.label == "http://label"
+
+
+def test_native_rejects_rest_option(qdbd_settings):
+    with pytest.raises(TypeError):
+        quasardb.Cluster(qdbd_settings["uri"]["insecure"], verify=True)
 
 
 def test_refresh_and_relogin(rest_cluster):
@@ -150,62 +174,6 @@ def test_close_active_reader(rest_cluster):
         rest_cluster.stream_query("SELECT 1")
 
 
-unsupported = [
-    ("blob", ("entry",)),
-    ("compact_abort", ()),
-    ("compact_full", ()),
-    ("compact_progress", ()),
-    ("double", ("entry",)),
-    ("endpoints", ()),
-    ("find", ("find(tag='tag')",)),
-    ("get_memory_info", ()),
-    ("integer", ("entry",)),
-    ("node", ("127.0.0.1:2836",)),
-    ("node_config", ("127.0.0.1:2836",)),
-    ("node_status", ("127.0.0.1:2836",)),
-    ("node_topology", ("127.0.0.1:2836",)),
-    ("options", ()),
-    ("perf", ()),
-    ("pinned_writer", ()),
-    ("prefix_count", ("prefix",)),
-    ("prefix_get", ("prefix", 10)),
-    ("properties", ()),
-    ("purge_all", (datetime.timedelta(seconds=1),)),
-    ("purge_cache", (datetime.timedelta(seconds=1),)),
-    ("query", ("SELECT 1",)),
-    ("query_continuous_full", ("SELECT 1", datetime.timedelta(seconds=1))),
-    ("query_continuous_new_values", ("SELECT 1", datetime.timedelta(seconds=1))),
-    ("query_numpy", ("SELECT 1",)),
-    ("reader", (["table"],)),
-    ("string", ("entry",)),
-    ("suffix_count", ("suffix",)),
-    ("suffix_get", ("suffix", 10)),
-    ("table", ("table",)),
-    ("tag", ("tag",)),
-    ("tidy_memory", ()),
-    ("timestamp", ("entry",)),
-    ("trim_all", (datetime.timedelta(seconds=1), datetime.timedelta(seconds=1))),
-    ("ts", ("table",)),
-    ("wait_for_compaction", ()),
-    ("validate_query", ("SELECT 1",)),
-    (
-        "split_query_range",
-        (
-            datetime.datetime(2020, 1, 1),
-            datetime.datetime(2020, 1, 2),
-            datetime.timedelta(hours=1),
-        ),
-    ),
-    ("writer", ()),
-]
-
-
-def test_unsupported_methods(rest_cluster):
-    for method, args in unsupported:
-        with pytest.raises(NotImplementedError):
-            getattr(rest_cluster, method)(*args)
-
-
 @pytest.mark.parametrize(
     "query,kind",
     [
@@ -241,7 +209,7 @@ def test_large_query_preserves_values(cluster, native_cluster, table):
         with cluster.stream_query(query, batch_size=size) as stream:
             batches = [batch["the_int64"] for batch in stream]
         assert all(len(array) > 0 for array in batches)
-        if size and isinstance(cluster, quasardb.NativeCluster):
+        if size and isinstance(cluster, quasardb.quasardb.Cluster):
             assert all(len(array) <= size for array in batches)
         actual = np.ma.concatenate(batches)
         assert not np.any(actual.mask)

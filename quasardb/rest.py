@@ -16,8 +16,6 @@ from urllib.parse import urlsplit
 
 import numpy as np
 
-from ._cluster import Cluster
-
 try:
     import httpx
     import pyarrow as pa  # type: ignore[import-untyped]
@@ -112,7 +110,7 @@ def _credentials(
     return {"username": user_name, "secret_key": user_private_key} if user_name else {}
 
 
-class RestCluster(Cluster):
+class RestCluster:
     """REST query connection. Native-only options are accepted and ignored."""
 
     # REST uses the server's batches. Zero keeps the NumPy adapter's default
@@ -334,6 +332,14 @@ class RestCluster(Cluster):
     def __enter__(self) -> RestCluster:
         self._check_open()
         return self
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
+        self.close()
 
     def is_open(self) -> bool:
         return self._open

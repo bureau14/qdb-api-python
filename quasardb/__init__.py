@@ -140,11 +140,22 @@ from .extensions import extend_module
 extend_module(quasardb)
 
 
-from ._cluster import Cluster
+class Cluster(quasardb.Cluster):
+    """Connect through REST for HTTP(S) URIs or through the native client."""
 
-# RestCluster inherits Cluster directly. Register the independent pybind class
-# so isinstance(conn, Cluster) also recognizes native connections.
-Cluster.register(NativeCluster)
+    def __new__(cls, *args, **kwargs):
+        if cls is Cluster:
+            uri = args[0] if args else kwargs.get("uri")
+            if isinstance(uri, str) and uri.lower().startswith(("http:", "https:")):
+                from .rest import RestCluster
+
+                return RestCluster(*args, **kwargs)
+        # Python passes the original arguments to the native or subclass initializer.
+        return super().__new__(cls)
+
+    def __enter__(self):
+        # The binding returns a C++ copy, which drops the Python subclass.
+        return self
 
 
 def __getattr__(name):

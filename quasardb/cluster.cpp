@@ -115,7 +115,7 @@ void register_cluster(py::module_ & m)
 {
     namespace py = pybind11;
 
-    py::class_<qdb::cluster>(m, "NativeCluster", "Represents a connection to the QuasarDB cluster.")
+    py::class_<qdb::cluster>(m, "Cluster", "Represents a connection to the QuasarDB cluster.")
         .def(py::init<const std::string &, const std::string &, const std::string &,
                  const std::string &, const std::string &, const std::string &,
                  std::chrono::milliseconds, bool, bool, qdb_compression_t, std::size_t>(),
@@ -190,9 +190,6 @@ void register_cluster(py::module_ & m)
         .def("endpoints", &qdb::cluster::endpoints)
         .def("validate_query", &qdb::cluster::validate_query)
         .def("split_query_range", &qdb::cluster::split_query_range);
-
-    // Preserve direct extension imports while the package exposes its Python dispatcher.
-    m.attr("Cluster") = m.attr("NativeCluster");
 }
 
 }; // namespace qdb

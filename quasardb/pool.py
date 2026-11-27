@@ -7,20 +7,20 @@ import weakref
 from types import TracebackType
 from typing import Any, Callable, Optional, Type, TypeVar, Union
 
-# import quasardb
-from quasardb import Cluster
+import quasardb
+from quasardb.typing import ClusterConnection
 
 logger = logging.getLogger("quasardb.pool")
 
 T = TypeVar("T")
 
 
-def _create_conn(**kwargs: Any) -> Cluster:
-    return Cluster(**kwargs)
+def _create_conn(**kwargs: Any) -> ClusterConnection:
+    return quasardb.Cluster(**kwargs)
 
 
 class SessionWrapper:
-    def __init__(self, pool: Pool, conn: Cluster):
+    def __init__(self, pool: Pool, conn: ClusterConnection):
         self._conn = conn
         self._pool = pool
 
@@ -102,7 +102,7 @@ class Pool:
     """
 
     def __init__(
-        self, get_conn: Optional[Callable[..., Cluster]] = None, **kwargs: Any
+        self, get_conn: Optional[Callable[..., ClusterConnection]] = None, **kwargs: Any
     ):
         self._all_connections: list[SessionWrapper] = []
 
@@ -154,10 +154,10 @@ class Pool:
         logger.info("Acquiring connection from pool")
         return self._do_connect()
 
-    def _do_release(self, conn: Cluster) -> None:
+    def _do_release(self, conn: ClusterConnection) -> None:
         raise NotImplementedError
 
-    def release(self, conn: Cluster) -> None:
+    def release(self, conn: ClusterConnection) -> None:
         """
         Put a connection back into the pool
         """
@@ -213,7 +213,7 @@ class SingletonPool(Pool):
 
         return c
 
-    def _do_release(self, conn: Cluster) -> None:
+    def _do_release(self, conn: ClusterConnection) -> None:
         # Thread-local connections do not have to be 'released'.
         pass
 

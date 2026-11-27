@@ -2,8 +2,7 @@ import datetime
 
 from . import metrics
 from ._blob import Blob
-from ._cluster import NativeCluster
-from ._cluster import NativeCluster as Cluster
+from ._cluster import Cluster
 from ._continuous import QueryContinuous
 from ._double import Double
 from ._entry import Entry, ExpirableEntry
@@ -29,7 +28,6 @@ from ._integer import Integer
 from ._node import DirectBlob, DirectInteger, Node
 from ._options import Options
 from ._perf import Perf
-from ._properties import Properties
 from ._query import FindQuery
 from ._query_reader import QueryReader
 from ._reader import Reader
@@ -43,7 +41,6 @@ from ._writer import Writer, WriterData, WriterPushMode
 __all__ = [
     "Blob",
     "Cluster",
-    "NativeCluster",
     "QueryContinuous",
     "Double",
     "Entry",
@@ -70,7 +67,6 @@ __all__ = [
     "Node",
     "Options",
     "Perf",
-    "Properties",
     "FindQuery",
     "QueryReader",
     "Reader",

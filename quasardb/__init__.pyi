@@ -9,14 +9,17 @@
 
 from __future__ import annotations
 
-from ._cluster import Cluster
+import datetime
+from typing import Union
+from typing_extensions import Self
+
+from . import quasardb
 from .rest import RestCluster as RestCluster
 
 from quasardb.quasardb import (
     AliasAlreadyExistsError,
     AliasNotFoundError,
     AsyncPipelineFullError,
-    NativeCluster,
     ColumnInfo,
     ColumnType,
     Error,
@@ -42,12 +45,31 @@ from quasardb.quasardb import (
     version,
 )
 
+class Cluster(quasardb.Cluster):
+    # The URI scheme determines the concrete type at runtime.
+    def __new__(  # type: ignore[misc]
+        cls,
+        uri: str,
+        user_name: str = ...,
+        user_private_key: str = ...,
+        cluster_public_key: str = ...,
+        *,
+        user_security_file: str = ...,
+        cluster_public_key_file: str = ...,
+        timeout: datetime.timedelta = ...,
+        do_version_check: bool = ...,
+        enable_encryption: bool = ...,
+        compression_mode: quasardb.Options.Compression = ...,
+        client_max_parallelism: int = ...,
+        verify: bool = ...,
+    ) -> Union[Self, RestCluster]: ...
+    def __enter__(self) -> Self: ...
+
 __all__ = [
     "AliasAlreadyExistsError",
     "AliasNotFoundError",
     "AsyncPipelineFullError",
     "Cluster",
-    "NativeCluster",
     "ColumnInfo",
     "ColumnType",
     "Error",
