@@ -8,10 +8,9 @@ import json
 import logging
 import operator
 import ssl
-import weakref
-from contextlib import ExitStack, closing
+from contextlib import closing, contextmanager
 from types import TracebackType
-from typing import Dict, Iterator, Optional, Type
+from typing import Dict, Generator, Iterator, Optional, Type
 from urllib.parse import urlsplit
 
 import numpy as np
@@ -31,7 +30,6 @@ from .quasardb import (
     InvalidQueryError,
     Options,
     TryAgainError,
-    UninitializedError,
 )
 from .typing import MaskedArrayAny
 
@@ -185,10 +183,6 @@ class RestCluster:
         self._access_token = ""
         self._refresh_token = ""
         self._open = True
-        # As with native readers, a reader's lifetime is bounded by its cluster.
-        # Track live readers weakly so cluster.close() can release their sockets
-        # even when the user stops iterating early.
-        self._streams: weakref.WeakSet[RestQueryReader] = weakref.WeakSet()
         try:
             self._login()
         except BaseException:
@@ -315,18 +309,13 @@ class RestCluster:
         return post()
 
     def close(self) -> None:
-        if not self._open and not self._streams:
+        if not self._open:
             return
         self._open = False
         self._credentials.clear()
         self._access_token = ""
         self._refresh_token = ""
-        # A reader that fails to close must not strand the others. ExitStack
-        # runs every callback on failure and closes the pool last.
-        with ExitStack() as cleanup:
-            cleanup.callback(self._client.close)
-            for stream in list(self._streams):
-                cleanup.callback(stream.close)
+        self._client.close()
         logger.debug("REST connection closed")
 
     def __enter__(self) -> RestCluster:
@@ -347,12 +336,15 @@ class RestCluster:
     def uri(self) -> str:
         return self._uri
 
-    def stream_query(self, query: str, *, batch_size: int = 0) -> RestQueryReader:
+    @contextmanager
+    def stream_query(
+        self, query: str, *, batch_size: int = 0
+    ) -> Iterator[Iterator[Dict[str, MaskedArrayAny]]]:
         """Enter the reader in a with block and iterate over nonempty server batches.
 
-        Each iterator yields the remaining batches in order and stays exhausted
-        at EOF. The REST reader is itself the iterator, so a second loop inside
-        the same context continues from the current position.
+        Exit the stream's with-block before closing the cluster. The block closes
+        the HTTP response and Arrow reader. Iteration resumes from the current
+        position and stays exhausted at EOF.
 
         Arrow validity determines the mask. Valid NaN and INT64_MIN values are
         unmasked, and typed all-null columns retain their Arrow-derived dtype.
@@ -370,7 +362,17 @@ class RestCluster:
             logger.warning(
                 "REST ignores batch_size=%d and yields server batches", batch_size
             )
-        return RestQueryReader(self, query)
+
+        with closing(self._post_query(query)) as response:
+            if response.status_code != 200:
+                self._raise_http_error(response, query=True)
+            chunks = response.iter_raw()
+            with io.BufferedReader(_ArrowInput(chunks)) as source:
+                with pa.ipc.open_stream(source) as reader, closing(
+                    _stream_batches(reader, response, chunks)
+                ) as batches:
+                    logger.debug("REST query stream opened")
+                    yield batches
 
 
 def _masked_array(array: pa.Array) -> MaskedArrayAny:
@@ -427,112 +429,24 @@ def _batch_to_masked_arrays(batch: pa.RecordBatch) -> Dict[str, MaskedArrayAny]:
     }
 
 
-class RestQueryReader:
-    def __init__(self, cluster: RestCluster, query: str) -> None:
-        self._cluster = cluster
-        self._query = query
-        self._response: Optional[httpx.Response] = None
-        self._chunks: Optional[Iterator[bytes]] = None
-        self._reader: Optional[pa.RecordBatchReader] = None
-        self._entered = False
-
-    def __exit__(
-        self,
-        exc_type: Optional[Type[BaseException]],
-        exc_value: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
-    ) -> None:
-        self.close()
-
-    def get_batch_size(self) -> int:
-        """Match the native reader interface. Zero means the REST server sizes batches."""
-        return 0
-
-    def __enter__(self) -> RestQueryReader:
-        if self._entered:
-            raise InvalidArgumentError("REST query stream is already open")
-        self._cluster._check_open()
-        try:
-            self._response = self._cluster._post_query(self._query)
-            if self._response.status_code != 200:
-                self._cluster._raise_http_error(self._response, query=True)
-            self._chunks = self._response.iter_raw()
-            self._reader = pa.ipc.open_stream(
-                io.BufferedReader(_ArrowInput(self._chunks))
-            )
-            self._entered = True
-            self._cluster._streams.add(self)
-            logger.debug("REST query stream opened")
-            return self
-        except (
-            EOFError,
-            OSError,
-            httpx.HTTPError,
-            pa.ArrowException,
-            ValueError,
-        ):
-            self.close()
-        except BaseException:
-            self.close()
-            raise
-        raise Error("Unable to open REST Arrow stream")
-
-    def __iter__(self) -> Iterator[Dict[str, MaskedArrayAny]]:
-        if not self._entered:
-            raise UninitializedError("Open the REST query stream in a with block")
-        return self
-
-    def __next__(self) -> Dict[str, MaskedArrayAny]:
-        if not self._entered:
-            raise UninitializedError("Open the REST query stream in a with block")
-        if self._reader is None:
-            raise StopIteration
-        try:
-            for batch in self._reader:
-                if batch.num_rows:
-                    return _batch_to_masked_arrays(batch)
-            self._finish_http_body()
-        except (
-            EOFError,
-            OSError,
-            httpx.HTTPError,
-            pa.ArrowException,
-            ValueError,
-        ):
-            self.close()
-        except BaseException:
-            self.close()
-            raise
-        else:
-            self._release()
-            raise StopIteration
-        raise Error("REST Arrow stream is invalid or interrupted")
-
-    def _finish_http_body(self) -> None:
+def _stream_batches(
+    reader: pa.RecordBatchReader,
+    response: httpx.Response,
+    chunks: Iterator[bytes],
+) -> Generator[Dict[str, MaskedArrayAny], None, None]:
+    try:
+        for batch in reader:
+            if batch.num_rows:
+                yield _batch_to_masked_arrays(batch)
         # Arrow stops at its marker. Finish an explicitly framed HTTP body
         # so HTTPX checks its terminator and can reuse the socket.
-        assert self._response is not None and self._chunks is not None
-        headers = self._response.headers
+        headers = response.headers
         if (
             "content-length" in headers
             or "chunked" in headers.get("transfer-encoding", "").lower()
         ):
-            for _ in self._chunks:
+            for _ in chunks:
                 pass
-
-    def _release(self) -> None:
-        try:
-            if self._reader is not None:
-                self._reader.close()
-        finally:
-            self._reader = None
-            self._chunks = None
-            if self._response is not None:
-                self._response.close()
-                self._response = None
-            # A failed close keeps the response registered for a subsequent close().
-            self._cluster._streams.discard(self)
-
-    def close(self) -> None:
-        self._entered = False
-        self._release()
+    finally:
+        # A caller may catch a read error and stay inside the stream context.
+        response.close()

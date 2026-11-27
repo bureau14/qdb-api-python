@@ -146,32 +146,34 @@ def test_invalid_query(rest_cluster):
             pass
 
 
-def test_reader_releases_response_at_eof_and_closes_on_exit(rest_cluster):
-    with rest_cluster.stream_query("SELECT 42 AS answer") as reader:
-        assert next(reader)["answer"].tolist() == [42]
-        with pytest.raises(StopIteration):
-            next(reader)
-        assert reader._response is None
-        with pytest.raises(StopIteration):
-            next(reader)
-    with pytest.raises(quasardb.UninitializedError):
-        next(reader)
+def test_stream_query_encoding_error_on_entry(rest_cluster):
+    stream = rest_cluster.stream_query("\ud800")
+    with pytest.raises(UnicodeEncodeError):
+        with stream:
+            pytest.fail("The query cannot be encoded as UTF-8")
 
 
-def test_close_active_reader(rest_cluster):
-    reader = rest_cluster.stream_query("SELECT 42 AS answer")
-    with reader:
-        kept = next(reader)["answer"]
-        rest_cluster.close()
-        assert reader._response is None
-        assert reader._reader is None
-        assert not rest_cluster._access_token
-        assert not rest_cluster._credentials
-        with pytest.raises(quasardb.UninitializedError):
-            next(reader)
+def test_stream_stays_exhausted(rest_cluster):
+    with rest_cluster.stream_query("SELECT 42 AS answer") as batches:
+        assert next(batches)["answer"].tolist() == [42]
+        with pytest.raises(StopIteration):
+            next(batches)
+        with pytest.raises(StopIteration):
+            next(batches)
+
+
+def test_close_stream_before_cluster(rest_cluster):
+    with rest_cluster.stream_query("SELECT 42 AS answer") as batches:
+        kept = next(batches)["answer"]
+    assert _answer(rest_cluster) == [42]
+    rest_cluster.close()
+    assert not rest_cluster._access_token
+    assert not rest_cluster._credentials
     assert kept.tolist() == [42]
+    stream = rest_cluster.stream_query("SELECT 1")
     with pytest.raises(quasardb.InvalidHandleError):
-        rest_cluster.stream_query("SELECT 1")
+        with stream:
+            pass
 
 
 @pytest.mark.parametrize(

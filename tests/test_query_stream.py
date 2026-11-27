@@ -1,5 +1,6 @@
 # pylint: disable=C0103,C0111,C0302,W0212
 import math
+from contextlib import contextmanager
 
 import pytest
 import numpy as np
@@ -79,10 +80,6 @@ def test_stream_query_batching_contract(
     with cluster.stream_query(query, batch_size=reader_batch_size) as stream:
         if isinstance(cluster, quasardb.quasardb.Cluster):
             assert stream.get_batch_size() == reader_batch_size
-        else:
-            # REST keeps the server's Arrow batch boundaries. Zero reports that
-            # the client cannot set a batch size, even when one was requested.
-            assert stream.get_batch_size() == 0
         batches = list(stream)
 
     assert all(len(batch[column_name]) > 0 for batch in batches)
@@ -115,7 +112,8 @@ def test_stream_query_zero_batch_size_yields_single_batch(
     query = _select_column_query(table, column_name)
 
     with cluster.stream_query(query) as stream:
-        assert stream.get_batch_size() == 0
+        if isinstance(cluster, quasardb.quasardb.Cluster):
+            assert stream.get_batch_size() == 0
         batches = list(stream)
 
     assert sum(len(batch[column_name]) for batch in batches) == row_count
@@ -141,9 +139,9 @@ def test_stream_query_batch_size_is_keyword_only(cluster, native_cluster, table)
 # Lifecycle errors
 
 
-def test_stream_query_cannot_iterate_without_enter(cluster, native_cluster, table):
+def test_native_stream_query_cannot_iterate_without_enter(native_cluster, table):
     query = 'SELECT * FROM "{}"'.format(table.get_name())
-    stream = cluster.stream_query(query)
+    stream = native_cluster.stream_query(query)
 
     with pytest.raises(quasardb.UninitializedError):
         _ = list(stream)
@@ -590,8 +588,9 @@ def test_stream_query_break_releases_reader(cluster, native_cluster, table, inte
             kept = batch[column_name]
             break
 
-    with pytest.raises(quasardb.UninitializedError):
-        _ = list(stream)
+    if isinstance(cluster, quasardb.quasardb.Cluster):
+        with pytest.raises(quasardb.UninitializedError):
+            list(stream)
 
     assert isinstance(kept, ma.MaskedArray)
     assert len(kept) > 0
@@ -600,17 +599,21 @@ def test_stream_query_break_releases_reader(cluster, native_cluster, table, inte
     assert np.isfinite(kept.sum())
 
 
-# pybind instances have no __dict__, so the reader cannot be recorded on the
-# C++ connection itself; delegate stream_query and capture the returned
-# reader instead.
+# Native pybind connections have no __dict__, so record stream context exit
+# on a wrapper shared by the native and REST tests.
 class _RecordingConnection:
     def __init__(self, conn):
         self._conn = conn
         self.reader = None
+        self.exited = False
 
+    @contextmanager
     def stream_query(self, *args, **kwargs):
-        self.reader = self._conn.stream_query(*args, **kwargs)
-        return self.reader
+        try:
+            with self._conn.stream_query(*args, **kwargs) as self.reader:
+                yield self.reader
+        finally:
+            self.exited = True
 
 
 # Contract: a break alone does not close a generator; gen.close() raises
@@ -628,7 +631,10 @@ def test_qdbnp_stream_query_generator_close_releases_reader(
     shim = _RecordingConnection(cluster)
     gen = qdbnp.stream_query(shim, query, batch_size=32)
     next(gen)
+    assert not shim.exited
     gen.close()
 
-    with pytest.raises(quasardb.UninitializedError):
-        _ = list(shim.reader)
+    assert shim.exited
+    if isinstance(cluster, quasardb.quasardb.Cluster):
+        with pytest.raises(quasardb.UninitializedError):
+            list(shim.reader)
