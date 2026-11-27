@@ -98,13 +98,11 @@ def _credentials(
             raise InvalidArgumentError(
                 "Unable to read a valid user security file"
             ) from None
-        if not isinstance(user_name, str) or not isinstance(user_private_key, str):
+        if not all(
+            isinstance(value, str) and value for value in (user_name, user_private_key)
+        ):
             raise InvalidArgumentError(
-                "Security file username and secret_key must be strings"
-            )
-        if not user_name or not user_private_key:
-            raise InvalidArgumentError(
-                "Security file username and secret_key must be nonempty"
+                "Security file credentials must be nonempty strings"
             )
     if bool(user_name) != bool(user_private_key):
         raise InvalidArgumentError("Provide both user_name and user_private_key")
@@ -345,12 +343,12 @@ class RestCluster:
             if response.status_code != 200:
                 self._raise_http_error(response, query=True)
             chunks = response.iter_raw()
-            with io.BufferedReader(_ArrowInput(chunks)) as source:
-                with pa.ipc.open_stream(source) as reader, closing(
-                    _stream_batches(reader, response, chunks)
-                ) as batches:
-                    logger.debug("REST query stream opened")
-                    yield batches
+            source = io.BufferedReader(_ArrowInput(chunks))
+            with source, pa.ipc.open_stream(source) as reader, closing(
+                _stream_batches(reader, response, chunks)
+            ) as batches:
+                logger.debug("REST query stream opened")
+                yield batches
 
 
 def _masked_array(array: pa.Array) -> MaskedArrayAny:
