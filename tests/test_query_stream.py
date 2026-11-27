@@ -37,17 +37,17 @@ def _concat_column(batches, column_name):
 
 @pytest.mark.parametrize("value_type", all_value_types)
 def test_stream_query_equals_query_numpy(
-    query_connection, value_type, qdbd_connection, table, intervals
+    cluster, value_type, native_cluster, table, intervals
 ):
     qlib._insert_points(
-        value_type, qdbd_connection, table, intervals=intervals, points=100
+        value_type, native_cluster, table, intervals=intervals, points=100
     )
     column_name = qlib._column_name(table, value_type)
     query = _select_column_query(table, column_name)
 
-    expected = dict(qdbd_connection.query_numpy(query))
+    expected = dict(native_cluster.query_numpy(query))
 
-    batches = _stream_batches(query_connection, query, batch_size=32)
+    batches = _stream_batches(cluster, query, batch_size=32)
     streamed = _concat_column(batches, column_name)
 
     assert streamed.dtype.kind == expected[column_name].dtype.kind
@@ -59,8 +59,8 @@ def test_stream_query_equals_query_numpy(
 
 
 def test_stream_query_batching_contract(
-    query_connection,
-    qdbd_connection,
+    cluster,
+    native_cluster,
     table,
     intervals,
     row_count,
@@ -68,7 +68,7 @@ def test_stream_query_batching_contract(
 ):
     qlib._insert_points(
         "double",
-        qdbd_connection,
+        native_cluster,
         table,
         intervals=intervals,
         points=row_count,
@@ -76,8 +76,8 @@ def test_stream_query_batching_contract(
     column_name = qlib._column_name(table, "double")
     query = _select_column_query(table, column_name)
 
-    with query_connection.stream_query(query, batch_size=reader_batch_size) as stream:
-        if isinstance(query_connection, quasardb.NativeCluster):
+    with cluster.stream_query(query, batch_size=reader_batch_size) as stream:
+        if isinstance(cluster, quasardb.NativeCluster):
             assert stream.get_batch_size() == reader_batch_size
         else:
             # REST keeps the server's Arrow batch boundaries. Zero reports that
@@ -89,9 +89,9 @@ def test_stream_query_batching_contract(
     assert sum(len(batch[column_name]) for batch in batches) == row_count
     assert_ma_equal(
         _concat_column(batches, column_name),
-        dict(qdbd_connection.query_numpy(query))[column_name],
+        dict(native_cluster.query_numpy(query))[column_name],
     )
-    if isinstance(query_connection, quasardb.NativeCluster):
+    if isinstance(cluster, quasardb.NativeCluster):
         expected_batch_count = math.ceil(row_count / reader_batch_size)
         assert len(batches) == expected_batch_count
         for batch in batches[:-1]:
@@ -101,12 +101,12 @@ def test_stream_query_batching_contract(
 
 
 def test_stream_query_zero_batch_size_yields_single_batch(
-    query_connection, qdbd_connection, table, intervals
+    cluster, native_cluster, table, intervals
 ):
     row_count = 100
     qlib._insert_points(
         "double",
-        qdbd_connection,
+        native_cluster,
         table,
         intervals=intervals,
         points=row_count,
@@ -114,14 +114,14 @@ def test_stream_query_zero_batch_size_yields_single_batch(
     column_name = qlib._column_name(table, "double")
     query = _select_column_query(table, column_name)
 
-    with query_connection.stream_query(query) as stream:
+    with cluster.stream_query(query) as stream:
         assert stream.get_batch_size() == 0
         batches = list(stream)
 
     assert sum(len(batch[column_name]) for batch in batches) == row_count
     # Native zero requests the complete result in one batch. The REST
     # server may split these rows across any number of Arrow batches.
-    if isinstance(query_connection, quasardb.NativeCluster):
+    if isinstance(cluster, quasardb.NativeCluster):
         assert len(batches) == 1
         assert len(batches[0][column_name]) == row_count
 
@@ -130,24 +130,20 @@ def test_stream_query_zero_batch_size_yields_single_batch(
 # Argument handling
 
 
-def test_stream_query_batch_size_is_keyword_only(
-    query_connection, qdbd_connection, table
-):
+def test_stream_query_batch_size_is_keyword_only(cluster, native_cluster, table):
     query = 'SELECT * FROM "{}"'.format(table.get_name())
 
     with pytest.raises(TypeError):
-        query_connection.stream_query(query, 100)
+        cluster.stream_query(query, 100)
 
 
 ##
 # Lifecycle errors
 
 
-def test_stream_query_cannot_iterate_without_enter(
-    query_connection, qdbd_connection, table
-):
+def test_stream_query_cannot_iterate_without_enter(cluster, native_cluster, table):
     query = 'SELECT * FROM "{}"'.format(table.get_name())
-    stream = query_connection.stream_query(query)
+    stream = cluster.stream_query(query)
 
     with pytest.raises(quasardb.UninitializedError):
         _ = list(stream)
@@ -162,24 +158,22 @@ def test_query_reader_cannot_be_instantiated_directly():
 # Empty result
 
 
-def test_stream_query_empty_result_yields_zero_batches(
-    query_connection, qdbd_connection, table
-):
+def test_stream_query_empty_result_yields_zero_batches(cluster, native_cluster, table):
     query = 'SELECT * FROM "{}" IN RANGE(2016-01-01, 2016-12-12)'.format(
         table.get_name()
     )
 
-    with query_connection.stream_query(query) as stream:
+    with cluster.stream_query(query) as stream:
         assert list(stream) == []
 
 
-def test_stream_query_dml_yields_zero_batches(query_connection, qdbd_connection, table):
+def test_stream_query_dml_yields_zero_batches(cluster, native_cluster, table):
     # DML statements return no result set: the C result stays NULL.
     query = 'INSERT INTO "{}" ($timestamp, "{}") VALUES (NOW(), 1.0)'.format(
         table.get_name(), tslib._double_col_name(table)
     )
 
-    with query_connection.stream_query(query) as stream:
+    with cluster.stream_query(query) as stream:
         assert list(stream) == []
 
 
@@ -188,7 +182,7 @@ def test_stream_query_dml_yields_zero_batches(query_connection, qdbd_connection,
 
 
 def test_stream_query_schema_stable_when_first_batch_all_null(
-    query_connection, qdbd_connection, table, intervals
+    cluster, native_cluster, table, intervals
 ):
     start_time = tslib._start_time(intervals)
     row_count = 100
@@ -203,10 +197,10 @@ def test_stream_query_schema_stable_when_first_batch_all_null(
     xs = ma.array(data=values, mask=mask)
 
     column_name = tslib._double_col_name(table)
-    qlib._write_points(qdbd_connection, table, column_name, (timestamps, xs))
+    qlib._write_points(native_cluster, table, column_name, (timestamps, xs))
 
     query = _select_column_query(table, column_name)
-    batches = _stream_batches(query_connection, query, batch_size=batch_size)
+    batches = _stream_batches(cluster, query, batch_size=batch_size)
 
     assert sum(len(batch[column_name]) for batch in batches) == row_count
     offset = 0
@@ -216,29 +210,29 @@ def test_stream_query_schema_stable_when_first_batch_all_null(
         assert array.dtype == np.dtype("float64")
         np.testing.assert_array_equal(array.mask, mask[offset : offset + len(array)])
         offset += len(array)
-    if isinstance(query_connection, quasardb.NativeCluster):
+    if isinstance(cluster, quasardb.NativeCluster):
         assert len(batches) == 2
         assert ma.count_masked(batches[0][column_name]) == batch_size
         assert ma.count_masked(batches[1][column_name]) == 0
 
 
 def test_stream_query_entirely_null_column_preserves_mask(
-    query_connection, qdbd_connection, table, intervals
+    cluster, native_cluster, table, intervals
 ):
     # Writing doubles creates rows; selecting a column that was never written
     # yields all-null cells for those rows.
     qlib._insert_points(
-        "double", qdbd_connection, table, intervals=intervals, points=100
+        "double", native_cluster, table, intervals=intervals, points=100
     )
     column_name = tslib._int64_col_name(table)
     query = _select_column_query(table, column_name)
 
-    batches = _stream_batches(query_connection, query, batch_size=50)
+    batches = _stream_batches(cluster, query, batch_size=50)
 
     assert sum(len(batch[column_name]) for batch in batches) == 100
     # The native schema probe falls back to float64 when it sees only nulls.
     # The REST Arrow schema carries the column's declared int64 type.
-    if isinstance(query_connection, quasardb.NativeCluster):
+    if isinstance(cluster, quasardb.NativeCluster):
         assert len(batches) == 2
         expected_dtype = np.dtype("float64")
     else:
@@ -256,36 +250,36 @@ def test_stream_query_entirely_null_column_preserves_mask(
 
 
 def test_stream_query_mixed_type_column_raises(
-    query_connection, qdbd_connection, entry_name, intervals
+    cluster, native_cluster, entry_name, intervals
 ):
     start_time = tslib._start_time(intervals)
 
     t1_name = entry_name + "_double"
     t2_name = entry_name + "_blob"
 
-    t1 = qdbd_connection.table(t1_name)
+    t1 = native_cluster.table(t1_name)
     t1.create([quasardb.ColumnInfo(quasardb.ColumnType.Double, "the_col")])
-    t2 = qdbd_connection.table(t2_name)
+    t2 = native_cluster.table(t2_name)
     t2.create([quasardb.ColumnInfo(quasardb.ColumnType.Blob, "the_col")])
 
     qlib._write_points(
-        qdbd_connection, t1, "the_col", tslib._generate_double_ts(start_time, 1)
+        native_cluster, t1, "the_col", tslib._generate_double_ts(start_time, 1)
     )
     qlib._write_points(
-        qdbd_connection, t2, "the_col", tslib._generate_blob_ts(start_time, 1)
+        native_cluster, t2, "the_col", tslib._generate_blob_ts(start_time, 1)
     )
 
     query = 'SELECT the_col FROM "{}", "{}"'.format(t1_name, t2_name)
 
-    if isinstance(query_connection, quasardb.NativeCluster):
+    if isinstance(cluster, quasardb.NativeCluster):
         # Native results carry a tag per cell. The mismatch surfaces during iteration.
-        with query_connection.stream_query(query) as stream:
+        with cluster.stream_query(query) as stream:
             with pytest.raises(quasardb.IncompatibleTypeError):
                 list(stream)
     else:
         # qdb-rest rejects the mixed column with HTTP 400 before sending an Arrow schema.
         with pytest.raises(quasardb.InvalidQueryError):
-            with query_connection.stream_query(query):
+            with cluster.stream_query(query):
                 pass
 
 
@@ -295,19 +289,17 @@ def test_stream_query_mixed_type_column_raises(
 
 @pytest.mark.parametrize("value_type", all_value_types)
 def test_qdbnp_stream_query_equals_query(
-    query_connection, value_type, qdbd_connection, table, intervals
+    cluster, value_type, native_cluster, table, intervals
 ):
     qlib._insert_points(
-        value_type, qdbd_connection, table, intervals=intervals, points=100
+        value_type, native_cluster, table, intervals=intervals, points=100
     )
     column_name = qlib._column_name(table, value_type)
     query = _select_column_query(table, column_name)
 
-    (expected_idx, expected_cols) = qdbnp.query(query_connection, query, dict=True)
+    (expected_idx, expected_cols) = qdbnp.query(cluster, query, dict=True)
 
-    batches = list(
-        qdbnp.stream_query(query_connection, query, dict=True, batch_size=32)
-    )
+    batches = list(qdbnp.stream_query(cluster, query, dict=True, batch_size=32))
 
     streamed_idx = np.concatenate([idx for (idx, _) in batches])
     streamed_col = ma.concatenate([cols[column_name] for (_, cols) in batches])
@@ -317,14 +309,14 @@ def test_qdbnp_stream_query_equals_query(
 
 
 def test_qdbnp_stream_query_default_index_is_offset_aware(
-    query_connection, qdbd_connection, table, intervals
+    cluster, native_cluster, table, intervals
 ):
     row_count = 100
     batch_size = 32
 
     qlib._insert_points(
         "double",
-        qdbd_connection,
+        native_cluster,
         table,
         intervals=intervals,
         points=row_count,
@@ -334,7 +326,7 @@ def test_qdbnp_stream_query_default_index_is_offset_aware(
 
     idx_batches = []
     offset = 0
-    for idx, _ in qdbnp.stream_query(query_connection, query, batch_size=batch_size):
+    for idx, _ in qdbnp.stream_query(cluster, query, batch_size=batch_size):
         np.testing.assert_array_equal(idx, np.arange(offset, offset + len(idx)))
         idx_batches.append(idx)
         offset += len(idx)
@@ -342,20 +334,18 @@ def test_qdbnp_stream_query_default_index_is_offset_aware(
     np.testing.assert_array_equal(np.concatenate(idx_batches), np.arange(row_count))
 
 
-def test_qdbnp_stream_query_named_index(
-    query_connection, qdbd_connection, table, intervals
-):
+def test_qdbnp_stream_query_named_index(cluster, native_cluster, table, intervals):
     qlib._insert_points(
-        "double", qdbd_connection, table, intervals=intervals, points=100
+        "double", native_cluster, table, intervals=intervals, points=100
     )
     column_name = qlib._column_name(table, "double")
     query = 'SELECT $timestamp, "{}" FROM "{}"'.format(column_name, table.get_name())
 
-    (expected_idx, _) = qdbnp.query(query_connection, query, index="$timestamp")
+    (expected_idx, _) = qdbnp.query(cluster, query, index="$timestamp")
 
     idx_batches = []
     for idx, cols in qdbnp.stream_query(
-        query_connection, query, index="$timestamp", dict=True, batch_size=32
+        cluster, query, index="$timestamp", dict=True, batch_size=32
     ):
         assert idx.dtype.kind == "M"
         assert "$timestamp" not in cols
@@ -365,66 +355,64 @@ def test_qdbnp_stream_query_named_index(
 
 
 def test_qdbnp_stream_query_dict_and_list_shapes(
-    query_connection, qdbd_connection, table, intervals
+    cluster, native_cluster, table, intervals
 ):
     qlib._insert_points(
-        "double", qdbd_connection, table, intervals=intervals, points=100
+        "double", native_cluster, table, intervals=intervals, points=100
     )
     column_name = qlib._column_name(table, "double")
     query = 'SELECT $timestamp, "{}" FROM "{}"'.format(column_name, table.get_name())
 
     for _, cols in qdbnp.stream_query(
-        query_connection, query, index="$timestamp", dict=True, batch_size=32
+        cluster, query, index="$timestamp", dict=True, batch_size=32
     ):
         assert isinstance(cols, dict)
         assert list(cols.keys()) == [column_name]
 
     for _, cols in qdbnp.stream_query(
-        query_connection, query, index="$timestamp", dict=False, batch_size=32
+        cluster, query, index="$timestamp", dict=False, batch_size=32
     ):
         assert isinstance(cols, list)
         assert len(cols) == 1
 
 
 def test_qdbnp_stream_query_empty_result_yields_zero_batches(
-    query_connection, qdbd_connection, table
+    cluster, native_cluster, table
 ):
     query = 'SELECT * FROM "{}" IN RANGE(2016-01-01, 2016-12-12)'.format(
         table.get_name()
     )
 
-    assert list(qdbnp.stream_query(query_connection, query)) == []
+    assert list(qdbnp.stream_query(cluster, query)) == []
 
 
-def test_qdbnp_stream_query_dml_yields_zero_batches(
-    query_connection, qdbd_connection, table
-):
+def test_qdbnp_stream_query_dml_yields_zero_batches(cluster, native_cluster, table):
     query = 'INSERT INTO "{}" ($timestamp, "{}") VALUES (NOW(), 1.0)'.format(
         table.get_name(), tslib._double_col_name(table)
     )
 
-    assert list(qdbnp.stream_query(query_connection, query)) == []
+    assert list(qdbnp.stream_query(cluster, query)) == []
 
 
 def test_qdbnp_stream_query_masked_named_index_raises(
-    query_connection, qdbd_connection, table, intervals
+    cluster, native_cluster, table, intervals
 ):
     # Writing doubles creates rows; the int64 column was never written, so
     # selecting it yields an all-null (fully masked) column, which is invalid
     # as an index.
     qlib._insert_points(
-        "double", qdbd_connection, table, intervals=intervals, points=100
+        "double", native_cluster, table, intervals=intervals, points=100
     )
     column_name = tslib._int64_col_name(table)
     query = _select_column_query(table, column_name)
 
     with pytest.raises(ValueError):
-        list(qdbnp.stream_query(query_connection, query, index=column_name))
+        list(qdbnp.stream_query(cluster, query, index=column_name))
 
 
 def test_qdbnp_query_equals_stream_query_concat(
-    query_connection,
-    qdbd_connection,
+    cluster,
+    native_cluster,
     table,
     intervals,
     row_count,
@@ -432,7 +420,7 @@ def test_qdbnp_query_equals_stream_query_concat(
 ):
     qlib._insert_points(
         "double",
-        qdbd_connection,
+        native_cluster,
         table,
         intervals=intervals,
         points=row_count,
@@ -440,15 +428,13 @@ def test_qdbnp_query_equals_stream_query_concat(
     column_name = qlib._column_name(table, "double")
     query = _select_column_query(table, column_name)
 
-    (expected_idx, expected_cols) = qdbnp.query(query_connection, query, dict=True)
+    (expected_idx, expected_cols) = qdbnp.query(cluster, query, dict=True)
 
     batches = list(
-        qdbnp.stream_query(
-            query_connection, query, dict=True, batch_size=reader_batch_size
-        )
+        qdbnp.stream_query(cluster, query, dict=True, batch_size=reader_batch_size)
     )
     assert all(len(idx) > 0 for idx, _ in batches)
-    if isinstance(query_connection, quasardb.NativeCluster):
+    if isinstance(cluster, quasardb.NativeCluster):
         assert all(len(idx) <= reader_batch_size for idx, _ in batches)
         assert len(batches) == math.ceil(row_count / reader_batch_size)
 
@@ -466,8 +452,8 @@ def test_qdbnp_query_equals_stream_query_concat(
 # Contract: qdbpd.query() is exactly the concatenation of qdbpd.stream_query()
 # batches. Native batches respect the requested size.
 def test_qdbpd_query_equals_stream_query_concat(
-    query_connection,
-    qdbd_connection,
+    cluster,
+    native_cluster,
     table,
     intervals,
     row_count,
@@ -475,7 +461,7 @@ def test_qdbpd_query_equals_stream_query_concat(
 ):
     qlib._insert_points(
         "double",
-        qdbd_connection,
+        native_cluster,
         table,
         intervals=intervals,
         points=row_count,
@@ -483,31 +469,29 @@ def test_qdbpd_query_equals_stream_query_concat(
     column_name = qlib._column_name(table, "double")
     query = _select_column_query(table, column_name)
 
-    batches = list(
-        qdbpd.stream_query(query_connection, query, batch_size=reader_batch_size)
-    )
-    if isinstance(query_connection, quasardb.NativeCluster):
+    batches = list(qdbpd.stream_query(cluster, query, batch_size=reader_batch_size))
+    if isinstance(cluster, quasardb.NativeCluster):
         assert len(batches) == math.ceil(row_count / reader_batch_size)
         assert all(len(df.index) <= reader_batch_size for df in batches)
     assert all(len(df.index) > 0 for df in batches)
 
-    expected = qdbpd.query(query_connection, query)
+    expected = qdbpd.query(cluster, query)
     pd.testing.assert_frame_equal(pd.concat(batches), expected)
 
 
 # Contract: stream/concat equivalence holds for every column value type.
 @pytest.mark.parametrize("value_type", all_value_types)
 def test_qdbpd_query_all_value_types(
-    query_connection, value_type, qdbd_connection, table, intervals
+    cluster, value_type, native_cluster, table, intervals
 ):
     qlib._insert_points(
-        value_type, qdbd_connection, table, intervals=intervals, points=100
+        value_type, native_cluster, table, intervals=intervals, points=100
     )
     column_name = qlib._column_name(table, value_type)
     query = _select_column_query(table, column_name)
 
-    expected = qdbpd.query(query_connection, query)
-    streamed = pd.concat(qdbpd.stream_query(query_connection, query, batch_size=32))
+    expected = qdbpd.query(cluster, query)
+    streamed = pd.concat(qdbpd.stream_query(cluster, query, batch_size=32))
 
     # String-like columns may differ in exact `U<n>` width across code paths;
     # only the dtype kind is contractual.
@@ -519,15 +503,13 @@ def test_qdbpd_query_all_value_types(
 
 # Contract: the default index is a running 0..n-1 named "$index" that
 # continues across batches.
-def test_qdbpd_stream_query_default_index(
-    query_connection, qdbd_connection, table, intervals
-):
+def test_qdbpd_stream_query_default_index(cluster, native_cluster, table, intervals):
     row_count = 100
     batch_size = 32
 
     qlib._insert_points(
         "double",
-        qdbd_connection,
+        native_cluster,
         table,
         intervals=intervals,
         points=row_count,
@@ -537,7 +519,7 @@ def test_qdbpd_stream_query_default_index(
 
     batches = []
     offset = 0
-    for df in qdbpd.stream_query(query_connection, query, batch_size=batch_size):
+    for df in qdbpd.stream_query(cluster, query, batch_size=batch_size):
         assert df.index.name == "$index"
         np.testing.assert_array_equal(
             df.index.to_numpy(), np.arange(offset, offset + len(df))
@@ -552,18 +534,14 @@ def test_qdbpd_stream_query_default_index(
 
 # Contract: a named index column becomes the DataFrame index and is removed
 # from the columns.
-def test_qdbpd_stream_query_named_index(
-    query_connection, qdbd_connection, table, intervals
-):
+def test_qdbpd_stream_query_named_index(cluster, native_cluster, table, intervals):
     qlib._insert_points(
-        "double", qdbd_connection, table, intervals=intervals, points=100
+        "double", native_cluster, table, intervals=intervals, points=100
     )
     column_name = qlib._column_name(table, "double")
     query = 'SELECT $timestamp, "{}" FROM "{}"'.format(column_name, table.get_name())
 
-    for df in qdbpd.stream_query(
-        query_connection, query, index="$timestamp", batch_size=32
-    ):
+    for df in qdbpd.stream_query(cluster, query, index="$timestamp", batch_size=32):
         assert df.index.name == "$timestamp"
         assert df.index.dtype.kind == "M"
         assert "$timestamp" not in df.columns
@@ -571,27 +549,25 @@ def test_qdbpd_stream_query_named_index(
 
 # Contract: an empty result streams zero DataFrames, while query() preserves
 # the legacy empty shape (empty frame with named index).
-def test_qdbpd_query_empty_result(query_connection, qdbd_connection, table):
+def test_qdbpd_query_empty_result(cluster, native_cluster, table):
     query = 'SELECT * FROM "{}" IN RANGE(2016-01-01, 2016-12-12)'.format(
         table.get_name()
     )
 
-    assert list(qdbpd.stream_query(query_connection, query)) == []
+    assert list(qdbpd.stream_query(cluster, query)) == []
 
-    df = qdbpd.query(query_connection, query)
+    df = qdbpd.query(cluster, query)
     assert len(df) == 0
     assert df.index.name == "$index"
 
 
 # Contract: DML statements yield zero DataFrames.
-def test_qdbpd_stream_query_dml_yields_zero_batches(
-    query_connection, qdbd_connection, table
-):
+def test_qdbpd_stream_query_dml_yields_zero_batches(cluster, native_cluster, table):
     query = 'INSERT INTO "{}" ($timestamp, "{}") VALUES (NOW(), 1.0)'.format(
         table.get_name(), tslib._double_col_name(table)
     )
 
-    assert list(qdbpd.stream_query(query_connection, query)) == []
+    assert list(qdbpd.stream_query(cluster, query)) == []
 
 
 ##
@@ -601,17 +577,15 @@ def test_qdbpd_stream_query_dml_yields_zero_batches(
 # Contract: __exit__ runs close() regardless of how the block is left, so a
 # break releases the C result at the with-block boundary. Batches already
 # yielded retain their buffers and stay valid after release.
-def test_stream_query_break_releases_reader(
-    query_connection, qdbd_connection, table, intervals
-):
+def test_stream_query_break_releases_reader(cluster, native_cluster, table, intervals):
     qlib._insert_points(
-        "double", qdbd_connection, table, intervals=intervals, points=100
+        "double", native_cluster, table, intervals=intervals, points=100
     )
     column_name = qlib._column_name(table, "double")
     query = _select_column_query(table, column_name)
 
     kept = None
-    with query_connection.stream_query(query, batch_size=32) as stream:
+    with cluster.stream_query(query, batch_size=32) as stream:
         for batch in stream:
             kept = batch[column_name]
             break
@@ -621,7 +595,7 @@ def test_stream_query_break_releases_reader(
 
     assert isinstance(kept, ma.MaskedArray)
     assert len(kept) > 0
-    if isinstance(query_connection, quasardb.NativeCluster):
+    if isinstance(cluster, quasardb.NativeCluster):
         assert len(kept) == 32
     assert np.isfinite(kept.sum())
 
@@ -643,15 +617,15 @@ class _RecordingConnection:
 # GeneratorExit at the suspended yield inside the generator's with-block,
 # which runs the reader's __exit__ and releases the C result.
 def test_qdbnp_stream_query_generator_close_releases_reader(
-    query_connection, qdbd_connection, table, intervals
+    cluster, native_cluster, table, intervals
 ):
     qlib._insert_points(
-        "double", qdbd_connection, table, intervals=intervals, points=100
+        "double", native_cluster, table, intervals=intervals, points=100
     )
     column_name = qlib._column_name(table, "double")
     query = _select_column_query(table, column_name)
 
-    shim = _RecordingConnection(query_connection)
+    shim = _RecordingConnection(cluster)
     gen = qdbnp.stream_query(shim, query, batch_size=32)
     next(gen)
     gen.close()

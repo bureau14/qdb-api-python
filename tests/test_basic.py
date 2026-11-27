@@ -15,5 +15,5 @@ def test_version():
     assert len(build) > 0
 
 
-def test_can_purge_all(qdbd_secure_connection):
-    qdbd_secure_connection.purge_all(datetime.timedelta(minutes=1))
+def test_can_purge_all(native_secure_cluster):
+    native_secure_cluster.purge_all(datetime.timedelta(minutes=1))

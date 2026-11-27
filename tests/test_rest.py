@@ -22,19 +22,17 @@ def _answer(conn):
         return list(stream)[0]["answer"].tolist()
 
 
-def test_dispatch_and_concrete_construction(
-    query_connection, query_connection_settings
-):
-    settings = query_connection_settings
+def test_dispatch_and_concrete_construction(cluster, cluster_settings):
+    settings = cluster_settings
     concrete = (
         quasardb.RestCluster
         if settings["uri"].startswith("http")
         else quasardb.NativeCluster
     )
-    assert type(query_connection) is concrete
-    assert isinstance(query_connection, quasardb.Cluster)
+    assert type(cluster) is concrete
+    assert isinstance(cluster, quasardb.Cluster)
     assert issubclass(concrete, quasardb.Cluster)
-    assert _answer(query_connection) == [42]
+    assert _answer(cluster) == [42]
     with concrete(**settings) as conn:
         assert conn.uri() == settings["uri"]
         assert _answer(conn) == [42]
@@ -42,8 +40,8 @@ def test_dispatch_and_concrete_construction(
     conn.close()
 
 
-def test_refresh_and_relogin(rest_connection):
-    conn = rest_connection
+def test_refresh_and_relogin(rest_cluster):
+    conn = rest_cluster
     conn._access_token = "invalid-access-token"
     assert _answer(conn) == [42]
     assert conn._access_token != "invalid-access-token"
@@ -66,8 +64,8 @@ def test_encryption_requires_https(constructor):
         getattr(quasardb, constructor)("http://127.0.0.1", enable_encryption=True)
 
 
-def test_credentials_file(rest_connection_settings, tmp_path):
-    settings = rest_connection_settings
+def test_credentials_file(rest_cluster_settings, tmp_path):
+    settings = rest_cluster_settings
     credentials = tmp_path / "user.json"
     credentials.write_text(
         json.dumps(
@@ -118,14 +116,14 @@ def test_malformed_credentials_file(tmp_path, contents):
         quasardb.RestCluster("http://127.0.0.1", user_security_file=str(credentials))
 
 
-def test_invalid_query(rest_connection):
+def test_invalid_query(rest_cluster):
     with pytest.raises(quasardb.InvalidQueryError, match="400"):
-        with rest_connection.stream_query("THIS IS NOT SQL"):
+        with rest_cluster.stream_query("THIS IS NOT SQL"):
             pass
 
 
-def test_reader_releases_response_at_eof_and_closes_on_exit(rest_connection):
-    with rest_connection.stream_query("SELECT 42 AS answer") as reader:
+def test_reader_releases_response_at_eof_and_closes_on_exit(rest_cluster):
+    with rest_cluster.stream_query("SELECT 42 AS answer") as reader:
         assert next(reader)["answer"].tolist() == [42]
         with pytest.raises(StopIteration):
             next(reader)
@@ -136,20 +134,20 @@ def test_reader_releases_response_at_eof_and_closes_on_exit(rest_connection):
         next(reader)
 
 
-def test_close_active_reader(rest_connection):
-    reader = rest_connection.stream_query("SELECT 42 AS answer")
+def test_close_active_reader(rest_cluster):
+    reader = rest_cluster.stream_query("SELECT 42 AS answer")
     with reader:
         kept = next(reader)["answer"]
-        rest_connection.close()
+        rest_cluster.close()
         assert reader._response is None
         assert reader._reader is None
-        assert not rest_connection._access_token
-        assert not rest_connection._credentials
+        assert not rest_cluster._access_token
+        assert not rest_cluster._credentials
         with pytest.raises(quasardb.UninitializedError):
             next(reader)
     assert kept.tolist() == [42]
     with pytest.raises(quasardb.InvalidHandleError):
-        rest_connection.stream_query("SELECT 1")
+        rest_cluster.stream_query("SELECT 1")
 
 
 unsupported = [
@@ -202,10 +200,10 @@ unsupported = [
 ]
 
 
-def test_unsupported_methods(rest_connection):
+def test_unsupported_methods(rest_cluster):
     for method, args in unsupported:
         with pytest.raises(NotImplementedError):
-            getattr(rest_connection, method)(*args)
+            getattr(rest_cluster, method)(*args)
 
 
 @pytest.mark.parametrize(
@@ -215,10 +213,10 @@ def test_unsupported_methods(rest_connection):
         ("#sql SELECT CAST('nan' AS DOUBLE) AS value", "f"),
     ],
 )
-def test_rest_sentinels_are_values(rest_connection, query, kind):
+def test_rest_sentinels_are_values(rest_cluster, query, kind):
     # Native writes turn these values into nulls. DuckDB literals let us check
     # that the Python client preserves a valid NaN and minimum int64.
-    with rest_connection.stream_query(query) as stream:
+    with rest_cluster.stream_query(query) as stream:
         array = next(stream)["value"]
         assert array.dtype.kind == kind
         assert not array.mask[0]
@@ -228,7 +226,7 @@ def test_rest_sentinels_are_values(rest_connection, query, kind):
             assert np.isnan(array[0])
 
 
-def test_large_query_preserves_values(query_connection, qdbd_connection, table):
+def test_large_query_preserves_values(cluster, native_cluster, table):
     """Reassemble every row in order, regardless of where the transport splits batches."""
     count = 2**16 + 7
     timestamps = np.datetime64("2020-01-01", "ns") + np.arange(count).astype(
@@ -237,13 +235,13 @@ def test_large_query_preserves_values(query_connection, qdbd_connection, table):
     expected = np.arange(count, dtype="int64")
     from test_query import _write_points
 
-    _write_points(qdbd_connection, table, "the_int64", (timestamps, expected))
+    _write_points(native_cluster, table, "the_int64", (timestamps, expected))
     query = 'SELECT the_int64 FROM "{}"'.format(table.get_name())
     for size in (0, 10000):
-        with query_connection.stream_query(query, batch_size=size) as stream:
+        with cluster.stream_query(query, batch_size=size) as stream:
             batches = [batch["the_int64"] for batch in stream]
         assert all(len(array) > 0 for array in batches)
-        if size and isinstance(query_connection, quasardb.NativeCluster):
+        if size and isinstance(cluster, quasardb.NativeCluster):
             assert all(len(array) <= size for array in batches)
         actual = np.ma.concatenate(batches)
         assert not np.any(actual.mask)

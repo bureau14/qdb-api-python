@@ -55,7 +55,7 @@ _REST_ENDPOINTS = {
 }
 
 
-def _query_connection_settings(variant, qdbd_settings):
+def _cluster_settings(variant, qdbd_settings):
     _, security = variant.rsplit("-", 1)
     connection = {"uri": qdbd_settings["uri"][security]}
     if security == "secure":
@@ -80,13 +80,13 @@ def _query_connection_settings(variant, qdbd_settings):
 @pytest.fixture(
     scope="module", params=("native-insecure", "native-secure") + tuple(_REST_ENDPOINTS)
 )
-def query_connection_settings(request, qdbd_settings):
-    return _query_connection_settings(request.param, qdbd_settings)
+def cluster_settings(request, qdbd_settings):
+    return _cluster_settings(request.param, qdbd_settings)
 
 
 @pytest.fixture(scope="module", params=tuple(_REST_ENDPOINTS))
-def rest_connection_settings(request, qdbd_settings):
-    return _query_connection_settings(request.param, qdbd_settings)
+def rest_cluster_settings(request, qdbd_settings):
+    return _cluster_settings(request.param, qdbd_settings)
 
 
 @pytest.fixture(scope="module")
@@ -104,24 +104,32 @@ def create_qdbd_connection(settings, purge=False):
 
 
 @pytest.fixture(scope="module")
-def qdbd_insecure_connection(qdbd_settings):
+def native_insecure_cluster(qdbd_settings):
     with create_qdbd_connection(qdbd_settings, purge=True) as conn:
         yield conn
 
 
 @pytest.fixture
-def qdbd_connection(request):
+def native_cluster(request):
     # Table and writer fixtures need the native backend paired with the query.
     # Resolve the optional fixture dynamically so native-only tests run once.
-    if "query_connection_settings" in request.fixturenames:
-        settings = request.getfixturevalue("query_connection_settings")
-        if "user_name" in settings:
-            return request.getfixturevalue("qdbd_secure_connection")
-    return request.getfixturevalue("qdbd_insecure_connection")
+    for settings_name in ("cluster_settings", "rest_cluster_settings"):
+        if (
+            settings_name in request.fixturenames
+            and "user_name" in request.getfixturevalue(settings_name)
+        ):
+            return request.getfixturevalue("native_secure_cluster")
+    return request.getfixturevalue("native_insecure_cluster")
+
+
+@pytest.fixture
+def qdbd_connection(native_cluster):
+    # Established native-only modules still use this fixture name.
+    return native_cluster
 
 
 @pytest.fixture(scope="module")
-def qdbd_secure_connection(qdbd_settings):
+def native_secure_cluster(qdbd_settings):
     conn = quasardb.Cluster(
         uri=qdbd_settings.get("uri").get("secure"),
         user_name=qdbd_settings.get("security").get("user_name"),
@@ -232,28 +240,28 @@ def random_timestamp(datetime_now_tz):
 
 
 @pytest.fixture
-def blob_entry(qdbd_connection, entry_name):
-    return qdbd_connection.blob(entry_name)
+def blob_entry(native_cluster, entry_name):
+    return native_cluster.blob(entry_name)
 
 
 @pytest.fixture
-def string_entry(qdbd_connection, entry_name):
-    return qdbd_connection.string(entry_name)
+def string_entry(native_cluster, entry_name):
+    return native_cluster.string(entry_name)
 
 
 @pytest.fixture
-def integer_entry(qdbd_connection, entry_name):
-    return qdbd_connection.integer(entry_name)
+def integer_entry(native_cluster, entry_name):
+    return native_cluster.integer(entry_name)
 
 
 @pytest.fixture
-def double_entry(qdbd_connection, entry_name):
-    return qdbd_connection.double(entry_name)
+def double_entry(native_cluster, entry_name):
+    return native_cluster.double(entry_name)
 
 
 @pytest.fixture
-def timestamp_entry(qdbd_connection, entry_name):
-    return qdbd_connection.timestamp(entry_name)
+def timestamp_entry(native_cluster, entry_name):
+    return native_cluster.timestamp(entry_name)
 
 
 @pytest.fixture
@@ -277,13 +285,13 @@ def _create_table(c, table_name):
 
 
 @pytest.fixture
-def table(qdbd_connection, entry_name):
-    return _create_table(qdbd_connection, entry_name)
+def table(native_cluster, entry_name):
+    return _create_table(native_cluster, entry_name)
 
 
 @pytest.fixture
-def secure_table(qdbd_secure_connection, entry_name):
-    return _create_table(qdbd_secure_connection, entry_name)
+def secure_table(native_secure_cluster, entry_name):
+    return _create_table(native_secure_cluster, entry_name)
 
 
 @pytest.fixture
@@ -742,14 +750,14 @@ def gen_arrays(gen_cdtype, sparsify, row_count):
 
 
 def _array_with_index_and_table(
-    qdbd_connection, table_name, column_name, ctype, dtype, data, start_date, row_count
+    native_cluster, table_name, column_name, ctype, dtype, data, start_date, row_count
 ):
 
     index = pd.Index(
         pd.date_range(start_date, periods=row_count, freq="s"), name="$timestamp"
     ).to_numpy(dtype=np.dtype("datetime64[ns]"))
 
-    table = qdbd_connection.table(table_name)
+    table = native_cluster.table(table_name)
 
     columns = [quasardb.ColumnInfo(ctype, column_name)]
     table.create(columns)
@@ -758,12 +766,12 @@ def _array_with_index_and_table(
 
 @pytest.fixture
 def array_with_index_and_table(
-    qdbd_connection, table_name, column_name, gen_array, start_date, row_count
+    native_cluster, table_name, column_name, gen_array, start_date, row_count
 ):
     (ctype, dtype, array) = gen_array
 
     return _array_with_index_and_table(
-        qdbd_connection,
+        native_cluster,
         table_name,
         column_name,
         ctype,
@@ -776,12 +784,12 @@ def array_with_index_and_table(
 
 @pytest.fixture
 def arrays_with_index_and_table(
-    qdbd_connection, table_name, column_name, gen_arrays, start_date, row_count
+    native_cluster, table_name, column_name, gen_arrays, start_date, row_count
 ):
     (ctype, dtype, arrays) = gen_arrays
 
     return _array_with_index_and_table(
-        qdbd_connection,
+        native_cluster,
         table_name,
         column_name,
         ctype,
@@ -843,10 +851,10 @@ def gen_series(gen_array, gen_index):
 
 
 @pytest.fixture
-def series_with_table(qdbd_connection, table_name, column_name, gen_series):
+def series_with_table(native_cluster, table_name, column_name, gen_series):
     (ctype, dtype, series) = gen_series
 
-    table = qdbd_connection.table(table_name)
+    table = native_cluster.table(table_name)
 
     columns = [quasardb.ColumnInfo(ctype, column_name)]
     table.create(columns)
@@ -875,10 +883,10 @@ def gen_df(gen_array, gen_index, column_name):
 
 
 @pytest.fixture
-def df_with_table(qdbd_connection, table_name, column_name, gen_df):
+def df_with_table(native_cluster, table_name, column_name, gen_df):
     (ctype, dtype, df) = gen_df
 
-    table = qdbd_connection.table(table_name)
+    table = native_cluster.table(table_name)
 
     columns = [quasardb.ColumnInfo(ctype, column_name)]
     table.create(columns)
@@ -886,7 +894,7 @@ def df_with_table(qdbd_connection, table_name, column_name, gen_df):
 
 
 @pytest.fixture
-def dfs_with_tables(qdbd_connection, table_name, column_name, df_count, gen_df_fn):
+def dfs_with_tables(native_cluster, table_name, column_name, df_count, gen_df_fn):
 
     ret = []
 
@@ -895,7 +903,7 @@ def dfs_with_tables(qdbd_connection, table_name, column_name, df_count, gen_df_f
 
         (ctype, dtype, df) = gen_df_fn()
 
-        table = qdbd_connection.table(table_name_)
+        table = native_cluster.table(table_name_)
         columns = [quasardb.ColumnInfo(ctype, column_name)]
         table.create(columns)
 
@@ -1023,8 +1031,8 @@ def column_info(column_name, column_type, symbol_table_name):
 
 
 @pytest.fixture
-def table_1col(qdbd_connection, table_name, column_info):
-    t = qdbd_connection.ts(table_name)
+def table_1col(native_cluster, table_name, column_info):
+    t = native_cluster.ts(table_name)
     t.create([column_info])
     return t
 
@@ -1081,12 +1089,12 @@ def mock_failure_options(mock_failure_count):
 
 
 @pytest.fixture
-def query_connection(query_connection_settings):
-    with quasardb.Cluster(**query_connection_settings) as conn:
+def cluster(cluster_settings):
+    with quasardb.Cluster(**cluster_settings) as conn:
         yield conn
 
 
 @pytest.fixture
-def rest_connection(rest_connection_settings):
-    with quasardb.Cluster(**rest_connection_settings) as conn:
+def rest_cluster(rest_cluster_settings):
+    with quasardb.Cluster(**rest_cluster_settings) as conn:
         yield conn
