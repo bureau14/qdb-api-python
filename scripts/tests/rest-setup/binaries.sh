@@ -2,7 +2,7 @@
 
 set +x
 
-: "${REST_BINARY:=${QDB_DIR:-${REST_ROOT}/qdb/rest/bin}/qdb_rest}"
+: "${REST_BINARY:=${QDB_DIR:-${REST_ROOT}/qdb/bin}/qdb_rest}"
 
 case "$(uname)" in
     MINGW* | MSYS*) REST_BINARY="${REST_BINARY%.exe}.exe" ;;
