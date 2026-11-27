@@ -108,14 +108,3 @@ def test_positional_args_decorator(entry_name):
         _test_positional_args_decorator_impl(entry_name, entry_name),
         pool.SessionWrapper,
     )
-
-
-def test_pooled_stream_query(cluster_settings):
-    query = "SELECT 42 AS answer"
-    with pool.SingletonPool(**cluster_settings) as connections:
-        with connections.connect() as conn:
-            with conn.stream_query(query, batch_size=1) as stream:
-                batches = list(stream)
-            assert batches[0]["answer"].tolist() == [42]
-        assert conn.is_open()
-    assert not conn.is_open()

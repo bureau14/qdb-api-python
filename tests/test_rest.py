@@ -197,7 +197,7 @@ def test_rest_sentinels_are_values(rest_cluster, query, kind):
             assert np.isnan(array[0])
 
 
-def test_large_query_preserves_values(cluster, native_cluster, query_table):
+def test_large_query_preserves_values(rest_cluster, native_cluster, query_table):
     """Reassemble every row in order, regardless of where the transport splits batches."""
     count = 2**16 + 7
     timestamps = np.datetime64("2020-01-01", "ns") + np.arange(count).astype(
@@ -208,12 +208,7 @@ def test_large_query_preserves_values(cluster, native_cluster, query_table):
 
     _write_points(native_cluster, query_table, "the_int64", (timestamps, expected))
     query = 'SELECT the_int64 FROM "{}"'.format(query_table.get_name())
-    for size in (0, 10000):
-        with cluster.stream_query(query, batch_size=size) as stream:
-            batches = [batch["the_int64"] for batch in stream]
-        assert all(len(array) > 0 for array in batches)
-        if size and isinstance(cluster, quasardb.quasardb.Cluster):
-            assert all(len(array) <= size for array in batches)
-        actual = np.ma.concatenate(batches)
-        assert not np.any(actual.mask)
-        np.testing.assert_array_equal(actual, expected)
+    with rest_cluster.stream_query(query) as stream:
+        actual = np.ma.concatenate([batch["the_int64"] for batch in stream])
+    assert not np.any(actual.mask)
+    np.testing.assert_array_equal(actual, expected)

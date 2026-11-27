@@ -38,13 +38,13 @@ def _concat_column(batches, column_name):
 
 @pytest.mark.parametrize("value_type", all_value_types)
 def test_stream_query_equals_query_numpy(
-    cluster, value_type, native_cluster, table, intervals
+    cluster, value_type, native_cluster, query_table, intervals
 ):
     qlib._insert_points(
-        value_type, native_cluster, table, intervals=intervals, points=100
+        value_type, native_cluster, query_table, intervals=intervals, points=100
     )
-    column_name = qlib._column_name(table, value_type)
-    query = _select_column_query(table, column_name)
+    column_name = qlib._column_name(query_table, value_type)
+    query = _select_column_query(query_table, column_name)
 
     expected = dict(native_cluster.query_numpy(query))
 
@@ -62,7 +62,7 @@ def test_stream_query_equals_query_numpy(
 def test_stream_query_batching_contract(
     cluster,
     native_cluster,
-    table,
+    query_table,
     intervals,
     row_count,
     reader_batch_size,
@@ -70,12 +70,12 @@ def test_stream_query_batching_contract(
     qlib._insert_points(
         "double",
         native_cluster,
-        table,
+        query_table,
         intervals=intervals,
         points=row_count,
     )
-    column_name = qlib._column_name(table, "double")
-    query = _select_column_query(table, column_name)
+    column_name = qlib._column_name(query_table, "double")
+    query = _select_column_query(query_table, column_name)
 
     with cluster.stream_query(query, batch_size=reader_batch_size) as stream:
         if isinstance(cluster, quasardb.quasardb.Cluster):
@@ -98,18 +98,18 @@ def test_stream_query_batching_contract(
 
 
 def test_stream_query_zero_batch_size_yields_single_batch(
-    cluster, native_cluster, table, intervals
+    cluster, native_cluster, query_table, intervals
 ):
     row_count = 100
     qlib._insert_points(
         "double",
         native_cluster,
-        table,
+        query_table,
         intervals=intervals,
         points=row_count,
     )
-    column_name = qlib._column_name(table, "double")
-    query = _select_column_query(table, column_name)
+    column_name = qlib._column_name(query_table, "double")
+    query = _select_column_query(query_table, column_name)
 
     with cluster.stream_query(query) as stream:
         if isinstance(cluster, quasardb.quasardb.Cluster):
@@ -128,8 +128,8 @@ def test_stream_query_zero_batch_size_yields_single_batch(
 # Argument handling
 
 
-def test_stream_query_batch_size_is_keyword_only(cluster, native_cluster, table):
-    query = 'SELECT * FROM "{}"'.format(table.get_name())
+def test_stream_query_batch_size_is_keyword_only(cluster, query_table):
+    query = 'SELECT * FROM "{}"'.format(query_table.get_name())
 
     with pytest.raises(TypeError):
         cluster.stream_query(query, 100)
@@ -139,9 +139,11 @@ def test_stream_query_batch_size_is_keyword_only(cluster, native_cluster, table)
 # Lifecycle errors
 
 
-def test_native_stream_query_cannot_iterate_without_enter(native_cluster, table):
+def test_native_stream_query_cannot_iterate_without_enter(
+    native_insecure_cluster, table
+):
     query = 'SELECT * FROM "{}"'.format(table.get_name())
-    stream = native_cluster.stream_query(query)
+    stream = native_insecure_cluster.stream_query(query)
 
     with pytest.raises(quasardb.UninitializedError):
         _ = list(stream)
@@ -156,19 +158,19 @@ def test_query_reader_cannot_be_instantiated_directly():
 # Empty result
 
 
-def test_stream_query_empty_result_yields_zero_batches(cluster, native_cluster, table):
+def test_stream_query_empty_result_yields_zero_batches(cluster, query_table):
     query = 'SELECT * FROM "{}" IN RANGE(2016-01-01, 2016-12-12)'.format(
-        table.get_name()
+        query_table.get_name()
     )
 
     with cluster.stream_query(query) as stream:
         assert list(stream) == []
 
 
-def test_stream_query_dml_yields_zero_batches(cluster, native_cluster, table):
+def test_stream_query_dml_yields_zero_batches(cluster, query_table):
     # DML statements return no result set: the C result stays NULL.
     query = 'INSERT INTO "{}" ($timestamp, "{}") VALUES (NOW(), 1.0)'.format(
-        table.get_name(), tslib._double_col_name(table)
+        query_table.get_name(), tslib._double_col_name(query_table)
     )
 
     with cluster.stream_query(query) as stream:
@@ -180,7 +182,7 @@ def test_stream_query_dml_yields_zero_batches(cluster, native_cluster, table):
 
 
 def test_stream_query_schema_stable_when_first_batch_all_null(
-    cluster, native_cluster, table, intervals
+    cluster, native_cluster, query_table, intervals
 ):
     start_time = tslib._start_time(intervals)
     row_count = 100
@@ -194,10 +196,10 @@ def test_stream_query_schema_stable_when_first_batch_all_null(
     mask[:batch_size] = True
     xs = ma.array(data=values, mask=mask)
 
-    column_name = tslib._double_col_name(table)
-    qlib._write_points(native_cluster, table, column_name, (timestamps, xs))
+    column_name = tslib._double_col_name(query_table)
+    qlib._write_points(native_cluster, query_table, column_name, (timestamps, xs))
 
-    query = _select_column_query(table, column_name)
+    query = _select_column_query(query_table, column_name)
     batches = _stream_batches(cluster, query, batch_size=batch_size)
 
     assert sum(len(batch[column_name]) for batch in batches) == row_count
@@ -215,15 +217,15 @@ def test_stream_query_schema_stable_when_first_batch_all_null(
 
 
 def test_stream_query_entirely_null_column_preserves_mask(
-    cluster, native_cluster, table, intervals
+    cluster, native_cluster, query_table, intervals
 ):
     # Writing doubles creates rows; selecting a column that was never written
     # yields all-null cells for those rows.
     qlib._insert_points(
-        "double", native_cluster, table, intervals=intervals, points=100
+        "double", native_cluster, query_table, intervals=intervals, points=100
     )
-    column_name = tslib._int64_col_name(table)
-    query = _select_column_query(table, column_name)
+    column_name = tslib._int64_col_name(query_table)
+    query = _select_column_query(query_table, column_name)
 
     batches = _stream_batches(cluster, query, batch_size=50)
 
@@ -287,13 +289,13 @@ def test_stream_query_mixed_type_column_raises(
 
 @pytest.mark.parametrize("value_type", all_value_types)
 def test_qdbnp_stream_query_equals_query(
-    cluster, value_type, native_cluster, table, intervals
+    cluster, value_type, native_cluster, query_table, intervals
 ):
     qlib._insert_points(
-        value_type, native_cluster, table, intervals=intervals, points=100
+        value_type, native_cluster, query_table, intervals=intervals, points=100
     )
-    column_name = qlib._column_name(table, value_type)
-    query = _select_column_query(table, column_name)
+    column_name = qlib._column_name(query_table, value_type)
+    query = _select_column_query(query_table, column_name)
 
     (expected_idx, expected_cols) = qdbnp.query(cluster, query, dict=True)
 
@@ -307,7 +309,7 @@ def test_qdbnp_stream_query_equals_query(
 
 
 def test_qdbnp_stream_query_default_index_is_offset_aware(
-    cluster, native_cluster, table, intervals
+    cluster, native_cluster, query_table, intervals
 ):
     row_count = 100
     batch_size = 32
@@ -315,12 +317,12 @@ def test_qdbnp_stream_query_default_index_is_offset_aware(
     qlib._insert_points(
         "double",
         native_cluster,
-        table,
+        query_table,
         intervals=intervals,
         points=row_count,
     )
-    column_name = qlib._column_name(table, "double")
-    query = _select_column_query(table, column_name)
+    column_name = qlib._column_name(query_table, "double")
+    query = _select_column_query(query_table, column_name)
 
     idx_batches = []
     offset = 0
@@ -332,12 +334,16 @@ def test_qdbnp_stream_query_default_index_is_offset_aware(
     np.testing.assert_array_equal(np.concatenate(idx_batches), np.arange(row_count))
 
 
-def test_qdbnp_stream_query_named_index(cluster, native_cluster, table, intervals):
+def test_qdbnp_stream_query_named_index(
+    cluster, native_cluster, query_table, intervals
+):
     qlib._insert_points(
-        "double", native_cluster, table, intervals=intervals, points=100
+        "double", native_cluster, query_table, intervals=intervals, points=100
     )
-    column_name = qlib._column_name(table, "double")
-    query = 'SELECT $timestamp, "{}" FROM "{}"'.format(column_name, table.get_name())
+    column_name = qlib._column_name(query_table, "double")
+    query = 'SELECT $timestamp, "{}" FROM "{}"'.format(
+        column_name, query_table.get_name()
+    )
 
     (expected_idx, _) = qdbnp.query(cluster, query, index="$timestamp")
 
@@ -353,13 +359,15 @@ def test_qdbnp_stream_query_named_index(cluster, native_cluster, table, interval
 
 
 def test_qdbnp_stream_query_dict_and_list_shapes(
-    cluster, native_cluster, table, intervals
+    cluster, native_cluster, query_table, intervals
 ):
     qlib._insert_points(
-        "double", native_cluster, table, intervals=intervals, points=100
+        "double", native_cluster, query_table, intervals=intervals, points=100
     )
-    column_name = qlib._column_name(table, "double")
-    query = 'SELECT $timestamp, "{}" FROM "{}"'.format(column_name, table.get_name())
+    column_name = qlib._column_name(query_table, "double")
+    query = 'SELECT $timestamp, "{}" FROM "{}"'.format(
+        column_name, query_table.get_name()
+    )
 
     for _, cols in qdbnp.stream_query(
         cluster, query, index="$timestamp", dict=True, batch_size=32
@@ -374,35 +382,33 @@ def test_qdbnp_stream_query_dict_and_list_shapes(
         assert len(cols) == 1
 
 
-def test_qdbnp_stream_query_empty_result_yields_zero_batches(
-    cluster, native_cluster, table
-):
+def test_qdbnp_stream_query_empty_result_yields_zero_batches(cluster, query_table):
     query = 'SELECT * FROM "{}" IN RANGE(2016-01-01, 2016-12-12)'.format(
-        table.get_name()
+        query_table.get_name()
     )
 
     assert list(qdbnp.stream_query(cluster, query)) == []
 
 
-def test_qdbnp_stream_query_dml_yields_zero_batches(cluster, native_cluster, table):
+def test_qdbnp_stream_query_dml_yields_zero_batches(cluster, query_table):
     query = 'INSERT INTO "{}" ($timestamp, "{}") VALUES (NOW(), 1.0)'.format(
-        table.get_name(), tslib._double_col_name(table)
+        query_table.get_name(), tslib._double_col_name(query_table)
     )
 
     assert list(qdbnp.stream_query(cluster, query)) == []
 
 
 def test_qdbnp_stream_query_masked_named_index_raises(
-    cluster, native_cluster, table, intervals
+    cluster, native_cluster, query_table, intervals
 ):
     # Writing doubles creates rows; the int64 column was never written, so
     # selecting it yields an all-null (fully masked) column, which is invalid
     # as an index.
     qlib._insert_points(
-        "double", native_cluster, table, intervals=intervals, points=100
+        "double", native_cluster, query_table, intervals=intervals, points=100
     )
-    column_name = tslib._int64_col_name(table)
-    query = _select_column_query(table, column_name)
+    column_name = tslib._int64_col_name(query_table)
+    query = _select_column_query(query_table, column_name)
 
     with pytest.raises(ValueError):
         list(qdbnp.stream_query(cluster, query, index=column_name))
@@ -411,7 +417,7 @@ def test_qdbnp_stream_query_masked_named_index_raises(
 def test_qdbnp_query_equals_stream_query_concat(
     cluster,
     native_cluster,
-    table,
+    query_table,
     intervals,
     row_count,
     reader_batch_size,
@@ -419,12 +425,12 @@ def test_qdbnp_query_equals_stream_query_concat(
     qlib._insert_points(
         "double",
         native_cluster,
-        table,
+        query_table,
         intervals=intervals,
         points=row_count,
     )
-    column_name = qlib._column_name(table, "double")
-    query = _select_column_query(table, column_name)
+    column_name = qlib._column_name(query_table, "double")
+    query = _select_column_query(query_table, column_name)
 
     (expected_idx, expected_cols) = qdbnp.query(cluster, query, dict=True)
 
@@ -452,7 +458,7 @@ def test_qdbnp_query_equals_stream_query_concat(
 def test_qdbpd_query_equals_stream_query_concat(
     cluster,
     native_cluster,
-    table,
+    query_table,
     intervals,
     row_count,
     reader_batch_size,
@@ -460,12 +466,12 @@ def test_qdbpd_query_equals_stream_query_concat(
     qlib._insert_points(
         "double",
         native_cluster,
-        table,
+        query_table,
         intervals=intervals,
         points=row_count,
     )
-    column_name = qlib._column_name(table, "double")
-    query = _select_column_query(table, column_name)
+    column_name = qlib._column_name(query_table, "double")
+    query = _select_column_query(query_table, column_name)
 
     batches = list(qdbpd.stream_query(cluster, query, batch_size=reader_batch_size))
     if isinstance(cluster, quasardb.quasardb.Cluster):
@@ -480,13 +486,13 @@ def test_qdbpd_query_equals_stream_query_concat(
 # Contract: stream/concat equivalence holds for every column value type.
 @pytest.mark.parametrize("value_type", all_value_types)
 def test_qdbpd_query_all_value_types(
-    cluster, value_type, native_cluster, table, intervals
+    cluster, value_type, native_cluster, query_table, intervals
 ):
     qlib._insert_points(
-        value_type, native_cluster, table, intervals=intervals, points=100
+        value_type, native_cluster, query_table, intervals=intervals, points=100
     )
-    column_name = qlib._column_name(table, value_type)
-    query = _select_column_query(table, column_name)
+    column_name = qlib._column_name(query_table, value_type)
+    query = _select_column_query(query_table, column_name)
 
     expected = qdbpd.query(cluster, query)
     streamed = pd.concat(qdbpd.stream_query(cluster, query, batch_size=32))
@@ -501,19 +507,21 @@ def test_qdbpd_query_all_value_types(
 
 # Contract: the default index is a running 0..n-1 named "$index" that
 # continues across batches.
-def test_qdbpd_stream_query_default_index(cluster, native_cluster, table, intervals):
+def test_qdbpd_stream_query_default_index(
+    cluster, native_cluster, query_table, intervals
+):
     row_count = 100
     batch_size = 32
 
     qlib._insert_points(
         "double",
         native_cluster,
-        table,
+        query_table,
         intervals=intervals,
         points=row_count,
     )
-    column_name = qlib._column_name(table, "double")
-    query = _select_column_query(table, column_name)
+    column_name = qlib._column_name(query_table, "double")
+    query = _select_column_query(query_table, column_name)
 
     batches = []
     offset = 0
@@ -532,12 +540,16 @@ def test_qdbpd_stream_query_default_index(cluster, native_cluster, table, interv
 
 # Contract: a named index column becomes the DataFrame index and is removed
 # from the columns.
-def test_qdbpd_stream_query_named_index(cluster, native_cluster, table, intervals):
+def test_qdbpd_stream_query_named_index(
+    cluster, native_cluster, query_table, intervals
+):
     qlib._insert_points(
-        "double", native_cluster, table, intervals=intervals, points=100
+        "double", native_cluster, query_table, intervals=intervals, points=100
     )
-    column_name = qlib._column_name(table, "double")
-    query = 'SELECT $timestamp, "{}" FROM "{}"'.format(column_name, table.get_name())
+    column_name = qlib._column_name(query_table, "double")
+    query = 'SELECT $timestamp, "{}" FROM "{}"'.format(
+        column_name, query_table.get_name()
+    )
 
     for df in qdbpd.stream_query(cluster, query, index="$timestamp", batch_size=32):
         assert df.index.name == "$timestamp"
@@ -547,9 +559,9 @@ def test_qdbpd_stream_query_named_index(cluster, native_cluster, table, interval
 
 # Contract: an empty result streams zero DataFrames, while query() preserves
 # the legacy empty shape (empty frame with named index).
-def test_qdbpd_query_empty_result(cluster, native_cluster, table):
+def test_qdbpd_query_empty_result(cluster, query_table):
     query = 'SELECT * FROM "{}" IN RANGE(2016-01-01, 2016-12-12)'.format(
-        table.get_name()
+        query_table.get_name()
     )
 
     assert list(qdbpd.stream_query(cluster, query)) == []
@@ -560,9 +572,9 @@ def test_qdbpd_query_empty_result(cluster, native_cluster, table):
 
 
 # Contract: DML statements yield zero DataFrames.
-def test_qdbpd_stream_query_dml_yields_zero_batches(cluster, native_cluster, table):
+def test_qdbpd_stream_query_dml_yields_zero_batches(cluster, query_table):
     query = 'INSERT INTO "{}" ($timestamp, "{}") VALUES (NOW(), 1.0)'.format(
-        table.get_name(), tslib._double_col_name(table)
+        query_table.get_name(), tslib._double_col_name(query_table)
     )
 
     assert list(qdbpd.stream_query(cluster, query)) == []
@@ -575,12 +587,14 @@ def test_qdbpd_stream_query_dml_yields_zero_batches(cluster, native_cluster, tab
 # Contract: __exit__ runs close() regardless of how the block is left, so a
 # break releases the C result at the with-block boundary. Batches already
 # yielded retain their buffers and stay valid after release.
-def test_stream_query_break_releases_reader(cluster, native_cluster, table, intervals):
+def test_stream_query_break_releases_reader(
+    cluster, native_cluster, query_table, intervals
+):
     qlib._insert_points(
-        "double", native_cluster, table, intervals=intervals, points=100
+        "double", native_cluster, query_table, intervals=intervals, points=100
     )
-    column_name = qlib._column_name(table, "double")
-    query = _select_column_query(table, column_name)
+    column_name = qlib._column_name(query_table, "double")
+    query = _select_column_query(query_table, column_name)
 
     kept = None
     with cluster.stream_query(query, batch_size=32) as stream:
@@ -620,13 +634,13 @@ class _RecordingConnection:
 # GeneratorExit at the suspended yield inside the generator's with-block,
 # which runs the reader's __exit__ and releases the C result.
 def test_qdbnp_stream_query_generator_close_releases_reader(
-    cluster, native_cluster, table, intervals
+    cluster, native_cluster, query_table, intervals
 ):
     qlib._insert_points(
-        "double", native_cluster, table, intervals=intervals, points=100
+        "double", native_cluster, query_table, intervals=intervals, points=100
     )
-    column_name = qlib._column_name(table, "double")
-    query = _select_column_query(table, column_name)
+    column_name = qlib._column_name(query_table, "double")
+    query = _select_column_query(query_table, column_name)
 
     shim = _RecordingConnection(cluster)
     gen = qdbnp.stream_query(shim, query, batch_size=32)

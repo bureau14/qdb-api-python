@@ -131,38 +131,38 @@ def _column_name(table, value_type):
 # Query failure tests
 
 
-def test_returns_invalid_argument_for_null_query(native_cluster):
+def test_returns_invalid_argument_for_null_query(native_insecure_cluster):
     with pytest.raises(TypeError):
-        native_cluster.query()
+        native_insecure_cluster.query()
 
 
-def test_returns_invalid_argument_for_empty_query(native_cluster):
+def test_returns_invalid_argument_for_empty_query(native_insecure_cluster):
     with pytest.raises(quasardb.InvalidQueryError):
-        native_cluster.query("")
+        native_insecure_cluster.query("")
 
 
-def test_returns_invalid_argument_with_invalid_query(native_cluster):
+def test_returns_invalid_argument_with_invalid_query(native_insecure_cluster):
     with pytest.raises(quasardb.InvalidQueryError):
-        native_cluster.query("select * from")
+        native_insecure_cluster.query("select * from")
 
 
-def test_returns_alias_not_found_when_ts_doesnt_exist(native_cluster):
+def test_returns_alias_not_found_when_ts_doesnt_exist(native_insecure_cluster):
     with pytest.raises(quasardb.AliasNotFoundError):
-        native_cluster.query(
+        native_insecure_cluster.query(
             "select * from " + "this_ts_doesnt_exist" + " in range(2017, +10d)"
         )
 
 
-def test_returns_alias_not_found_when_untagged(native_cluster, tag_name):
+def test_returns_alias_not_found_when_untagged(native_insecure_cluster, tag_name):
     with pytest.raises(quasardb.AliasNotFoundError):
-        native_cluster.query(
+        native_insecure_cluster.query(
             "select * from find(tag='" + tag_name + "') in range(2017, +10d)"
         )
 
 
-def test_returns_columns_not_found(native_cluster, table, column_name):
+def test_returns_columns_not_found(native_insecure_cluster, table, column_name):
     with pytest.raises(quasardb.Error):
-        native_cluster.query(
+        native_insecure_cluster.query(
             "select "
             + column_name
             + ' from "'
@@ -171,9 +171,9 @@ def test_returns_columns_not_found(native_cluster, table, column_name):
         )
 
 
-def test_invalid_query_message(native_cluster, table):
+def test_invalid_query_message(native_insecure_cluster, table):
     with pytest.raises(quasardb.Error) as excinfo:
-        native_cluster.query(
+        native_insecure_cluster.query(
             'select asd_col from "'
             + table.get_name()
             + '" in range(2016-01-01 , 2016-12-12)'
@@ -196,16 +196,18 @@ def sanity_check(ts_name, scanned_point_count, res, rows_count, columns_count):
     assert res.tables[ts_name][0].name == "$timestamp"
 
 
-def test_returns_empty_result(native_cluster, table):
-    res = native_cluster.query(
+def test_returns_empty_result(native_insecure_cluster, table):
+    res = native_insecure_cluster.query(
         'select * from "' + table.get_name() + '" in range(2016-01-01 , 2016-12-12)'
     )
     assert len(res) == 0
 
 
-def test_returns_table_as_string(native_cluster, table, intervals):
+def test_returns_table_as_string(native_insecure_cluster, table, intervals):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(native_cluster, table, start_time, 10)
+    inserted_double_data = _insert_double_points(
+        native_insecure_cluster, table, start_time, 10
+    )
     query = (
         'select * from "'
         + table.get_name()
@@ -213,7 +215,7 @@ def test_returns_table_as_string(native_cluster, table, intervals):
         + str(tslib._start_year(intervals))
         + ", +100d)"
     )
-    res = native_cluster.query(query)
+    res = native_insecure_cluster.query(query)
 
     assert len(res) == 10
 
@@ -221,9 +223,11 @@ def test_returns_table_as_string(native_cluster, table, intervals):
         assert row["$table"] == table.get_name()
 
 
-def test_returns_table_as_blob(native_cluster, table, intervals):
+def test_returns_table_as_blob(native_insecure_cluster, table, intervals):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(native_cluster, table, start_time, 10)
+    inserted_double_data = _insert_double_points(
+        native_insecure_cluster, table, start_time, 10
+    )
     query = (
         'select * from "'
         + table.get_name()
@@ -231,7 +235,7 @@ def test_returns_table_as_blob(native_cluster, table, intervals):
         + str(tslib._start_year(intervals))
         + ", +100d)"
     )
-    res = native_cluster.query(query)
+    res = native_insecure_cluster.query(query)
 
     assert len(res) == 10
 
@@ -239,9 +243,13 @@ def test_returns_table_as_blob(native_cluster, table, intervals):
         assert row["$table"] == table.get_name()
 
 
-def test_returns_inserted_data_with_star_select(native_cluster, table, intervals):
+def test_returns_inserted_data_with_star_select(
+    native_insecure_cluster, table, intervals
+):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(native_cluster, table, start_time, 10)
+    inserted_double_data = _insert_double_points(
+        native_insecure_cluster, table, start_time, 10
+    )
     query = (
         'select * from "'
         + table.get_name()
@@ -249,7 +257,7 @@ def test_returns_inserted_data_with_star_select(native_cluster, table, intervals
         + str(tslib._start_year(intervals))
         + ", +100d)"
     )
-    res = native_cluster.query(query)
+    res = native_insecure_cluster.query(query)
 
     assert len(res) == 10
 
@@ -268,21 +276,21 @@ def test_returns_inserted_data_with_star_select(native_cluster, table, intervals
     "value_type", ["double", "int64", "blob", "string", "timestamp", "symbol"]
 )
 def test_supports_all_column_types(
-    value_type, query_handler, native_cluster, table, intervals
+    value_type, query_handler, native_insecure_cluster, table, intervals
 ):
     inserted_data = _insert_points(
-        value_type, native_cluster, table, intervals=intervals
+        value_type, native_insecure_cluster, table, intervals=intervals
     )
     column_name = _column_name(table, value_type)
     query = 'SELECT "{}" FROM "{}"'.format(column_name, table.get_name())
 
     if query_handler == "numpy":
-        res = native_cluster.query_numpy(query)
+        res = native_insecure_cluster.query_numpy(query)
         (col, xs) = res[0]
         assert col == column_name
         np.testing.assert_array_equal(xs, inserted_data[1])
     elif query_handler == "dict":
-        res = native_cluster.query(query)
+        res = native_insecure_cluster.query(query)
         assert len(res) == len(inserted_data[1])
 
         for i in range(len(res)):
@@ -304,19 +312,29 @@ def test_supports_all_column_types(
 )
 @pytest.mark.parametrize("row_count", [16384, 131072, 1048576])
 def test_query_handler_benchmark(
-    benchmark, value_type, row_count, query_handler, native_cluster, table, intervals
+    benchmark,
+    value_type,
+    row_count,
+    query_handler,
+    native_insecure_cluster,
+    table,
+    intervals,
 ):
 
     query_fn = None
     if query_handler == "numpy":
-        query_fn = native_cluster.query_numpy
+        query_fn = native_insecure_cluster.query_numpy
     elif query_handler == "dict":
-        query_fn = native_cluster.query
+        query_fn = native_insecure_cluster.query
     else:
         raise RuntimeError("Unrecognized query handler: {}".format(query_handler))
 
     inserted_data = _insert_points(
-        value_type, native_cluster, table, intervals=intervals, points=row_count
+        value_type,
+        native_insecure_cluster,
+        table,
+        intervals=intervals,
+        points=row_count,
     )
     column_name = _column_name(table, value_type)
     query = 'SELECT "{}" FROM "{}"'.format(column_name, table.get_name())
@@ -324,9 +342,13 @@ def test_query_handler_benchmark(
     benchmark(query_fn, query)
 
 
-def test_returns_inserted_data_with_column_select(native_cluster, table, intervals):
+def test_returns_inserted_data_with_column_select(
+    native_insecure_cluster, table, intervals
+):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(native_cluster, table, start_time, 10)
+    inserted_double_data = _insert_double_points(
+        native_insecure_cluster, table, start_time, 10
+    )
     query = (
         "select "
         + tslib._double_col_name(table)
@@ -337,7 +359,7 @@ def test_returns_inserted_data_with_column_select(native_cluster, table, interva
         + ", +100d)"
     )
 
-    res = native_cluster.query(query)
+    res = native_insecure_cluster.query(query)
 
     assert len(res) == 10
 
@@ -351,9 +373,13 @@ def test_returns_inserted_data_with_column_select(native_cluster, table, interva
         assert row["the_double"] == v
 
 
-def test_returns_inserted_data_with_specific_select(native_cluster, table, intervals):
+def test_returns_inserted_data_with_specific_select(
+    native_insecure_cluster, table, intervals
+):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(native_cluster, table, start_time, 10)
+    inserted_double_data = _insert_double_points(
+        native_insecure_cluster, table, start_time, 10
+    )
     query = (
         "select $timestamp, $table, "
         + tslib._double_col_name(table)
@@ -363,7 +389,7 @@ def test_returns_inserted_data_with_specific_select(native_cluster, table, inter
         + str(tslib._start_year(intervals))
         + ", +100d)"
     )
-    res = native_cluster.query(query)
+    res = native_insecure_cluster.query(query)
 
     assert len(res) == 10
 
@@ -376,9 +402,11 @@ def test_returns_inserted_data_with_specific_select(native_cluster, table, inter
         assert row["the_double"] == v
 
 
-def test_returns_count_data_with_count_select(native_cluster, table, intervals):
+def test_returns_count_data_with_count_select(
+    native_insecure_cluster, table, intervals
+):
     start_time = tslib._start_time(intervals)
-    _ = _insert_double_points(native_cluster, table, start_time, 10)
+    _ = _insert_double_points(native_insecure_cluster, table, start_time, 10)
     query = (
         "select count("
         + tslib._double_col_name(table)
@@ -388,22 +416,22 @@ def test_returns_count_data_with_count_select(native_cluster, table, intervals):
         + str(tslib._start_year(intervals))
         + ", +100d)"
     )
-    res = native_cluster.query(query)
+    res = native_insecure_cluster.query(query)
 
     assert len(res) == 1
     assert res[0]["count(the_double)"] == 10
 
 
 def test_returns_count_data_with_count_select_numpy(
-    cluster, native_cluster, table, intervals
+    cluster, native_cluster, query_table, intervals
 ):
     start_time = tslib._start_time(intervals)
-    _ = _insert_double_points(native_cluster, table, start_time, 10)
+    _ = _insert_double_points(native_cluster, query_table, start_time, 10)
     query = (
         "select count("
-        + tslib._double_col_name(table)
+        + tslib._double_col_name(query_table)
         + ') from "'
-        + table.get_name()
+        + query_table.get_name()
         + '" in range('
         + str(tslib._start_year(intervals))
         + ", +100d)"
@@ -419,11 +447,15 @@ def test_returns_count_data_with_count_select_numpy(
     assert counts[0] == 10
 
 
-def test_string_query_returns_unicode_numpy(cluster, native_cluster, table, intervals):
+def test_string_query_returns_unicode_numpy(
+    cluster, native_cluster, query_table, intervals
+):
     start_time = tslib._start_time(intervals)
-    inserted_string_data = _insert_string_points(native_cluster, table, start_time, 10)
-    column_name = tslib._string_col_name(table)
-    query = 'SELECT "{}" FROM "{}"'.format(column_name, table.get_name())
+    inserted_string_data = _insert_string_points(
+        native_cluster, query_table, start_time, 10
+    )
+    column_name = tslib._string_col_name(query_table)
+    query = 'SELECT "{}" FROM "{}"'.format(column_name, query_table.get_name())
 
     (idx, res) = qdbnp.query(cluster, query)
 
@@ -435,11 +467,15 @@ def test_string_query_returns_unicode_numpy(cluster, native_cluster, table, inte
     np.testing.assert_array_equal(xs, inserted_string_data[1])
 
 
-def test_blob_query_returns_bytes_numpy(cluster, native_cluster, table, intervals):
+def test_blob_query_returns_bytes_numpy(
+    cluster, native_cluster, query_table, intervals
+):
     start_time = tslib._start_time(intervals)
-    inserted_blob_data = _insert_blob_points(native_cluster, table, start_time, 10)
-    column_name = tslib._blob_col_name(table)
-    query = 'SELECT "{}" FROM "{}"'.format(column_name, table.get_name())
+    inserted_blob_data = _insert_blob_points(
+        native_cluster, query_table, start_time, 10
+    )
+    column_name = tslib._blob_col_name(query_table)
+    query = 'SELECT "{}" FROM "{}"'.format(column_name, query_table.get_name())
 
     (idx, res) = qdbnp.query(cluster, query)
 
@@ -454,31 +490,37 @@ def test_blob_query_returns_bytes_numpy(cluster, native_cluster, table, interval
         assert lhs == rhs
 
 
-def test_mixed_type_column_query_raises_numpy(native_cluster, entry_name, intervals):
+def test_mixed_type_column_query_raises_numpy(
+    native_insecure_cluster, entry_name, intervals
+):
     start_time = tslib._start_time(intervals)
 
     t1_name = entry_name + "_double"
     t2_name = entry_name + "_blob"
 
-    t1 = native_cluster.table(t1_name)
+    t1 = native_insecure_cluster.table(t1_name)
     t1.create([quasardb.ColumnInfo(quasardb.ColumnType.Double, "the_col")])
-    t2 = native_cluster.table(t2_name)
+    t2 = native_insecure_cluster.table(t2_name)
     t2.create([quasardb.ColumnInfo(quasardb.ColumnType.Blob, "the_col")])
 
     _write_points(
-        native_cluster, t1, "the_col", tslib._generate_double_ts(start_time, 1)
+        native_insecure_cluster, t1, "the_col", tslib._generate_double_ts(start_time, 1)
     )
-    _write_points(native_cluster, t2, "the_col", tslib._generate_blob_ts(start_time, 1))
+    _write_points(
+        native_insecure_cluster, t2, "the_col", tslib._generate_blob_ts(start_time, 1)
+    )
 
     query = 'SELECT the_col FROM "{}", "{}"'.format(t1_name, t2_name)
 
     with pytest.raises(quasardb.IncompatibleTypeError):
-        native_cluster.query_numpy(query)
+        native_insecure_cluster.query_numpy(query)
 
 
-def test_returns_count_data_with_sum_select(native_cluster, table, intervals):
+def test_returns_count_data_with_sum_select(native_insecure_cluster, table, intervals):
     start_time = tslib._start_time(intervals)
-    inserted_double_data = _insert_double_points(native_cluster, table, start_time, 10)
+    inserted_double_data = _insert_double_points(
+        native_insecure_cluster, table, start_time, 10
+    )
     query = (
         "select sum("
         + tslib._double_col_name(table)
@@ -488,16 +530,18 @@ def test_returns_count_data_with_sum_select(native_cluster, table, intervals):
         + str(tslib._start_year(intervals))
         + ", +100d)"
     )
-    res = native_cluster.query(query)
+    res = native_insecure_cluster.query(query)
 
     assert len(res) == 1
     assert res[0]["sum(the_double)"] == pytest.approx(np.sum(inserted_double_data[1]))
 
 
-def test_returns_inserted_multi_data_with_star_select(native_cluster, table, intervals):
+def test_returns_inserted_multi_data_with_star_select(
+    native_insecure_cluster, table, intervals
+):
     start_time = tslib._start_time(intervals)
     inserted_data = _write_multiple_points(
-        native_cluster,
+        native_insecure_cluster,
         table,
         {
             tslib._double_col_name(table): tslib._generate_double_ts(start_time, 100),
@@ -520,7 +564,7 @@ def test_returns_inserted_multi_data_with_star_select(native_cluster, table, int
         + str(tslib._start_year(intervals))
         + ", +100d)"
     )
-    res = native_cluster.query(query)
+    res = native_insecure_cluster.query(query)
 
     assert len(res) == 100
 
@@ -544,6 +588,6 @@ def test_returns_inserted_multi_data_with_star_select(native_cluster, table, int
         assert row["the_ts"] == ts
 
 
-def test_create_table(native_cluster, entry_name):
+def test_create_table(native_insecure_cluster, entry_name):
     query = 'create table "{}" ($timestamp timestamp, col int64)'.format(entry_name)
-    _ = native_cluster.query(query)
+    _ = native_insecure_cluster.query(query)
