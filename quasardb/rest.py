@@ -7,7 +7,7 @@ import io
 import json
 import logging
 import ssl
-from contextlib import ExitStack, closing, contextmanager
+from contextlib import contextmanager
 from types import TracebackType
 from typing import TYPE_CHECKING, Dict, Generator, Iterator, Optional, Type
 from urllib.parse import urlsplit
@@ -222,19 +222,12 @@ class RestCluster:
 
     def _authenticate(self, *, refresh: bool = False) -> None:
         """Refresh on request, falling back to login only when refresh is refused."""
-        try:
-            if refresh:
-                response = self._client.post(
-                    "auth/refresh", json={"refresh_token": self._refresh_token}
-                )
-            if not refresh or response.status_code == 401:
-                response = self._client.post("auth/login", json=self._credentials)
-        except httpx.ProtocolError:
-            # Raise outside the handler so raw protocol bytes stay out of the exception chain.
-            response = None
-
-        if response is None:
-            raise Error("REST HTTP request failed")
+        if refresh:
+            response = self._client.post(
+                "auth/refresh", json={"refresh_token": self._refresh_token}
+            )
+        if not refresh or response.status_code == 401:
+            response = self._client.post("auth/login", json=self._credentials)
         if response.status_code != 200:
             self._raise_http_error(response)
 
@@ -264,23 +257,18 @@ class RestCluster:
                 "Accept": "application/vnd.apache.arrow.stream",
                 "Authorization": "Bearer " + self._access_token,
             }
-            with ExitStack() as stack:
-                # Redact errors opening the response. Reader and caller errors propagate.
-                try:
-                    response = stack.enter_context(
-                        self._client.stream(
-                            "POST", "query", content=body, headers=headers
-                        )
-                    )
-                except httpx.ProtocolError:
-                    response = None
-                if response is None:
-                    raise Error("REST HTTP request failed")
+            request = self._client.build_request(
+                "POST", "query", content=body, headers=headers
+            )
+            response = self._client.send(request, stream=True)
+            try:
                 if response.status_code == 200:
                     yield response
                     return
                 if response.status_code != 401 or attempt:
                     self._raise_http_error(response, query=True)
+            finally:
+                response.close()
             # An interrupted query may already have taken effect. Only a 401 is replayed.
             self._authenticate(refresh=True)
 
@@ -330,11 +318,13 @@ class RestCluster:
         with self._post_query(query) as response:
             chunks = response.iter_raw()
             source = io.BufferedReader(_ArrowInput(chunks))
-            with source, pa.ipc.open_stream(source) as reader, closing(
-                _stream_batches(reader, response, chunks)
-            ) as batches:
-                logger.debug("REST query stream opened")
-                yield batches
+            with source, pa.ipc.open_stream(source) as reader:
+                batches = _stream_batches(reader, response, chunks)
+                try:
+                    logger.debug("REST query stream opened")
+                    yield batches
+                finally:
+                    batches.close()
 
 
 def _masked_array(array: pa.Array) -> MaskedArrayAny:
