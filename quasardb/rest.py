@@ -7,7 +7,7 @@ import io
 import json
 import logging
 import ssl
-from contextlib import closing, contextmanager
+from contextlib import ExitStack, closing, contextmanager
 from types import TracebackType
 from typing import TYPE_CHECKING, Dict, Generator, Iterator, Optional, Type
 from urllib.parse import urlsplit
@@ -110,8 +110,6 @@ def _credentials(
 
 
 class RestCluster:
-    """REST query connection. Native-only options are accepted and ignored."""
-
     def __init__(
         self,
         uri: str,
@@ -180,7 +178,7 @@ class RestCluster:
         self._access_token = ""
         self._refresh_token = ""
         try:
-            self._login()
+            self._authenticate()
         except BaseException:
             self.close()
             raise
@@ -193,23 +191,6 @@ class RestCluster:
     def _check_open(self) -> None:
         if self._client.is_closed:
             raise InvalidHandleError("REST connection is closed")
-
-    def _request(
-        self, path: str, body: bytes, headers: Dict[str, str]
-    ) -> httpx.Response:
-        """Send the POST and transfer the streaming response to the caller."""
-        request = self._client.build_request(
-            "POST", path.lstrip("/"), content=body, headers=headers
-        )
-        try:
-            response = self._client.send(request, stream=True)
-            logger.debug("REST request path=%s status=%s", path, response.status_code)
-            return response
-        except httpx.ProtocolError:
-            # Protocol errors can quote raw bytes. Raise outside the handler to
-            # keep those bytes out of the exception chain.
-            pass
-        raise Error("REST HTTP request failed")
 
     def _raise_http_error(
         self, response: httpx.Response, *, query: bool = False
@@ -239,62 +220,69 @@ class RestCluster:
             raise InvalidQueryError(message)
         raise Error(message)
 
-    def _grant(self, path: str, payload: Dict[str, str]) -> bool:
-        """Store the access and refresh tokens returned by login or refresh.
-
-        Return False when refresh receives a 401 so the caller can log in again.
-        """
-        body = json.dumps(payload).encode("utf-8")
-        with closing(
-            self._request(path, body, {"Content-Type": "application/json"})
-        ) as response:
-            if response.status_code != 200:
-                # A refused refresh is the only authentication error that triggers login.
-                if path == "/auth/refresh" and response.status_code == 401:
-                    logger.debug("REST token refresh refused; logging in")
-                    return False
-                self._raise_http_error(response)
-
-            try:
-                tokens = json.loads(response.read())
-                self._access_token, self._refresh_token = (
-                    tokens["access_token"],
-                    tokens["refresh_token"],
+    def _authenticate(self, *, refresh: bool = False) -> None:
+        """Refresh on request, falling back to login only when refresh is refused."""
+        try:
+            if refresh:
+                response = self._client.post(
+                    "auth/refresh", json={"refresh_token": self._refresh_token}
                 )
-                return True
-            except (OSError, httpx.ProtocolError, ValueError, KeyError, TypeError):
-                # Decoder exceptions can retain the response containing both tokens.
-                pass
-            raise Error("Unable to read REST authentication response")
+            if not refresh or response.status_code == 401:
+                response = self._client.post("auth/login", json=self._credentials)
+        except httpx.ProtocolError:
+            # Raise outside the handler so raw protocol bytes stay out of the exception chain.
+            response = None
 
-    def _login(self) -> None:
-        logger.debug("REST login started")
-        self._grant("/auth/login", self._credentials)
+        if response is None:
+            raise Error("REST HTTP request failed")
+        if response.status_code != 200:
+            self._raise_http_error(response)
 
-    def _post_query(self, query: str) -> httpx.Response:
-        """Submit the query and retry once if the server rejects the access token."""
+        try:
+            tokens = response.json()
+            access, renewal = tokens["access_token"], tokens["refresh_token"]
+            if (
+                isinstance(access, str)
+                and access
+                and isinstance(renewal, str)
+                and renewal
+            ):
+                self._access_token, self._refresh_token = access, renewal
+                return
+        except (ValueError, KeyError, TypeError):
+            # Decoder exceptions can retain the response containing both tokens.
+            pass
+        raise Error("Unable to read REST authentication response")
+
+    @contextmanager
+    def _post_query(self, query: str) -> Iterator[httpx.Response]:
+        """Close the first unauthorized response before refreshing and retrying once."""
         body = query.encode("utf-8")
-
-        def post() -> httpx.Response:
-            return self._request(
-                "/query",
-                body,
-                {
-                    "Content-Type": "text/plain",
-                    "Accept": "application/vnd.apache.arrow.stream",
-                    "Authorization": "Bearer " + self._access_token,
-                },
-            )
-
-        response = post()
-        if response.status_code != 401:
-            return response
-        # An interrupted request may already have taken effect. Only a 401 is replayed.
-        response.close()
-        logger.debug("REST authentication expired; refreshing token")
-        if not self._grant("/auth/refresh", {"refresh_token": self._refresh_token}):
-            self._login()
-        return post()
+        for attempt in range(2):
+            headers = {
+                "Content-Type": "text/plain",
+                "Accept": "application/vnd.apache.arrow.stream",
+                "Authorization": "Bearer " + self._access_token,
+            }
+            with ExitStack() as stack:
+                # Redact errors opening the response. Reader and caller errors propagate.
+                try:
+                    response = stack.enter_context(
+                        self._client.stream(
+                            "POST", "query", content=body, headers=headers
+                        )
+                    )
+                except httpx.ProtocolError:
+                    response = None
+                if response is None:
+                    raise Error("REST HTTP request failed")
+                if response.status_code == 200:
+                    yield response
+                    return
+                if response.status_code != 401 or attempt:
+                    self._raise_http_error(response, query=True)
+            # An interrupted query may already have taken effect. Only a 401 is replayed.
+            self._authenticate(refresh=True)
 
     def close(self) -> None:
         if self._client.is_closed:
@@ -339,9 +327,7 @@ class RestCluster:
         entire result column is null.
         """
         self._check_open()
-        with closing(self._post_query(query)) as response:
-            if response.status_code != 200:
-                self._raise_http_error(response, query=True)
+        with self._post_query(query) as response:
             chunks = response.iter_raw()
             source = io.BufferedReader(_ArrowInput(chunks))
             with source, pa.ipc.open_stream(source) as reader, closing(
